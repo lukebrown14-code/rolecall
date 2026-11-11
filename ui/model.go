@@ -77,9 +77,9 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
-		// An invalid workspace.json must not stop the program: Settings shows it and
-		// offers e. The header has no Track filter until it reads again.
-		m.tracks, m.err = s.Tracks()
+		// An invalid workspace.json stops startup with a sanitised error. Once running,
+		// Settings shows a file that breaks later and offers e.
+		m.tracks, e = s.Tracks()
 	}
 	if e != nil {
 		m.watch.close()

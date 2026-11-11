@@ -223,7 +223,11 @@ func (m model) formBox(p pal, fm *formMode, width int) string {
 		rows[i] = mark + lipgloss.NewStyle().Foreground(labelC).Bold(focused).Width(formLabelWidth).Align(lipgloss.Right).Render(fld.label) + req + " " + val
 		if fld.err != "" {
 			// The error gets its own line under the value, so it is never cut off.
-			rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+			if fld.value == "" {
+				rows[i] = mark + p.text(p.bad).Render(fld.label+": "+fld.err)
+			} else {
+				rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+			}
 		}
 		if fld.label == fieldURL {
 			// Fetch failures and visa/clearance signals sit under the URL; signals are

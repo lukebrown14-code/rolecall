@@ -43,6 +43,7 @@
     }
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-partial",
     "Company": "Fictional Labs",
     "Track": "SWE",
@@ -69,6 +70,7 @@
     }
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-ready",
     "Company": "Fictional Labs",
     "Track": "SWE",
@@ -76,6 +78,8 @@
     "URL": "https://example.test/shared",
     "HasJD": true,
     "HasResume": true,
+    "HasCoverLetter": true,
+    "CoverLetterHasText": true,
     "PDFs": [
       "Owner Resume Role.pdf",
       "Owner Role Cover Letter.pdf"
@@ -97,6 +101,7 @@
     "HasSent": true
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-resume-only",
     "Company": "Fictional Labs",
     "Track": "SWE",
@@ -124,6 +129,9 @@
     }
   },
   {
+    "ResumeHasText": true,
+    "CoverLetterHasText": true,
+    "GapsHasText": true,
     "Title": "docs-written",
     "Company": "Fictional Labs",
     "Track": "SWE",

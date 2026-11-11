@@ -36,7 +36,7 @@ func Load(home, dir string) (Config, error) {
 		return c, err
 	}
 	if err := toml.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("%s: %w", path, err)
+		return c, fmt.Errorf("%s: invalid TOML", path)
 	}
 	if dir != "" {
 		c.Workspace = dir

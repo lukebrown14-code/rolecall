@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -94,6 +96,15 @@ func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd 
 	}
 }
 
+// InitGit creates a local repository for a newly initialized Workspace.
+func InitGit(root string) error {
+	cmd := exec.Command("git", "init", "--quiet", root)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
 // editFile opens a file of the Application folder in the Owner's editor. The editor
 // preference may include flags or quoted executable paths, so the filename is passed
 // as a shell positional argument and Application paths remain literal.
@@ -134,3 +145,23 @@ func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays 
 // WithWatch turns on live refresh: the Workspace's job folders are watched and
 // changes are rescanned after a quiet window of the given length.
 func WithWatch(window time.Duration) Option { return func(m *model) { m.watchWindow = window } }
+
+// openPath opens a document or reveals the downloads folder with the desktop launcher.
+func (m model) openPath(folder, path string, reveal bool) tea.Cmd {
+	command, args := desktopCommand(runtime.GOOS, path, reveal)
+	return m.runExternal(folder, command, args...)
+}
+
+func desktopCommand(platform, path string, reveal bool) (string, []string) {
+	switch platform {
+	case "darwin":
+		if reveal {
+			return "open", []string{"-R", path}
+		}
+		return "open", []string{path}
+	case "windows":
+		return "rundll32.exe", []string{"url.dll,FileProtocolHandler", path}
+	default:
+		return "xdg-open", []string{path}
+	}
+}

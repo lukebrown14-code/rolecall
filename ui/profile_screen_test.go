@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -56,6 +57,20 @@ func TestProfileOpensOnFiveFromAnyScreen(t *testing.T) {
 	}
 }
 
+// Switching screens closes an open detail view, so 5 from a detail leaves it behind
+// rather than keeping its keys and its frame.
+func TestProfileScreenKeyClosesAnOpenDetail(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "5"))
+	for _, want := range []string{"5 Profile", "alex.quinn@example.test"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("5 from an open detail lacks %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "‹ esc") {
+		t.Fatalf("the detail view survived 5:\n%s", view)
+	}
+}
+
 // Sections follow the file, a heading added by the Owner is included, and the `#` title is
 // not a section.
 func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
@@ -98,6 +113,27 @@ func TestProfileJKMoveSectionAndContentFollows(t *testing.T) {
 	back := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "j", "k"))
 	if !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
+	}
+}
+
+// Glamour moves a table's links to a footnote unless told to keep them inline, which
+// left the Contact table's Email cell empty and the address below the table.
+func TestProfileContactEmailRendersInlineInTheTable(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	email := "alex.quinn@example.test"
+	cell := ""
+	for _, line := range strings.Split(view, "\n") {
+		_, right, ok := strings.Cut(line, "│")
+		if ok && strings.Contains(right, "Email") {
+			cell = right
+			break
+		}
+	}
+	if !strings.Contains(cell, email) {
+		t.Fatalf("Email cell does not hold the address inline: %q\n%s", cell, view)
+	}
+	if footnote := regexp.MustCompile(`\[\d+\]:`); footnote.MatchString(view) {
+		t.Fatalf("Contact still renders a link footnote:\n%s", view)
 	}
 }
 
@@ -426,15 +462,23 @@ func TestProfileHelpListsOnlyValidKeys(t *testing.T) {
 	}
 }
 
-func TestProfileHelpOmitsEditFileWithNoProfile(t *testing.T) {
+// With no Profile, j, tab and e do nothing, so the help lists only what works.
+func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
 		if err := os.Remove(filepath.Join(root, "profile", "master-profile.md")); err != nil {
 			t.Fatal(err)
 		}
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "5", "?"))
-	if strings.Contains(view, "edit file") {
-		t.Fatalf("help offers e with no Profile:\n%s", view)
+	for _, wanted := range []string{"1-6", "screen", "rescan", "all keys", "quit"} {
+		if !strings.Contains(view, wanted) {
+			t.Fatalf("help lacks %q with no Profile:\n%s", wanted, view)
+		}
+	}
+	for _, unwanted := range []string{"edit file", "j k", "section", "tab", "focus"} {
+		if strings.Contains(view, unwanted) {
+			t.Fatalf("help offers %q with no Profile:\n%s", unwanted, view)
+		}
 	}
 }
 
@@ -466,6 +510,20 @@ func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 	back := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j", "k"))
 	if !strings.Contains(back, " 1/6") || !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
+	}
+}
+
+// With the list hidden there is no second pane to focus, so tab stays on the list and j
+// still changes the section instead of scrolling the content.
+func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "tab", "j"))
+	for _, want := range []string{"2/6", "Full Stack Software Engineer"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("tab then j did not move to Headlines (%q):\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "alex.quinn@example.test") {
+		t.Fatalf("tab then j did not leave Contact:\n%s", view)
 	}
 }
 

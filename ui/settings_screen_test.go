@@ -138,8 +138,13 @@ func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
 }
 
 func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T) {
+	// An invalid file stops startup (the CLI test in cmd/rolecall); here it breaks while
+	// rolecall is running, for example after e.
 	bad := `{"tracks":`
-	h := newSettingsHarness(t, 120, bad, func(string) {})
+	h := newSettingsHarness(t, 120, `{}`, func(string) {})
+	h.tm.Type("6")
+	writeWorkspaceFile(t, h.root, bad)
+	h.tm.Type("1")
 	h.tm.Type("6")
 	v := h.tm.plain()
 	requireAll(t, v, filepath.Join(h.root, "workspace.json"), "unexpected end of JSON input", "e", "edit")

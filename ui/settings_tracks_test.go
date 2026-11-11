@@ -104,7 +104,10 @@ func TestSettingsReorderTracks(t *testing.T) {
 }
 
 func TestSettingsTrackKeysNeverWriteInvalidJSON(t *testing.T) {
-	h := newSettingsHarness(t, 120, `{"tracks": [`, nil)
+	h := newSettingsHarness(t, 120, `{}`, nil)
+	h.tm.Type("6")
+	writeWorkspaceFile(t, h.root, `{"tracks": [`)
+	h.tm.Type("1")
 	h.tm.Type("6")
 	h.tm.Type("a")
 	if h.file() != `{"tracks": [` {
