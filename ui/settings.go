@@ -40,6 +40,9 @@ type settingsState struct {
 	group int
 	row   int
 	focus int // settingsList or settingsRows
+
+	editing bool   // a text setting is open for editing
+	input   string // what the Owner has typed so far
 }
 
 // loadSettings re-reads workspace.json. It runs on entering the screen, on r and after
@@ -85,6 +88,7 @@ func (m model) settingsRows(group int) []settingRow {
 		{"Downloads", orNone(m.downloads)},
 		{"Harness", orNone(m.harness)},
 		{"Plugin", orNone(m.plugin)},
+		{"ASCII glyphs", yesNo(m.ascii)},
 	}
 }
 
@@ -127,6 +131,9 @@ func (m model) settingsHelpKeys() []helpKey {
 // settingsKey handles the keys Settings accepts. It never writes: e hands workspace.json
 // to the Owner's editor and the screen re-reads when it exits.
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.settings != nil && m.settings.editing {
+		return m.settingsEditKey(k)
+	}
 	switch k.String() {
 	case "r":
 		m.rescanAll()
@@ -147,6 +154,10 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	st := *m.settings
 	switch k.String() {
+	case "enter":
+		if st.focus == settingsRows {
+			return m.activateSetting()
+		}
 	case "tab", "shift+tab":
 		st.focus = (st.focus + 1) % settingsPanes
 	case "down", "j":
@@ -232,7 +243,7 @@ func (m model) settingsBody(p pal, w, h int) string {
 // only while the settings pane has focus.
 func (m model) settingsRowsView(p pal, width int) string {
 	var lines []string
-	for i, r := range m.settingsRows(m.settings.group) {
+	for i, r := range m.settingsRowsShown(m.settings.group) {
 		mark, label := "  ", p.text(p.dim).Render(r.label)
 		if m.settings.focus == settingsRows && i == m.settings.row {
 			mark, label = profileMarker, p.text(p.accent).Bold(true).Render(r.label)

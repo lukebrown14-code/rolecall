@@ -35,6 +35,8 @@ type model struct {
 	err                   error
 	width                 int
 	followUpDays          int
+	configHome            string // where config.toml lives; empty means machine settings cannot be saved
+	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
 	now                   func() time.Time
 	editor                string
 	external              ExternalRunner
@@ -240,6 +242,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if m.settingsEditing() {
+			return m.settingsEditKey(k) // typing owns every key, digits and esc included
+		}
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil
