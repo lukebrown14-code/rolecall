@@ -8,6 +8,8 @@ tone-layering / writer-rules promises drifting while the documents still build.
 import re
 from pathlib import Path
 
+from test_personal_data import PERSONAL
+
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugin"
 STYLE = PLUGIN / "styles" / "au.md"
@@ -15,24 +17,6 @@ RULES = PLUGIN / "writing-rules.md"
 PREPARE = PLUGIN / "skills" / "prepare-documents" / "SKILL.md"
 
 PROSE = [STYLE, RULES, PREPARE]
-
-# Facts that belonged to the dashboard-era Owner, not to the plugin. None of
-# these may appear anywhere the code repo ships.
-PERSONAL = [
-    r"\bLuke\b",
-    r"\bBrown\b",
-    r"lukebrown",
-    r"\bRoke\b",
-    r"AudioConnect",
-    r"\bMelbourne\b",
-    r"\b417\b",
-    r"subclass",
-    r"anz-software-engineer",
-    r"national-security",
-    r"[\w.+-]+@[\w-]+\.[\w.]+",
-    r"\+61",
-    r"linkedin\.com/in/",
-]
 
 # Dashboard-era file names and paths the plugin no longer has.
 RETIRED = [

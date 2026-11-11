@@ -66,10 +66,7 @@ class Identity:
         return [f for f in REQUIRED if not self.get(f)]
 
     def contact_line(self, github=True):
-        """Line one of the header: email, phone, location, LinkedIn, and GitHub.
-
-        GitHub is omitted for the Analyst track (build.py passes github=False).
-        """
+        """Line one of the header: email, phone, location, LinkedIn, and GitHub."""
         parts = [self.get("Email"), self.get("Phone"), self.get("Location"), self.get("LinkedIn")]
         if github and self.get("GitHub"):
             parts.append(self.get("GitHub"))

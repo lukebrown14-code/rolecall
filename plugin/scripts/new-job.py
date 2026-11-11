@@ -36,9 +36,9 @@ LOGIN_WALLED = ("seek.com.au", "linkedin.com", "glassdoor.com", "indeed.com")
 # Phrases that decide an application before the writing starts. Detected at
 # capture so a blocker is known before any time goes into tailoring.
 #
-# BLOCKERS are near-certain rejections for a working-holiday visa: AU security
-# clearance requires citizenship, and a stated refusal to sponsor makes the
-# six-month cap terminal for a permanent role.
+# BLOCKERS are near-certain rejections for a short-contract visa: AU security
+# clearance requires citizenship, and a stated refusal to sponsor makes a term
+# limit terminal for a permanent role.
 DEFAULT_BLOCKERS = [
     (r"australian citizens?(hip)?\b", "requires Australian citizenship"),
     (
@@ -58,21 +58,21 @@ DEFAULT_BLOCKERS = [
     ),
     (
         r"unrestricted work(ing)? rights|full working rights without restriction",
-        "asks for unrestricted work rights (working-holiday visas cap at six months per employer)",
+        "asks for unrestricted work rights (short-contract visas have a term limit)",
     ),
 ]
 
-# FAVOURABLE signals: a contract at or under six months fits a working-holiday
-# visa exactly, with no awkward conversation needed.
+# FAVOURABLE signals: a short contract fits a short-contract visa exactly, with
+# no awkward conversation needed.
 DEFAULT_FAVOURABLE = [
     (
         r"\b(3|three|6|six)[\s-]months?\s+(contract|fixed|initial|engagement|assignment|term|temporary|rolling)"
         r"|\b(contract|term|engagement|assignment)\s+(of|for)\s+(up to\s+)?(3|three|6|six)\s+months",
-        "short contract term — fits within a six-month cap",
+        "short contract term — suits a short-contract visa",
     ),
     (
         r"\bcontract\b|\bfixed[\s-]term\b|\bday rate\b|\bcontractor\b",
-        "contract role — the six-month cap is a non-issue",
+        "contract role — the contract-term limit is a non-issue",
     ),
 ]
 
@@ -184,11 +184,6 @@ class TextExtractor(HTMLParser):
         out = " ".join(self.parts)
         out = re.sub(r" *\n *", "\n", out)
         return re.sub(r"\n{3,}", "\n\n", out).strip()
-
-
-def slugify(s):
-    s = re.sub(r"[^\w\s-]", "", s.strip().lower())
-    return re.sub(r"[\s_-]+", "-", s).strip("-") or "untitled"
 
 
 ATS_HOSTS = (
@@ -686,7 +681,11 @@ def main():
     except meta_store.MetaError as error:
         sys.exit(f"rolecall: {error}")
 
-    (folder / "jd.md").write_text(jd.strip() + "\n")
+    try:
+        (folder / "jd.md").write_text(jd.strip() + "\n")
+    except OSError as error:
+        print(f"rolecall: created {folder} but could not write jd.md: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
 
     relative = folder.relative_to(workspace)
     print(f"\nCreated {relative}")

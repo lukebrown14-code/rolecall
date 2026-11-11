@@ -6,10 +6,9 @@ exit codes and stdout; nothing imports the script.
 """
 
 import re
-import shutil
-import subprocess
-import sys
 from pathlib import Path
+
+from conftest import copy_fixture_workspace, run_script
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATE = ROOT / "plugin" / "scripts" / "migrate.py"
@@ -22,20 +21,6 @@ ARCHIVE_FILES = [
     "INBOX.md",
     "sweep-candidates.md",
 ]
-
-
-def copy_workspace(tmp_path):
-    workspace = tmp_path / "workspace"
-    shutil.copytree(FIXTURE, workspace)
-    return workspace
-
-
-def run(workspace, *args):
-    return subprocess.run(
-        [sys.executable, str(MIGRATE), "--data", str(workspace), *args],
-        capture_output=True,
-        text=True,
-    )
 
 
 def snapshot(root):
@@ -62,10 +47,10 @@ def entry(text, status):
 
 
 def test_dry_run_writes_nothing_and_lists_the_whole_plan(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     before = snapshot(workspace)
 
-    result = run(workspace, "--dry-run")
+    result = run_script(workspace, MIGRATE, "--dry-run")
 
     assert result.returncode == 0, result.stderr
     assert snapshot(workspace) == before
@@ -108,9 +93,9 @@ def test_dry_run_writes_nothing_and_lists_the_whole_plan(tmp_path):
 
 
 def test_apply_maps_tracker_statuses_and_writes_schema_one(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     acme = meta(workspace, "jobs/SWE/acme-dev-2026-01-01")
@@ -142,28 +127,35 @@ def test_apply_maps_tracker_statuses_and_writes_schema_one(tmp_path):
 
 
 def test_bulk_stamped_logs_get_an_approximate_applied_entry(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
-    # A single non-Applied bulk stamp is replaced by Applied at the legacy
-    # `applied` date (preferred over the tracker Date), then the mapped Status.
+    # A single non-Applied bulk stamp is kept, and Applied is prepended at the
+    # legacy `applied` date (preferred over the tracker Date). The mapped
+    # tracker Status (Applied) differs from the kept Draft, so it is appended
+    # and the store reads the Application on its tracker Status. The preserved
+    # Draft entry gains approx for its bare date.
     initech = meta(workspace, "jobs/SWE/initech-analyst-2026-03-01")
-    assert statuses(initech) == [("Applied", "2026-02-20", ", approx: true")]
+    assert statuses(initech) == [
+        ("Applied", "2026-02-20", ", approx: true"),
+        ("Draft", "2026-03-05", ", approx: true"),
+        ("Applied", "2026-03-01", ", approx: true"),
+    ]
 
     # A single Applied stamp is kept, and the mapped Status is appended.
     globex = meta(workspace, "jobs/SWE/globex-engineer-2026-02-01")
     assert statuses(globex) == [
-        ("Applied", "2026-01-20", None),
+        ("Applied", "2026-01-20", ", approx: true"),
         ("Interviewing", "2026-02-01", ", approx: true"),
     ]
 
 
 def test_legacy_keys_and_comments_survive(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     text = meta(workspace, "jobs/SWE/initech-analyst-2026-03-01")
@@ -183,11 +175,11 @@ def test_legacy_keys_and_comments_survive(tmp_path):
 
 
 def test_jd_front_matter_is_removed_and_the_body_is_byte_identical(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     original = (workspace / "jobs/SWE/acme-dev-2026-01-01/jd.md").read_bytes()
     body = original.split(b"---\n", 2)[2]
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     migrated = (workspace / "jobs/SWE/acme-dev-2026-01-01/jd.md").read_bytes()
@@ -197,9 +189,9 @@ def test_jd_front_matter_is_removed_and_the_body_is_byte_identical(tmp_path):
 
 
 def test_shortlist_new_rows_become_leads_and_passed_rows_are_dropped(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     first = workspace / "jobs/SWE/northwind-platform-engineer-2026-09-01"
@@ -210,7 +202,7 @@ def test_shortlist_new_rows_become_leads_and_passed_rows_are_dropped(tmp_path):
     assert 'company: "Northwind"' in text
     assert 'track: "SWE"' in text
     assert "https://example.test/jobs/short-new" in text
-    assert statuses(text) == [("Lead", "2026-09-01", None)]
+    assert statuses(text) == [("Lead", "2026-09-01", ", approx: true")]
     assert "https://example.test/jobs/short-new" in (first / "jd.md").read_text()
     assert "Strong team, good stack" in (first / "jd.md").read_text()
     assert (first / "jd.md").read_text().startswith("# ")
@@ -220,9 +212,9 @@ def test_shortlist_new_rows_become_leads_and_passed_rows_are_dropped(tmp_path):
 
 
 def test_dismissed_rows_become_one_approximate_dismissed_entry(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     folder = workspace / "jobs/SWE/initech-site-reliability-engineer-2026-08-15"
@@ -234,24 +226,24 @@ def test_dismissed_rows_become_one_approximate_dismissed_entry(tmp_path):
 
 
 def test_unmappable_fit_is_reported_and_not_written(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
 
-    dry = run(workspace, "--dry-run")
+    dry = run_script(workspace, MIGRATE, "--dry-run")
     assert dry.returncode == 0, dry.stderr
     assert "Maybe later" in dry.stdout
     assert "unmappable" in dry.stdout.lower()
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
     assert result.returncode == 0, result.stderr
     text = meta(workspace, "jobs/SWE/cyberdyne-ml-2026-08-01")
     assert "fit:" not in text
 
 
 def test_archive_files_move_and_nothing_is_deleted(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     before = snapshot(workspace)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode == 0, result.stderr
     archive = workspace / "jobs" / "_archive"
@@ -274,12 +266,12 @@ def test_archive_files_move_and_nothing_is_deleted(tmp_path):
 
 
 def test_malformed_meta_aborts_before_any_write(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     bad = workspace / "jobs/SWE/globex-engineer-2026-02-01/meta.yml"
     bad.write_text("title: Only a title\n")
     before = snapshot(workspace)
 
-    result = run(workspace)
+    result = run_script(workspace, MIGRATE)
 
     assert result.returncode != 0
     assert result.stderr.strip()
@@ -287,14 +279,99 @@ def test_malformed_meta_aborts_before_any_write(tmp_path):
 
 
 def test_second_run_changes_nothing(tmp_path):
-    workspace = copy_workspace(tmp_path)
-    first = run(workspace)
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    first = run_script(workspace, MIGRATE)
     assert first.returncode == 0, first.stderr
     once = snapshot(workspace)
 
-    second = run(workspace)
+    second = run_script(workspace, MIGRATE)
 
     assert second.returncode == 0, second.stderr
     assert snapshot(workspace) == once
     assert "no changes" in second.stdout.lower()
     assert not list((workspace / "jobs").glob("*/.meta-*"))
+
+
+def test_every_date_only_migrated_entry_carries_approx(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    result = run_script(workspace, MIGRATE)
+    assert result.returncode == 0, result.stderr
+
+    for path in (workspace / "jobs").glob("*/*/meta.yml"):
+        for status, at, approx in statuses(path.read_text()):
+            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", at):
+                assert approx == ", approx: true", f"{path}: {status} {at} has no approx"
+
+
+def test_lead_maps_and_unknown_status_is_reported_and_skipped(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    ghosted = workspace / "jobs/SWE/fictional-ghosted-2026-09-02"
+    ghosted.mkdir()
+    (ghosted / "jd.md").write_text(
+        "---\nrole: Ghosted Role\ncompany: Fictional\n---\nGhosted body.\n"
+    )
+    tracker = workspace / "jobs" / "TRACKER.md"
+    tracker.write_text(
+        tracker.read_text()
+        + "| 2026-09-02 | Fictional | Ghosted Role | SWE | Strong | Ghosted | 0 | "
+        "https://example.test/jobs/fictional-ghosted | "
+        "`jobs/SWE/fictional-ghosted-2026-09-02` |\n"
+    )
+    before_jd = (ghosted / "jd.md").read_bytes()
+
+    dry = run_script(workspace, MIGRATE, "--dry-run")
+    assert dry.returncode == 0, dry.stderr
+    assert "Ghosted" in dry.stdout
+    assert "unknown" in dry.stdout.lower()
+
+    result = run_script(workspace, MIGRATE)
+    assert result.returncode == 0, result.stderr
+
+    lead = meta(workspace, "jobs/SWE/fictional-lead-2026-09-03")
+    assert statuses(lead) == [("Lead", "2026-09-03", ", approx: true")]
+
+    # The unknown Status skips the whole folder: no meta.yml, jd front matter
+    # left in place.
+    assert not (ghosted / "meta.yml").exists()
+    assert (ghosted / "jd.md").read_bytes() == before_jd
+
+
+def test_folder_without_a_tracker_row_defaults_to_an_approximate_lead(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    orphan = workspace / "jobs" / "SWE" / "orphan-2026-09-10"
+    orphan.mkdir()
+    (orphan / "jd.md").write_text(
+        "---\nrole: Orphan Role\ncompany: Fictional\n---\nOrphan role body.\n"
+    )
+
+    result = run_script(workspace, MIGRATE)
+
+    assert result.returncode == 0, result.stderr
+    text = (orphan / "meta.yml").read_text()
+    assert statuses(text) == [("Lead", "2026-09-10", ", approx: true")]
+
+
+def test_empty_fit_cell_is_silently_not_assessed(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    dry = run_script(workspace, MIGRATE, "--dry-run")
+    assert dry.returncode == 0, dry.stderr
+    # Only the free-text "Maybe later" (Cyberdyne) is unmappable; the "—" Fit
+    # on the Fictional Lead row means "not assessed" and is not reported.
+    assert dry.stdout.lower().count("unmappable") == 1
+    assert "cyberdyne" in dry.stdout.lower()
+
+    result = run_script(workspace, MIGRATE)
+    assert result.returncode == 0, result.stderr
+    assert "fit:" not in meta(workspace, "jobs/SWE/fictional-lead-2026-09-03")
+
+
+def test_no_configured_tracks_reports_and_skips_new_rows(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    (workspace / "workspace.json").write_text("{}")
+
+    result = run_script(workspace, MIGRATE)
+
+    assert result.returncode == 0, result.stderr
+    assert "no tracks" in result.stdout
+    assert not (workspace / "jobs/SWE/northwind-platform-engineer-2026-09-01").exists()
+    assert not (workspace / "jobs/SWE/initech-site-reliability-engineer-2026-08-15").exists()

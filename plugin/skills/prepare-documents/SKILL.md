@@ -134,9 +134,6 @@ Fix the document and build again until it prints `built …`. The hard gates are
 Page count is a **warning**, not a failure: the AU norm is two pages (three for senior roles), and
 a one-page resume reads as junior. Fix it with content, not by shrinking the template.
 
-`python3 plugin/scripts/build.py <job_dir> --data <workspace> --check` runs the same gates and
-writes nothing — useful while iterating, but the real build is what proves the PDFs exist.
-
 ## 9. Writer rules
 
 - **Never append to `status_log` from this skill.** `build.py` appends `Draft` on its own when the
