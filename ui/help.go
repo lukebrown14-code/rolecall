@@ -62,8 +62,18 @@ func (m model) helpKeys() []helpKey {
 	} else {
 		keys = append(keys, help(groupOther, "←/→", "tabs"), help(groupOther, "↑↓", "scroll"))
 	}
-	if onRow {
-		keys = append(keys, help(groupRow, "e", "edit"), help(groupRow, "m", "move"), help(groupRow, "u", "undo"))
+	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
+	usable := !onRow || a.Malformed == nil
+	if onRow && m.detail == nil {
+		keys = append(keys, help(groupRow, "v/Enter", "detail"))
+	}
+	if onRow && usable {
+		keys = append(keys, help(groupRow, "e", "edit"), help(groupRow, "m", "move"))
+	}
+	if usable && len(m.undo) > 0 {
+		keys = append(keys, help(groupRow, "u", "undo"))
+	}
+	if onRow && usable {
 		if m.detail == nil && (a.Status == "Lead" || a.Status == "Draft") {
 			keys = append(keys, help(groupRow, "x", "dismiss"))
 		}

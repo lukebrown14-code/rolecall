@@ -5,6 +5,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/store"
 	"path/filepath"
 	"strings"
@@ -350,7 +351,8 @@ func (m model) View() tea.View {
 	b.WriteString("\n" + headerStyle.Render(lines[0]) + "\n")
 	for i, row := range lines[1:] {
 		if i == m.cursor {
-			row = selectedStyle.Render(row)
+			// The bar spans the terminal, not just the cell text; width-aware so ⚑ and — count once.
+			row = selectedStyle.Render(row + strings.Repeat(" ", max(0, m.width-ansi.StringWidth(row))))
 		}
 		b.WriteString(row + "\n")
 	}
