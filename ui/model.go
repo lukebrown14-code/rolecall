@@ -3,9 +3,7 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	huh "charm.land/huh/v2"
 	"fmt"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/store"
 	"path/filepath"
 	"strings"
@@ -13,7 +11,14 @@ import (
 )
 
 var screens = []string{"Leads", "Draft", "Applied"}
-var tables = [][]string{{"Leads", "Dismissed"}, {"Draft"}, {"Applied", "Interviewing", "Offer", "Closed"}}
+
+// allView is the Applied screen's first view: every Application past Draft, one
+// section per table in appliedGroups order.
+const allView = "All"
+
+var tables = [][]string{{"Leads", "Dismissed"}, {"Draft"}, {allView, "Applied", "Interviewing", "Offer", "Closed"}}
+
+var appliedGroups = []string{"Applied", "Interviewing", "Offer", "Closed"}
 
 // defaultFollowUpDays applies when the Owner configures none.
 const defaultFollowUpDays = 14
@@ -28,17 +33,17 @@ type model struct {
 	filtering             bool
 	full                  bool
 	options               []string
-	moveForm              *huh.Form
-	moveTarget            string
-	addForm               *huh.Form
-	addValues             *addValues
+	moveSel               int    // highlighted entry in the Move pop-up
+	moveTarget            string // folder the Move pop-up acts on
+	form                  *form  // Add/Edit pop-up
 	editOf                *store.Application
 	duplicate             *store.Application
 	duplicateFields       store.CreateFields
 	selectAfter           string
 	confirm               *pendingMove
 	undo                  []undoMove
-	toast                 string
+	toast                 string // feedback line: what just happened (cleared on the next key)
+	toastHint             string // key hint shown with it, e.g. "u undo"
 	err                   error
 	width                 int
 	followUpDays          int
@@ -95,17 +100,43 @@ func (m model) quit() tea.Cmd {
 		return tea.QuitMsg{}
 	}
 }
-func (m model) rows() []store.Application {
+
+// rows is the active view in display order: the cursor indexes into it.
+func (m model) rows() []store.Application { return m.rowsOf(m.screen, tables[m.screen][m.table]) }
+
+// rowsOf lists one view of a screen. All groups the Applied screen's tables in
+// appliedGroups order; Leads and Draft put expired close dates last.
+func (m model) rowsOf(screen int, table string) []store.Application {
+	if table == allView {
+		var out []store.Application
+		for _, g := range appliedGroups {
+			out = append(out, m.rowsOf(screen, g)...)
+		}
+		return out
+	}
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[m.screen] && t == tables[m.screen][m.table] && m.matches(a) {
+		if s == screens[screen] && t == table && m.matches(a) {
 			out = append(out, a)
 		}
 	}
-	SortApplications(out, tables[m.screen][m.table])
+	SortApplications(out, table)
+	if table == "Leads" || table == "Draft" {
+		var live, old []store.Application
+		for _, a := range out {
+			if m.expired(a) {
+				old = append(old, a)
+			} else {
+				live = append(live, a)
+			}
+		}
+		out = append(live, old...)
+	}
 	return out
 }
+
+func (m model) count(screen int, table string) int { return len(m.rowsOf(screen, table)) }
 func (m model) matches(a store.Application) bool {
 	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
 }
@@ -134,27 +165,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectAfter = ""
 		}
 	}
-	if m.addForm != nil {
+	if m.form != nil {
 		return m.updateAdd(msg)
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
 		return m.updateDuplicate(k)
 	}
-	if m.moveForm != nil {
-		if _, key := msg.(tea.KeyPressMsg); !key {
-			updated, cmd := m.moveForm.Update(msg)
-			m.moveForm = updated.(*huh.Form)
-			if m.moveForm.State == huh.StateCompleted {
-				m.moveCurrent(m.moveForm.GetString("status"))
-				m.options = nil
-				m.moveForm = nil
-			}
-			return m, cmd
-		}
-	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
+		}
+		// The feedback line: a success clears on the next key; an error stays until esc.
+		m.toast, m.toastHint = "", ""
+		if k.String() == "esc" && m.err != nil && !m.overlayOpen() {
+			m.err = nil
+			return m, nil
+		}
+		if m.full {
+			m.full = false // any key closes the help pop-up
+			return m, nil
 		}
 		if m.pendingDownload != nil {
 			return m, m.answerDownload(k.String())
@@ -191,27 +220,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if len(m.options) > 0 {
-			if k.String() == "esc" {
-				m.options = nil
-				m.moveForm = nil
-				return m, nil
-			}
-			for _, status := range m.options {
-				if statusLetters[status] == k.String() {
-					m.moveCurrent(status)
-					m.options = nil
-					m.moveForm = nil
-					return m, nil
-				}
-			}
-			updated, cmd := m.moveForm.Update(msg)
-			m.moveForm = updated.(*huh.Form)
-			if m.moveForm.State == huh.StateCompleted {
-				m.moveCurrent(m.moveForm.GetString("status"))
-				m.options = nil
-				m.moveForm = nil
-			}
-			return m, cmd
+			return m.moveKey(k.String()), nil
 		}
 
 		if m.detail != nil {
@@ -232,12 +241,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				} else {
 					m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
-					opts := make([]huh.Option[string], 0, len(m.options))
-					for _, status := range m.options {
-						opts = append(opts, huh.NewOption(statusLetters[status]+" "+status, status))
-					}
-					m.moveForm = huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Key("status").Title("Move").Options(opts...))).WithShowHelp(false).WithShowErrors(false)
-					return m, m.moveForm.Init()
+					m.moveSel, m.moveTarget = 0, a.Folder
+					return m, nil
 				}
 			}
 		case "u":
@@ -291,7 +296,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "G":
 			m.cursor = len(m.rows()) - 1
 		case "?":
-			m.full = !m.full
+			m.full = true
 		case "n":
 			if a, ok := m.current(); ok {
 				return m, m.editNotes(a.Folder)
@@ -313,72 +318,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 	}
 	return m, nil
-}
-func (m model) View() tea.View {
-	if m.detail != nil {
-		return tea.NewView(m.detailView())
-	}
-	var b strings.Builder
-	b.WriteString(headerStyle.Render(screens[m.screen]) + "\n")
-	for i, t := range tables[m.screen] {
-		count := 0
-		for _, a := range m.apps {
-			s, tbl := StatusLocation(a.Status)
-			if s == screens[m.screen] && tbl == t && m.matches(a) {
-				count++
-			}
-		}
-		label := fmt.Sprintf("%s (%d)", t, count)
-		if i == m.table {
-			label = headerStyle.Render(label)
-		}
-		b.WriteString(label + "  ")
-	}
-	table := tables[m.screen][m.table]
-	headers := []string{"Title", "Company", "Track"}
-	switch table {
-	case "Leads":
-		headers = append(headers, "Closes", "Fit")
-	case "Draft":
-		headers = append(headers, "Closes", "Fit", "Docs")
-	case "Dismissed":
-		headers = append(headers, "Dismissed date")
-	default:
-		headers = append(headers, "Applied", "Fit", "Docs", "Follow-up")
-	}
-	cells := [][]string{headers}
-	for _, a := range m.rows() {
-		cells = append(cells, ApplicationColumns(a, table, m.now(), m.followUpDays))
-	}
-	lines := RenderColumns(cells, m.width)
-	b.WriteString("\n" + headerStyle.Render(lines[0]) + "\n")
-	for i, row := range lines[1:] {
-		if i == m.cursor {
-			// The bar spans the terminal, not just the cell text; width-aware so ⚑ and — count once.
-			row = selectedStyle.Render(row + strings.Repeat(" ", max(0, m.width-ansi.StringWidth(row))))
-		}
-		b.WriteString(row + "\n")
-	}
-	if line := m.filterLine(); line != "" {
-		b.WriteString(line + "\n")
-	}
-	if len(m.options) > 0 {
-		b.WriteString(m.moveView())
-	}
-	b.WriteString(m.addView())
-	if m.confirm != nil {
-		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
-	}
-	b.WriteString(m.downloadPrompt())
-	if m.toast != "" {
-		b.WriteString(m.toast + "\n")
-	}
-	b.WriteString(m.rowHelp())
-	if m.err != nil {
-		b.WriteString(m.err.Error() + "\n")
-	}
-	b.WriteString(m.otherHelp())
-	return tea.NewView(plainStyle.Render(b.String()))
 }
 
 // cursorFolder is the folder of the row under the cursor, or "" when the table is empty.

@@ -97,6 +97,13 @@ func (h *reviewHarness) finish() string {
 	return ansi.Strip(h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content)
 }
 
+// rawFinish quits and returns the final screen with its styling, for checks that read it.
+func (h *reviewHarness) rawFinish() string {
+	h.t.Helper()
+	h.tm.Type("q")
+	return h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+}
+
 func (h *reviewHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
 
 // The popup's default for a Dismissed row is the Status before the last Dismissed entry, however
@@ -117,7 +124,7 @@ func TestRestoreDefaultsToStatusBeforeTheLastDismissedEntry(t *testing.T) {
 func TestRestoreAfterDismissRestoreUndoReturnsToEarlierStatus(t *testing.T) {
 	h := newReviewHarness(t, entry("Draft", "01"), map[string]string{})
 	h.tm.Type("2")
-	h.waitOutput("Draft (1)")
+	h.waitOutput("Draft 1")
 	h.tm.Type("x")
 	h.waitForLogLength(2)
 	h.tm.Type("1")
@@ -147,14 +154,14 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(filepath.Join(h.folder, "resume.md"), 0o644) })
 	h.tm.Type("2")
-	h.waitOutput("Draft (1)")
+	h.waitOutput("Draft 1")
 	h.tm.Type("ma")
-	h.waitOutput("Docs not Ready")
+	h.waitOutput("Docs not built")
 	h.tm.Type("y")
 	h.waitForLogLength(2)
 	h.tm.Type("u")
 	view := h.finish()
-	if !strings.Contains(view, "permission denied") || strings.Contains(view, "Moved to Applied") {
+	if !strings.Contains(view, "permission denied") || strings.Contains(view, "→ Applied") {
 		t.Fatalf("want the copy error and no toast, got:\n%s", view)
 	}
 	if got := h.lastStatus(); got != "Applied" {
@@ -170,7 +177,7 @@ func TestRescanReloadsTracks(t *testing.T) {
 	}
 	h.tm.Type("r")
 	h.tm.Type("ttt")
-	if view := h.finish(); !strings.Contains(view, "Track: Data") {
+	if view := h.rawFinish(); activeTrack(view) != "Data" {
 		t.Fatalf("new track not selectable after r:\n%s", view)
 	}
 }
@@ -183,7 +190,7 @@ func TestRescanDropsFilterOnARemovedTrack(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.tm.Type("r")
-	if view := h.finish(); !strings.Contains(view, "Track: All") {
+	if view := h.rawFinish(); activeTrack(view) != "All" {
 		t.Fatalf("filter kept a removed track:\n%s", view)
 	}
 }
@@ -209,15 +216,15 @@ func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 	t.Run("add form", func(t *testing.T) {
 		h := newReviewHarness(t, entry("Lead", "01"), map[string]string{"workspace.json": `{"tracks":["SWE"]}`})
 		h.tm.Type("a")
-		h.waitOutput("Title*")
+		h.waitOutput("Title")
 		assertHidden(t, "add form", h.finish())
 	})
 	t.Run("not ready prompt", func(t *testing.T) {
 		h := newReviewHarness(t, entry("Draft", "01"), map[string]string{})
 		h.tm.Type("2")
-		h.waitOutput("Draft (1)")
+		h.waitOutput("Draft 1")
 		h.tm.Type("ma")
-		h.waitOutput("Docs not Ready")
+		h.waitOutput("Docs not built")
 		assertHidden(t, "prompt", h.finish())
 	})
 	t.Run("filter input", func(t *testing.T) {
@@ -236,7 +243,7 @@ func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 		h := newReviewHarness(t, entry("Lead", "01"), map[string]string{})
 		h.tm.Type("?")
 		view := h.finish()
-		for _, want := range []string{"Full help", "e edit", "m move", "x dismiss", "q/Ctrl-C quit"} {
+		for _, want := range []string{"Keys", "e edit", "m move", "x dismiss", "quit"} {
 			if !strings.Contains(view, want) {
 				t.Errorf("full help lacks %q:\n%s", want, view)
 			}

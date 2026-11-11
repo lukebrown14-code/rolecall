@@ -60,9 +60,9 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 
 ### Stack
 
-Go · Bubble Tea · Bubbles (table, viewport, help, key) · Lip Gloss (layout only in v0.1) ·
-Huh (forms, move popup) · Glamour (Markdown in the detail view) · fsnotify · a TOML reader for
-config. Use the latest stable major versions at setup.
+Go · Bubble Tea · Bubbles (viewport, help, key) · Lip Gloss (layout, colour and layered
+pop-ups from v0.1.1) · Glamour (Markdown in the detail view) · fsnotify · a TOML reader for
+config. v0.1 used Huh for the forms and move popup; v0.1.1 draws them itself (see below). Use the latest stable major versions at setup.
 
 ### Config
 
@@ -83,7 +83,7 @@ If there is no workspace, rolecall exits with a one-line message naming the conf
 |---|---|---|---|
 | `1` | Leads | **Leads** │ **Dismissed** | Lead │ Dismissed |
 | `2` | Draft | — | Draft |
-| `3` | Applied | **Applied** │ **Interviewing** │ **Offer** │ **Closed** | Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
+| `3` | Applied | **All** │ **Applied** │ **Interviewing** │ **Offer** │ **Closed** | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
 | `4` | *(reserved: Stats, v0.2)* | | |
 
 Each table shows a count in its tab label. The active screen and table stay put across
@@ -98,6 +98,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first |
 
 - **Docs:** `●` Ready · `○` Written · blank (SCHEMA → Documents state). Glyphs only in v0.1; colour comes in v0.1.1.
+- **v0.1.1** shows these as two-line rows with relative dates; see **v0.1.1 look**.
 - **Follow-up:** `⚑` when the Status is Applied or Interviewing and the last change is more than `follow_up_days` old.
 - **Fit:** the enum word, or `—`.
 - **Malformed** `meta.yml`: the row shows `⚠` and the folder name. The detail view shows the path and why parsing failed.
@@ -145,10 +146,10 @@ Lists **every Status except the current one**, likely next steps first, each wit
 Letters stay fixed per Status across all rows: `l` Lead, `d` Draft, `a` Applied,
 `i` Interviewing, `o` Offer, `r` Rejected, `w` Withdrawn, `x` Dismissed. Pressing a letter
 appends to `status_log` (SCHEMA rules) and closes the popup. The row then moves to its new
-table, and a one-line toast says `Moved to Interviewing · u to undo`.
+table, and the feedback line says `<Title> → Interviewing` with `u undo`.
 
 **Side effects when moving to Applied:**
-1. If the documents are not Ready, ask first: `Docs not Ready. Mark Applied anyway? y/n`.
+1. If the documents are not Ready, ask first: a `⚠ Docs not built` pop-up, `y` mark Applied, `n`/`Esc` cancel.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
@@ -156,8 +157,9 @@ Status (the log stays append-only) and shows a toast. It does not remove `sent/`
 
 ### Add form (`a`)
 
-Huh form fields: **Title*** · **Company*** · **Track*** (select from `workspace.json`) · URL ·
-Closes (`YYYY-MM-DD`) · Fit (select, blank allowed).
+Form fields: **Title*** · **Company*** · **Track** (choice from `workspace.json`) · URL ·
+Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). `Enter` checks the field and moves on;
+on the last field it checks them all and saves. Choices change with `←` `→` (or `↑` `↓`).
 
 On save:
 1. If the URL matches another Application's `url`, warn and offer to open that one instead.
@@ -173,7 +175,8 @@ changed. Changing Track does **not** move the folder.
 ### Detail view (`v` / `Enter`)
 
 Header: `Company · Title`, then `Status · Track · closes <date> · applied <date>`.
-Tabs (`←` `→`): **JD** · **Notes** · **Fit** · **Docs**.
+Tabs (`←` `→`): **JD** · **Fit** · **Notes** · **Docs** (Fit beside JD: they are read together).
+From 100 columns the preview's card (status, documents, timeline, link) stays on the left.
 
 | Tab | Shows | `e` |
 |---|---|---|
@@ -187,8 +190,9 @@ Tabs (`←` `→`): **JD** · **Notes** · **Fit** · **Docs**.
 ### Download (`d`)
 
 Copies every `out/*.pdf` into `downloads` under its existing name (already upload-ready). If a
-file of the same name exists, it is overwritten after a `y/n` prompt. Then the Downloads folder
-is revealed (`open -R` on macOS). Toast: `2 PDFs → ~/Downloads`.
+file of the same name exists, a `⚠ File exists` pop-up asks: `y` overwrite, `a` all (this and
+every later clash), `n` skip, `Esc` stop. Then the Downloads folder is revealed (`open -R` on
+macOS). Feedback line: `Saved 2 PDFs → ~/Downloads`.
 
 ### `$EDITOR` and the v0.2 seam
 
@@ -214,6 +218,31 @@ patch, write atomically. It refuses to touch malformed files and shows the error
 Layout only. Use terminal default colours, plus bold for headers and reverse video for the
 selected row. Put every Lip Gloss style in one file (`internal/ui/styles.go`) as neutral
 styles, so v0.1.1 changes look by editing that file alone.
+
+### v0.1.1 look (built)
+
+Settled with a throwaway prototype (branch `prototype/v011-styling`) and two rounds of
+context-free review. Every colour and style is in `ui/styles.go`.
+
+- **Theme:** dark only; the view paints the terminal background `#0D1117`. Accent **Mint**
+  `#5EEAD4`. Colour always pairs with a word or glyph.
+- **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
+  within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
+  Rejected red. Documents read `● built` (SCHEMA Ready) · `○ written` · `no docs`.
+- **Layout, top to bottom:** screens and the track filter · the screen's views (`Tab`) · the
+  list (with a preview pane from 100 columns) · the feedback line · the key line (actions
+  left, navigation pinned right).
+- **Rows:** two lines (title + right-hand columns, then company · track · dates). A blank
+  line between rows when they all fit; dense when they don't. Right-hand columns are
+  state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
+  Expired Leads and Drafts sort last under an **Expired** section.
+- **Pop-ups:** one template — title in the top border, keys in the bottom border, solid
+  fill, amber border and ⚠ for warnings, the screen behind dimmed. `?` is a pop-up; any
+  key closes it.
+- **Feedback line:** replaces the bottom rule with what just happened. Successes clear on
+  the next key; errors stay until `Esc`. Paths read relative to the Workspace.
+- **Narrow terminals:** the screens row sheds detail, the preview and detail card hide
+  below 100 columns, pop-ups shrink to fit.
 
 ## Plugin (v0.1)
 
@@ -298,8 +327,7 @@ Owner to set by hand.
 ## Later versions (scope only)
 
 ### v0.1.1: styling
-Colour palette and status colours (green `●` Ready, Fit colours, dimmed past dates), light/dark,
-header bar, empty-state messages, layout tweaks, VHS demo GIF. All in `styles.go` plus view tweaks.
+Built: see **v0.1.1 look** above. Dark only (light mode dropped). Still to do: VHS demo GIF.
 
 ### v0.2: harness and extras
 - `f` assess fit, `p` prepare documents: command templates in config, run through `runExternal` (interactive handoff, ADR-0003).

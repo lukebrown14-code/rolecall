@@ -52,7 +52,7 @@ func appliedSession(t *testing.T, root string) (tm *teatest.TestModel, wait func
 	}
 	wait("Leads")
 	tm.Type("2")
-	wait("Draft (1)")
+	wait("Draft 1")
 	return tm, wait
 }
 
@@ -67,19 +67,20 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not Ready. Mark Applied anyway? y/n")
+	wait("Docs not built")
 	tm.Type("n")
 	tm.Type("?")
-	wait("Full help")
+	wait("Keys")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape}) // any key closes the help pop-up
 	got, err := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if err != nil || string(got) != draftMeta {
 		t.Fatalf("declining changed meta.yml: %q %v", got, err)
 	}
 
 	tm.Type("ma")
-	wait("Docs not Ready")
+	wait("Docs not built")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	got, _ = os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -96,7 +97,7 @@ func TestReadyMoveToAppliedHasNoPrompt(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	got, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -151,9 +152,9 @@ func TestAppliedRecordsExactlyTheListedFilesThatExist(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not Ready")
+	wait("Docs not built")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	quit(t, tm)
 
 	want := map[string]string{
@@ -172,13 +173,13 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not Ready")
+	wait("Docs not built")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	tm.Type("3")
-	wait("Applied (1)")
+	wait("Applied 1")
 	tm.Type("mw") // away from Applied
-	wait("Moved to Withdrawn")
+	wait("→ Withdrawn")
 	before := sentFiles(t, folder)
 
 	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("changed"), 0o644); err != nil {
@@ -187,14 +188,14 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(folder, "jd.md"), []byte("new jd"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	tm.Type("r") // rescan so the new files are seen
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+	tm.Type("r")             // rescan so the new files are seen
+	for i := 0; i < 4; i++ { // All → … → Closed
+		tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+	}
 	tm.Type("ma")
-	wait("Docs not Ready")
+	wait("Docs not built")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, before) {
@@ -210,11 +211,11 @@ func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not Ready")
+	wait("Docs not built")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	tm.Type("u")
-	wait("Moved to Draft")
+	wait("back to Draft")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "original"}) {
@@ -251,7 +252,7 @@ func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	tm.Type("ma")
 	tm.Type("q")
 	view := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
-	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not Ready") {
+	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not built") {
 		t.Fatalf("want the store error and no prompt, got:\n%s", view)
 	}
 

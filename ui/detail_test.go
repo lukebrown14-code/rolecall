@@ -58,7 +58,7 @@ func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option)
 		t.Fatal(err)
 	}
 	h.tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
-	h.wait("Leads (4)")
+	h.wait("Leads 4")
 	return h
 }
 
@@ -133,7 +133,7 @@ func TestDetailHeaderWithMissingAppliedDate(t *testing.T) {
 
 func TestDetailHeaderApproximateAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 1, "Engineer #1")
+	h.open("3", 2, "Engineer #1")
 	h.show("Example · Engineer #1", "Interviewing · Unknown · closes — · applied ~2025-01-01")
 }
 
@@ -143,7 +143,7 @@ func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
 		b, _ := os.ReadFile(meta)
 		os.WriteFile(meta, bytes.Replace(b, []byte("track: SWE\n"), []byte("track: SWE\ncloses: 2026-12-01\n"), 1), 0o600)
 	})
-	h.open("3", 0, "Orbit")
+	h.open("3", 1, "Orbit")
 	h.show("Applied · SWE · closes 2026-12-01 · applied 2026-09-25")
 }
 
@@ -152,7 +152,7 @@ func TestDetailJDRendersMarkdown(t *testing.T) {
 		os.WriteFile(filepath.Join(root, "jobs", "SWE", "fern", "jd.md"), []byte("# Platform role\n\nBuild **reliable** systems.\n"), 0o600)
 	})
 	h.open("1", 0, "Fern")
-	if v := h.show("# Platform role", "Build reliable systems."); strings.Contains(v, "**") {
+	if v := h.show("Platform role", "Build reliable systems."); strings.Contains(v, "**") {
 		t.Fatalf("Markdown not rendered:\n%s", v)
 	}
 }
@@ -192,8 +192,8 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No content in jd.md"}},
-		{"notes", 1, []string{"No content in notes.md"}},
-		{"fit", 2, []string{"Fit: —", "No content in fit.md"}},
+		{"fit", 1, []string{"Fit: —", "No content in fit.md"}},
+		{"notes", 2, []string{"No content in notes.md"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newDetailHarness(t, nil)
@@ -213,18 +213,18 @@ func TestDetailNotesAndFitTabsRenderTheirFiles(t *testing.T) {
 		os.WriteFile(filepath.Join(d, "fit.md"), []byte("Strong *platform* match\n"), 0o600)
 	}
 	notes := newDetailHarness(t, setup)
-	notes.open("3", 1, "Engineer #1")
+	notes.open("3", 2, "Engineer #1")
+	notes.key(tea.KeyRight)
 	notes.key(tea.KeyRight)
 	if v := notes.show("Call Tuesday"); strings.Contains(v, "**") {
 		t.Fatalf("notes not rendered:\n%s", v)
 	}
 	fit := newDetailHarness(t, setup)
-	fit.open("3", 1, "Engineer #1")
-	fit.key(tea.KeyRight)
+	fit.open("3", 2, "Engineer #1")
 	fit.key(tea.KeyRight)
 	fit.show("Fit: Good", "Strong platform match")
 	back := newDetailHarness(t, setup)
-	back.open("3", 1, "Engineer #1")
+	back.open("3", 2, "Engineer #1")
 	back.key(tea.KeyRight)
 	back.key(tea.KeyLeft)
 	back.key(tea.KeyLeft)
@@ -236,7 +236,7 @@ func TestDetailEditOpensCurrentTabFile(t *testing.T) {
 		name string
 		tabs int
 		file string
-	}{{"jd", 0, "jd.md"}, {"notes", 1, "notes.md"}, {"fit", 2, "fit.md"}} {
+	}{{"jd", 0, "jd.md"}, {"fit", 1, "fit.md"}, {"notes", 2, "notes.md"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newDetailHarness(t, nil)
 			h.open("1", 0, "Fern")
@@ -264,24 +264,24 @@ func docsTab(h *detailHarness) {
 
 func TestDetailDocsTabListsDocumentSet(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.show("resume.md (present)", "cover-letter.md (absent)", "gaps.md (absent)",
+	h.show("✓ resume.md", "○ cover-letter.md  not written", "○ gaps.md  not written",
 		"out/Owner Resume Role.pdf", "out/Owner Role Cover Letter.pdf", "sent/")
 }
 
 func TestDetailDocsTabOmitsSentWhenAbsent(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 2, "docs-partial")
+	h.open("3", 3, "docs-partial")
 	docsTab(h)
-	if v := h.show("resume.md (present)", "out/Owner Resume Role.pdf"); strings.Contains(v, "sent/") {
+	if v := h.show("✓ resume.md", "out/Owner Resume Role.pdf"); strings.Contains(v, "sent/") {
 		t.Fatalf("sent/ listed although absent:\n%s", v)
 	}
 }
 
 func TestDetailDocsEnterOpensMarkdownInEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	docsTab(h)
 	h.key(tea.KeyEnter)
 	run := h.lastRun()
@@ -293,7 +293,7 @@ func TestDetailDocsEnterOpensMarkdownInEditor(t *testing.T) {
 
 func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	docsTab(h)
 	h.tm.Type("jjj") // past the absent cover letter and gaps
 	h.key(tea.KeyEnter)
@@ -307,11 +307,11 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 
 func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
 	h := newDetailHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	docsTab(h)
 	h.tm.Type("j") // cover-letter.md is absent
 	h.key(tea.KeyEnter)
-	h.show("cover-letter.md does not exist")
+	h.show("cover-letter.md hasn't been written yet")
 	if len(h.runs) != 0 {
 		t.Fatalf("ran %q", h.runs)
 	}
@@ -323,7 +323,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes — · applied —", "Moved to Draft")
+	h.show("Draft · Platform · closes — · applied —", "→ Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -367,7 +367,9 @@ func TestDetailMalformedShowsPathAndError(t *testing.T) {
 	}
 	h.tm.Type("G")
 	h.key(tea.KeyEnter)
-	h.show(filepath.Join(bad.Folder, "meta.yml"), bad.Malformed.Error())
+	// The full path wraps in the pane; its tail names the file.
+	msg := bad.Malformed.Error()
+	h.show(filepath.Join(filepath.Base(bad.Folder), "meta.yml"), msg[strings.LastIndex(msg, "/")+1:])
 }
 
 func TestDetailEscReturnsToSameRow(t *testing.T) {
@@ -391,7 +393,7 @@ func TestDetailEscReturnsToSameRow(t *testing.T) {
 	if got, want := run[len(run)-1], filepath.Join(leads[2].Folder, "notes.md"); got != want {
 		t.Fatalf("acted on %q, want third row %q", got, want)
 	}
-	h.show("Leads (4)")
+	h.show("Leads 4")
 }
 
 func TestDetailKeepsScrollPositionWhenEditorReturns(t *testing.T) {
@@ -412,12 +414,12 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	ask.tm.Type("m")
 	ask.wait("Move")
 	ask.tm.Type("a")
-	ask.show("Docs not Ready. Mark Applied anyway? y/n", "Draft · ")
+	ask.show("Docs not built", "Draft · ")
 
 	yes := newDetailHarness(t, nil)
 	yes.open("2", 0, "docs-none")
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "Moved to Applied")
+	yes.show("Applied · ", "→ Applied")
 }

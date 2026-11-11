@@ -6,14 +6,20 @@ import (
 	"charm.land/bubbles/v2/key"
 )
 
-// helpGroup places a key in the table view's help layout.
+// helpGroup places a key in the layout: the key line's left (actions) or right
+// (navigation), or only the `?` pop-up (more).
 type helpGroup int
 
+// The `?` pop-up's layout: key column, then column width.
 const (
-	groupTrack  helpGroup = iota // beside the track filter
-	groupFilter                  // beside the text filter
-	groupRow                     // actions on the selected row
-	groupOther                   // everything else
+	helpKeyWidth = 9
+	helpColumn   = 27
+)
+
+const (
+	groupAction helpGroup = iota
+	groupNav
+	groupMore
 )
 
 type helpKey struct {
@@ -25,147 +31,110 @@ func help(group helpGroup, k, desc string) helpKey {
 	return helpKey{key.NewBinding(key.WithKeys(k), key.WithHelp(k, desc)), group}
 }
 
-func (k helpKey) text() string {
+func (k helpKey) pair() [2]string {
 	h := k.Help()
-	return h.Key + " " + h.Desc
+	return [2]string{h.Key, h.Desc}
 }
 
-// overlayOpen reports whether a form, popup, prompt or filter box owns the keyboard.
+// overlayOpen reports whether a form, popup, prompt or search box owns the keyboard.
 func (m model) overlayOpen() bool {
-	return m.addForm != nil || m.duplicate != nil || m.moveForm != nil || len(m.options) > 0 ||
+	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
 		m.confirm != nil || m.pendingDownload != nil || m.filtering
 }
 
-// helpKeys is the one key map behind the help bar and `?` full help: only the keys that do
-// something in the current context. An open overlay owns the keyboard, so it offers its own keys
-// and nothing from the table or detail view beneath it; prompts print their own choices.
+// helpKeys is the one key map behind the key line and the `?` pop-up: only the keys
+// that do something in the current context. An open overlay owns the keyboard, so it
+// offers its own keys and nothing from the view beneath it.
 func (m model) helpKeys() []helpKey {
 	if m.overlayOpen() {
-		var keys []helpKey
 		switch {
-		case m.addForm != nil:
-			keys = append(keys, help(groupOther, "Esc", "cancel"))
-		case m.moveForm != nil || len(m.options) > 0:
-			keys = append(keys, help(groupOther, "Enter", "move"), help(groupOther, "Esc", "cancel"))
+		case m.form != nil:
+			return []helpKey{help(groupAction, "tab", "next"), help(groupAction, "←→", "change"), help(groupAction, "enter", "save"), help(groupNav, "esc", "cancel")}
+		case len(m.options) > 0:
+			return []helpKey{help(groupAction, "letter", "move"), help(groupAction, "↑↓ enter", "pick"), help(groupNav, "esc", "cancel")}
 		case m.filtering:
-			keys = append(keys, help(groupOther, "Enter", "apply"), help(groupOther, "Esc", "clear"))
+			return []helpKey{help(groupNav, "enter", "keep"), help(groupNav, "esc", "clear")}
 		}
-		return append(keys, help(groupOther, "Ctrl-C", "quit"))
+		return []helpKey{help(groupNav, "ctrl+c", "quit")}
 	}
 	a, onRow := m.current()
-	var keys []helpKey
-	if m.detail == nil {
-		if len(m.tracks) > 0 {
-			keys = append(keys, help(groupTrack, "t", "track"))
-		}
-		keys = append(keys, help(groupFilter, "/", "filter"), help(groupFilter, "Esc", "clear"))
-	} else {
-		keys = append(keys, help(groupOther, "←/→", "tabs"), help(groupOther, "↑↓", "scroll"))
-	}
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
 	usable := !onRow || a.Malformed == nil
-	if onRow && m.detail == nil {
-		keys = append(keys, help(groupRow, "v/Enter", "detail"))
+	var keys []helpKey
+	if m.detail != nil {
+		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", "scroll"))
+		if usable {
+			keys = append(keys, help(groupAction, "e", "edit file"))
+		}
+	} else if onRow {
+		keys = append(keys, help(groupAction, "enter", "open"))
+		if usable {
+			keys = append(keys, help(groupAction, "e", "edit"))
+		}
 	}
 	if onRow && usable {
-		keys = append(keys, help(groupRow, "e", "edit"), help(groupRow, "m", "move"))
+		keys = append(keys, help(groupAction, "m", "move"))
 	}
 	if usable && len(m.undo) > 0 {
-		keys = append(keys, help(groupRow, "u", "undo"))
+		keys = append(keys, help(groupAction, "u", "undo"))
 	}
 	if onRow && usable {
 		if m.detail == nil && (a.Status == "Lead" || a.Status == "Draft") {
-			keys = append(keys, help(groupRow, "x", "dismiss"))
+			keys = append(keys, help(groupAction, "x", "dismiss"))
 		}
-		keys = append(keys, help(groupOther, "n", "notes"))
+		keys = append(keys, help(groupAction, "n", "notes"))
 		if len(a.PDFs) > 0 {
-			keys = append(keys, help(groupOther, "d", "download"))
+			keys = append(keys, help(groupAction, "d", "download"))
 		}
 	}
 	if m.detail != nil {
-		return append(keys, help(groupOther, "Esc", "back"))
+		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupOther, "1/2/3", "screens"))
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-3", "screen"))
 	if len(tables[m.screen]) > 1 {
-		keys = append(keys, help(groupOther, "Tab/Shift-Tab", "tables"))
+		keys = append(keys, help(groupNav, "tab", "view"))
 	}
-	return append(keys,
-		help(groupOther, "↑↓/j/k/g/G", "cursor"), help(groupOther, "a", "add"), help(groupOther, "r", "rescan"),
-		help(groupOther, "?", "full help"), help(groupOther, "q/Ctrl-C", "quit"))
+	keys = append(keys, help(groupNav, "?", "all keys"))
+	if len(m.tracks) > 0 {
+		keys = append(keys, help(groupMore, "t", "cycle track"))
+	}
+	return append(keys, help(groupMore, "esc", "clear search"), help(groupMore, "j k ↑↓", "cursor"), help(groupMore, "g G", "top / bottom"),
+		help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
-func joinKeys(keys []helpKey, sep string) string {
-	parts := make([]string, len(keys))
-	for i, k := range keys {
-		parts[i] = k.text()
-	}
-	return strings.Join(parts, sep)
-}
-
-func inGroup(keys []helpKey, group helpGroup) []helpKey {
-	var out []helpKey
+func pairs(keys []helpKey, group helpGroup) [][2]string {
+	var out [][2]string
 	for _, k := range keys {
 		if k.group == group {
-			out = append(out, k)
+			out = append(out, k.pair())
 		}
 	}
 	return out
 }
 
-// filterLine shows the track and text filters with their keys.
-func (m model) filterLine() string {
+// keyLine is the bottom line: actions on the left, dropped from the right to fit;
+// navigation pinned on the right and never cut.
+func (m model) keyLine(p pal, w int) string {
 	keys := m.helpKeys()
-	var segments []string
-	if len(m.tracks) > 0 {
-		track := "All"
-		if m.track > 0 {
-			track = m.tracks[m.track-1]
-		}
-		segments = append(segments, strings.Join(append([]string{"Track: " + track}, keyTexts(inGroup(keys, groupTrack))...), " · "))
+	actions, nav := pairs(keys, groupAction), p.keys(pairs(keys, groupNav))
+	for len(actions) > 0 && lipglossWidth(p.keys(actions))+lipglossWidth(nav)+4 > w {
+		actions = actions[:len(actions)-1]
 	}
-	if filter := inGroup(keys, groupFilter); len(filter) > 0 {
-		segments = append(segments, joinKeys(filter, " · "))
-	}
-	line := strings.Join(segments, "  ")
-	if m.text != "" || m.filtering {
-		line += " · Filter: " + m.text
-	}
-	return line
+	return " " + spread(p.keys(actions), nav, w-gutter)
 }
 
-func keyTexts(keys []helpKey) []string {
-	out := make([]string, len(keys))
-	for i, k := range keys {
-		out[i] = k.text()
-	}
-	return out
-}
-
-// rowHelp is the table view's line of actions on the selected row.
-func (m model) rowHelp() string {
-	if row := inGroup(m.helpKeys(), groupRow); len(row) > 0 {
-		return joinKeys(row, " · ") + "\n"
-	}
-	return ""
-}
-
-// otherHelp is the rest of the table view's help, one key per line in full help.
-func (m model) otherHelp() string {
-	var b strings.Builder
-	if m.full {
-		b.WriteString("Full help\n")
-	}
-	for _, k := range inGroup(m.helpKeys(), groupOther) {
-		b.WriteString(k.text() + "  ")
-		if m.full {
-			b.WriteString("\n")
-		}
-	}
-	return b.String()
-}
-
-// detailHelp is the detail view's help bar: every key valid there on one line.
-func (m model) detailHelp() string {
+// helpBox is the `?` pop-up: every key valid here, in columns.
+func (m model) helpBox(p pal) string {
 	keys := m.helpKeys()
-	return joinKeys(keys, " · ") + "\n"
+	col := func(title string, group helpGroup) string {
+		var b strings.Builder
+		b.WriteString(p.heading(title) + "\n")
+		for _, kv := range pairs(keys, group) {
+			b.WriteString(p.text(p.accent).Bold(true).Render(padRight(kv[0], helpKeyWidth)) + p.text(p.fg).Render(kv[1]) + "\n")
+		}
+		return strings.TrimSuffix(b.String(), "\n")
+	}
+	cols := []string{col("Actions", groupAction), col("Navigate", groupNav), col("More", groupMore)}
+	body := joinColumns(cols, helpColumn, m.viewWidth() >= popLarge+popEdges)
+	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
 }

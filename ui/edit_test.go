@@ -2,8 +2,10 @@ package ui_test
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +26,7 @@ func (h *addHarness) openEdit(filter string, tabs int) {
 func TestEditFormIsPrefilledFromApplication(t *testing.T) {
 	h := newAddHarness(t)
 	h.openEdit("Engineer #1", 1)
-	h.wait("Title*", "Engineer #1", "Example", "Unknown", "https://example.com/status-dismissed", "Good", "Resume only", "Yes")
+	h.wait("Title", "Engineer #1", "Example", "Unknown", "https://example.com/status-dismissed", "Good", "Resume only", "Yes")
 	h.esc()
 	h.quit()
 }
@@ -89,7 +91,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	// Fern is a Platform Application whose folder sits under jobs/SWE.
 	folder := filepath.Join(h.root, "jobs", "SWE", "fern")
 	h.tm.Type("tt") // track filter: All → SWE → Platform
-	h.wait("Leads (1)", "Track: Platform")
+	h.wait("Platform Engineer")
 	h.tm.Type("e")
 	h.wait("Platform Engineer")
 	h.advance()
@@ -106,7 +108,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	if !strings.Contains(string(b), "track: \"SWE\"\n") {
 		t.Fatalf("track not patched:\n%s", b)
 	}
-	if !strings.Contains(view, "Leads (0)") || !strings.Contains(view, "Track: Platform") {
+	if !strings.Contains(ansi.Strip(view), "No Leads yet") || activeTrack(view) != "Platform" {
 		t.Fatalf("Platform filter still shows the row:\n%s", view)
 	}
 }
@@ -114,11 +116,12 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("3")
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+	for i := 0; i < 3; i++ { // All → Applied → Interviewing → Offer
+		h.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
+	}
 	h.tm.Type("/docs-partial")
 	h.enter()
-	h.wait("Offer (1)", "docs-partial", "○")
+	h.wait("docs-partial", "○ written")
 	h.tm.Type("e")
 	h.wait("Resume only", "No")
 	h.saveForm(6)
@@ -129,7 +132,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {
 		t.Fatalf("resume_only not set:\n%s", meta)
 	}
-	if !strings.Contains(view, "●") || strings.Contains(view, "○") {
+	if plain := ansi.Strip(view); !strings.Contains(plain, "● built") || strings.Contains(plain, "○ written") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
 	}
 }
@@ -143,7 +146,7 @@ func TestEditMalformedShowsStoreErrorAndWritesNothing(t *testing.T) {
 	var want string
 	for _, a := range apps {
 		if a.Malformed != nil && strings.HasSuffix(a.Folder, "/malformed") {
-			want = a.Malformed.Error()
+			want = strings.TrimPrefix(a.Malformed.Error(), h.root+string(filepath.Separator)) // shown relative to the Workspace
 		}
 	}
 	if want == "" {
@@ -154,7 +157,7 @@ func TestEditMalformedShowsStoreErrorAndWritesNothing(t *testing.T) {
 	h.tm.Type("e")
 	time.Sleep(100 * time.Millisecond)
 	view := h.quit()
-	if !strings.Contains(view, want) || strings.Contains(view, "Resume only") {
+	if !strings.Contains(ansi.Strip(view), want) || strings.Contains(view, "Resume only") {
 		t.Fatalf("want store error %q and no form:\n%s", want, view)
 	}
 	if !sameSnapshot(before, h.snapshot()) {
@@ -167,9 +170,25 @@ func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("/zzznomatch")
 	h.enter()
-	h.wait("Leads (0)")
+	h.wait("No matches")
 	empty := h.quit()
-	if !strings.Contains(onRow, "e edit") || strings.Contains(empty, "e edit") {
+	if !strings.Contains(ansi.Strip(onRow), "e edit") || strings.Contains(ansi.Strip(empty), "e edit") {
 		t.Fatalf("help bar on a row:\n%s\non an empty table:\n%s", onRow, empty)
 	}
+}
+
+// activeTrack is the underlined option of the track filter on the top line. Lip Gloss
+// underlines character by character, so the underlined runs are collected and joined.
+func activeTrack(view string) string {
+	top, _, _ := strings.Cut(view, "\n")
+	var b strings.Builder
+	for _, m := range regexp.MustCompile(`\x1b\[([0-9;]*)m([^\x1b]*)`).FindAllStringSubmatch(top, -1) {
+		for _, p := range strings.Split(m[1], ";") {
+			if p == "4" {
+				b.WriteString(m[2])
+				break
+			}
+		}
+	}
+	return strings.TrimSpace(b.String())
 }

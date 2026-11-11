@@ -42,7 +42,7 @@ func newLiveHarness(t *testing.T, setup func(root string)) *liveHarness {
 		t.Fatal(err)
 	}
 	h := &liveHarness{t: t, root: root, tm: teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))}
-	h.wait("Leads (4)")
+	h.wait("Leads 4")
 	return h
 }
 
@@ -55,6 +55,20 @@ func (h *liveHarness) wait(text string) {
 }
 
 func (h *liveHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
+
+// settle gives the watcher time to deliver a change that draws nothing new to wait on
+// (a row leaving, a count changing: the renderer redraws only the cells that differ).
+func (h *liveHarness) settle() { time.Sleep(500 * time.Millisecond) }
+
+// rowLine is the first line of the row whose title starts with title.
+func rowLine(view, title string) string {
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "  "+title) || strings.Contains(line, "▌ "+title) {
+			return line
+		}
+	}
+	return ""
+}
 
 // finalView quits and returns the last rendered screen without styling.
 func (h *liveHarness) finalView() string {
@@ -90,7 +104,7 @@ func TestLiveFitWrittenToMetaUpdatesRow(t *testing.T) {
 	h := newLiveHarness(t, nil)
 	h.addMetaKey(h.folder("fern"), "fit: Strong")
 	h.wait("Strong")
-	if v := h.finalView(); !strings.Contains(v, "Platform Engineer | Fern Systems   | Platform |        | Strong") {
+	if v := h.finalView(); !strings.Contains(rowLine(v, "Platform Engineer"), "Strong") {
 		t.Fatalf("Fern row did not show its new Fit:\n%s", v)
 	}
 }
@@ -98,12 +112,12 @@ func TestLiveFitWrittenToMetaUpdatesRow(t *testing.T) {
 func TestLiveDroppedPDFsFlipDocsMarker(t *testing.T) {
 	h := newLiveHarness(t, nil)
 	h.tm.Type("2")
-	h.wait("Draft (2)")
+	h.wait("Draft 2")
 	out := filepath.Join(h.folder("docs-none"), "out")
 	h.write(filepath.Join(out, "Owner Resume Role.pdf"), "%PDF")
 	h.write(filepath.Join(out, "Owner Role Cover Letter.pdf"), "%PDF")
-	h.wait("●")
-	if v := h.finalView(); !strings.Contains(v, "docs-none   | Fictional Labs | SWE     |        | —    | ●") {
+	h.wait("● built")
+	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "● built") {
 		t.Fatalf("docs-none row lacks the Ready marker:\n%s", v)
 	}
 }
@@ -113,13 +127,13 @@ const newLead = "schema: 1\ntitle: Brand New Role\ncompany: Newco\ntrack: SWE\ns
 func TestLiveNewApplicationAppearsAndIsWatched(t *testing.T) {
 	h := newLiveHarness(t, nil)
 	h.write(filepath.Join(h.folder("newco"), "meta.yml"), newLead)
-	h.wait("Leads (5)")
+	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("newco"), "fit: Marginal")
 	h.wait("Marginal")
 	// A whole folder appearing at once, with out/ already inside it.
 	h.write(filepath.Join(h.folder("late"), "meta.yml"), strings.Replace(newLead, "Brand New Role", "Late Arrival", 1))
 	h.wait("Late Arrival")
-	if v := h.finalView(); !strings.Contains(v, "Brand New Role    | Newco") || !strings.Contains(v, "Marginal") {
+	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "Marginal") || !strings.Contains(v, "Newco") {
 		t.Fatalf("new Application row missing or stale:\n%s", v)
 	}
 }
@@ -137,8 +151,8 @@ func TestLiveRemovedApplicationDisappears(t *testing.T) {
 	if err := os.RemoveAll(h.folder("fern")); err != nil {
 		t.Fatal(err)
 	}
-	h.wait("Leads (3)")
-	if v := h.finalView(); strings.Contains(v, "Fern Systems") {
+	h.settle()
+	if v := h.finalView(); strings.Contains(v, "Fern Systems") || !strings.Contains(v, "Leads 3") {
 		t.Fatalf("removed Application still listed:\n%s", v)
 	}
 }
@@ -149,7 +163,7 @@ func TestLiveCursorStaysOnSameFolder(t *testing.T) {
 	h.tm.Type("j") // third Lead: Fern
 	// A new Lead sorts above Fern (a close date), and another row changes Fit.
 	h.write(filepath.Join(h.folder("early"), "meta.yml"), strings.Replace(newLead, "track: SWE\n", "track: SWE\ncloses: 2026-12-01\n", 1))
-	h.wait("Leads (5)")
+	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("empty"), "fit: Good")
 	h.wait("Good")
 	h.key(tea.KeyEnter)
@@ -165,7 +179,7 @@ func TestLiveCursorFollowsRowThatLeavesTheTable(t *testing.T) {
 	meta := filepath.Join(h.folder("empty-log"), "meta.yml")
 	b, _ := os.ReadFile(meta)
 	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Dismissed, at: 2026-10-01T00:00:00Z}", 1))
-	h.wait("Leads (3)")
+	h.settle()
 	h.key(tea.KeyEnter)
 	if v := h.finalView(); !strings.Contains(v, "Fern Systems · Platform Engineer") {
 		t.Fatalf("cursor left Fern after a row above it left the table:\n%s", v)

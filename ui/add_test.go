@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"bytes"
+	"github.com/charmbracelet/x/ansi"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -53,7 +54,7 @@ func newAddHarness(t *testing.T) *addHarness {
 		t.Fatal(err)
 	}
 	h.tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
-	h.wait("Leads (4)")
+	h.wait("Leads 4")
 	return h
 }
 
@@ -150,12 +151,13 @@ func sameSnapshot(a, b map[string]string) bool {
 	return true
 }
 
-// selectedRow returns the plain text of the row drawn in reverse video.
+// selectedRow returns the plain text of the selected row's first line: the one marked
+// with the selection bar ▌.
 func selectedRow(t *testing.T, view string) string {
 	t.Helper()
-	for _, line := range strings.Split(view, "\n") {
-		if rest, ok := strings.CutPrefix(line, "\x1b[7m"); ok {
-			return strings.TrimSuffix(rest, "\x1b[m")
+	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+		if _, rest, ok := strings.Cut(line, "▌ "); ok {
+			return strings.TrimSpace(rest)
 		}
 	}
 	t.Fatalf("no selected row in view:\n%s", view)
@@ -165,7 +167,7 @@ func selectedRow(t *testing.T, view string) string {
 func TestAddFormOpens(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("a")
-	h.wait("Title*", "Company*", "Track*", "URL", "Closes (YYYY-MM-DD)", "Fit")
+	h.wait("Add a Lead", "Company", "Track", "URL", "Closes", "Fit")
 	h.esc()
 	h.quit()
 }
@@ -174,7 +176,7 @@ func TestAddRejectsMissingRequiredFields(t *testing.T) {
 	h := newAddHarness(t)
 	before := h.snapshot()
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.enter()
 	h.wait("Title is required")
 	h.tm.Type("Site Reliability Engineer")
@@ -195,7 +197,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	h := newAddHarness(t)
 	before := h.snapshot()
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.tm.Type("Site Reliability Engineer")
 	h.advance()
 	h.tm.Type("Acme")
@@ -215,7 +217,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 // fillAdd completes the form, accepting the first Track and a blank Fit.
 func (h *addHarness) fillAdd(title, company, url, closes string) {
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.tm.Type(title)
 	h.advance()
 	h.tm.Type(company)
@@ -284,10 +286,11 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 	if len(h.edited) != 0 {
 		t.Fatalf("editor opened: %v", h.edited)
 	}
-	if !strings.Contains(view, "\x1b[1mDismissed (2)\x1b[m") {
-		t.Fatalf("Dismissed table not active:\n%s", view)
+	// Engineer #1 is only on the Dismissed table, so selecting it proves the table switch.
+	if !strings.Contains(ansi.Strip(view), "Dismissed 2") {
+		t.Fatalf("Dismissed table not shown:\n%s", view)
 	}
-	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") || !strings.Contains(row, "~2026-01-01") {
+	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") {
 		t.Fatalf("selected row = %q", row)
 	}
 }
@@ -307,9 +310,8 @@ func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h.tm.Type("2ma")
 	h.tm.Type("y") // Docs not Ready. Mark Applied anyway?
 	h.waitForStatus(folder, "Applied")
-	h.tm.Type("3mi")
+	h.tm.Type("3mi") // the All view keeps the row as it moves between sections
 	h.waitForStatus(folder, "Interviewing")
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 	h.tm.Type("mr")
 	h.waitForStatus(folder, "Rejected")
 	h.tm.Type("u")
