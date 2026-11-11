@@ -60,6 +60,8 @@ type model struct {
 	external              ExternalRunner
 	detail                *detailState
 	height                int
+	downloads             string
+	pendingDownload       *downloadState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -139,6 +141,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if m.pendingDownload != nil {
+			return m, m.answerDownload(k.String())
 		}
 		if m.confirm != nil {
 			pending := m.confirm
@@ -281,6 +286,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a, ok := m.current(); ok {
 				return m, m.editNotes(a.Folder)
 			}
+		case "d":
+			if a, ok := m.current(); ok && len(a.PDFs) > 0 {
+				return m, m.download(a)
+			}
 		case "r":
 			folder := ""
 			rows := m.rows()
@@ -373,6 +382,7 @@ func (m model) View() tea.View {
 	if m.confirm != nil {
 		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
+	b.WriteString(m.downloadPrompt())
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
 	}
@@ -389,6 +399,9 @@ func (m model) View() tea.View {
 	}
 	if len(m.rows()) > 0 {
 		b.WriteString("n notes  ")
+		if len(m.rows()[m.cursor].PDFs) > 0 {
+			b.WriteString("d download  ")
+		}
 	}
 	if m.full {
 		b.WriteString("Full help\n")
