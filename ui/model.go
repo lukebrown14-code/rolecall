@@ -36,10 +36,12 @@ type model struct {
 	full                  bool
 	err                   error
 	now                   func() time.Time
+	editor                string
+	external              ExternalRunner
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
-func New(s *store.Store, now func() time.Time) (tea.Model, error) {
+func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, error) {
 	a, e := s.Scan()
 	if e != nil {
 		return nil, e
@@ -47,7 +49,11 @@ func New(s *store.Store, now func() time.Time) (tea.Model, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return model{store: s, apps: a, now: now}, nil
+	m := model{store: s, apps: a, now: now}
+	for _, option := range options {
+		option(&m)
+	}
+	return m, nil
 }
 func (m model) Init() tea.Cmd { return nil }
 func (m model) rows() []store.Application {
@@ -61,6 +67,20 @@ func (m model) rows() []store.Application {
 	return out
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if done, ok := msg.(externalFinished); ok {
+		a, err := m.store.Rescan(done.folder)
+		m.err = done.err
+		if err != nil {
+			m.err = err
+		} else if a != nil {
+			for i := range m.apps {
+				if m.apps[i].Folder == done.folder {
+					m.apps[i] = *a
+					break
+				}
+			}
+		}
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "q", "ctrl+c":
@@ -85,6 +105,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = len(m.rows()) - 1
 		case "?":
 			m.full = !m.full
+		case "n":
+			rows := m.rows()
+			if len(rows) > 0 {
+				return m, m.editNotes(rows[m.cursor].Folder)
+			}
 		case "r":
 			folder := ""
 			rows := m.rows()
@@ -143,6 +168,9 @@ func (m model) View() tea.View {
 	}
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
+	}
+	if len(m.rows()) > 0 {
+		b.WriteString("n notes  ")
 	}
 	if m.full {
 		b.WriteString("Full help\n")

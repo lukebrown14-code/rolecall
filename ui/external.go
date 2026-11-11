@@ -1,0 +1,55 @@
+package ui
+
+import (
+	tea "charm.land/bubbletea/v2"
+	"os"
+	"os/exec"
+	"path/filepath"
+)
+
+// ExternalRunner substitutes the suspend/run/resume boundary in tests.
+type ExternalRunner func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+
+// ResolveEditor follows the Owner's configured editor preference.
+func ResolveEditor(configured string) string {
+	for _, s := range []string{configured, os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
+		if s != "" {
+			return s
+		}
+	}
+	return "vi"
+}
+
+type externalFinished struct {
+	folder string
+	err    error
+}
+
+// runExternal is the sole process launch boundary; completion always rescans.
+func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
+	runner := m.external
+	if runner == nil {
+		runner = tea.ExecProcess
+	}
+	return runner(exec.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
+}
+
+func (m model) editNotes(folder string) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.store.EnsureNotes(folder); err != nil {
+			return externalFinished{folder, err}
+		}
+		// The editor preference may include flags or quoted executable paths. Pass the
+		// filename as a shell positional argument so Application paths remain literal.
+		return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, "notes.md"))()
+	}
+}
+
+// Option configures the external-program boundary.
+type Option func(*model)
+
+// WithExternalRunner injects a runner for external programs.
+func WithExternalRunner(r ExternalRunner) Option { return func(m *model) { m.external = r } }
+
+// WithEditor sets the configured editor command.
+func WithEditor(editor string) Option { return func(m *model) { m.editor = editor } }

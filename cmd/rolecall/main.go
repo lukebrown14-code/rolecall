@@ -31,7 +31,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil)
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor))
 	if err != nil {
 		return err
 	}
