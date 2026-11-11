@@ -40,6 +40,29 @@ func TestCheckReportsLooseWorkspaceFilesAndFolders(t *testing.T) {
 	}
 }
 
+func TestCheckReportsLooseFilesInsideWorkspace(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	private := filepath.Join(root, "private")
+	if err := os.Mkdir(private, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(private, "profile.md")
+	if err := os.WriteFile(file, []byte("fictional"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	warnings, err := Check(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], file+" (file)") || !strings.Contains(warnings[0], "chmod 600 "+file) {
+		t.Fatalf("warnings = %v, want file warning with chmod fix for %s", warnings, file)
+	}
+}
+
 func TestCheckReportsAllClearForPrivateWorkspace(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Chmod(root, 0o700); err != nil {
