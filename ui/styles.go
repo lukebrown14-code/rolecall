@@ -213,8 +213,8 @@ func markdownStyle() ansi.StyleConfig {
 func noColor() bool { return os.Getenv("NO_COLOR") != "" }
 
 // asciiMode reports whether glyphs should fall back to ASCII stand-ins, for terminals and
-// fonts where ◆ ▌ ⚑ and friends render badly.
-func asciiMode() bool { return os.Getenv("ROLECALL_ASCII") != "" }
+// fonts where ◆ ▌ ⚑ and friends render badly. Set ROLECALL_ASCII=1.
+func asciiMode() bool { return os.Getenv("ROLECALL_ASCII") == "1" }
 
 // sgr matches one SGR escape sequence.
 var sgr = regexp.MustCompile("\x1b\\[([0-9;]*)m")
@@ -249,10 +249,10 @@ func stripColor(s string) string {
 
 // asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<-",
-	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o", "█", "#",
-	"↑", "^", "↓", "v", "─", "-", "│", "|", "┬", "+", "┴", "+",
-	"╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "...",
+	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
+	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "◌", "o", "█", "#",
+	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
+	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
 	// the progress spinner's Braille frames
 	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
 	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",

@@ -288,7 +288,7 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		m.rescanAll()
 	case "?":
-		m.full = true
+		m.overlay = &helpMode{}
 	case "esc":
 		if m.err != nil {
 			m.err = nil

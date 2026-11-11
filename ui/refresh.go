@@ -28,16 +28,18 @@ func (m model) refresh(folders []string) model {
 // syncMove keeps an open Move pop-up true to its Application: closed if it is gone,
 // its options rebuilt if its Status changed on disk.
 func (m *model) syncMove() {
-	if len(m.options) == 0 {
-		return
-	}
-	a, ok := m.application(m.moveTarget)
+	mv, ok := m.overlay.(*moveMode)
 	if !ok {
-		m.options = nil
 		return
 	}
-	m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
-	m.moveSel = min(m.moveSel, len(m.options)-1)
+	a, ok := m.application(mv.app.Folder)
+	if !ok {
+		m.overlay = nil
+		return
+	}
+	mv.app = a
+	mv.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
+	mv.sel = min(mv.sel, len(mv.options)-1)
 }
 
 // rescanInto brings apps in line with one changed path, rescanning each folder once.

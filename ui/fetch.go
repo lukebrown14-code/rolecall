@@ -37,34 +37,34 @@ type fetchFinished struct {
 }
 
 // fetching reports whether a URL fetch is in flight in the open form.
-func (m model) fetching() bool { return m.form != nil && m.form.fetching }
+func (m model) fetching() bool {
+	fm, _ := m.overlay.(*formMode)
+	return fm != nil && fm.form.fetching
+}
 
 // wantsFetch reports whether Enter on the URL would fetch, ignoring whether a captured
 // run is already in flight.
-func (m model) wantsFetch() bool {
-	f := m.form
-	return m.editOf == nil && m.plugin != "" && f != nil &&
+func (fm *formMode) wantsFetch(m *model) bool {
+	f := fm.form
+	return fm.editOf == nil && m.plugin != "" &&
 		f.focused().label == fieldURL && strings.TrimSpace(f.value(fieldURL)) != ""
 }
 
 // startFetch checks the URL for a duplicate first: a known URL shows the existing
 // warning and never fetches. A new URL starts a captured fetch with a spinner.
-func (m model) startFetch() (tea.Model, tea.Cmd) {
-	url := strings.TrimSpace(m.form.value(fieldURL))
+func (fm *formMode) startFetch(m *model) (mode, tea.Cmd) {
+	url := strings.TrimSpace(fm.form.value(fieldURL))
 	matches, err := m.store.FindByURL(url)
 	if err != nil {
 		m.err = err
-		return m, nil
+		return fm, nil
 	}
 	if len(matches) > 0 {
-		fields := createFields(m.form.addValues())
-		m.form = nil
-		m.duplicate, m.duplicateFields = &matches[0], fields
-		return m, nil
+		return &duplicateMode{existing: matches[0], fields: createFields(fm.form.addValues())}, nil
 	}
-	m.form.fetching, m.form.fetchErr = true, ""
+	fm.form.fetching, fm.form.fetchErr = true, ""
 	m.capturedRun = true
-	return m, tea.Batch(m.fetch(url), m.spinner.Tick)
+	return fm, tea.Batch(m.fetch(url), m.spinner.Tick)
 }
 
 // fetch runs the Plugin's new-job.py in captured mode. The form stays responsive; the
@@ -113,18 +113,15 @@ func signalLabels(signals [][]string) []string {
 // finishFetch records a fetch's result on the form. A success fills Title, Company and
 // Closes only where they are still empty and shows the signals; the URL is never
 // overwritten. A failure shows one line and lets the form go on by hand.
-func (m model) finishFetch(done fetchFinished) (tea.Model, tea.Cmd) {
-	f := m.form
-	if f == nil {
-		return m, nil
-	}
+func (fm *formMode) finishFetch(m *model, done fetchFinished) {
+	f := fm.form
 	f.fetching = false
 	if strings.TrimSpace(f.value(fieldURL)) != done.url {
-		return m, nil // the URL changed while the fetch was in flight
+		return // the URL changed while the fetch was in flight
 	}
 	if done.failed != "" {
 		f.fetchErr, f.signals, f.fetched, f.jd = done.failed, nil, false, ""
-		return m, nil
+		return
 	}
 	f.fetchErr, f.signals = "", done.signals
 	f.fetched, f.jd = true, done.jd
@@ -137,5 +134,4 @@ func (m model) finishFetch(done fetchFinished) (tea.Model, tea.Cmd) {
 	if strings.TrimSpace(f.value("Closes")) == "" && done.meta.Closes != "" {
 		f.setValue("Closes", done.meta.Closes)
 	}
-	return m, nil
 }

@@ -164,6 +164,19 @@ func TestScopeLineNamesEveryFilter(t *testing.T) {
 	}
 }
 
+// A long search filter truncates in the scope line instead of spilling the frame.
+func TestLongSearchKeepsTheFrame(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 80, "1", "/abcdefghijklmnopqrstuvwxyz"))
+	if n := strings.Count(view, "\n") + 1; n != termHeight {
+		t.Fatalf("%d lines on a %d-line terminal", n, termHeight)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if w := ansi.StringWidth(line); w > 80 {
+			t.Fatalf("line is %d cells wide, terminal is 80:\n%s", w, view)
+		}
+	}
+}
+
 // A success toast shows on the status row, over the key line, with the bottom rule kept.
 func TestToastKeepsTheBottomRule(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "x"))

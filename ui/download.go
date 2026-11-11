@@ -25,20 +25,22 @@ func (d downloadState) clash() string { return d.app.PDFs[d.next] }
 // download copies every out/*.pdf of the Application into the downloads folder, asking
 // before overwriting a file of the same name, then reveals the folder and reports the count.
 func (m *model) download(a store.Application) tea.Cmd {
-	return m.continueDownload(downloadState{app: a})
+	next, cmd := m.continueDownload(downloadState{app: a})
+	m.overlay = next
+	return cmd
 }
 
-func (m *model) continueDownload(d downloadState) tea.Cmd {
-	m.pendingDownload = nil
+// continueDownload copies the rest of the PDFs, returning the mode that pauses on the next
+// clash, or nil when the copy is done.
+func (m *model) continueDownload(d downloadState) (mode, tea.Cmd) {
 	for ; d.next < len(d.app.PDFs); d.next++ {
 		err := m.store.CopyPDF(d.app.Folder, d.app.PDFs[d.next], m.downloads, false)
 		if errors.Is(err, os.ErrExist) {
-			m.pendingDownload = &d
-			return nil
+			return &downloadMode{state: d}, nil
 		}
 		if err != nil {
 			m.err = err
-			return nil
+			return nil, nil
 		}
 		d.copied++
 	}
@@ -47,18 +49,16 @@ func (m *model) continueDownload(d downloadState) tea.Cmd {
 		noun = "PDF"
 	}
 	m.toast = fmt.Sprintf("Saved %d %s → %s", d.copied, noun, displayPath(m.downloads))
-	return m.runExternal(d.app.Folder, "open", "-R", m.downloads)
+	return nil, m.runExternal(d.app.Folder, "open", "-R", m.downloads)
 }
 
-// answerDownload applies y/n to the pending clash; other keys leave the prompt open.
-func (m *model) answerDownload(key string) tea.Cmd {
-	d := *m.pendingDownload
+// answerDownload applies y/a/n/esc to the pending clash; other keys leave the prompt open.
+func (m *model) answerDownload(d downloadState, key string) (mode, tea.Cmd) {
 	switch key {
 	case "y":
 		if err := m.store.CopyPDF(d.app.Folder, d.clash(), m.downloads, true); err != nil {
-			m.pendingDownload = nil
 			m.err = err
-			return nil
+			return nil, nil
 		}
 		d.copied++
 		d.next++
@@ -66,19 +66,17 @@ func (m *model) answerDownload(key string) tea.Cmd {
 		// Overwrite this file and every later clash without asking again.
 		for ; d.next < len(d.app.PDFs); d.next++ {
 			if err := m.store.CopyPDF(d.app.Folder, d.app.PDFs[d.next], m.downloads, true); err != nil {
-				m.pendingDownload = nil
 				m.err = err
-				return nil
+				return nil, nil
 			}
 			d.copied++
 		}
 	case "n":
 		d.next++
 	case "esc":
-		m.pendingDownload = nil
-		return nil
+		return nil, nil
 	default:
-		return nil
+		return &downloadMode{state: d}, nil
 	}
 	return m.continueDownload(d)
 }

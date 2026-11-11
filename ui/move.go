@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+
+	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
@@ -29,20 +31,15 @@ func MoveOptions(from, previous string) []string {
 
 type undoMove struct{ folder, status string }
 
-// pendingMove is a move to Applied awaiting the Owner's answer to the not-Ready prompt.
-type pendingMove struct {
-	app    store.Application
-	status string
-}
-
 // requestMove moves immediately, except that a non-Ready Application going to Applied
-// first asks the Owner. A malformed Application skips the prompt so the store's error shows.
-func (m *model) requestMove(a store.Application, status string) {
+// first asks the Owner, returning the confirm mode. A malformed Application skips the
+// prompt so the store's error shows.
+func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) {
 	if status == store.StatusApplied && a.Malformed == nil && a.Documents != store.DocsReady {
-		m.confirm = &pendingMove{a, status}
-		return
+		return &confirmMode{app: a, status: status}, nil
 	}
 	m.move(a, status, false)
+	return nil, nil
 }
 
 func (m *model) move(a store.Application, status string, undo bool) {
@@ -83,38 +80,4 @@ func statusBeforeDismissed(log []store.StatusEntry) string {
 		}
 	}
 	return store.StatusLead
-}
-
-// moveKey drives the Move pop-up: a status letter moves straight away; ↑↓ and enter
-// pick from the list; esc closes it.
-func (m model) moveKey(key string) model {
-	switch key {
-	case "esc":
-		m.options = nil
-	case "down", "j":
-		m.moveSel = min(m.moveSel+1, len(m.options)-1)
-	case "up", "k":
-		m.moveSel = max(m.moveSel-1, 0)
-	case "enter":
-		status := m.options[m.moveSel]
-		m.options = nil
-		m.moveTargetTo(status)
-	default:
-		for _, status := range m.options {
-			if statusLetters[status] == key {
-				m.options = nil
-				m.moveTargetTo(status)
-				break
-			}
-		}
-	}
-	return m
-}
-
-// moveTargetTo moves the Application the pop-up shows, not whatever row the cursor is
-// on now: a live refresh can move the cursor while the pop-up is open.
-func (m *model) moveTargetTo(status string) {
-	if a, ok := m.application(m.moveTarget); ok {
-		m.requestMove(a, status)
-	}
 }
