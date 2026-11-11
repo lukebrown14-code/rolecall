@@ -45,13 +45,18 @@ type settingsState struct {
 	input   string // what the Owner has typed so far
 }
 
-// loadSettings re-reads workspace.json. It runs on entering the screen, on r and after
+// loadSettings re-reads workspace.json and config.toml. It runs on entering the screen, on r and after
 // the editor closes; the group, row and focus are kept.
 func (m model) loadSettings() model {
 	ws, err := m.store.Settings()
 	if err != nil {
 		m.err = err
 		return m
+	}
+	if m.configHome != "" {
+		if m = m.loadMachine(); m.err != nil {
+			return m
+		}
 	}
 	st := settingsState{ws: ws}
 	if m.settings != nil {

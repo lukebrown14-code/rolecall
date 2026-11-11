@@ -66,6 +66,16 @@ func TestSettingsRemoveTrackRefusedWhileUsedWithCount(t *testing.T) {
 	requireAll(t, h.file(), `"SWE"`)
 }
 
+func TestSettingsRemoveTrackRefusedWhileOnlyAnArchivedApplicationUsesIt(t *testing.T) {
+	h := tracksHarness(t, `{"tracks":["SWE","Spare"]}`)
+	writeFile(t, filepath.Join(h.root, "jobs", "_archive", "gone", "meta.yml"),
+		"title: Gone\ncompany: Example\ntrack: Spare\nstatus_log:\n  - {status: Lead, at: 2026-01-01T00:00:00Z}\n")
+	h.tm.Type("j")
+	h.tm.Type("x")
+	requireAll(t, h.tm.plain(), "Spare is used by 1 Application")
+	requireAll(t, h.file(), `"Spare"`)
+}
+
 func TestSettingsRemoveUnusedAndLastTrack(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["Spare"]}`)
 	h.tm.Type("x")

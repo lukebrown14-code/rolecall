@@ -148,12 +148,17 @@ func (m model) saveMachine(s machineSetting, value any) model {
 		m.err = err
 		return m
 	}
+	m.err = nil
+	return m.loadMachine()
+}
+
+// loadMachine re-reads config.toml into the model.
+func (m model) loadMachine() model {
 	c, err := config.Load(m.configHome, m.store.Root())
 	if err != nil {
 		m.err = err
 		return m
 	}
-	m.err = nil
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
 	m.followUpDays, m.ascii = c.FollowUpDays, c.ASCII
 	return m
