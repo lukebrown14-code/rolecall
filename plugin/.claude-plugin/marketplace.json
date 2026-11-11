@@ -1,0 +1,13 @@
+{
+  "name": "rolecall",
+  "owner": {
+    "name": "rolecall"
+  },
+  "plugins": [
+    {
+      "name": "rolecall",
+      "source": "./",
+      "description": "Skills and scripts that let a coding harness work a rolecall Workspace."
+    }
+  ]
+}
