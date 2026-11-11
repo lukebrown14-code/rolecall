@@ -199,14 +199,19 @@ func (m model) markdownBody(a store.Application, tab int, name string) string {
 	if err != nil || strings.TrimSpace(string(b)) == "" {
 		return out + "No content in " + name
 	}
-	r, err := m.md.renderer(m.bodyWidth())
+	return out + m.renderMarkdown(string(b), m.bodyWidth())
+}
+
+// renderMarkdown draws Markdown at a wrap width, falling back to the source when
+// Glamour cannot. The renderer is cached per width, so repeated frames are cheap.
+func (m model) renderMarkdown(text string, width int) string {
+	r, err := m.md.renderer(width)
 	if err == nil {
-		var rendered string
-		if rendered, err = r.Render(string(b)); err == nil {
-			return out + strings.Trim(rendered, "\n")
+		if rendered, err := r.Render(text); err == nil {
+			return strings.Trim(rendered, "\n")
 		}
 	}
-	return out + string(b)
+	return text
 }
 
 // detailKey handles keys specific to the detail view. Keys it does not handle fall

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/lukebrown14-code/rolecall/store"
@@ -134,6 +135,76 @@ func TestProfileWithoutFileHasNoFields(t *testing.T) {
 	}
 	if len(p.Contact) != 0 || !reflect.DeepEqual(p.Missing, []string{"Name", "Email"}) {
 		t.Fatalf("%+v", p)
+	}
+}
+
+// Sections are the `##` headings in file order; the `#` title is not one of them.
+func TestProfileSectionsFollowHeadingsInFileOrder(t *testing.T) {
+	s := fixtureProfileStore(t)
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Exists {
+		t.Fatal("fixture Profile reads as missing")
+	}
+	var got []string
+	for _, section := range p.Sections {
+		got = append(got, section.Heading)
+	}
+	want := []string{"Contact", "Headlines (approved per track)", "Experience", "Key Skills keyword pool", "Summary", "Facts that are NOT available"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("headings = %v, want %v", got, want)
+	}
+	experience := p.Sections[2].Body
+	if !strings.HasPrefix(experience, "### Acme — Brisbane, AU") {
+		t.Fatalf("Experience body = %q", experience)
+	}
+	if strings.HasSuffix(experience, "\n") || strings.HasPrefix(experience, "\n") {
+		t.Fatalf("Experience body keeps surrounding blank lines: %q", experience)
+	}
+}
+
+// A file with no `##` headings is one section holding the whole file.
+func TestProfileWithoutHeadingsIsOneSection(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeMasterProfile(t, s, "Just prose.\n\nMore prose.\n")
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []store.ProfileSection{{Heading: "Profile", Body: "Just prose.\n\nMore prose."}}
+	if !reflect.DeepEqual(p.Sections, want) {
+		t.Fatalf("sections = %+v, want %+v", p.Sections, want)
+	}
+}
+
+// A missing Profile has no sections, and the Contact fields are still reported missing.
+func TestProfileMissingFileHasNoSections(t *testing.T) {
+	s := fixtureProfileStore(t)
+	if err := os.Remove(filepath.Join(s.Root(), "profile", "master-profile.md")); err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Exists || len(p.Sections) != 0 {
+		t.Fatalf("%+v", p)
+	}
+}
+
+// `###` is a subheading inside a section, not a section of its own.
+func TestProfileSubheadingsAreNotSections(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeMasterProfile(t, s, "# Title\n\n## One\n\n### Nested\n\nbody\n\n## Two\n\nlast\n")
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []store.ProfileSection{{Heading: "One", Body: "### Nested\n\nbody"}, {Heading: "Two", Body: "last"}}
+	if !reflect.DeepEqual(p.Sections, want) {
+		t.Fatalf("sections = %+v, want %+v", p.Sections, want)
 	}
 }
 

@@ -356,9 +356,11 @@ func (m model) trackSelector(p pal, w int) string {
 	}
 	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
 	activeName := mark(name)
-	// Longest to shortest; the last always fits any terminal the layout supports.
+	// Longest to shortest; the last always fits any terminal the layout supports. The
+	// label goes before any track name, so a filtered count elsewhere never hides them.
 	for _, cand := range []string{
 		label + strings.Join(parts, "  ") + key,
+		strings.Join(parts, "  ") + key,
 		label + activeName + plus + key,
 		activeName + plus + key,
 		activeName + key,

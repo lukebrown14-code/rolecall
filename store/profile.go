@@ -8,11 +8,19 @@ import (
 	"strings"
 )
 
-// Profile is the locked fact set documents are written from. Contact is the
-// only section the store reads so far; later readers add sections beside it.
+// ProfileSection is one `##` section of the Profile: its heading and the Markdown
+// under it, with surrounding blank lines trimmed.
+type ProfileSection struct {
+	Heading, Body string
+}
+
+// Profile is the locked fact set documents are written from: its Contact fields and
+// its sections in file order. Counts and the other Profile files come later.
 type Profile struct {
-	Contact map[string]string // field -> cleaned value
-	Missing []string          // required fields with no value, in Name, Email order
+	Exists   bool              // master-profile.md was read
+	Contact  map[string]string // field -> cleaned value
+	Missing  []string          // required fields with no value, in Name, Email order
+	Sections []ProfileSection  // `##` sections in file order
 }
 
 // requiredContact is the order the Profile screen reports missing fields in.
@@ -25,17 +33,63 @@ var (
 	contactMarkup = regexp.MustCompile("\\*\\*([^*\\n]+)\\*\\*|\\*([^*\\n]+)\\*|`([^`\\n]+)`")
 )
 
-// Profile reads the Contact from profile/master-profile.md. A missing file or
-// section has no fields, so the required ones are reported missing, not an error.
+// Profile reads profile/master-profile.md: its Contact and its `##` sections. A
+// missing file or section has no fields, so the required ones are reported missing,
+// not an error.
 func (s *Store) Profile() (Profile, error) {
 	b, err := os.ReadFile(filepath.Join(s.root, "profile", "master-profile.md"))
+	exists := true
 	if errors.Is(err, os.ErrNotExist) {
-		b = nil
+		b, exists = nil, false
 	} else if err != nil {
 		return Profile{}, err
 	}
 	contact := parseContact(section(string(b), "Contact"))
-	return Profile{Contact: contact, Missing: missingContact(contact)}, nil
+	var sections []ProfileSection
+	if exists {
+		sections = parseSections(string(b))
+	}
+	return Profile{Exists: exists, Contact: contact, Missing: missingContact(contact), Sections: sections}, nil
+}
+
+// parseSections splits the Profile at its `##` headings. Text before the first heading
+// is the title, not a section; a file with no headings is one section holding it all.
+// `###` is a subheading inside a section, so only `## ` starts one.
+func parseSections(text string) []ProfileSection {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	lines := strings.Split(text, "\n")
+	var out []ProfileSection
+	heading, start := "", 0
+	flush := func(end int) {
+		if heading != "" {
+			out = append(out, ProfileSection{Heading: heading, Body: trimBlank(lines[start:end])})
+		}
+	}
+	for i, line := range lines {
+		if rest, ok := strings.CutPrefix(line, "## "); ok {
+			flush(i)
+			heading, start = strings.TrimSpace(rest), i+1
+		}
+	}
+	flush(len(lines))
+	if len(out) == 0 {
+		// A free-form Profile is still readable: one section with everything in it,
+		// title included, because there is no heading to separate it.
+		return []ProfileSection{{Heading: "Profile", Body: trimBlank(lines)}}
+	}
+	return out
+}
+
+// trimBlank drops the blank lines around a section's text.
+func trimBlank(lines []string) string {
+	start, end := 0, len(lines)
+	for start < end && strings.TrimSpace(lines[start]) == "" {
+		start++
+	}
+	for end > start && strings.TrimSpace(lines[end-1]) == "" {
+		end--
+	}
+	return strings.Join(lines[start:end], "\n")
 }
 
 // section returns the lines under a `## heading`, up to the next `## ` heading

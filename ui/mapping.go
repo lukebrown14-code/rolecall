@@ -5,13 +5,17 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// Screens, numbered 1-4.
+// Screens, numbered 1-5.
 const (
 	screenLeads   = "Leads"
 	screenDraft   = "Draft"
 	screenApplied = "Applied"
 	screenStats   = "Stats"
+	screenProfile = "Profile"
 )
+
+// profileScreen is the Profile's index in screenDefs.
+const profileScreen = 4
 
 // Tables: the views within a screen. Applied, Interviewing and Offer are named after
 // their one Status.
@@ -37,9 +41,10 @@ type screenDef struct {
 	help      func(model) []helpKey
 }
 
-// screenDefs is the screens in key order. Stats reports on Applications rather than
-// listing them, so it has no tables and brings its own view. It is filled in init so
-// the handlers can be declared beside the screen without an initialisation cycle.
+// screenDefs is the screens in key order. Stats reports on Applications and Profile
+// reads the Owner's fact set rather than listing Applications, so neither has tables
+// and each brings its own view. It is filled in init so the handlers can be declared
+// beside the screen without an initialisation cycle.
 var screenDefs []screenDef
 
 func init() {
@@ -48,7 +53,23 @@ func init() {
 		{name: screenDraft, tables: []string{tableDraft}, hasTables: true},
 		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
+		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys},
 	}
+}
+
+// screenKey switches screens on 1-5. It lives here rather than in each screen's key
+// handler so table, Stats and Profile screens all accept the same digits.
+func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
+	key := k.String()
+	last := byte('0') + byte(len(screenDefs))
+	if len(key) != 1 || key[0] < '1' || key[0] > last {
+		return m, false
+	}
+	m.screen, m.table, m.cursor = int(key[0]-'1'), 0, 0
+	if m.screen == profileScreen {
+		m = m.loadProfile()
+	}
+	return m, true
 }
 
 // views returns the views within the active screen.
