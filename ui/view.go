@@ -215,6 +215,9 @@ func (m model) listView(p pal) string {
 // one, otherwise the line the caller prepared (the search input while typing, else the
 // key line). The rule above it is never replaced.
 func (m model) statusRow(p pal, w int, fallback string) string {
+	if m.searching() {
+		return fallback // the search input shows while typing, even over an error
+	}
 	if m.err != nil || m.toast != "" || m.building != nil {
 		return m.feedbackLine(p, w)
 	}
@@ -389,7 +392,9 @@ func (m model) viewRow(p pal) string {
 		}
 	}
 	if scope := m.scopeLine(p); scope != "" {
-		row = spread(row, scope, w-rightMargin)
+		// Keep the frame one line wide: the scope truncates to what the row leaves.
+		avail := max(0, w-rightMargin-xansi.StringWidth(row)-gutter)
+		row = spread(row, xansi.Truncate(scope, avail, "…"), w-rightMargin)
 	}
 	return row
 }
@@ -400,7 +405,11 @@ func (m model) scopeLine(p pal) string {
 	if m.track == 0 && m.text == "" {
 		return ""
 	}
-	parts := []string{screens[m.screen] + " › " + tables[m.screen][m.table]}
+	label := screens[m.screen]
+	if view := tables[m.screen][m.table]; view != label {
+		label += " › " + view
+	}
+	parts := []string{label}
 	if m.track > 0 {
 		parts = append(parts, "track "+m.tracks[m.track-1])
 	}

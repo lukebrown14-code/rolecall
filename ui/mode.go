@@ -18,6 +18,9 @@ type mode interface {
 	View(m *model, p pal) string
 	// Keys are the mode's keys: the pop-up's bottom border, or the search hints.
 	Keys() [][2]string
+	// boxed reports whether the mode is a pop-up whose border carries its own keys, so
+	// the key line shows context instead of repeating them.
+	boxed() bool
 }
 
 // overlayOpen reports whether a mode that hides the view's keys owns the keyboard. The
@@ -34,15 +37,8 @@ func (m model) searching() bool {
 	return ok
 }
 
-// boxOpen reports whether a pop-up whose bottom border carries its own keys is open. The
-// key line then shows context instead of repeating those keys.
-func (m model) boxOpen() bool {
-	switch m.overlay.(type) {
-	case *formMode, *moveMode, *confirmMode, *downloadMode, *duplicateMode, *buildFailMode:
-		return true
-	}
-	return false
-}
+// boxOpen reports whether a pop-up whose bottom border carries its own keys is open.
+func (m model) boxOpen() bool { return m.overlay != nil && m.overlay.boxed() }
 
 // overlayHints are the active mode's keys, or nil when none is open.
 func (m model) overlayHints() [][2]string {
@@ -72,6 +68,8 @@ type formMode struct {
 func (fm *formMode) Keys() [][2]string {
 	return [][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}
 }
+
+func (fm *formMode) boxed() bool { return true }
 
 func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm) }
 
@@ -120,6 +118,8 @@ func (mv *moveMode) Keys() [][2]string {
 	return [][2]string{{"letter", "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
 }
 
+func (mv *moveMode) boxed() bool { return true }
+
 func (mv *moveMode) View(m *model, p pal) string { return m.moveBox(p, mv) }
 
 // Update moves the Application the pop-up shows, not whatever row the cursor is on now: a
@@ -158,6 +158,8 @@ func (cm *confirmMode) Keys() [][2]string {
 	return [][2]string{{"y", "mark Applied"}, {"n esc", "cancel"}}
 }
 
+func (cm *confirmMode) boxed() bool { return true }
+
 func (cm *confirmMode) View(m *model, p pal) string { return m.confirmBox(p, cm) }
 
 func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -182,6 +184,8 @@ func (dm *downloadMode) Keys() [][2]string {
 	return [][2]string{{"y", "overwrite"}, {"a", "all"}, {"n", "skip"}, {"esc", "stop"}}
 }
 
+func (dm *downloadMode) boxed() bool { return true }
+
 func (dm *downloadMode) View(m *model, p pal) string { return m.overwriteBox(p, dm) }
 
 func (dm *downloadMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -201,6 +205,8 @@ type duplicateMode struct {
 func (dm *duplicateMode) Keys() [][2]string {
 	return [][2]string{{"o", "open that one"}, {"s", "save anyway"}, {"esc", "cancel"}}
 }
+
+func (dm *duplicateMode) boxed() bool { return true }
 
 func (dm *duplicateMode) View(m *model, p pal) string { return m.duplicateBox(p, dm) }
 
@@ -226,6 +232,8 @@ type buildFailMode struct{ failure *buildFailure }
 
 func (bf *buildFailMode) Keys() [][2]string { return [][2]string{{"esc", hintClose}} }
 
+func (bf *buildFailMode) boxed() bool { return true }
+
 func (bf *buildFailMode) View(m *model, p pal) string { return m.buildFailBox(p, bf) }
 
 func (bf *buildFailMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -244,6 +252,8 @@ type helpMode struct{}
 
 func (hm *helpMode) Keys() [][2]string { return [][2]string{{"any key", hintClose}} }
 
+func (hm *helpMode) boxed() bool { return false }
+
 func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
 
 func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -259,6 +269,8 @@ type searchMode struct{}
 func (sm *searchMode) Keys() [][2]string {
 	return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
 }
+
+func (sm *searchMode) boxed() bool { return false }
 
 func (sm *searchMode) View(m *model, p pal) string { return "" }
 
