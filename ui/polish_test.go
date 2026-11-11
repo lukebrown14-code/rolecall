@@ -28,7 +28,7 @@ func TestFutureStatusDatesAreFlagged(t *testing.T) {
 // e on a malformed row names the next step as well as the parse error.
 func TestMalformedEditShowsTheNextStep(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "e"))
-	if !strings.Contains(view, "invalid status_log entry") || !strings.Contains(view, "enter to see the file") {
+	if !strings.Contains(view, "invalid status_log entry") || !strings.Contains(view, "enter inspect") {
 		t.Fatalf("malformed edit lacks its next step:\n%s", view)
 	}
 }

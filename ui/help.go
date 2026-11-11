@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -88,7 +89,11 @@ func (m model) helpKeys() []helpKey {
 	usable := !onRow || a.Malformed == nil
 	var keys []helpKey
 	if m.detail != nil {
-		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", "scroll"))
+		vertical := "scroll"
+		if m.detail.tab == tabDocs {
+			vertical = "select"
+		}
+		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", vertical))
 		if m.detail.tab == tabDocs {
 			keys = append(keys, help(groupAction, "enter", "open document tab / PDF"))
 		}
@@ -187,8 +192,19 @@ func (m model) helpBox(p pal) string {
 	nav := append(pairs(keys, groupNav), pairs(keys, groupCursor)...)
 	cols := []string{col("Actions", pairs(keys, groupAction)), col("Navigate", nav), col("More", pairs(keys, groupMore))}
 	legend := p.heading("Glyphs") + "\n" +
-		p.text(p.dim).Render("● ready · ○ written · ✓ present · ⚠ warning") + "\n" +
-		p.text(p.dim).Render("✕ rejected or error · ↩ withdrawn · ~ approx · ⚑ follow-up due")
+		p.text(p.dim).Render("Status: ● ready · ○ written") + "\n" +
+		p.text(p.dim).Render("Docs: ○ not written · ✓ present") + "\n" + p.text(p.dim).Render("⚠ warning · ✕ rejected or error") + "\n" + p.text(p.dim).Render("↩ withdrawn · ~ approx · ⚑ follow-up due")
 	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn) + "\n\n" + legend
-	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", hintClose}}))
+	lines := strings.Split(body, "\n")
+	const helpChrome = 10 // frame, popup borders, headings and paging controls
+	size := max(1, m.viewHeight()-helpChrome)
+	pages := (len(lines) + size - 1) / size
+	hm, _ := m.overlay.(*helpMode)
+	page := 0
+	if hm != nil {
+		hm.page = min(hm.page, pages-1)
+		page = hm.page
+	}
+	body = strings.Join(lines[page*size:min(len(lines), (page+1)*size)], "\n")
+	return popup(p, fmt.Sprintf("Keys %d/%d", page+1, pages), false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"↑↓", "page"}, {"esc", "close"}}))
 }
