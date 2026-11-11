@@ -98,7 +98,7 @@ func orNone(s string) string {
 // remoteLabel is search_area.remote as the Owner reads it; missing means the default.
 func remoteLabel(remote string) string {
 	switch remote {
-	case "anywhere", "no":
+	case store.RemoteAnywhere, store.RemoteNo:
 		return remote
 	}
 	return "in my places"
@@ -113,6 +113,7 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
 	keys = append(keys, m.trackHelpKeys()...)
+	keys = append(keys, m.searchHelpKeys()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "tab", "focus"))
@@ -143,6 +144,9 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil // an invalid file offers e and nothing else
 	}
 	if next, ok := m.tracksKey(k); ok {
+		return next, nil
+	}
+	if next, ok := m.searchKey(k); ok {
 		return next, nil
 	}
 	st := *m.settings

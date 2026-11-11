@@ -179,8 +179,8 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 
 The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
-`blockers` on the Settings screen. It writes `tracks` only (add, reorder, remove on the Settings
-screen): every other key keeps its value and its place, the file is indented with 2 spaces, the
+`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove) and `search_area` (the Search area
+pop-up) on the Settings screen: every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track
 filter and the plugin's defaults. An invalid file is shown, with its parse error, on the Settings
 screen. `sources`, `blockers` and the gates are used by the plugin.
