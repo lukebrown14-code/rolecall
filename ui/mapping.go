@@ -1,17 +1,21 @@
 package ui
 
-import "github.com/lukebrown14-code/rolecall/store"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/store"
+)
 
-// Screens, numbered 1-4.
+// Screens, numbered 1-5.
 const (
 	screenLeads   = "Leads"
 	screenDraft   = "Draft"
 	screenApplied = "Applied"
 	screenStats   = "Stats"
+	screenProfile = "Profile"
 )
 
-// statsScreen is the index of Stats in screens.
-const statsScreen = 3
+// profileScreen is the Profile's index in screenDefs.
+const profileScreen = 4
 
 // Tables: the views within a screen. Applied, Interviewing and Offer are named after
 // their one Status.
@@ -24,6 +28,56 @@ const (
 	tableOffer        = store.StatusOffer
 	tableClosed       = "Closed"
 )
+
+// A screen declares itself: its name, the views within it, whether it has Application
+// tables, and — when it has none — the view, keys and help it owns instead. A new
+// screen joins here rather than adding a check to the shared layout.
+type screenDef struct {
+	name      string
+	tables    []string
+	hasTables bool
+	render    func(model, pal) string
+	key       func(model, tea.KeyPressMsg) (tea.Model, tea.Cmd)
+	help      func(model) []helpKey
+}
+
+// screenDefs is the screens in key order. Stats reports on Applications and Profile
+// reads the Owner's fact set rather than listing Applications, so neither has tables
+// and each brings its own view. It is filled in init so the handlers can be declared
+// beside the screen without an initialisation cycle.
+var screenDefs []screenDef
+
+func init() {
+	screenDefs = []screenDef{
+		{name: screenLeads, tables: []string{tableLeads, tableDismissed}, hasTables: true},
+		{name: screenDraft, tables: []string{tableDraft}, hasTables: true},
+		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
+		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
+		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys},
+	}
+}
+
+// screenKey switches screens on 1-5. It lives here rather than in each screen's key
+// handler so table, Stats and Profile screens all accept the same digits.
+func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
+	key := k.String()
+	last := byte('0') + byte(len(screenDefs))
+	if len(key) != 1 || key[0] < '1' || key[0] > last {
+		return m, false
+	}
+	m.screen, m.table, m.cursor = int(key[0]-'1'), 0, 0
+	if m.screen == profileScreen {
+		m = m.loadProfile()
+	}
+	return m, true
+}
+
+// views returns the views within the active screen.
+func (m model) views() []string { return screenDefs[m.screen].tables }
+
+// hasTables reports whether the active screen holds Application rows. Screens without
+// them have no rows and no view row, and handle their own keys.
+func (m model) hasTables() bool { return screenDefs[m.screen].hasTables }
 
 // StatusLocation maps an Application Status to its screen and table.
 func StatusLocation(status string) (screen, table string) {

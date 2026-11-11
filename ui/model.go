@@ -11,13 +11,9 @@ import (
 	"time"
 )
 
-var screens = []string{screenLeads, screenDraft, screenApplied, screenStats}
-
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
-
-var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, {}}
 
 var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
@@ -54,6 +50,7 @@ type model struct {
 	capturedRun           bool // a build or fetch is in flight; only one captured run at a time
 	building              *buildState
 	spinner               spinner.Model
+	profile               *profileState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -100,13 +97,13 @@ func (m model) quit() tea.Cmd {
 	}
 }
 
-// rows is the active view in display order: the cursor indexes into it. Stats has
-// no tables and no rows.
+// rows is the active view in display order: the cursor indexes into it. A screen
+// without Application tables has no rows.
 func (m model) rows() []store.Application {
-	if m.screen == statsScreen {
+	if !m.hasTables() {
 		return nil
 	}
-	return m.rowsOf(m.screen, tables[m.screen][m.table])
+	return m.rowsOf(m.screen, m.views()[m.table])
 }
 
 // rowsOf lists one view of a screen. All groups the Applied screen's tables in
@@ -122,7 +119,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table && m.matches(a) {
+		if s == screenDefs[screen].name && t == table && m.matches(a) {
 			out = append(out, a)
 		}
 	}
@@ -159,7 +156,7 @@ func (m model) totalCount(screen int, table string) int {
 	n := 0
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table {
+		if s == screenDefs[screen].name && t == table {
 			n++
 		}
 	}
@@ -191,6 +188,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if done.folder == m.selectAfter {
 			m.selectFolder(done.folder)
 			m.selectAfter = ""
+		}
+		// A Profile edit suspends from screen 5 and finishes with the Workspace root as
+		// its folder; profile/ is not watched, so reread it here. An Application edit
+		// still rescans its own folder above.
+		if m.screen == profileScreen || done.folder == m.store.Root() {
+			m = m.loadProfile()
 		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
@@ -239,8 +242,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return next.syncDetail(), cmd
 			}
 		}
-		if m.screen == statsScreen {
-			return m.statsKey(k)
+		if next, ok := m.screenKey(k); ok {
+			return next, nil
+		}
+		if !m.hasTables() {
+			return screenDefs[m.screen].key(m, k)
 		}
 		switch k.String() {
 		case "v", "enter":
@@ -294,15 +300,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "1", "2", "3", "4":
-			m.screen = int(k.String()[0] - '1')
-			m.table = 0
-			m.cursor = 0
 		case "tab":
-			m.table = (m.table + 1) % len(tables[m.screen])
+			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
 		case "shift+tab":
-			m.table = (m.table + len(tables[m.screen]) - 1) % len(tables[m.screen])
+			m.table = (m.table + len(m.views()) - 1) % len(m.views())
 			m.cursor = 0
 		case "down", "j":
 			m.cursor++
@@ -327,6 +329,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m = m.syncDetail()
+	m = m.syncProfile()
 	n := len(m.rows())
 	if m.cursor >= n {
 		m.cursor = n - 1
