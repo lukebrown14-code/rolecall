@@ -142,7 +142,7 @@ func (m model) View() tea.View {
 		}
 		body = overlay(base, box, m.viewWidth())
 	}
-	v := tea.NewView(asciiFold(body))
+	v := tea.NewView(asciiFold(body, m.ascii))
 	// Dark only: paint the terminal background so the palette reads the same on a light
 	// terminal. NO_COLOR drops colour but keeps bold and underline.
 	if noColor() {
