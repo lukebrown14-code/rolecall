@@ -175,12 +175,12 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
   `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
 - **Missing section or file:** no fields, so both required fields are missing.
 
-## `workspace.json` (read by the TUI, which writes `tracks`)
+## `workspace.json` (read by the TUI, which writes `tracks` and the gates)
 
 The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
-`blockers` on the Settings screen. It writes `tracks` only (add, reorder, remove on the Settings
-screen): every other key keeps its value and its place, the file is indented with 2 spaces, the
+`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove) and the four gates
+(edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track
 filter and the plugin's defaults. An invalid file is shown, with its parse error, on the Settings
 screen. `sources`, `blockers` and the gates are used by the plugin.
