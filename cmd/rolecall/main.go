@@ -1,10 +1,12 @@
 package main
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"flag"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/store"
+	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
 )
 
@@ -29,16 +31,10 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	apps, err := s.Scan()
+	m, err := ui.New(s, nil)
 	if err != nil {
 		return err
 	}
-	counts := map[string]int{}
-	for _, a := range apps {
-		counts[a.Status]++
-	}
-	for _, status := range []string{"Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed"} {
-		fmt.Printf("%s: %d\n", status, counts[status])
-	}
-	return nil
+	_, err = tea.NewProgram(m).Run()
+	return err
 }
