@@ -11,6 +11,10 @@ The individual job seeker whose Profile and Applications live in a Workspace. An
 The Owner's private folder holding their Profile, settings and Applications. Never part of rolecall's code.
 _Avoid_: data dir, project
 
+**Track**:
+A kind of role the Owner is pursuing (e.g. SWE, Platform). Every Application belongs to one, and a Sweep searches each one.
+_Avoid_: category, stream, career path
+
 ### Profile
 
 **Profile**:
@@ -32,8 +36,12 @@ A single company's board on a Platform, configured per Workspace (e.g. greenhous
 _Avoid_: board (alone), feed
 
 **Sweep**:
-A mechanical run of all Sources: fetch, filter by track and location, dedupe. Judges nothing; its output is candidates the Harness triages into Leads.
+A mechanical run of all Sources: fetch, filter by Track and Search area, dedupe. Judges nothing; its output is candidates the Harness triages into Leads.
 _Avoid_: search, scan
+
+**Search area**:
+The places a role must be in, and whether remote roles count, for a Sweep to keep it. Not the Owner's own location, which is part of their Profile.
+_Avoid_: location (alone), region
 
 ### Applying
 
