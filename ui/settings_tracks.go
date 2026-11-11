@@ -82,7 +82,12 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 		if !on {
 			return m, true
 		}
-		if n := m.trackUse(tracks[st.row]); n > 0 {
+		n, err := m.trackUse(tracks[st.row])
+		if err != nil {
+			m.err = err
+			return m, true
+		}
+		if n > 0 {
 			noun := "Applications"
 			if n == 1 {
 				noun = "Application"
@@ -103,14 +108,8 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 }
 
 // trackUse counts the Applications on a Track, archived ones included.
-func (m model) trackUse(track string) int {
-	n := 0
-	for _, a := range m.apps {
-		if a.Track == track {
-			n++
-		}
-	}
-	return n
+func (m model) trackUse(track string) (int, error) {
+	return m.store.TrackUse(track)
 }
 
 // saveTracks writes the Tracks, then re-reads so the header filter and the screen follow.

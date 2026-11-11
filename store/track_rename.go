@@ -40,6 +40,19 @@ func (s *Store) TrackRenameImpact(old string) (RenameImpact, error) {
 	return impact, err
 }
 
+// TrackUse counts the Applications on a Track, archived and malformed ones included, so
+// removing a Track is refused while anything still carries it.
+func (s *Store) TrackUse(track string) (int, error) {
+	n := 0
+	err := s.eachMeta(func(dir string, b []byte) error {
+		if a := readApplication(dir, b); a.Track == track || (a.Malformed != nil && rawTrack(b) == track) {
+			n++
+		}
+		return nil
+	})
+	return n, err
+}
+
 // RenameTrack renames a Track across the Workspace: the track of every readable meta.yml
 // under jobs/ (archive included, written with the usual meta.yml rules), then tracks in
 // workspace.json, then the role tracks in jobs/roles.json. Folders never move, and

@@ -2,10 +2,12 @@ package ui_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/ui"
@@ -59,6 +61,39 @@ func TestSettingsEditEditorSavesAndKeepsComments(t *testing.T) {
 	if string(b) != want {
 		t.Fatalf("config.toml:\n%s", b)
 	}
+}
+
+func TestSettingsRereadsConfigOnEnteringTheScreen(t *testing.T) {
+	d, cfg := machineDriver(t, 120)
+	if err := os.WriteFile(cfg, []byte(strings.Replace(machineConfig, `"vim"`, `"nano"`, 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	selectRow(d, 3, 0)
+	requireAll(t, d.plain(), "Editor", "nano")
+}
+
+func TestSettingsRereadsConfigAfterTheEditorCloses(t *testing.T) {
+	home := t.TempDir()
+	cfg := config.Path(home)
+	if err := os.MkdirAll(filepath.Dir(cfg), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg, []byte(machineConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root := fixtureCopy(t, nil)
+	d := newDriver(t, root, fixtureClock, 120, 40, ui.WithConfigHome(home), ui.WithEditor("vim"),
+		ui.WithExternalRunner(func(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+			return func() tea.Msg {
+				// the Owner edits config.toml in another window while the editor is open
+				err := os.WriteFile(cfg, []byte(strings.Replace(machineConfig, `"vim"`, `"emacs"`, 1)), 0o600)
+				return done(err)
+			}
+		}))
+	selectRow(d, 3, 0)
+	requireAll(t, d.plain(), "vim")
+	d.Type("e")
+	requireAll(t, d.plain(), "emacs")
 }
 
 func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {

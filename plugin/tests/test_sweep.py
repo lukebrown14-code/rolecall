@@ -448,6 +448,17 @@ def test_sweep_without_search_area_keeps_all_and_says_so(
     assert "no Search area set: all locations kept" in output
 
 
+@pytest.mark.parametrize("search_area", [{}, {"places": []}, {"remote": "anywhere"}, {"places": [" "]}])
+def test_search_area_without_places_keeps_all_and_says_so(
+    tmp_path, monkeypatch, catalogue, capsys, search_area
+):
+    workspace = sweep_workspace(tmp_path, catalogue, search_area=search_area)
+    output = sweep_one(monkeypatch, workspace, "London")
+    assert "Implementation Consultant — Acme" in output
+    assert "no Search area set: all locations kept" in capsys.readouterr().out
+    assert "no Search area set: all locations kept" in output
+
+
 def test_sweep_with_search_area_does_not_report_none(tmp_path, monkeypatch, catalogue, capsys):
     workspace = sweep_workspace(tmp_path, catalogue, search_area=AU)
     output = sweep_one(monkeypatch, workspace, "Brisbane, QLD")

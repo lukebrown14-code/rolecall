@@ -524,6 +524,16 @@ def _gazetteer():
     return _GAZETTEER
 
 
+def active_search_area(search_area):
+    """The Search area when it names at least one Place, else None (no filter)."""
+    if not isinstance(search_area, dict):
+        return None
+    places = search_area.get("places")
+    if not isinstance(places, list) or not any(isinstance(p, str) and p.strip() for p in places):
+        return None
+    return search_area
+
+
 def location_ok(loc, search_area=None):
     """Keep a role unless it names a known place outside the Search area.
 
@@ -532,7 +542,8 @@ def location_ok(loc, search_area=None):
     A remote role follows the Remote rule: `anywhere` keeps it, `no` drops it and
     `in-places` (the default) keeps it unless it names only places outside.
     An empty or unknown location is kept."""
-    if not isinstance(search_area, dict):
+    search_area = active_search_area(search_area)
+    if search_area is None:
         return True
     place = (loc or "").lower().strip()
     if not place:
@@ -680,10 +691,10 @@ def main():
     tracks = args.track or available
     ACTIVE_TRACKS = tracks
 
-    search_area = config(workspace).get("search_area")
+    search_area = active_search_area(config(workspace).get("search_area"))
     blockers, favourable = load_blockers(workspace)
     seen = seen_urls(workspace)
-    if not isinstance(search_area, dict) and not args.all_locations:
+    if search_area is None and not args.all_locations:
         print(NO_SEARCH_AREA)
     print(f"Sweeping tracks {', '.join(tracks)} ... ({len(seen)} URLs already known)")
 
@@ -757,7 +768,7 @@ def main():
         f"{len(jobs)} fetched, {len(kept)} matched, {skipped_seen} already known"
         + (f" · **{len(failed)} source(s) FAILED**" if failed else ""),
         "",
-        *([f"Search area: {NO_SEARCH_AREA}.", ""] if not isinstance(search_area, dict) else []),
+        *([f"Search area: {NO_SEARCH_AREA}.", ""] if search_area is None else []),
         *health_lines(health),
         *coverage_lines(coverage),
         "---",
