@@ -15,6 +15,16 @@ jobs:
         with:
           python-version: "3.x"
       - run: python3 scripts/check-personal-data.py .
+      - name: Check Owner-specific terms
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          ROLECALL_PERSONAL_DATA_TERMS: ${{ secrets.ROLECALL_PERSONAL_DATA_TERMS }}
+        run: |
+          if [ -z "$ROLECALL_PERSONAL_DATA_TERMS" ]; then
+            echo "ROLECALL_PERSONAL_DATA_TERMS secret is required on main" >&2
+            exit 1
+          fi
+          python3 scripts/check-personal-data.py .
       - run: python3 scripts/check-skills.py
       - uses: golangci/golangci-lint-action@v8
         with:

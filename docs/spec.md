@@ -483,7 +483,7 @@ Documents state rules, Build and the Plugin are unchanged.
 | Settings | Settings screen: tracks, gates, follow-up days, downloads, editor, theme, harness commands |
 | Documents | neutral default template + workspace brand override · style packs AU/UK/US · 2–3 template choices |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
-| Finding | per-workspace sources and locations, no Melbourne default |
+| Finding | per-workspace sources and locations, no the selected city default |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
