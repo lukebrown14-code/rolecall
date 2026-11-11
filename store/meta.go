@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,15 +13,9 @@ import (
 var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var entryPattern = regexp.MustCompile(`^  - \{status: ([A-Za-z]+), at: ([^,}]+)(, approx: (true|false))?\}([ \t]+#.*)?$`)
 
-func validStatus(s string) bool {
-	switch s {
-	case "Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed":
-		return true
-	}
-	return false
-}
+func validStatus(s string) bool { return slices.Contains(Statuses, s) }
 func readApplication(dir string, b []byte) Application {
-	a := Application{Folder: dir, Schema: 1, Status: "Lead"}
+	a := Application{Folder: dir, Schema: 1, Status: StatusLead}
 	fail := func(n int, err error) Application {
 		a.Malformed = fmt.Errorf("%s:%d: %w", filepath.Join(dir, "meta.yml"), n, err)
 		return a
@@ -51,7 +46,7 @@ func readApplication(dir string, b []byte) Application {
 			a.StatusLog = append(a.StatusLog, e)
 			a.Status = e.Status
 			a.LastChange = &e
-			if e.Status == "Applied" && a.AppliedDate == nil {
+			if e.Status == StatusApplied && a.AppliedDate == nil {
 				a.AppliedDate = &e
 			}
 			continue
@@ -80,11 +75,11 @@ func readApplication(dir string, b []byte) Application {
 			if v != "1" {
 				return fail(n+1, fmt.Errorf("unsupported schema"))
 			}
-		case "title":
+		case keyTitle:
 			a.Title = v
-		case "company":
+		case keyCompany:
 			a.Company = v
-		case "track":
+		case keyTrack:
 			a.Track = v
 		case "url":
 			a.URL = v
@@ -97,7 +92,7 @@ func readApplication(dir string, b []byte) Application {
 			a.Closes = v
 		case "fit":
 			switch v {
-			case "", "Strong", "Good", "Marginal", "Poor":
+			case "", FitStrong, FitGood, FitMarginal, FitPoor:
 				a.Fit = v
 			default:
 				return fail(n+1, fmt.Errorf("invalid Fit"))
@@ -109,7 +104,7 @@ func readApplication(dir string, b []byte) Application {
 			a.ResumeOnly = v == "true"
 		}
 	}
-	for _, k := range []string{"title", "company", "track"} {
+	for _, k := range []string{keyTitle, keyCompany, keyTrack} {
 		if !seen[k] {
 			return fail(1, fmt.Errorf("missing %s", k))
 		}

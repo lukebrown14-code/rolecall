@@ -117,21 +117,23 @@ func runKeysSized(t *testing.T, root string, width, height int, keys ...string) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, fixtureClock)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(width, height))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("rolecall")) })
+	// Any first frame will do: narrow screens drop "rolecall", tiny ones every word.
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return len(b) > 0 })
 	drive(tm, keys...)
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
 }
 
-// drive sends keys: "enter", "esc", "tab" and "backspace" by name, "paste:…" as a
+// drive sends keys: "enter", "esc", "tab", "backspace" and the arrows by name, "paste:…" as a
 // bracketed paste, anything else typed as text.
 func drive(tm *teatest.TestModel, keys ...string) {
-	named := map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "backspace": tea.KeyBackspace}
+	named := map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "backspace": tea.KeyBackspace,
+		"right": tea.KeyRight, "left": tea.KeyLeft, "up": tea.KeyUp, "down": tea.KeyDown}
 	for _, k := range keys {
 		if code, ok := named[k]; ok {
 			tm.Send(tea.KeyPressMsg{Code: code})
@@ -168,7 +170,7 @@ func runKeysThen(t *testing.T, drive func(*teatest.TestModel)) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, fixtureClock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,4 +179,31 @@ func runKeysThen(t *testing.T, drive func(*teatest.TestModel)) string {
 	drive(tm)
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+}
+
+// At any size, from a sliver to the minimum and just above it, every screen and pop-up
+// stays inside the terminal; below the minimum a notice says so instead.
+func TestEverySizeFitsTheTerminal(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	sizes := [][2]int{{1, 1}, {10, 3}, {49, 30}, {120, 11}, {50, 12}, {64, 13}}
+	states := [][]string{{"1"}, {"3"}, {"m"}, {"a"}, {"?"}, {"3", "enter"}, {"G", "e"}}
+	for _, size := range sizes {
+		for _, keys := range states {
+			w, h := size[0], size[1]
+			view := runKeysSized(t, root, w, h, keys...)
+			lines := strings.Split(view, "\n")
+			if len(lines) > h {
+				t.Fatalf("%dx%d keys %q: %d lines:\n%s", w, h, keys, len(lines), ansi.Strip(view))
+			}
+			for _, line := range lines {
+				if ansi.StringWidth(line) > w {
+					t.Fatalf("%dx%d keys %q: a line is %d cells wide:\n%s", w, h, keys, ansi.StringWidth(line), ansi.Strip(view))
+				}
+			}
+			// The notice needs a few cells to be readable at all.
+			if small := w < 50 || h < 12; w >= 20 && h >= 2 && small != strings.Contains(ansi.Strip(view), "too small") {
+				t.Fatalf("%dx%d: too-small notice shown = %v:\n%s", w, h, !small, ansi.Strip(view))
+			}
+		}
+	}
 }

@@ -55,9 +55,9 @@ func (p pal) heading(s string) string { return p.text(p.dim).Bold(true).Render(s
 // fitColor keeps amber and red for time: Fit runs green → blue → grey.
 func (p pal) fitColor(fit string) color.Color {
 	switch fit {
-	case "Strong":
+	case store.FitStrong:
 		return p.ok
-	case "Good":
+	case store.FitGood:
 		return p.info
 	}
 	return p.dim
@@ -66,13 +66,13 @@ func (p pal) fitColor(fit string) color.Color {
 // statusColor is the colour of a Status word.
 func (p pal) statusColor(status string) color.Color {
 	switch status {
-	case "Interviewing":
+	case store.StatusInterviewing:
 		return p.lilac
-	case "Offer":
+	case store.StatusOffer:
 		return p.ok
-	case "Rejected":
+	case store.StatusRejected:
 		return p.bad
-	case "Lead", "Dismissed", "Withdrawn":
+	case store.StatusLead, store.StatusDismissed, store.StatusWithdrawn:
 		return p.dim
 	}
 	return p.fg

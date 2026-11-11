@@ -47,7 +47,7 @@ func (e docEntry) markdown() bool { return strings.HasSuffix(e.name, ".md") }
 func (e docEntry) group() string {
 	switch {
 	case strings.HasPrefix(e.name, "out/"):
-		return "Built · out/"
+		return "PDFs · out/"
 	case strings.HasPrefix(e.name, "sent/"):
 		return "Sent"
 	}
@@ -118,7 +118,6 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	cardWidth     = 34 // the left card, from splitWidth up
-	detailHeader  = 3  // title, facts and the rule above the panes
 	minBodyHeight = 3
 	detailChrome  = 10 // top bar, gap, title, facts, rule, tabs, gap … cue, rule, keys
 	detailFrame   = 7  // the lines around the panes: top bar, gap, title, facts, rule … rule, keys
@@ -298,7 +297,7 @@ func (m model) detailView(p pal) string {
 		return ""
 	}
 	w, paneW := m.viewWidth(), m.paneWidth()
-	h := max(minBodyHeight+detailHeader, m.viewHeight()-detailFrame)
+	h := max(minBodyHeight, m.viewHeight()-detailFrame)
 	title := "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.dim).Render(a.Company+" · ") + p.text(p.fg).Bold(true).Render(a.Title)
 	when := ""
 	switch r, days := ago(a.Closes, m.now()); {

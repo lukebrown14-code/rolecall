@@ -43,7 +43,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	case "written":
 		docs = "○"
 	}
-	if table == "Dismissed" {
+	if table == tableDismissed {
 		return append(out, entryDate(a.LastChange))
 	}
 	if beforeApplied(table) {
@@ -52,13 +52,13 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 			closes = "past"
 		}
 		out = append(out, closes, fit)
-		if table == "Draft" {
+		if table == tableDraft {
 			out = append(out, docs)
 		}
 		return out
 	}
 	flag := ""
-	if (a.Status == "Applied" || a.Status == "Interviewing") && a.LastChange != nil {
+	if (a.Status == store.StatusApplied || a.Status == store.StatusInterviewing) && a.LastChange != nil {
 		at, err := time.Parse(time.RFC3339, a.LastChange.At)
 		if err != nil {
 			at, err = time.Parse("2006-01-02", a.LastChange.At)
@@ -75,7 +75,7 @@ func SortApplications(rows []store.Application, table string) {
 		if beforeApplied(table) {
 			return a.Closes
 		}
-		if table == "Dismissed" {
+		if table == tableDismissed {
 			if a.LastChange != nil {
 				return a.LastChange.At
 			}

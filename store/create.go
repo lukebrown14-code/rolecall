@@ -18,7 +18,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 		return "", fmt.Errorf("Title, Company and a single Track folder are required")
 	}
 	text := "schema: 1\n"
-	for _, pair := range [][2]string{{"title", fields.Title}, {"company", fields.Company}, {"track", fields.Track}, {"url", fields.URL}, {"closes", fields.Closes}, {"fit", fields.Fit}} {
+	for _, pair := range [][2]string{{keyTitle, fields.Title}, {keyCompany, fields.Company}, {keyTrack, fields.Track}, {"url", fields.URL}, {"closes", fields.Closes}, {"fit", fields.Fit}} {
 		if pair[1] != "" {
 			text += pair[0] + ": " + quoteScalar(pair[1]) + "\n"
 		}

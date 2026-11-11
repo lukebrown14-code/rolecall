@@ -49,7 +49,7 @@ func newAddHarness(t *testing.T) *addHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, ui.WithExternalRunner(runner))
+	m, err := ui.New(s, fixtureClock, ui.WithExternalRunner(runner))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("G") // park the cursor elsewhere so selecting the new row is observable
 	h.fillAdd("Site Reliability Engineer", "Acme", "https://example.test/sre", "2027-03-01")
-	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01", "jd.md"), "Pasted JD")
+	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-"+fixtureDay, "jd.md"), "Pasted JD")
 	view := h.quit()
 
 	apps, err := h.store.Scan()
@@ -251,7 +251,7 @@ func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	if created.Status != "Lead" || len(created.StatusLog) != 1 || created.Company != "Acme" || created.Track != "SWE" || created.URL != "https://example.test/sre" || created.Closes != "2027-03-01" || created.Fit != "" {
 		t.Fatalf("unexpected Application: %+v", created)
 	}
-	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01")
+	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-"+fixtureDay)
 	if created.Folder != wantFolder {
 		t.Fatalf("folder %s, want %s", created.Folder, wantFolder)
 	}
@@ -295,7 +295,7 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h := newAddHarness(t)
 	h.fillAdd("Quokka Wrangler", "Acme", "https://example.test/quokka", "2027-03-01")
-	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-2026-10-01")
+	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-"+fixtureDay)
 	h.waitForFile(filepath.Join(folder, "jd.md"), "Pasted JD")
 
 	// Filter to the new Application so each screen shows exactly one row.

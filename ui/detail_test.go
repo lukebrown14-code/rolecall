@@ -53,7 +53,7 @@ func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option)
 				return done(nil)
 			}
 		})}, extra...)
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, opts...)
+	m, err := ui.New(s, fixtureClock, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}

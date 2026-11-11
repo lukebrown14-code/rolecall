@@ -5,20 +5,20 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-var statusLetters = map[string]string{"Lead": "l", "Draft": "d", "Applied": "a", "Interviewing": "i", "Offer": "o", "Rejected": "r", "Withdrawn": "w", "Dismissed": "x"}
+var statusLetters = map[string]string{store.StatusLead: "l", store.StatusDraft: "d", store.StatusApplied: "a", store.StatusInterviewing: "i", store.StatusOffer: "o", store.StatusRejected: "r", store.StatusWithdrawn: "w", store.StatusDismissed: "x"}
 
 // MoveOptions returns likely next Statuses first, excluding the current Status.
 func MoveOptions(from, previous string) []string {
 	priorities := map[string][]string{
-		"Lead": {"Draft", "Applied", "Dismissed"}, "Draft": {"Applied", "Lead", "Dismissed"},
-		"Applied":      {"Interviewing", "Rejected", "Withdrawn", "Offer"},
-		"Interviewing": {"Offer", "Rejected", "Withdrawn", "Applied"},
-		"Offer":        {"Withdrawn", "Rejected"}, "Rejected": {"Interviewing", "Applied"},
-		"Withdrawn": {"Interviewing", "Applied"}, "Dismissed": {previous},
+		store.StatusLead: {store.StatusDraft, store.StatusApplied, store.StatusDismissed}, store.StatusDraft: {store.StatusApplied, store.StatusLead, store.StatusDismissed},
+		store.StatusApplied:      {store.StatusInterviewing, store.StatusRejected, store.StatusWithdrawn, store.StatusOffer},
+		store.StatusInterviewing: {store.StatusOffer, store.StatusRejected, store.StatusWithdrawn, store.StatusApplied},
+		store.StatusOffer:        {store.StatusWithdrawn, store.StatusRejected}, store.StatusRejected: {store.StatusInterviewing, store.StatusApplied},
+		store.StatusWithdrawn: {store.StatusInterviewing, store.StatusApplied}, store.StatusDismissed: {previous},
 	}
 	seen := map[string]bool{from: true, "": true}
 	var out []string
-	for _, s := range append(priorities[from], "Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed") {
+	for _, s := range append(priorities[from], store.Statuses...) {
 		if !seen[s] {
 			out = append(out, s)
 			seen[s] = true
@@ -38,7 +38,7 @@ type pendingMove struct {
 // requestMove moves immediately, except that a non-Ready Application going to Applied
 // first asks the Owner. A malformed Application skips the prompt so the store's error shows.
 func (m *model) requestMove(a store.Application, status string) {
-	if status == "Applied" && a.Malformed == nil && a.Documents != "Ready" {
+	if status == store.StatusApplied && a.Malformed == nil && a.Documents != store.DocsReady {
 		m.confirm = &pendingMove{a, status}
 		return
 	}
@@ -51,7 +51,7 @@ func (m *model) move(a store.Application, status string, undo bool) {
 		return
 	}
 	var sentErr error
-	if status == "Applied" && !undo {
+	if status == store.StatusApplied && !undo {
 		sentErr = m.store.RecordSent(a.Folder)
 	}
 	// The append is final even when the copy failed, so the rows are refreshed either way.
@@ -74,15 +74,15 @@ func (m *model) move(a store.Application, status string, undo bool) {
 // nothing earlier restores to Lead.
 func statusBeforeDismissed(log []store.StatusEntry) string {
 	i := len(log) - 1
-	for i >= 0 && log[i].Status != "Dismissed" {
+	for i >= 0 && log[i].Status != store.StatusDismissed {
 		i--
 	}
 	for i--; i >= 0; i-- {
-		if log[i].Status != "Dismissed" {
+		if log[i].Status != store.StatusDismissed {
 			return log[i].Status
 		}
 	}
-	return "Lead"
+	return store.StatusLead
 }
 
 // moveKey drives the Move pop-up: a status letter moves straight away; ↑↓ and enter

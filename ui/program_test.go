@@ -20,7 +20,7 @@ func TestNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, fixtureClock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, _ := s.Scan()
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, fixtureClock)
 	if err != nil {
 		t.Fatal(err)
 	}
