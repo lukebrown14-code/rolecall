@@ -11,7 +11,7 @@ import (
 // error satisfying errors.Is(err, os.ErrExist) and leaves it untouched, unless
 // overwrite is set.
 func (s *Store) CopyPDF(folder, name, dir string, overwrite bool) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, sharedDirMode); err != nil {
 		return err
 	}
 	in, err := os.Open(filepath.Join(folder, "out", name))
@@ -23,7 +23,7 @@ func (s *Store) CopyPDF(folder, name, dir string, overwrite bool) error {
 	if overwrite {
 		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	}
-	out, err := os.OpenFile(filepath.Join(dir, name), flags, 0o644)
+	out, err := os.OpenFile(filepath.Join(dir, name), flags, sharedFileMode)
 	if err != nil {
 		return err
 	}

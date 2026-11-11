@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// separatorWidth is the cells between columns (" | ").
+const separatorWidth = 3
+
 func entryDate(e *store.StatusEntry) string {
 	if e == nil {
 		return ""
@@ -107,7 +110,7 @@ func RenderColumns(cells [][]string, width int) []string {
 			}
 		}
 	}
-	total := 3 * (len(widths) - 1)
+	total := separatorWidth * (len(widths) - 1)
 	for _, w := range widths {
 		total += w
 	}

@@ -15,7 +15,7 @@ var sentFiles = []string{"resume.md", "cover-letter.md", "jd.md", "fit.md", "gap
 // An existing sent/ is never touched, so repeat calls are no-ops.
 func (s *Store) RecordSent(folder string) error {
 	sent := filepath.Join(folder, "sent")
-	if err := os.Mkdir(sent, 0o755); err != nil {
+	if err := os.Mkdir(sent, sharedDirMode); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return nil
 		}
@@ -31,7 +31,7 @@ func (s *Store) RecordSent(folder string) error {
 		return err
 	}
 	if len(pdfs) > 0 {
-		if err := os.Mkdir(filepath.Join(sent, "out"), 0o755); err != nil {
+		if err := os.Mkdir(filepath.Join(sent, "out"), sharedDirMode); err != nil {
 			return err
 		}
 	}

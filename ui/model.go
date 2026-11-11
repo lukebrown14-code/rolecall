@@ -15,6 +15,9 @@ import (
 var screens = []string{"Leads", "Draft", "Applied"}
 var tables = [][]string{{"Leads", "Dismissed"}, {"Draft"}, {"Applied", "Interviewing", "Offer", "Closed"}}
 
+// defaultFollowUpDays applies when the Owner configures none.
+const defaultFollowUpDays = 14
+
 type model struct {
 	store                 *store.Store
 	apps                  []store.Application
@@ -55,7 +58,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, now: now, followUpDays: 14}
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays}
 	for _, option := range options {
 		option(&m)
 	}

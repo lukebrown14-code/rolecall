@@ -10,7 +10,7 @@ func (s *Store) EnsureNotes(folder string) error {
 	if _, err := s.Rescan(folder); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(folder, "notes.md"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Join(folder, "notes.md"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, privateFileMode)
 	if os.IsExist(err) {
 		return nil
 	}

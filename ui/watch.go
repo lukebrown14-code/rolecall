@@ -81,7 +81,7 @@ func startWatcher(jobs string, window time.Duration) (*watcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := &watcher{jobs: jobs, fs: fsw, batches: make(chan []string, 16), done: make(chan struct{}), dirs: map[string]bool{}}
+	w := &watcher{jobs: jobs, fs: fsw, batches: make(chan []string, batchBuffer), done: make(chan struct{}), dirs: map[string]bool{}}
 	w.deb = newDebouncer(window, w.deliver)
 	if _, err := os.Stat(jobs); err == nil {
 		w.addTree(jobs, false)
@@ -148,13 +148,23 @@ func (w *watcher) parts(path string) ([]string, bool) {
 	return p, p[0] != archiveDir
 }
 
+// Path depths under jobs/ (number of segments below it).
+const (
+	depthJobs        = 0
+	depthTrack       = 1
+	depthApplication = 2
+	depthOut         = 3
+
+	batchBuffer = 16
+)
+
 // wanted reports whether a directory at this depth under jobs/ is watched: track
 // folders and Application folders always, out/ inside an Application folder.
 func wanted(parts []string) bool {
 	switch len(parts) {
-	case 0, 1, 2:
+	case depthJobs, depthTrack, depthApplication:
 		return true
-	case 3:
+	case depthOut:
 		return parts[2] == "out"
 	}
 	return false
@@ -217,7 +227,7 @@ func (w *watcher) handle(ev fsnotify.Event) {
 		if !created && w.forget(ev.Name) {
 			w.deb.add(ev.Name)
 		}
-	case 2:
+	case depthApplication:
 		if created && !isDir {
 			return // loose file beside Application folders, e.g. TRACKER.md
 		}
