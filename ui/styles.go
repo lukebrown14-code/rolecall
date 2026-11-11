@@ -250,7 +250,7 @@ func stripColor(s string) string {
 // asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
 var asciiGlyphs = strings.NewReplacer(
 	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<-",
-	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o",
+	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "─", "-", "│", "|", "┬", "+", "┴", "+",
 	"╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "...",
 	// the progress spinner's Braille frames

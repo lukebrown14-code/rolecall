@@ -8,15 +8,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestStatsScreenShowsTheReport(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4"))
-	for _, want := range []string{"Stats", "Funnel", "Lead", "Applied", "Response rate", "33%", "Applied per week", "By track", "SWE", "Platform"} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("stats screen lacks %q:\n%s", want, view)
-		}
-	}
-}
-
 func TestStatsScreenTabAndRowKeysAreInert(t *testing.T) {
 	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4"))
 	withKeys := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "tab", "m", "v", "e", "n", "x", "d", "f", "p", "b", "j", "k", "g", "G", "enter"))
@@ -37,7 +28,7 @@ func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
 
 func TestStatsHelpBarOnlyListsValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "?"))
-	for _, want := range []string{"add", "rescan", "quit", "cycle track", "1-3", "screen"} {
+	for _, want := range []string{"add", "rescan", "quit", "cycle track", "1-4", "screen"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}

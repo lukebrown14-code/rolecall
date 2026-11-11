@@ -61,6 +61,7 @@ type model struct {
 	plugin                string
 	harness               string
 	captured              CapturedRunner
+	capturedRun           bool // a build or fetch is in flight; only one captured run at a time
 	building              *buildState
 	buildFail             *buildFailure
 	spinner               spinner.Model
@@ -211,7 +212,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(tick)
 		return m, cmd
 	}
+	if done, ok := msg.(fetchFinished); ok {
+		// The form may have been closed while the fetch was in flight: the run is still
+		// over, so clear the guard and drop the result rather than leaking it.
+		m.capturedRun = false
+		if m.form == nil {
+			return m, nil
+		}
+		return m.finishFetch(done)
+	}
 	if done, ok := msg.(buildFinished); ok {
+		m.capturedRun = false
 		return m.finishBuild(done)
 	}
 	if m.form != nil {
@@ -350,7 +361,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screen = int(k.String()[0] - '1')
 			m.table = 0
 			m.cursor = 0
-			m.detail = nil
 		case "tab":
 			m.table = (m.table + 1) % len(tables[m.screen])
 			m.cursor = 0

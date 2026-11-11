@@ -43,17 +43,15 @@ func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea
 		trackChoices[i] = choice{t, t}
 	}
 	url := formField{label: fieldURL, value: v.url, placeholder: "https://…"}
-	fields := []formField{
-		url,
-		{label: "Title", required: true, value: v.title},
-		{label: "Company", required: true, value: v.company},
-		{label: "Track", value: v.track, choices: trackChoices},
-		{label: "Closes", value: v.closes, placeholder: "YYYY-MM-DD", validate: validCloses},
-		{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {store.FitStrong, store.FitStrong}, {store.FitGood, store.FitGood}, {store.FitMarginal, store.FitMarginal}, {store.FitPoor, store.FitPoor}}},
-	}
+	titleField := formField{label: "Title", required: true, value: v.title}
+	company := formField{label: "Company", required: true, value: v.company}
+	track := formField{label: "Track", value: v.track, choices: trackChoices}
+	closes := formField{label: "Closes", value: v.closes, placeholder: "YYYY-MM-DD", validate: validCloses}
+	fit := formField{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {store.FitStrong, store.FitStrong}, {store.FitGood, store.FitGood}, {store.FitMarginal, store.FitMarginal}, {store.FitPoor, store.FitPoor}}}
+	fields := []formField{url, titleField, company, track, closes, fit}
 	title := "Add a Lead"
 	if withResumeOnly {
-		fields = []formField{fields[1], fields[2], fields[3], fields[0], fields[4], fields[5],
+		fields = []formField{titleField, company, track, url, closes, fit,
 			{label: "Resume only", value: v.resumeOnly, choices: []choice{{"false", "No"}, {"true", "Yes"}}}}
 		title = "Edit · " + v.title
 	}
@@ -63,9 +61,6 @@ func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea
 
 // updateAdd routes a message to the open Add/Edit form. Nothing is written until the form completes.
 func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if done, ok := msg.(fetchFinished); ok {
-		return m.finishFetch(done)
-	}
 	if paste, ok := msg.(tea.PasteMsg); ok {
 		m.form.paste(paste.Content)
 		return m, nil
@@ -81,7 +76,14 @@ func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form, m.editOf = nil, nil
 		return m, nil
 	}
-	if m.canFetch() && k.String() == "enter" {
+	if k.String() == "enter" && m.wantsFetch() {
+		if m.capturedRun {
+			m.form.fetchErr = "A fetch is already running"
+			if m.building != nil {
+				m.form.fetchErr = "A build is already running"
+			}
+			return m, nil
+		}
 		return m.startFetch()
 	}
 	if !m.form.key(k) {

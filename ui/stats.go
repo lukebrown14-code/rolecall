@@ -104,7 +104,7 @@ func Stats(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 			continue
 		}
 		applied, ok := appliedAt(a)
-		if !ok || appliedWithinWindow(applied, local, days) {
+		if !ok || tooNewToJudge(applied, local, days) {
 			continue
 		}
 		report.Response.Applied++
@@ -168,9 +168,9 @@ func parseLocal(s string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// appliedWithinWindow reports whether an Applied date is too new to judge: within
-// followUpDays of now. Exactly followUpDays old is outside the window.
-func appliedWithinWindow(applied, now time.Time, followUpDays int) bool {
+// tooNewToJudge reports whether an Applied date is still inside the follow-up window,
+// so there has not been time for a Response. Exactly followUpDays old is outside it.
+func tooNewToJudge(applied, now time.Time, followUpDays int) bool {
 	return applied.After(now.AddDate(0, 0, -followUpDays))
 }
 
@@ -243,7 +243,7 @@ func tracksOf(apps []store.Application, now time.Time, followUpDays int) []Track
 				continue
 			}
 			applied, ok := appliedAt(a)
-			if !ok || appliedWithinWindow(applied, now, followUpDays) {
+			if !ok || tooNewToJudge(applied, now, followUpDays) {
 				continue
 			}
 			out[i].Applied++
@@ -327,12 +327,8 @@ func (m model) statsView(p pal) string {
 func (m model) statsBody(p pal, r StatsReport, w int) string {
 	var b strings.Builder
 	b.WriteString(p.text(p.dim).Bold(true).Render("Funnel") + "\n")
-	maxFunnel := 0
-	for _, step := range r.Funnel {
-		maxFunnel = max(maxFunnel, step.Count)
-	}
 	for i, step := range r.Funnel {
-		line := fmt.Sprintf("%-13s %s %d", step.Status, bar(step.Count, maxFunnel, statsBarWidth), step.Count)
+		line := fmt.Sprintf("%-13s %d", step.Status, step.Count)
 		if i > 0 {
 			line += fmt.Sprintf("  %d%% drop", step.DropOff)
 		}

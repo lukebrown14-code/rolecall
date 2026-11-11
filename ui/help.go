@@ -59,7 +59,7 @@ func (m model) overlayOpen() bool {
 // excluded: its border says "any key close", so the key line keeps the view's keys.
 func (m model) boxOpen() bool {
 	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
-		m.confirm != nil || m.pendingDownload != nil
+		m.confirm != nil || m.pendingDownload != nil || m.buildFail != nil
 }
 
 // viewContext names where the Owner is, for the key line while a pop-up holds the
@@ -91,7 +91,7 @@ func (m model) helpKeys() []helpKey {
 		return keys
 	}
 	if m.screen == statsScreen {
-		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-3", "screen")}
+		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-4", "screen")}
 		if len(m.tracks) > 0 {
 			keys = append(keys, help(groupMore, "t", "cycle track"))
 		}
@@ -140,7 +140,7 @@ func (m model) helpKeys() []helpKey {
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-3", "screen"))
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
 	if len(tables[m.screen]) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}

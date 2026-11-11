@@ -17,7 +17,7 @@ func TestFixtureTables(t *testing.T) {
 	for _, tc := range []struct {
 		name, screen string
 		tabs         int
-	}{{"Leads", "1", 0}, {"Dismissed", "1", 1}, {"Draft", "2", 0}, {"All", "3", 0}, {"Applied", "3", 1}, {"Interviewing", "3", 2}, {"Offer", "3", 3}, {"Closed", "3", 4}} {
+	}{{"Leads", "1", 0}, {"Dismissed", "1", 1}, {"Draft", "2", 0}, {"All", "3", 0}, {"Applied", "3", 1}, {"Interviewing", "3", 2}, {"Offer", "3", 3}, {"Closed", "3", 4}, {"Stats", "4", 0}} {
 		t.Run(tc.name, func(t *testing.T) {
 			keys := []string{tc.screen}
 			for i := 0; i < tc.tabs; i++ {

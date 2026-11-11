@@ -42,6 +42,16 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 			t.Fatalf("ASCII fallback lost %q:\n%s", want, plain)
 		}
 	}
+
+	stats := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4"))
+	for _, g := range []string{"█", "─", "│", "…"} {
+		if strings.Contains(stats, g) {
+			t.Fatalf("glyph %q survived ROLECALL_ASCII on Stats:\n%s", g, stats)
+		}
+	}
+	if !strings.Contains(stats, "Funnel") {
+		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
+	}
 }
 
 // The ? pop-up explains the glyphs.

@@ -39,11 +39,11 @@ type fetchFinished struct {
 // fetching reports whether a URL fetch is in flight in the open form.
 func (m model) fetching() bool { return m.form != nil && m.form.fetching }
 
-// canFetch reports whether Enter should fetch: the Add form (never Edit), the URL
-// field focused, a non-empty URL, a configured Plugin, and no fetch already running.
-func (m model) canFetch() bool {
+// wantsFetch reports whether Enter on the URL would fetch, ignoring whether a captured
+// run is already in flight.
+func (m model) wantsFetch() bool {
 	f := m.form
-	return m.editOf == nil && m.plugin != "" && f != nil && !f.fetching &&
+	return m.editOf == nil && m.plugin != "" && f != nil &&
 		f.focused().label == fieldURL && strings.TrimSpace(f.value(fieldURL)) != ""
 }
 
@@ -63,6 +63,7 @@ func (m model) startFetch() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.form.fetching, m.form.fetchErr = true, ""
+	m.capturedRun = true
 	return m, tea.Batch(m.fetch(url), m.spinner.Tick)
 }
 

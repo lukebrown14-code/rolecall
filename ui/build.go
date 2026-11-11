@@ -43,17 +43,26 @@ type buildFailure struct {
 // other keys working.
 func (m *model) startBuild() tea.Cmd {
 	a, ok := m.current()
-	if !ok || !buildable(a) {
+	if !ok {
 		return nil
 	}
+	// The missing Plugin hint comes before the buildable check: b on any row should say
+	// how to turn the feature on, even when that row has nothing to build.
 	if m.plugin == "" {
 		m.err = errors.New("Set plugin in ~/.config/rolecall/config.toml")
 		return nil
 	}
-	if m.building != nil {
-		m.toast, m.toastHint = "Build already running", ""
+	if !buildable(a) {
 		return nil
 	}
+	if m.capturedRun {
+		m.toast, m.toastHint = "Build already running", ""
+		if m.building == nil {
+			m.toast = "A fetch is already running"
+		}
+		return nil
+	}
+	m.capturedRun = true
 	m.building = &buildState{folder: a.Folder, title: a.Title, status: a.Status}
 	return tea.Batch(m.build(a), m.spinner.Tick)
 }
@@ -84,18 +93,18 @@ func combinedOutput(r CapturedResult) string {
 func (m model) finishBuild(done buildFinished) (tea.Model, tea.Cmd) {
 	build := m.building
 	m.building = nil
-	a, err := m.store.Rescan(done.folder)
-	if err != nil {
-		m.err = err
-		return m, nil
-	}
-	if a != nil {
-		for i := range m.apps {
-			if m.apps[i].Folder == done.folder {
-				m.apps[i] = *a
-				break
-			}
+	// Rescan through the one reload helper. A failed scan is reported through m.err, but
+	// it must not swallow the build's own outcome.
+	m.reload(done.folder)
+	var a *store.Application
+	for i := range m.apps {
+		if m.apps[i].Folder == done.folder {
+			a = &m.apps[i]
+			break
 		}
+	}
+	if rows := m.rows(); m.cursor >= len(rows) {
+		m.cursor = max(0, len(rows)-1)
 	}
 	if done.err != nil {
 		m.buildFail = &buildFailure{title: buildTitle(build), output: done.output}
@@ -110,9 +119,6 @@ func (m model) finishBuild(done buildFinished) (tea.Model, tea.Cmd) {
 		msg += " · moved to Draft"
 	}
 	m.toast, m.toastHint = msg, ""
-	if rows := m.rows(); m.cursor >= len(rows) {
-		m.cursor = max(0, len(rows)-1)
-	}
 	return m, nil
 }
 
