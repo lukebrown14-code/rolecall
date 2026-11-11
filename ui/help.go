@@ -29,6 +29,9 @@ const (
 	groupAction helpGroup = iota
 	groupNav
 	groupMore
+	// groupCursor appears in the `?` pop-up's Navigate column but not on the key
+	// line: moving the cursor is second nature, so it does not crowd the line.
+	groupCursor
 )
 
 type helpKey struct {
@@ -49,6 +52,27 @@ func (k helpKey) pair() [2]string {
 func (m model) overlayOpen() bool {
 	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
 		m.confirm != nil || m.pendingDownload != nil || m.filtering
+}
+
+// boxOpen reports whether a pop-up whose bottom border carries its own keys is open.
+// The key line then shows context instead of repeating those keys. The help pop-up is
+// excluded: its border says "any key close", so the key line keeps the view's keys.
+func (m model) boxOpen() bool {
+	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
+		m.confirm != nil || m.pendingDownload != nil
+}
+
+// viewContext names where the Owner is, for the key line while a pop-up holds the
+// keyboard: the screen, its view when it has more than one, and the Application under it.
+func (m model) viewContext() string {
+	label := screens[m.screen]
+	if ts := tables[m.screen]; len(ts) > 1 && ts[m.table] != label {
+		label += " · " + ts[m.table]
+	}
+	if a, ok := m.current(); ok {
+		label += " · " + a.Title
+	}
+	return label
 }
 
 // helpKeys is the one key map behind the key line and the `?` pop-up: only the keys
@@ -107,7 +131,7 @@ func (m model) helpKeys() []helpKey {
 	if len(m.tracks) > 0 {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
-	return append(keys, help(groupMore, "j k ↑↓", "cursor"), help(groupMore, "g G", "top / bottom"),
+	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"),
 		help(groupMore, "esc", "clear search"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
@@ -125,6 +149,10 @@ func pairs(keys []helpKey, group helpGroup) [][2]string {
 // cut. When narrow, actions drop from the right, pinnedKeys last; "? all keys" on the
 // right says where the rest went.
 func (m model) keyLine(p pal, w int) string {
+	if m.boxOpen() {
+		// The pop-up's bottom border already lists its keys; the key line gives context.
+		return " " + p.text(p.dim).Render(xansi.Truncate(m.viewContext(), max(0, w-gutter), "…"))
+	}
 	keys := m.helpKeys()
 	actions, nav := pairs(keys, groupAction), p.keys(pairs(keys, groupNav))
 	fits := func() bool { return xansi.StringWidth(p.keys(actions))+xansi.StringWidth(nav)+keyLineGap <= w }
@@ -142,15 +170,16 @@ func (m model) keyLine(p pal, w int) string {
 // helpBox is the `?` pop-up: every key valid here, in columns.
 func (m model) helpBox(p pal) string {
 	keys := m.helpKeys()
-	col := func(title string, group helpGroup) string {
+	col := func(title string, list [][2]string) string {
 		var b strings.Builder
 		b.WriteString(p.heading(title) + "\n")
-		for _, kv := range pairs(keys, group) {
+		for _, kv := range list {
 			b.WriteString(p.text(p.accent).Bold(true).Render(padRight(kv[0], helpKeyWidth)) + p.text(p.fg).Render(kv[1]) + "\n")
 		}
 		return strings.TrimSuffix(b.String(), "\n")
 	}
-	cols := []string{col("Actions", groupAction), col("Navigate", groupNav), col("More", groupMore)}
+	nav := append(pairs(keys, groupNav), pairs(keys, groupCursor)...)
+	cols := []string{col("Actions", pairs(keys, groupAction)), col("Navigate", nav), col("More", pairs(keys, groupMore))}
 	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
 	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
 }

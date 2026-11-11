@@ -312,7 +312,11 @@ func (m model) detailView(p pal) string {
 		}
 		when = p.text(c).Render("closes " + r)
 	case a.AppliedDate != nil:
-		when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
+		if m.futureDate(a.AppliedDate) {
+			when = p.text(p.warn).Render("applied " + futureFlag)
+		} else {
+			when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
+		}
 	}
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
@@ -338,13 +342,13 @@ func (m model) detailView(p pal) string {
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, ruleTop, ruleBot := pane, strings.Repeat("─", w), strings.Repeat("─", w)
 	if m.cardShown() {
-		sep := p.text(p.faint).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
+		sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
 		card := lipgloss.NewStyle().Width(cardWidth).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
 		body = lipgloss.JoinHorizontal(lipgloss.Top, card, sep, pane)
 		ruleTop = strings.Repeat("─", cardWidth) + "┬" + strings.Repeat("─", paneW)
 		ruleBot = strings.Repeat("─", cardWidth) + "┴" + strings.Repeat("─", paneW)
 	}
-	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.faint).Render(ruleTop) + "\n" + body + "\n" +
+	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.rule).Render(ruleTop) + "\n" + body + "\n" +
 		m.feedbackLine(p, ruleBot) + "\n" + m.keyLine(p, w)
 }
 

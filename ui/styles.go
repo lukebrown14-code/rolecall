@@ -22,7 +22,8 @@ var (
 	colorFg     = lipgloss.Color("#E6EDF3")
 	colorDim    = lipgloss.Color("#8B949E") // floor for any text (≥ 4.5:1 on colorBg)
 	colorSub    = lipgloss.Color("#C9D1D9") // secondary text on the selection bar
-	colorFaint  = lipgloss.Color("#30363D") // rules and borders only, never text
+	colorFaint  = lipgloss.Color("#30363D") // faint separators between labels, never text
+	colorRule   = lipgloss.Color("#484F58") // rules and pane dividers, one step up from faint
 	colorPanel  = lipgloss.Color("#161B22") // pop-up fill and the feedback line
 	colorAccent = lipgloss.Color(accentHex)
 	colorOnFill = lipgloss.Color("#0D1117") // text on an accent fill
@@ -38,13 +39,13 @@ var (
 // pal is the set of colours one frame is drawn with; behind a pop-up the whole frame
 // is drawn with dimmedPal.
 type pal struct {
-	fg, dim, sub, faint, accent, onFill, sel, ok, info, warn, bad, lilac color.Color
+	fg, dim, sub, faint, rule, accent, onFill, sel, ok, info, warn, bad, lilac color.Color
 }
 
-var basePal = pal{fg: colorFg, dim: colorDim, sub: colorSub, faint: colorFaint, accent: colorAccent, onFill: colorOnFill,
+var basePal = pal{fg: colorFg, dim: colorDim, sub: colorSub, faint: colorFaint, rule: colorRule, accent: colorAccent, onFill: colorOnFill,
 	sel: colorSelect, ok: colorOK, info: colorInfo, warn: colorWarn, bad: colorBad, lilac: colorLilac}
 
-var dimmedPal = pal{fg: colorDimmed, dim: colorFaint, sub: colorDimmed, faint: colorFaint, accent: colorDimmed, onFill: colorDim,
+var dimmedPal = pal{fg: colorDimmed, dim: colorFaint, sub: colorDimmed, faint: colorFaint, rule: colorFaint, accent: colorDimmed, onFill: colorDim,
 	sel: colorPanel, ok: colorDimmed, info: colorDimmed, warn: colorDimmed, bad: colorDimmed, lilac: colorDimmed}
 
 func (p pal) text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
