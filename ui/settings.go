@@ -77,10 +77,7 @@ func (m model) settingsRows(group int) []settingRow {
 			{"Key Skills maximum", strconv.Itoa(ws.KeySkillsMax)},
 		}
 	case "Tracking":
-		return []settingRow{
-			{"Tracks", orNone(strings.Join(ws.Tracks, ", "))},
-			{"Follow-up days", strconv.Itoa(m.followUpDays)},
-		}
+		return m.trackingRows()
 	}
 	return []settingRow{
 		{"Workspace", m.store.Root()},
@@ -115,6 +112,7 @@ func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
+	keys = append(keys, m.trackHelpKeys()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "tab", "focus"))
@@ -143,6 +141,9 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.settings == nil || m.settings.ws.Err != nil {
 		return m, nil // an invalid file offers e and nothing else
+	}
+	if next, ok := m.tracksKey(k); ok {
+		return next, nil
 	}
 	st := *m.settings
 	switch k.String() {
