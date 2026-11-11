@@ -19,7 +19,7 @@ const (
 
 // searchHelpKeys is the Search area key, shown while the Search rows have focus.
 func (m model) searchHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupSearch {
+	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupSearch || m.settings.row > 1 {
 		return nil
 	}
 	return []helpKey{help(groupAction, "enter", "edit Search area")}
@@ -71,7 +71,7 @@ func (sm *searchAreaMode) Keys() [][2]string {
 func (sm *searchAreaMode) boxed() bool { return true }
 
 func (sm *searchAreaMode) View(m *model, p pal) string {
-	return m.formBox(p, &formMode{form: sm.form})
+	return m.formBox(p, &formMode{form: sm.form}, popSmall)
 }
 
 func (sm *searchAreaMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {

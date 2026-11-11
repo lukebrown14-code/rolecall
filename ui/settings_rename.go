@@ -24,14 +24,6 @@ func (m model) renameKey(k tea.KeyPressMsg) (next model, handled bool) {
 	return m, true
 }
 
-// renameHelpKey is the rename key, shown with the other Track keys.
-func (m model) renameHelpKey() []helpKey {
-	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupTracking {
-		return nil
-	}
-	return []helpKey{help(groupAction, "r", "rename")}
-}
-
 const (
 	renameName = iota
 	renameConfirm

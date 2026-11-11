@@ -46,8 +46,13 @@ var machineSettings = []machineSetting{
 	{3, 5, "ascii", true},
 }
 
-func machineSettingAt(group, row int) (machineSetting, bool) {
-	for _, s := range machineSettings {
+// machineSettingAt is the editable setting on a row. Follow-up days is the last Tracking
+// row, so it moves down as Tracks are added.
+func (m model) machineSettingAt(group, row int) (machineSetting, bool) {
+	if group == groupTracking && row == len(m.trackingRows())-1 {
+		return machineSettings[0], true
+	}
+	for _, s := range machineSettings[1:] {
 		if s.group == group && s.row == row {
 			return s, true
 		}
@@ -91,7 +96,7 @@ func (m model) settingValue(s machineSetting) string {
 // activateSetting handles Enter on a row: a text setting opens for editing, a Yes/No flips.
 func (m model) activateSetting() (tea.Model, tea.Cmd) {
 	st := *m.settings
-	s, ok := machineSettingAt(st.group, st.row)
+	s, ok := m.machineSettingAt(st.group, st.row)
 	if !ok {
 		return m, nil
 	}
@@ -116,7 +121,7 @@ func (m model) settingsEditKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			st.input = string(r[:len(r)-1])
 		}
 	case "enter":
-		s, _ := machineSettingAt(st.group, st.row)
+		s, _ := m.machineSettingAt(st.group, st.row)
 		text := strings.TrimSpace(st.input)
 		var value any = text
 		if s.key == keyFollowUpDays {
@@ -162,6 +167,21 @@ func (m model) loadMachine() model {
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
 	m.followUpDays, m.ascii = c.FollowUpDays, c.ASCII
 	return m
+}
+
+// machineHelpKeys is Enter on an editable config.toml row.
+func (m model) machineHelpKeys() []helpKey {
+	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows {
+		return nil
+	}
+	s, ok := m.machineSettingAt(m.settings.group, m.settings.row)
+	switch {
+	case !ok:
+		return nil
+	case s.toggle:
+		return []helpKey{help(groupAction, "enter", "toggle")}
+	}
+	return []helpKey{help(groupAction, "enter", "edit")}
 }
 
 // settingsEditing reports whether a Settings row is open for typing.
