@@ -2,12 +2,12 @@
 
   SECTIONS                                                                                   profile/master-profile.md
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-▸ Contact               │                                                                                               
-  Headlines (approved…  │   Field                       │ Value                                                         
-  Experience            │  ─────────────────────────────┼───────────────────────────────────────────────────────────────
-  Key Skills keyword …  │   Name                        │ Alex Quinn                                                    
+▸ Contact            ✓  │                                                                                               
+  Headlines (approv… 2  │   Field                       │ Value                                                         
+  Experience         2  │  ─────────────────────────────┼───────────────────────────────────────────────────────────────
+  Key Skills keywor… 8  │   Name                        │ Alex Quinn                                                    
   Summary               │   Email                       │                                                               
-  Facts that are NOT …  │   Phone                       │ +61 400 000 000                                               
+  Facts that are NO… 2  │   Phone                       │ +61 400 000 000                                               
 ──────────────────────  │   Location                    │ Brisbane, QLD                                                 
   projects.md           │   LinkedIn                    │  linkedin.com/in/alexquinn                                    
                         │   GitHub                      │ github.com/alexquinn                                          

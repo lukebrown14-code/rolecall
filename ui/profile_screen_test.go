@@ -69,7 +69,7 @@ func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "5"))
 	// The list column cuts long headings, so each is matched by its start.
-	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts that are NOT", "Volunteer"}
+	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts that are", "Volunteer"}
 	last := -1
 	for _, heading := range headings {
 		i := strings.Index(view, heading)
@@ -98,6 +98,150 @@ func TestProfileJKMoveSectionAndContentFollows(t *testing.T) {
 	back := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "j", "k"))
 	if !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
+	}
+}
+
+// profileListRowText is the list column of the row whose heading starts with name, with
+// the padding before the divider trimmed. The content pane is ignored, so a warning
+// that names a section does not read as a list row.
+func profileListRowText(view, name string) (string, bool) {
+	for _, line := range strings.Split(view, "\n") {
+		left, _, ok := strings.Cut(line, "│")
+		if ok && strings.Contains(left, name) {
+			return strings.TrimRight(left, " "), true
+		}
+	}
+	return "", false
+}
+
+// requireProfileListRow is profileListRowText, failing when the row is missing.
+func requireProfileListRow(t *testing.T, view, name string) string {
+	t.Helper()
+	row, ok := profileListRowText(view, name)
+	if !ok {
+		t.Fatalf("no list row for %q:\n%s", name, view)
+	}
+	return row
+}
+
+// removeProfileLines deletes whole lines from a temp copy's Profile, matching the line
+// with surrounding whitespace trimmed. Each argument is one whole line.
+func removeProfileLines(t *testing.T, root string, drop ...string) {
+	t.Helper()
+	path := filepath.Join(root, "profile", "master-profile.md")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, line := range strings.Split(string(b), "\n") {
+		remove := false
+		for _, want := range drop {
+			if strings.TrimSpace(line) == want {
+				remove = true
+			}
+		}
+		if !remove {
+			kept = append(kept, line)
+		}
+	}
+	writeMasterProfile(t, root, strings.Join(kept, "\n"))
+}
+
+// Every section row carries its count right-aligned; prose shows none, and Contact
+// shows ✓ from the store's Contact reader rather than a count.
+func TestProfileSectionRowsShowCounts(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	for _, tc := range []struct{ section, count string }{
+		{"Contact", "✓"},
+		{"Headlines", "2"},
+		{"Experience", "2"},
+		{"Key Skills", "8"},
+		{"Facts that are", "2"},
+	} {
+		row := requireProfileListRow(t, view, tc.section)
+		if !strings.HasSuffix(row, tc.count) {
+			t.Fatalf("%s row = %q, want count %q:\n%s", tc.section, row, tc.count, view)
+		}
+	}
+	if row := requireProfileListRow(t, view, "Summary"); !strings.HasSuffix(row, "Summary") {
+		t.Fatalf("Summary row = %q, want no count:\n%s", row, view)
+	}
+}
+
+// A missing required field marks Contact ✗ and says at the top of the content pane which
+// field is missing and that builds will fail.
+func TestProfileContactMarkAndWarningFollowMissingFields(t *testing.T) {
+	cases := []struct {
+		name    string
+		drop    []string
+		warning string
+	}{
+		{
+			"email",
+			[]string{"| Email | alex.quinn@example.test |"},
+			"⚠ Contact is missing Email. Builds will fail until it is added.",
+		},
+		{
+			"name",
+			[]string{"| Name | Alex Quinn |"},
+			"⚠ Contact is missing Name. Builds will fail until it is added.",
+		},
+		{
+			"both",
+			[]string{"| Name | Alex Quinn |", "| Email | alex.quinn@example.test |"},
+			"⚠ Contact is missing Name and Email. Builds will fail until they are added.",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := fixtureCopy(t, func(root string) { removeProfileLines(t, root, tc.drop...) })
+			view := ansi.Strip(runKeys(t, root, 120, "5"))
+			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "✗") {
+				t.Fatalf("Contact row = %q, want ✗:\n%s", row, view)
+			}
+			if !strings.Contains(view, tc.warning) {
+				t.Fatalf("warning %q absent:\n%s", tc.warning, view)
+			}
+			if strings.Index(view, tc.warning) > strings.Index(view, "+61 400 000 000") {
+				t.Fatalf("warning is not above the Contact table:\n%s", view)
+			}
+		})
+	}
+}
+
+// Without a Contact section there is no row to mark, but the warning still names both
+// required fields and stays visible on whichever section is selected.
+func TestProfileWithoutContactSectionStillWarns(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		path := filepath.Join(root, "profile", "master-profile.md")
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(b)
+		start := strings.Index(text, "## Contact")
+		if start < 0 {
+			t.Fatal("fixture has no Contact section")
+		}
+		end := start + strings.Index(text[start:], "## Headlines")
+		if end <= start {
+			t.Fatal("fixture has no Headlines section after Contact")
+		}
+		writeMasterProfile(t, root, text[:start]+text[end:])
+	})
+	view := ansi.Strip(runKeys(t, root, 120, "5", "j"))
+	warning := "⚠ Contact is missing Name and Email. Builds will fail until they are added."
+	if !strings.Contains(view, warning) {
+		t.Fatalf("warning %q absent:\n%s", warning, view)
+	}
+	if _, ok := profileListRowText(view, "Contact"); ok {
+		t.Fatalf("a Contact row survived the removed section:\n%s", view)
+	}
+	for _, want := range []string{"Acme — Brisbane, AU", "Experience"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("screen lost %q:\n%s", want, view)
+		}
 	}
 }
 
@@ -169,7 +313,7 @@ func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
 	if !hasProfileDivider(view) {
 		t.Fatalf("no divider above the other Profile files:\n%s", view)
 	}
-	last := strings.Index(view, "Facts that are NOT")
+	last := strings.Index(view, "Facts that are")
 	projects := strings.Index(view, "projects.md")
 	if last < 0 || projects < 0 || projects < last {
 		t.Fatalf("projects.md not below the sections:\n%s", view)

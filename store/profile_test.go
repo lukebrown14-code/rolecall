@@ -165,6 +165,46 @@ func TestProfileSectionsFollowHeadingsInFileOrder(t *testing.T) {
 	}
 }
 
+// Section counts follow the rules in order: `###` entries, then table rows, then
+// bullets, then a one-paragraph comma list. Prose has no count.
+func TestProfileSectionCountsFollowTheRules(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeMasterProfile(t, s, "# Title\n\n"+
+		"## Entries\n\n### One\n\n### Two\n\n"+
+		"## Rows\n\n| Track | Headline |\n| :-- | :-- |\n| SWE | Engineer |\n| Platform | Platform Engineer |\n\n"+
+		"## Bullets\n\n- one\n* two\n+ three\n\n"+
+		"## Items\n\nPython, Go, Docker\n\n"+
+		"## Prose\n\nOne, two.\n\nAnother, three.\n\n"+
+		"## Precedence\n\n### One\n\n| A | B |\n| :-- | :-- |\n| x | y |\n\n- a bullet\n")
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		count int
+		kind  string
+	}{
+		"Entries":    {2, "entries"},
+		"Rows":       {2, "rows"},
+		"Bullets":    {3, "bullets"},
+		"Items":      {3, "items"},
+		"Prose":      {0, ""},
+		"Precedence": {1, "entries"},
+	}
+	if len(p.Sections) != len(want) {
+		t.Fatalf("sections = %+v, want %d", p.Sections, len(want))
+	}
+	for _, section := range p.Sections {
+		got, ok := want[section.Heading]
+		if !ok {
+			t.Fatalf("unexpected section %q", section.Heading)
+		}
+		if section.Count != got.count || section.Kind != got.kind {
+			t.Fatalf("%s count = %d %q, want %d %q", section.Heading, section.Count, section.Kind, got.count, got.kind)
+		}
+	}
+}
+
 // A file with no `##` headings is one section holding the whole file.
 func TestProfileWithoutHeadingsIsOneSection(t *testing.T) {
 	s := fixtureProfileStore(t)
@@ -253,7 +293,7 @@ func TestProfileSubheadingsAreNotSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []store.ProfileSection{{Heading: "One", Body: "### Nested\n\nbody"}, {Heading: "Two", Body: "last"}}
+	want := []store.ProfileSection{{Heading: "One", Body: "### Nested\n\nbody", Count: 1, Kind: "entries"}, {Heading: "Two", Body: "last"}}
 	if !reflect.DeepEqual(p.Sections, want) {
 		t.Fatalf("sections = %+v, want %+v", p.Sections, want)
 	}

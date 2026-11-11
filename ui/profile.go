@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"image/color"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -27,6 +29,16 @@ const (
 // profileMarker is the selected section's leading mark: bold and accent carry it too,
 // so it stays readable without colour.
 const profileMarker = "▸ "
+
+// profileMarkerWidth is the cells the marker, or its indent on unselected rows, takes.
+const profileMarkerWidth = 2
+
+// Contact's mark stands in for a count: ✓ when Name and Email are both present, ✗ when
+// either is missing. The store's Missing decides; the screen never parses Contact again.
+const (
+	contactOK  = "✓"
+	contactBad = "✗"
+)
 
 // Profile screen sizing: the section list, the divider, and the gutter before the
 // Markdown. The list gets a fixed column so headings line up; the content takes the rest.
@@ -156,9 +168,9 @@ func (m model) profilePaneWidth() int {
 // profileContentWidth is the Markdown wrap width inside that pane.
 func (m model) profileContentWidth() int { return m.profilePaneWidth() - profileGutter }
 
-// profileMarkdown renders the selected section or other Profile file. Glamour tables can
-// run wider than the wrap width, so every line is cut to the pane rather than spilling
-// over the frame.
+// profileMarkdown renders the selected section or other Profile file, with the Contact
+// warning above it when a required field is missing. Glamour tables can run wider than
+// the wrap width, so every line is cut to the pane rather than spilling over the frame.
 func (m model) profileMarkdown(st profileState) string {
 	var body string
 	if file, ok := st.file(); ok {
@@ -166,15 +178,38 @@ func (m model) profileMarkdown(st profileState) string {
 	} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
 		body = st.profile.Sections[st.selected].Body
 	}
-	if body == "" {
+	warning := contactWarning(st.profile.Missing)
+	if body == "" && warning == "" {
 		return ""
 	}
 	width := m.profileContentWidth()
-	lines := strings.Split(m.renderMarkdown(body, width), "\n")
+	var lines []string
+	if warning != "" {
+		lines = append(lines, warning)
+	}
+	if body != "" {
+		if warning != "" {
+			lines = append(lines, "")
+		}
+		lines = append(lines, strings.Split(m.renderMarkdown(body, width), "\n")...)
+	}
 	for i, line := range lines {
 		lines[i] = xansi.Truncate(line, width, "…")
 	}
 	return strings.Join(lines, "\n")
+}
+
+// contactWarning names the required Contact fields that are missing, so the Owner can fix
+// them before a build fails. It shows above whatever section or file is selected: the
+// warning belongs to the Profile, not to the Contact section.
+func contactWarning(missing []string) string {
+	switch len(missing) {
+	case 0:
+		return ""
+	case 1:
+		return "⚠ Contact is missing " + missing[0] + ". Builds will fail until it is added."
+	}
+	return "⚠ Contact is missing " + strings.Join(missing, " and ") + ". Builds will fail until they are added."
 }
 
 // selectProfile moves the selection and follows it with the content pane.
@@ -294,19 +329,20 @@ func (m model) profileBody(p pal, w, h int) string {
 }
 
 // profileSectionList is the sections, a divider, then the other Profile files that exist:
-// one row each, the selected one marked and bold. The window follows the selection when
-// the entries outrun the lines.
+// one row each, with its count right-aligned and the selected one marked and bold. The
+// window follows the selection when the entries outrun the lines.
 func (m model) profileSectionList(p pal, h int) string {
 	st := m.profile
 	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {
-		rows = append(rows, profileListRow(p, section.Heading, i == st.selected))
+		suffix, colour := m.profileSectionSuffix(p, section)
+		rows = append(rows, profileListRow(p, section.Heading, suffix, colour, i == st.selected))
 	}
 	if len(st.profile.Files) > 0 {
 		rows = append(rows, p.text(p.rule).Render(strings.Repeat("─", profileListWidth-profileGutter)))
 	}
 	for i, file := range st.profile.Files {
-		rows = append(rows, profileListRow(p, file.Name, st.sectionCount()+i == st.selected))
+		rows = append(rows, profileListRow(p, file.Name, "", p.dim, st.sectionCount()+i == st.selected))
 	}
 	if len(rows) > h {
 		start := min(max(0, st.row()-h/2), len(rows)-h)
@@ -315,11 +351,38 @@ func (m model) profileSectionList(p pal, h int) string {
 	return strings.Join(rows, "\n")
 }
 
-// profileListRow is one entry in the list column, cut to fit beside the marker.
-func profileListRow(p pal, name string, selected bool) string {
-	heading := xansi.Truncate(name, profileListWidth-2*profileGutter, "…")
-	if selected {
-		return p.text(p.accent).Bold(true).Render(profileMarker + heading)
+// profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ✗ in
+// place of a count, the count itself, or nothing for prose.
+func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string, color.Color) {
+	if section.Heading == "Contact" {
+		if len(m.profile.profile.Missing) == 0 {
+			return contactOK, p.ok
+		}
+		return contactBad, p.bad
 	}
-	return "  " + p.text(p.dim).Render(heading)
+	if section.Kind != "" {
+		return strconv.Itoa(section.Count), p.dim
+	}
+	return "", p.dim
+}
+
+// profileListRow is one entry in the list column: the marker and name on the left, the
+// count right-aligned in the column. The name is cut to leave room for the suffix, and a
+// section with no count leaves the column blank.
+func profileListRow(p pal, name, suffix string, colour color.Color, selected bool) string {
+	width := profileListWidth - gutter // two blank cells before the divider
+	room := width - profileMarkerWidth
+	if suffix != "" {
+		room -= xansi.StringWidth(suffix) + 1 // one cell between the name and the count
+	}
+	heading := xansi.Truncate(name, max(1, room), "…")
+	left := "  " + p.text(p.dim).Render(heading)
+	if selected {
+		left = p.text(p.accent).Bold(true).Render(profileMarker + heading)
+	}
+	if suffix == "" {
+		return left
+	}
+	gap := width - profileMarkerWidth - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
+	return left + strings.Repeat(" ", max(1, gap)) + p.text(colour).Render(suffix)
 }

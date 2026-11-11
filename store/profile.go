@@ -8,10 +8,12 @@ import (
 	"strings"
 )
 
-// ProfileSection is one `##` section of the Profile: its heading and the Markdown
-// under it, with surrounding blank lines trimmed.
+// ProfileSection is one `##` section of the Profile: its heading, the Markdown under
+// it, and the count of what it holds. Kind is empty when the section is prose.
 type ProfileSection struct {
 	Heading, Body string
+	Count         int
+	Kind          string // entries, rows, bullets or items; "" for no count
 }
 
 // ProfileFile is one of the other Profile files beside master-profile.md: its whole
@@ -94,7 +96,7 @@ func parseSections(text string) []ProfileSection {
 	heading, start := "", 0
 	flush := func(end int) {
 		if heading != "" {
-			out = append(out, ProfileSection{Heading: heading, Body: trimBlank(lines[start:end])})
+			out = append(out, newSection(heading, trimBlank(lines[start:end])))
 		}
 	}
 	for i, line := range lines {
@@ -107,9 +109,101 @@ func parseSections(text string) []ProfileSection {
 	if len(out) == 0 {
 		// A free-form Profile is still readable: one section with everything in it,
 		// title included, because there is no heading to separate it.
-		return []ProfileSection{{Heading: "Profile", Body: trimBlank(lines)}}
+		return []ProfileSection{newSection("Profile", trimBlank(lines))}
 	}
 	return out
+}
+
+// newSection pairs a heading and body with the count of what the body holds.
+func newSection(heading, body string) ProfileSection {
+	count, kind := countSection(body)
+	return ProfileSection{Heading: heading, Body: body, Count: count, Kind: kind}
+}
+
+// countSection applies the Profile count rules in order: `###` entries, then table data
+// rows, then bullets, then a one-paragraph comma list. Anything else is prose, with no
+// count, so the list shows no meaningless number.
+func countSection(body string) (int, string) {
+	lines := strings.Split(body, "\n")
+	entries := 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, "### ") {
+			entries++
+		}
+	}
+	if entries > 0 {
+		return entries, "entries"
+	}
+	rows, header := 0, false
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !tableRow(line) || tableDivider(line) {
+			continue
+		}
+		if !header {
+			header = true // the first row names the columns, so it is not data
+			continue
+		}
+		rows++
+	}
+	if header {
+		return rows, "rows"
+	}
+	bullets := 0
+	for _, line := range lines {
+		if isBullet(strings.TrimSpace(line)) {
+			bullets++
+		}
+	}
+	if bullets > 0 {
+		return bullets, "bullets"
+	}
+	if items, ok := commaItems(body); ok {
+		return items, "items"
+	}
+	return 0, ""
+}
+
+// tableRow reports a Markdown table row: it starts and ends with a pipe, as the
+// tables in SCHEMA.md do.
+func tableRow(line string) bool {
+	return len(line) >= 2 && line[0] == '|' && line[len(line)-1] == '|'
+}
+
+// tableDivider reports a scaffolding row such as `| :-- | :-- |`: only pipes, colons,
+// dashes and spaces, so it separates the header from the data and holds nothing.
+func tableDivider(line string) bool {
+	for _, r := range line {
+		if !strings.ContainsRune("|:- \t", r) {
+			return false
+		}
+	}
+	return true
+}
+
+// isBullet reports a trimmed list line: `- `, `* ` or `+ `.
+func isBullet(line string) bool {
+	return strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") || strings.HasPrefix(line, "+ ")
+}
+
+// commaItems counts the items in a single-paragraph comma list. A blank-line break
+// means more than one paragraph, which is prose rather than a list.
+func commaItems(body string) (int, bool) {
+	if !strings.Contains(body, ",") {
+		return 0, false
+	}
+	for _, line := range strings.Split(body, "\n") {
+		if strings.TrimSpace(line) == "" {
+			return 0, false
+		}
+	}
+	items := 0
+	for _, item := range strings.Split(body, ",") {
+		if strings.TrimSpace(item) != "" {
+			items++
+		}
+	}
+	return items, items > 0
 }
 
 // trimBlank drops the blank lines around a section's text.
