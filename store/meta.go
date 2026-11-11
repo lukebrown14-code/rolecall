@@ -4,44 +4,14 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
 var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
-var entryPattern = regexp.MustCompile(`^  - \{status: ([A-Za-z]+), at: ([^,}]+)(, approx: (true|false))?\}$`)
+var entryPattern = regexp.MustCompile(`^  - \{status: ([A-Za-z]+), at: ([^,}]+)(, approx: (true|false))?\}([ \t]+#.*)?$`)
 
-func scalar(raw string) (string, error) {
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "\"") {
-		for i := 1; i < len(raw); i++ {
-			if raw[i] == '\\' {
-				i++
-				continue
-			}
-			if raw[i] == '"' {
-				tail := strings.TrimSpace(raw[i+1:])
-				if tail != "" && !strings.HasPrefix(tail, "#") {
-					break
-				}
-				return strconv.Unquote(raw[:i+1])
-			}
-		}
-		return "", fmt.Errorf("invalid quoted scalar")
-	}
-	for i, c := range raw {
-		if c == '#' && (i == 0 || raw[i-1] == ' ' || raw[i-1] == '\t') {
-			raw = strings.TrimSpace(raw[:i])
-			break
-		}
-	}
-	if strings.ContainsAny(raw, "\t\r") || strings.HasPrefix(raw, "{") || strings.HasPrefix(raw, "[") || strings.HasPrefix(raw, "'") || raw == "|" || raw == ">" || strings.Contains(raw, ": ") {
-		return "", fmt.Errorf("invalid scalar")
-	}
-	return raw, nil
-}
 func validStatus(s string) bool {
 	switch s {
 	case "Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed":

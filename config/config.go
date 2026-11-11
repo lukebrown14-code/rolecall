@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 type Config struct {
-	Workspace    string
-	Editor       string
-	FollowUpDays int
-	Downloads    string
+	Workspace    string `toml:"workspace"`
+	Editor       string `toml:"editor"`
+	FollowUpDays int    `toml:"follow_up_days"`
+	Downloads    string `toml:"downloads"`
 }
 
 // Load reads settings under home; dir overrides the configured Workspace.
@@ -25,34 +26,8 @@ func Load(home, dir string) (Config, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return c, err
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			return c, fmt.Errorf("%s: invalid setting", path)
-		}
-		k = strings.TrimSpace(k)
-		v = strings.TrimSpace(v)
-		if k == "follow_up_days" {
-			c.FollowUpDays, err = strconv.Atoi(v)
-		} else {
-			var s string
-			s, err = strconv.Unquote(v)
-			switch k {
-			case "workspace":
-				c.Workspace = s
-			case "editor":
-				c.Editor = s
-			case "downloads":
-				c.Downloads = s
-			}
-		}
-		if err != nil {
-			return c, fmt.Errorf("%s: %w", path, err)
-		}
+	if err := toml.Unmarshal(b, &c); err != nil {
+		return c, fmt.Errorf("%s: %w", path, err)
 	}
 	if dir != "" {
 		c.Workspace = dir

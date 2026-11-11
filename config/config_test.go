@@ -30,3 +30,20 @@ func TestLoader(t *testing.T) {
 		t.Fatalf("%+v %v", c, err)
 	}
 }
+
+func TestTOMLLiteralAndComments(t *testing.T) {
+	home := t.TempDir()
+	p := filepath.Join(home, ".config/rolecall")
+	os.MkdirAll(p, 0700)
+	os.WriteFile(filepath.Join(p, "config.toml"), []byte("workspace = '~/work' # workspace\neditor = 'vim # literal' # editor\nfollow_up_days = 21 # days\ndownloads = \"~/Downloads\" # downloads\n"), 0600)
+	for _, dir := range []string{"", "~/override"} {
+		c, err := config.Load(home, dir)
+		want := filepath.Join(home, "work")
+		if dir != "" {
+			want = filepath.Join(home, "override")
+		}
+		if err != nil || c.Workspace != want || c.FollowUpDays != 21 || c.Editor != "vim # literal" || c.Downloads != filepath.Join(home, "Downloads") {
+			t.Fatalf("%+v %v", c, err)
+		}
+	}
+}

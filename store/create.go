@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -21,7 +20,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 	text := "schema: 1\n"
 	for _, pair := range [][2]string{{"title", fields.Title}, {"company", fields.Company}, {"track", fields.Track}, {"url", fields.URL}, {"closes", fields.Closes}, {"fit", fields.Fit}} {
 		if pair[1] != "" {
-			text += pair[0] + ": " + strconv.Quote(pair[1]) + "\n"
+			text += pair[0] + ": " + quoteScalar(pair[1]) + "\n"
 		}
 	}
 	text += "status_log:\n  - {status: Lead, at: " + now.UTC().Format(time.RFC3339) + "}\n"
@@ -57,22 +56,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 	if err = os.WriteFile(filepath.Join(folder, "jd.md"), nil, 0600); err != nil {
 		return "", err
 	}
-	f, err := os.CreateTemp(folder, ".meta-*")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(f.Name())
-	defer f.Close()
-	if _, err = f.WriteString(text); err != nil {
-		return "", err
-	}
-	if err = f.Sync(); err != nil {
-		return "", err
-	}
-	if err = f.Close(); err != nil {
-		return "", err
-	}
-	if err = os.Rename(f.Name(), filepath.Join(folder, "meta.yml")); err != nil {
+	if err = s.atomicWrite(filepath.Join(folder, "meta.yml"), []byte(text), 0600); err != nil {
 		return "", err
 	}
 	return folder, nil

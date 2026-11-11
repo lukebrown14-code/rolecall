@@ -1,0 +1,13 @@
+# fixture: every untouched byte matters
+schema: 1 # schema
+title: "Engineer # advertised"   # title
+company: Acme # company
+track: SWE # track
+url: https://example.com/#role # url
+closes: "2027-01-01" # closes
+fit: Strong # fit
+resume_only: false # resume
+legacy: unchanged   # unknown
+salary: "100 # literal"  # salary
+status_log:
+  - {status: Applied, at: 2026-01-01, approx: true}   # migration only
