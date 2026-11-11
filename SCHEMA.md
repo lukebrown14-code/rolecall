@@ -175,7 +175,7 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
   `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
 - **Missing section or file:** no fields, so both required fields are missing.
 
-## `workspace.json` (read by the TUI, which writes `tracks` and the gates)
+## `workspace.json` (read by the TUI, which writes `tracks`, `search_area` and the gates)
 
 The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
