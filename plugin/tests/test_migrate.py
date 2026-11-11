@@ -278,6 +278,21 @@ def test_malformed_meta_aborts_before_any_write(tmp_path):
     assert snapshot(workspace) == before
 
 
+def test_incomplete_pre_migration_meta_is_rebuilt(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    stub = workspace / "jobs/SWE/globex-engineer-2026-02-01/meta.yml"
+    stub.write_text("status_log:\n  - {status: Applied, at: 2026-01-01}\n")
+
+    result = run_script(workspace, MIGRATE)
+
+    assert result.returncode == 0, result.stderr
+    assert "incomplete pre-migration meta.yml ignored" in result.stdout
+    text = meta(workspace, "jobs/SWE/globex-engineer-2026-02-01")
+    assert "schema: 1" in text
+    assert "Globex" in text
+    assert entry(text, "Interviewing")[0] == "Interviewing"
+
+
 def test_second_run_changes_nothing(tmp_path):
     workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     first = run_script(workspace, MIGRATE)

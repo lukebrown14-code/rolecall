@@ -336,7 +336,26 @@ def plan(workspace):
                 continue
             application = meta.rescan(folder) if meta_path.exists() else None
             if application is not None and application.malformed:
-                raise meta.MetaError(application.malformed)
+                # A pre-migration stub may hold only status_log (the TUI or an
+                # earlier partial run). It has no schema and no real fields, so
+                # rebuild it from jd.md and TRACKER.md. Anything else is a real
+                # malformed file: stop before writing.
+                stub = (
+                    not _has_schema(meta_path)
+                    and not application.title
+                    and not application.company
+                    and not application.track
+                    and not application.unknown
+                )
+                if not stub:
+                    raise meta.MetaError(application.malformed)
+                reports.append(
+                    Report(
+                        f"{relative}: incomplete pre-migration meta.yml ignored; "
+                        "rebuilt from jd.md/TRACKER.md"
+                    )
+                )
+                application = None
             if row is None and application is None and not jd_path.exists():
                 continue
 
