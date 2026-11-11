@@ -61,7 +61,7 @@ func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "ctrl+c":
-			return m, tea.Quit
+			return m, m.quit()
 		case "esc":
 			m.addForm = nil
 			return m, nil
@@ -95,7 +95,7 @@ func (m model) updateDuplicate(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	existing, fields := *m.duplicate, m.duplicateFields
 	switch k.String() {
 	case "ctrl+c":
-		return m, tea.Quit
+		return m, m.quit()
 	case "o", "enter":
 		m.duplicate = nil
 		m.selectFolder(existing.Folder)

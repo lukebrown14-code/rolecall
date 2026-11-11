@@ -8,6 +8,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
+	"time"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithWatch(200*time.Millisecond))
 	if err != nil {
 		return err
 	}

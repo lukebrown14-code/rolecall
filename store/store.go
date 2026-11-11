@@ -91,3 +91,6 @@ func (s *Store) Rescan(dir string) (*Application, error) {
 	}
 	return &a, nil
 }
+
+// Root is the Workspace folder.
+func (s *Store) Root() string { return s.root }

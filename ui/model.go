@@ -7,6 +7,7 @@ import (
 	huh "charm.land/huh/v2"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/store"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -59,28 +60,52 @@ type model struct {
 	external              ExternalRunner
 	detail                *detailState
 	height                int
+	watchWindow           time.Duration
+	watch                 *watcher
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
 func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, error) {
-	a, e := s.Scan()
-	if e != nil {
-		return nil, e
-	}
 	if now == nil {
 		now = time.Now
 	}
-	tracks, e := s.Tracks()
-	if e != nil {
-		return nil, e
-	}
-	m := model{store: s, apps: a, tracks: tracks, now: now, followUpDays: 14}
+	m := model{store: s, now: now, followUpDays: 14}
 	for _, option := range options {
 		option(&m)
 	}
+	if m.watchWindow > 0 {
+		// Watching starts before the first scan so no change slips between the two.
+		w, e := startWatcher(filepath.Join(s.Root(), "jobs"), m.watchWindow)
+		if e != nil {
+			m.err = fmt.Errorf("live refresh unavailable: %w", e)
+		}
+		m.watch = w
+	}
+	a, e := s.Scan()
+	if e == nil {
+		m.apps = a
+		m.tracks, e = s.Tracks()
+	}
+	if e != nil {
+		m.watch.close()
+		return nil, e
+	}
 	return m, nil
 }
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd {
+	if m.watch == nil {
+		return nil
+	}
+	return m.watch.next()
+}
+
+// quit stops the watcher, then quits.
+func (m model) quit() tea.Cmd {
+	return func() tea.Msg {
+		m.watch.close()
+		return tea.QuitMsg{}
+	}
+}
 func (m model) rows() []store.Application {
 	var out []store.Application
 	for _, a := range m.apps {
@@ -98,6 +123,9 @@ func (m model) matches(a store.Application) bool {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
+	}
+	if batch, ok := msg.(foldersChanged); ok {
+		return m.refresh(batch.folders), m.watch.next()
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
@@ -137,7 +165,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
-			return m, tea.Quit
+			return m, m.quit()
 		}
 		if m.confirm != nil {
 			pending := m.confirm
@@ -251,7 +279,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.text = ""
 			m.cursor = 0
 		case "q", "ctrl+c":
-			return m, tea.Quit
+			return m, m.quit()
 		case "1", "2", "3":
 			m.screen = int(k.String()[0] - '1')
 			m.table = 0

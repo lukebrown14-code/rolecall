@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
@@ -61,3 +62,7 @@ func WithEditor(editor string) Option { return func(m *model) { m.editor = edito
 
 // WithFollowUpDays sets the configured follow-up period.
 func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays = days } }
+
+// WithWatch turns on live refresh: the Workspace's job folders are watched and
+// changes are rescanned after a quiet window of the given length.
+func WithWatch(window time.Duration) Option { return func(m *model) { m.watchWindow = window } }
