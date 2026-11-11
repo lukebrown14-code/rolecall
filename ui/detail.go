@@ -349,7 +349,7 @@ func (m model) detailView(p pal) string {
 		ruleBot = strings.Repeat("─", cardWidth) + "┴" + strings.Repeat("─", paneW)
 	}
 	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.rule).Render(ruleTop) + "\n" + body + "\n" +
-		m.feedbackLine(p, ruleBot) + "\n" + m.keyLine(p, w)
+		p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 
 func (m model) detailTabsRow(p pal) string {

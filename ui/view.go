@@ -205,8 +205,20 @@ func (m model) listView(p pal) string {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
 		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
 	}
+	// The bottom rule is always drawn; the status row below it holds a toast, an error,
+	// the search input or the key line, one at a time.
 	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
-		body + "\n" + m.feedbackLine(p, ruleBot) + "\n" + keys
+		body + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
+}
+
+// statusRow is the frame's last line: what just happened (a toast or error) when there is
+// one, otherwise the line the caller prepared (the search input while typing, else the
+// key line). The rule above it is never replaced.
+func (m model) statusRow(p pal, w int, fallback string) string {
+	if m.err != nil || m.toast != "" || m.building != nil {
+		return m.feedbackLine(p, w)
+	}
+	return fallback
 }
 
 // emptyMessage says how Applications reach an empty view.
@@ -240,6 +252,33 @@ func (m model) screenCount(si int) int {
 	return n
 }
 
+// filtered reports whether a track or text filter is in force.
+func (m model) filtered() bool { return m.track > 0 || m.text != "" }
+
+// countLabel is a view's count: the total, or "shown/total" while a filter hides rows,
+// so a filtered number is never read as the total.
+func (m model) countLabel(screen int, table string) string {
+	total := m.totalCount(screen, table)
+	if !m.filtered() {
+		return fmt.Sprintf("%d", total)
+	}
+	return fmt.Sprintf("%d/%d", m.count(screen, table), total)
+}
+
+// screenCountLabel is a screen's count over its views, filtered the same way.
+func (m model) screenCountLabel(si int) string {
+	total := 0
+	for _, t := range tables[si] {
+		if t != allView && t != tableDismissed {
+			total += m.totalCount(si, t)
+		}
+	}
+	if !m.filtered() {
+		return fmt.Sprintf("%d", total)
+	}
+	return fmt.Sprintf("%d/%d", m.screenCount(si), total)
+}
+
 // topBar: app mark and screens on the left, the track filter on the right. On narrow
 // terminals it sheds detail in steps: the "rolecall" word, other screens' counts, their names.
 func (m model) topBar(p pal) string {
@@ -251,9 +290,9 @@ func (m model) topBar(p pal) string {
 			out = p.text(p.accent).Bold(true).Render(" ◆ ")
 		}
 		for si, s := range screens {
-			n := m.screenCount(si)
+			n := m.screenCountLabel(si)
 			if si == m.screen {
-				out += "  " + on.Render(fmt.Sprintf(" %d %s %d ", si+1, s, n))
+				out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
 				continue
 			}
 			out += "  " + p.text(p.accent).Render(fmt.Sprintf(" %d", si+1))
@@ -261,7 +300,7 @@ func (m model) topBar(p pal) string {
 				out += " " + p.text(p.fg).Render(s)
 			}
 			if level < shedCounts {
-				out += p.text(p.dim).Render(fmt.Sprintf(" %d", n))
+				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
 			}
 			out += " " // the same padding as the highlighted entry, so nothing shifts
 		}
@@ -319,12 +358,14 @@ func (m model) trackSelector(p pal, w int) string {
 	return activeName
 }
 
-// viewRow is the screen's views, cycled with Tab, plus the search in force. A screen
-// with one view keeps the row (blank) so the layout doesn't jump between screens.
+// viewRow is the frame's context row: the screen's views (cycled with Tab), or the one
+// view's name, plus the scope line on the right when a filter is on. The row is always
+// present, so the layout never jumps between screens.
 func (m model) viewRow(p pal) string {
 	w := m.viewWidth()
-	row := ""
-	if ts := tables[m.screen]; len(ts) > 1 {
+	ts := tables[m.screen]
+	row := "   " + p.text(p.dim).Render(ts[0])
+	if len(ts) > 1 {
 		for _, f := range []struct {
 			gap    string
 			counts bool
@@ -333,7 +374,7 @@ func (m model) viewRow(p pal) string {
 			for i, t := range ts {
 				label := t
 				if f.counts {
-					label = fmt.Sprintf("%s %d", t, m.count(m.screen, t))
+					label = fmt.Sprintf("%s %s", t, m.countLabel(m.screen, t))
 				}
 				parts[i] = p.text(p.dim).Render(label)
 				if i == m.table {
@@ -347,26 +388,33 @@ func (m model) viewRow(p pal) string {
 			}
 		}
 	}
-	if m.text != "" {
-		n := len(m.rows())
-		noun := "matches"
-		if n == 1 {
-			noun = "match"
-		}
-		chip := p.text(p.dim).Render("search ") + p.text(p.accent).Bold(true).Render(m.text) +
-			p.text(p.dim).Render(fmt.Sprintf("  %d %s", n, noun))
-		if !m.filtering {
-			chip += "  " + p.keys([][2]string{{"esc", "clear"}})
-		}
-		row = spread(row, chip, w-rightMargin)
+	if scope := m.scopeLine(p); scope != "" {
+		row = spread(row, scope, w-rightMargin)
 	}
 	return row
 }
 
-// feedbackLine replaces the bottom rule with what just happened, when something did.
-// Successes clear on the next key; errors stay until esc; a build in flight shows a
-// spinner until it finishes.
-func (m model) feedbackLine(p pal, rule string) string {
+// scopeLine names what is filtered, when anything is: the screen and view, the track, the
+// search text and the shown-of-total count. Empty when no filter is on.
+func (m model) scopeLine(p pal) string {
+	if m.track == 0 && m.text == "" {
+		return ""
+	}
+	parts := []string{screens[m.screen] + " › " + tables[m.screen][m.table]}
+	if m.track > 0 {
+		parts = append(parts, "track "+m.tracks[m.track-1])
+	}
+	if m.text != "" {
+		parts = append(parts, "search "+m.text)
+	}
+	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, tables[m.screen][m.table])))
+	return p.text(p.dim).Render(strings.Join(parts, " · "))
+}
+
+// feedbackLine is the status row when something just happened: a toast (successes clear
+// on the next key), an error (stays until esc), or a build in flight (a spinner until it
+// finishes). It never replaces the bottom rule.
+func (m model) feedbackLine(p pal, w int) string {
 	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
 	raw := false
 	switch {
@@ -377,7 +425,7 @@ func (m model) feedbackLine(p pal, rule string) string {
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
 	if msg == "" {
-		return p.text(p.faint).Render(rule)
+		return ""
 	}
 	bg := lipgloss.NewStyle().Background(colorPanel)
 	var left string
@@ -391,16 +439,8 @@ func (m model) feedbackLine(p pal, rule string) string {
 		k, d, _ := strings.Cut(hint, " ")
 		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
-	w := m.viewWidth()
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
 	gap := bg.Render(strings.Repeat(" ", n))
-	// Keep the ┴ where the pane divider meets the line, when the message leaves it free.
-	if j := strings.IndexRune(rule, '┴'); j >= 0 {
-		col := xansi.StringWidth(rule[:j]) - xansi.StringWidth(left)
-		if col > 0 && col < n-1 {
-			gap = bg.Render(strings.Repeat(" ", col)) + bg.Foreground(p.faint).Render("┴") + bg.Render(strings.Repeat(" ", n-col-1))
-		}
-	}
 	return xansi.Truncate(left+gap+right, w, "")
 }
 
