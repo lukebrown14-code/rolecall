@@ -148,11 +148,11 @@ A complete `fit.md` for a fictional capture — the shape and standard to hold t
 Summary: Most essentials evidenced; the contract length is the real risk.
 Matches: TypeScript, Node, PostgreSQL, CI/CD
 
-Acme Analytics · contract, 6 months · Australia · closes 2026-11-20
+Acme Analytics · fixed-term contract · Australia · closes 2026-11-20
 
 The ad wants a product-minded developer to own a data-heavy service end to end, and the Profile
 evidences that directly: five years building and operating Node services, PostgreSQL schema design,
-and CI/CD ownership. The six-month term fits the Owner's work rights exactly, so the usual
+and CI/CD ownership. The role's term fits the Owner's work-rights window, so the usual
 sponsorship question never comes up. The one real gap is Kubernetes, which the ad lists as
 essential and the Profile does not evidence.
 
@@ -173,7 +173,7 @@ essential and the Profile does not evidence.
 ## Why not Strong
 
 - **Kubernetes is named as essential** and the Profile does not evidence it.
-- **Contract length.** Six months is the point of the role for the Owner, but it means the ad's
+- **Contract length.** the defined term is part of the role's appeal to the Owner, but it means the ad's
   "grow with us" framing may not survive the term.
 
 ## Lead story

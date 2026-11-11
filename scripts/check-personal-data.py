@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Scan tracked repository files for common personal-data shapes."""
+"""Scan tracked files for generic and configured personal-data terms.
+
+Owner-specific terms are one per line in .rolecall-personal-data-terms by
+default. ROLECALL_PERSONAL_DATA_TERMS_FILE selects another file, and
+ROLECALL_PERSONAL_DATA_TERMS supplies additional newline-separated terms.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -16,7 +22,7 @@ PATTERNS = (
         re.compile(
             r"(?<![\w.+-])[\w.+-]+@"
             r"[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?"
-            r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+",
+            r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+(?![\w.-]|:)",
             re.IGNORECASE,
         ),
     ),
@@ -42,6 +48,9 @@ PATTERNS = (
         ),
     ),
 )
+DEFAULT_TERMS_FILE = ".rolecall-personal-data-terms"
+TERMS_FILE_ENV = "ROLECALL_PERSONAL_DATA_TERMS_FILE"
+TERMS_ENV = "ROLECALL_PERSONAL_DATA_TERMS"
 
 
 def tracked_files(root: Path) -> list[str]:
@@ -66,8 +75,35 @@ def load_allowlist(root: Path) -> set[str]:
     return set(values)
 
 
-def scan(root: Path) -> list[str]:
+def load_owner_terms(root: Path) -> set[str]:
+    configured_path = os.environ.get(TERMS_FILE_ENV, DEFAULT_TERMS_FILE)
+    path = Path(configured_path)
+    if not path.is_absolute():
+        path = root / path
+    terms: set[str] = set()
+    if TERMS_FILE_ENV in os.environ and not path.exists():
+        raise ValueError("configured Owner-specific terms file does not exist")
+    if path.exists():
+        try:
+            terms.update(
+                line.strip()
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            )
+        except (OSError, UnicodeDecodeError) as error:
+            raise ValueError(f"cannot read Owner-specific terms file: {error}") from error
+    terms.update(
+        line.strip()
+        for line in os.environ.get(TERMS_ENV, "").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+    return terms
+
+
+def scan(root: Path, terms: set[str] | None = None) -> list[str]:
     allowlist = load_allowlist(root)
+    configured_terms = terms if terms is not None else load_owner_terms(root)
+    owner_terms = tuple(term.casefold() for term in configured_terms)
     findings: list[str] = []
     for relative in tracked_files(root):
         path = root / relative
@@ -76,6 +112,8 @@ def scan(root: Path) -> list[str]:
         except (UnicodeDecodeError, OSError):
             continue
         for line_number, line in enumerate(contents.splitlines(), start=1):
+            if any(term in line.casefold() for term in owner_terms):
+                findings.append(f"{relative}:{line_number}: Owner-specific term")
             for label, pattern in PATTERNS:
                 if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
                     findings.append(f"{relative}:{line_number}: {label}")
@@ -88,7 +126,13 @@ def main() -> int:
     args = parser.parse_args()
     root = args.root.resolve()
     try:
-        findings = scan(root)
+        terms = load_owner_terms(root)
+        findings = scan(root, terms)
+        if not terms:
+            print(
+                "Owner-specific terms unavailable; scanning generic patterns only.",
+                file=sys.stderr,
+            )
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(error, file=sys.stderr)
         return 2
