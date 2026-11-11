@@ -113,6 +113,7 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
 	keys = append(keys, m.trackHelpKeys()...)
+	keys = append(keys, m.renameHelpKey()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "tab", "focus"))
@@ -127,6 +128,9 @@ func (m model) settingsHelpKeys() []helpKey {
 // settingsKey handles the keys Settings accepts. It never writes: e hands workspace.json
 // to the Owner's editor and the screen re-reads when it exits.
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if next, ok := m.renameKey(k); ok {
+		return next, nil
+	}
 	switch k.String() {
 	case "r":
 		m.rescanAll()
