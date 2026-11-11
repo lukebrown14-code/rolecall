@@ -1,10 +1,12 @@
 package config_test
 
 import (
-	"github.com/lukebrown14-code/rolecall/config"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/lukebrown14-code/rolecall/config"
 )
 
 func TestLoader(t *testing.T) {
@@ -28,6 +30,22 @@ func TestLoader(t *testing.T) {
 	c, err = config.Load(home, "/override")
 	if err != nil || c.FollowUpDays != 21 || c.Workspace != "/override" || c.Downloads != filepath.Join(home, "Downloads") {
 		t.Fatalf("%+v %v", c, err)
+	}
+}
+
+func TestMalformedConfigErrorDoesNotQuoteValues(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("workspace = \"private-sentinel\"\neditor = [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := config.Load(home, "")
+	if err == nil || !strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "invalid TOML") || strings.Contains(err.Error(), "private-sentinel") {
+		t.Fatalf("want path and safe parse reason without config values, got %v", err)
 	}
 }
 

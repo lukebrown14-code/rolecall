@@ -45,6 +45,36 @@ func TestCLIMissingWorkspaceNamesConfigPath(t *testing.T) {
 	}
 }
 
+func TestCLIMalformedWorkspaceNamesPathWithoutValues(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "rolecall")
+	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %s %v", out, err)
+	}
+	home := t.TempDir()
+	config := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(config), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	workspace := filepath.Join(home, "workspace")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config, []byte("workspace = \""+workspace+"\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	workspaceConfig := filepath.Join(workspace, "workspace.json")
+	if err := os.WriteFile(workspaceConfig, []byte(`{"tracks":"private-sentinel"`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	message := string(out)
+	if err == nil || !strings.Contains(message, workspaceConfig) || !strings.Contains(message, "invalid Workspace settings") || strings.Contains(message, "private-sentinel") {
+		t.Fatalf("want safe error naming %s, got %q %v", workspaceConfig, out, err)
+	}
+}
+
 func TestCLIDoctorUsesConfiguredWorkspaceAndIgnoresDownloads(t *testing.T) {
 	binary := buildRolecall(t)
 	home := t.TempDir()
