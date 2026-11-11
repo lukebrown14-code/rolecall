@@ -11,21 +11,13 @@ import (
 // refresh rescans the changed folders and keeps the Owner's place: the screen, table
 // and cursor Application stay put, and an open detail view re-renders in place.
 func (m model) refresh(folders []string) model {
-	var cursorFolder string
-	if rows := m.rows(); m.cursor >= 0 && m.cursor < len(rows) {
-		cursorFolder = rows[m.cursor].Folder
-	}
+	cursorFolder := m.cursorFolder()
 	apps := append([]store.Application(nil), m.apps...)
 	for _, folder := range folders {
 		apps = m.rescanInto(apps, folder)
 	}
 	m.apps = apps
-	for i, r := range m.rows() {
-		if r.Folder == cursorFolder {
-			m.cursor = i
-			break
-		}
-	}
+	m.keepCursor(cursorFolder)
 	// If the cursor Application left this table the index stays, clamped, so the
 	// cursor lands on the nearest row.
 	m.cursor = max(0, min(m.cursor, len(m.rows())-1))

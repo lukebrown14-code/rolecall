@@ -59,16 +59,6 @@ func (m model) saveEdit(a store.Application, v addValues) (tea.Model, tea.Cmd) {
 		m.err = err
 		return m, nil
 	}
-	apps, err := m.store.Scan()
-	if err != nil {
-		m.err = err
-		return m, nil
-	}
-	m.apps, m.err = apps, nil
-	for i, r := range m.rows() {
-		if r.Folder == a.Folder {
-			m.cursor = i
-		}
-	}
+	m.reload(a.Folder)
 	return m, nil
 }

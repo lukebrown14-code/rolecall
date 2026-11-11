@@ -2,7 +2,6 @@
 package ui
 
 import (
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
 	"fmt"
@@ -14,23 +13,6 @@ import (
 
 var screens = []string{"Leads", "Draft", "Applied"}
 var tables = [][]string{{"Leads", "Dismissed"}, {"Draft"}, {"Applied", "Interviewing", "Offer", "Closed"}}
-
-type binding struct {
-	key.Binding
-	tablesOnly bool
-}
-
-func keys() []binding {
-	return []binding{
-		{key.NewBinding(key.WithKeys("1", "2", "3"), key.WithHelp("1/2/3", "screens")), false},
-		{key.NewBinding(key.WithKeys("tab", "shift+tab"), key.WithHelp("Tab/Shift-Tab", "tables")), true},
-		{key.NewBinding(key.WithKeys("up", "k", "down", "j", "g", "G"), key.WithHelp("↑↓/j/k/g/G", "cursor")), false},
-		{key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")), false},
-		{key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")), false},
-		{key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "full help")), false},
-		{key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q/Ctrl-C", "quit")), false},
-	}
-}
 
 type model struct {
 	store                 *store.Store
@@ -245,11 +227,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.move(a, "Dismissed", false)
 					}
 				} else {
-					previous := "Lead"
-					if len(a.StatusLog) > 1 {
-						previous = a.StatusLog[len(a.StatusLog)-2].Status
-					}
-					m.options = MoveOptions(a.Status, previous)
+					m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
 					opts := make([]huh.Option[string], 0, len(m.options))
 					for _, status := range m.options {
 						opts = append(opts, huh.NewOption(statusLetters[status]+" "+status, status))
@@ -319,22 +297,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.download(a)
 			}
 		case "r":
-			folder := ""
-			rows := m.rows()
-			if len(rows) > 0 {
-				folder = rows[m.cursor].Folder
-			}
-			a, e := m.store.Scan()
-			m.err = e
-			if e == nil {
-				m.apps = a
-				for i, r := range m.rows() {
-					if r.Folder == folder {
-						m.cursor = i
-						break
-					}
-				}
-			}
+			m.rescanAll()
 		}
 	}
 	m = m.syncDetail()
@@ -391,18 +354,9 @@ func (m model) View() tea.View {
 		}
 		b.WriteString(row + "\n")
 	}
-	if len(m.tracks) > 0 {
-		track := "All"
-		if m.track > 0 {
-			track = m.tracks[m.track-1]
-		}
-		b.WriteString("Track: " + track + " · t track  ")
+	if line := m.filterLine(); line != "" {
+		b.WriteString(line + "\n")
 	}
-	b.WriteString("/ filter · Esc clear")
-	if m.text != "" || m.filtering {
-		b.WriteString(" · Filter: " + m.text)
-	}
-	b.WriteString("\n")
 	if len(m.options) > 0 {
 		b.WriteString(m.moveView())
 	}
@@ -414,35 +368,56 @@ func (m model) View() tea.View {
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
 	}
-	if len(m.rows()) > 0 {
-		b.WriteString("e edit · m move · u undo")
-		a := m.rows()[m.cursor]
-		if a.Status == "Lead" || a.Status == "Draft" {
-			b.WriteString(" · x dismiss")
-		}
-		b.WriteString("\n")
-	}
+	b.WriteString(m.rowHelp())
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
 	}
-	if len(m.rows()) > 0 {
-		b.WriteString("n notes  ")
-		if len(m.rows()[m.cursor].PDFs) > 0 {
-			b.WriteString("d download  ")
-		}
-	}
-	if m.full {
-		b.WriteString("Full help\n")
-	}
-	for _, k := range keys() {
-		if k.tablesOnly && len(tables[m.screen]) == 1 {
-			continue
-		}
-		h := k.Help()
-		b.WriteString(h.Key + " " + h.Desc + "  ")
-		if m.full {
-			b.WriteString("\n")
-		}
-	}
+	b.WriteString(m.otherHelp())
 	return tea.NewView(plainStyle.Render(b.String()))
+}
+
+// cursorFolder is the folder of the row under the cursor, or "" when the table is empty.
+func (m model) cursorFolder() string {
+	if rows := m.rows(); m.cursor >= 0 && m.cursor < len(rows) {
+		return rows[m.cursor].Folder
+	}
+	return ""
+}
+
+// keepCursor puts the cursor on folder's row when the active table still shows it.
+func (m *model) keepCursor(folder string) {
+	for i, r := range m.rows() {
+		if r.Folder == folder {
+			m.cursor = i
+			return
+		}
+	}
+}
+
+// reload rescans the whole Workspace and keeps the cursor on folder when it is still shown.
+// A failed scan is reported through m.err and leaves the rows as they were.
+func (m *model) reload(folder string) bool {
+	apps, err := m.store.Scan()
+	if err != nil {
+		m.err = err
+		return false
+	}
+	m.apps, m.err = apps, nil
+	m.keepCursor(folder)
+	return true
+}
+
+// rescanAll is `r`: it rereads workspace.json as well as every Application.
+func (m *model) rescanAll() {
+	folder := m.cursorFolder()
+	tracks, err := m.store.Tracks()
+	if err != nil {
+		m.err = err
+		return
+	}
+	m.tracks = tracks
+	if m.track > len(tracks) {
+		m.track = 0 // the filtered track is gone
+	}
+	m.reload(folder)
 }

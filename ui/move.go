@@ -50,17 +50,36 @@ func (m *model) move(a store.Application, status string, undo bool) {
 		m.err = err
 		return
 	}
-	if !undo {
-		m.undo = append(m.undo, undoMove{a.Folder, a.Status})
-	}
 	var sentErr error
 	if status == "Applied" && !undo {
 		sentErr = m.store.RecordSent(a.Folder)
 	}
-	m.apps, m.err = m.store.Scan()
-	if m.err == nil {
-		m.err = sentErr
+	// The append is final even when the copy failed, so the rows are refreshed either way.
+	m.reload(a.Folder)
+	if sentErr != nil {
+		// Not a clean move: no success toast and nothing to undo, only the error.
+		m.err, m.toast = sentErr, ""
+		return
+	}
+	if !undo {
+		m.undo = append(m.undo, undoMove{a.Folder, a.Status})
 	}
 	m.toast = fmt.Sprintf("Moved to %s · u to undo", status)
+}
+
+// statusBeforeDismissed is the Status the Owner restores to: the one before the last Dismissed
+// entry of the log, skipping any run of Dismissed entries stacked at that point. A log with
+// nothing earlier restores to Lead.
+func statusBeforeDismissed(log []store.StatusEntry) string {
+	i := len(log) - 1
+	for i >= 0 && log[i].Status != "Dismissed" {
+		i--
+	}
+	for i--; i >= 0; i-- {
+		if log[i].Status != "Dismissed" {
+			return log[i].Status
+		}
+	}
+	return "Lead"
 }
 func (m model) moveView() string { return m.moveForm.View() }

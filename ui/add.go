@@ -129,11 +129,9 @@ func (m model) createLead(fields store.CreateFields) (tea.Model, tea.Cmd) {
 		m.err = err
 		return m, nil
 	}
-	if m.apps, err = m.store.Scan(); err != nil {
-		m.err = err
+	if !m.reload("") {
 		return m, nil
 	}
-	m.err = nil
 	m.selectAfter = folder
 	return m, m.editFile(folder, "jd.md")
 }

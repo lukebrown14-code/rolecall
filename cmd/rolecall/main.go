@@ -2,6 +2,7 @@ package main
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/config"
@@ -29,6 +30,13 @@ func run(dir string) error {
 		return err
 	}
 	s, err := store.Open(c.Workspace)
+	if errors.Is(err, os.ErrNotExist) {
+		source := "workspace in " + config.Path(home)
+		if dir != "" {
+			source = "--dir"
+		}
+		return fmt.Errorf("Workspace %s does not exist; check %s", c.Workspace, source)
+	}
 	if err != nil {
 		return err
 	}

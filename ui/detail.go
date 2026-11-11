@@ -299,10 +299,6 @@ func (m model) detailView() string {
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
 	}
-	b.WriteString("←/→ tabs · ↑↓ scroll · e edit · m move · n notes")
-	if len(a.PDFs) > 0 {
-		b.WriteString(" · d download")
-	}
-	b.WriteString(" · u undo · Esc back")
+	b.WriteString(m.detailHelp())
 	return plainStyle.Render(b.String())
 }
