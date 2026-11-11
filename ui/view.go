@@ -142,9 +142,14 @@ func (m model) View() tea.View {
 		}
 		body = overlay(base, box, m.viewWidth())
 	}
-	v := tea.NewView(body)
-	// Dark only: paint the terminal background so the palette reads the same on a light terminal.
-	v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	v := tea.NewView(asciiFold(body))
+	// Dark only: paint the terminal background so the palette reads the same on a light
+	// terminal. NO_COLOR drops colour but keeps bold and underline.
+	if noColor() {
+		v.Content = stripColor(v.Content)
+	} else {
+		v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	}
 	return v
 }
 
@@ -280,11 +285,15 @@ func (m model) topBar(p pal) string {
 func (m model) trackSelector(p pal, w int) string {
 	opts := append([]string{"All"}, m.tracks...)
 	on := p.text(p.accent).Bold(true).Underline(true)
+	// The active track is bracketed as well as underlined, so it is marked without colour.
+	mark := func(name string) string {
+		return p.text(p.accent).Render("[") + on.Render(name) + p.text(p.accent).Render("]")
+	}
 	parts := make([]string, len(opts))
 	for i, t := range opts {
 		parts[i] = p.text(p.dim).Render(t)
 		if i == m.track {
-			parts[i] = on.Render(t)
+			parts[i] = mark(t)
 		}
 	}
 	key := p.text(p.accent).Bold(true).Render("  t track")
@@ -294,19 +303,20 @@ func (m model) trackSelector(p pal, w int) string {
 		name = m.tracks[m.track-1]
 	}
 	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
+	activeName := mark(name)
 	// Longest to shortest; the last always fits any terminal the layout supports.
 	for _, cand := range []string{
 		label + strings.Join(parts, "  ") + key,
-		label + on.Render(name) + plus + key,
-		on.Render(name) + plus + key,
-		on.Render(name) + key,
-		on.Render(name),
+		label + activeName + plus + key,
+		activeName + plus + key,
+		activeName + key,
+		activeName,
 	} {
 		if xansi.StringWidth(cand) <= w {
 			return cand
 		}
 	}
-	return on.Render(name)
+	return activeName
 }
 
 // viewRow is the screen's views, cycled with Tab, plus the search in force. A screen
@@ -327,7 +337,8 @@ func (m model) viewRow(p pal) string {
 				}
 				parts[i] = p.text(p.dim).Render(label)
 				if i == m.table {
-					parts[i] = p.text(p.fg).Bold(true).Underline(true).Render(label)
+					// Bracketed as well as bold and underlined: marked without colour.
+					parts[i] = p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(label) + p.text(p.accent).Render("]")
 				}
 			}
 			row = "   " + strings.Join(parts, f.gap)

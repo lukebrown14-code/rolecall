@@ -357,7 +357,8 @@ func (m model) detailTabsRow(p pal) string {
 	for i, t := range detailTabs {
 		tabs[i] = p.text(p.dim).Render(" " + t + " ")
 		if i == m.detail.tab {
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render(" " + t + " ")
+			// Bracketed as well as filled: the active tab is marked without colour.
+			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + t + "]")
 		}
 	}
 	return strings.Join(tabs, " ")

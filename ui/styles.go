@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"os"
+	"regexp"
 	"strings"
 
 	"charm.land/glamour/v2/ansi"
@@ -201,4 +203,59 @@ func markdownStyle() ansi.StyleConfig {
 	c.H1.Prefix, c.H1.Suffix = "", ""
 	c.H2.Prefix, c.H3.Prefix, c.H4.Prefix = "", "", ""
 	return c
+}
+
+// noColor reports whether NO_COLOR is set (https://no-color.org): colour is dropped but
+// bold and underline stay, so every state still reads.
+func noColor() bool { return os.Getenv("NO_COLOR") != "" }
+
+// asciiMode reports whether glyphs should fall back to ASCII stand-ins, for terminals and
+// fonts where ◆ ▌ ⚑ and friends render badly.
+func asciiMode() bool { return os.Getenv("ROLECALL_ASCII") != "" }
+
+// sgr matches one SGR escape sequence.
+var sgr = regexp.MustCompile("\x1b\\[([0-9;]*)m")
+
+// stripColor drops colour from a rendered frame, keeping bold and underline. It runs over
+// the whole view, so Glamour output and the pop-up fill lose colour too.
+func stripColor(s string) string {
+	return sgr.ReplaceAllStringFunc(s, func(seq string) string {
+		body := seq[2 : len(seq)-1]
+		if body == "" {
+			return seq // "\x1b[m" is a plain reset
+		}
+		nums := strings.Split(body, ";")
+		var keep []string
+		for i := 0; i < len(nums); i++ {
+			switch nums[i] {
+			case "38", "48": // an extended colour: skip its parameters
+				i++
+				if i < len(nums) && nums[i] == "2" {
+					i += 3
+				}
+			case "0", "1", "4", "22", "24":
+				keep = append(keep, nums[i])
+			}
+		}
+		if len(keep) == 0 {
+			return ""
+		}
+		return "\x1b[" + strings.Join(keep, ";") + "m"
+	})
+}
+
+// asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
+var asciiGlyphs = strings.NewReplacer(
+	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<-",
+	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o",
+	"↑", "^", "↓", "v", "─", "-", "│", "|", "┬", "+", "┴", "+",
+	"╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "...",
+)
+
+// asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set.
+func asciiFold(s string) string {
+	if !asciiMode() {
+		return s
+	}
+	return asciiGlyphs.Replace(s)
 }

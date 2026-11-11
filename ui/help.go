@@ -180,6 +180,9 @@ func (m model) helpBox(p pal) string {
 	}
 	nav := append(pairs(keys, groupNav), pairs(keys, groupCursor)...)
 	cols := []string{col("Actions", pairs(keys, groupAction)), col("Navigate", nav), col("More", pairs(keys, groupMore))}
-	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
+	legend := p.heading("Glyphs") + "\n" +
+		p.text(p.dim).Render("● ready · ○ written · ✓ present · ⚠ warning") + "\n" +
+		p.text(p.dim).Render("✕ rejected or error · ↩ withdrawn · ~ approx · ⚑ follow-up due")
+	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn) + "\n\n" + legend
 	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
 }
