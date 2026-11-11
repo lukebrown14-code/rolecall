@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -9,10 +10,10 @@ import (
 )
 
 // openEdit starts the Edit form prefilled from an Application. A malformed Application is
-// refused with the store's own parse error.
+// refused with the store's own parse error, plus the next step.
 func (m *model) openEdit(a store.Application) tea.Cmd {
 	if a.Malformed != nil {
-		m.err = a.Malformed
+		m.err = fmt.Errorf("%w · enter to see the file", a.Malformed)
 		return nil
 	}
 	m.err = nil
@@ -21,11 +22,11 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 		// A Track missing from workspace.json stays selectable, so saving never rewrites it.
 		tracks = append(slices.Clone(tracks), a.Track)
 	}
-	m.editOf = &a
-	return m.openForm(&addValues{
+	m.overlay = &formMode{form: newForm(&addValues{
 		title: a.Title, company: a.Company, track: a.Track, url: a.URL, closes: a.Closes, fit: a.Fit,
 		resumeOnly: boolText(a.ResumeOnly),
-	}, tracks, true)
+	}, tracks, true), editOf: &a}
+	return nil
 }
 
 func boolText(b bool) string {
@@ -36,7 +37,7 @@ func boolText(b bool) string {
 }
 
 // saveEdit patches only the keys the Owner changed.
-func (m model) saveEdit(a store.Application, v addValues) (tea.Model, tea.Cmd) {
+func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 	was := map[string]string{
 		"title": a.Title, "company": a.Company, "track": a.Track, "url": a.URL, "closes": a.Closes, "fit": a.Fit,
 		"resume_only": boolText(a.ResumeOnly),
@@ -51,14 +52,13 @@ func (m model) saveEdit(a store.Application, v addValues) (tea.Model, tea.Cmd) {
 			changed[k] = value
 		}
 	}
-	m.editOf = nil
 	if len(changed) == 0 {
-		return m, nil
+		return nil
 	}
 	if err := m.store.Patch(a.Folder, changed); err != nil {
 		m.err = err
-		return m, nil
+		return nil
 	}
 	m.reload(a.Folder)
-	return m, nil
+	return nil
 }

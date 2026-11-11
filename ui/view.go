@@ -107,6 +107,23 @@ func ago(date string, now time.Time) (string, int) {
 	return s + " ago", days
 }
 
+// futureFlag marks a Status date after today: almost always a data error, so it is
+// flagged rather than shown as a normal "in 8mo" relative date.
+const futureFlag = "⚠ future date"
+
+// futureDate reports whether a Status entry's date is after today.
+func (m model) futureDate(e *store.StatusEntry) bool {
+	if e == nil {
+		return false
+	}
+	t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
+	if err != nil {
+		return false
+	}
+	today, _ := time.Parse("2006-01-02", m.now().Format("2006-01-02"))
+	return t.After(today)
+}
+
 func (m model) View() tea.View {
 	p := basePal
 	var body string
@@ -115,19 +132,29 @@ func (m model) View() tea.View {
 		body = m.tooSmallView(p)
 	case m.detail != nil:
 		body = m.detailView(p)
+	case m.screen == statsScreen:
+		body = m.statsView(p)
 	default:
 		body = m.listView(p)
 	}
-	if box := m.overlayBox(p); box != "" && !m.tooSmall() {
+	if box := m.overlayView(p); box != "" && !m.tooSmall() {
 		base := m.listView(dimmedPal)
-		if m.detail != nil {
+		switch {
+		case m.screen == statsScreen:
+			base = m.statsView(dimmedPal)
+		case m.detail != nil:
 			base = m.detailView(dimmedPal)
 		}
 		body = overlay(base, box, m.viewWidth())
 	}
-	v := tea.NewView(body)
-	// Dark only: paint the terminal background so the palette reads the same on a light terminal.
-	v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	v := tea.NewView(asciiFold(body))
+	// Dark only: paint the terminal background so the palette reads the same on a light
+	// terminal. NO_COLOR drops colour but keeps bold and underline.
+	if noColor() {
+		v.Content = stripColor(v.Content)
+	} else {
+		v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	}
 	return v
 }
 
@@ -149,6 +176,9 @@ func (m model) tooSmallView(p pal) string {
 // listView is a screen: top bar, views, the list (with the preview pane when wide),
 // the feedback line and the key line.
 func (m model) listView(p pal) string {
+	if m.screen == statsScreen {
+		return m.statsView(p)
+	}
 	w, bodyH := m.viewWidth(), max(minBody, m.viewHeight()-chromeLines)
 	rows := m.rows()
 	split := w >= splitWidth && len(rows) > 0
@@ -174,17 +204,32 @@ func (m model) listView(p pal) string {
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
-			sep := p.text(p.faint).Render(strings.TrimSuffix(strings.Repeat("│\n", bodyH), "\n"))
+			sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", bodyH), "\n"))
 			body = lipgloss.JoinHorizontal(lipgloss.Top, list, sep, m.preview(p, rows[m.cursor], previewW, bodyH))
 		}
 	}
 	keys := m.keyLine(p, w)
-	if m.filtering {
+	if m.searching() {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
 		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
 	}
-	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.faint).Render(ruleTop) + "\n" +
-		body + "\n" + m.feedbackLine(p, ruleBot) + "\n" + keys
+	// The bottom rule is always drawn; the status row below it holds a toast, an error,
+	// the search input or the key line, one at a time.
+	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
+		body + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
+}
+
+// statusRow is the frame's last line: what just happened (a toast or error) when there is
+// one, otherwise the line the caller prepared (the search input while typing, else the
+// key line). The rule above it is never replaced.
+func (m model) statusRow(p pal, w int, fallback string) string {
+	if m.searching() {
+		return fallback // the search input shows while typing, even over an error
+	}
+	if m.err != nil || m.toast != "" || m.building != nil {
+		return m.feedbackLine(p, w)
+	}
+	return fallback
 }
 
 // emptyMessage says how Applications reach an empty view.
@@ -218,6 +263,33 @@ func (m model) screenCount(si int) int {
 	return n
 }
 
+// filtered reports whether a track or text filter is in force.
+func (m model) filtered() bool { return m.track > 0 || m.text != "" }
+
+// countLabel is a view's count: the total, or "shown/total" while a filter hides rows,
+// so a filtered number is never read as the total.
+func (m model) countLabel(screen int, table string) string {
+	total := m.totalCount(screen, table)
+	if !m.filtered() {
+		return fmt.Sprintf("%d", total)
+	}
+	return fmt.Sprintf("%d/%d", m.count(screen, table), total)
+}
+
+// screenCountLabel is a screen's count over its views, filtered the same way.
+func (m model) screenCountLabel(si int) string {
+	total := 0
+	for _, t := range tables[si] {
+		if t != allView && t != tableDismissed {
+			total += m.totalCount(si, t)
+		}
+	}
+	if !m.filtered() {
+		return fmt.Sprintf("%d", total)
+	}
+	return fmt.Sprintf("%d/%d", m.screenCount(si), total)
+}
+
 // topBar: app mark and screens on the left, the track filter on the right. On narrow
 // terminals it sheds detail in steps: the "rolecall" word, other screens' counts, their names.
 func (m model) topBar(p pal) string {
@@ -229,17 +301,21 @@ func (m model) topBar(p pal) string {
 			out = p.text(p.accent).Bold(true).Render(" ◆ ")
 		}
 		for si, s := range screens {
-			n := m.screenCount(si)
+			n := m.screenCountLabel(si)
 			if si == m.screen {
-				out += "  " + on.Render(fmt.Sprintf(" %d %s %d ", si+1, s, n))
+				if s == screenStats {
+					out += "  " + on.Render(fmt.Sprintf(" %d %s ", si+1, s))
+				} else {
+					out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
+				}
 				continue
 			}
 			out += "  " + p.text(p.accent).Render(fmt.Sprintf(" %d", si+1))
 			if level < shedNames {
 				out += " " + p.text(p.fg).Render(s)
 			}
-			if level < shedCounts {
-				out += p.text(p.dim).Render(fmt.Sprintf(" %d", n))
+			if level < shedCounts && s != screenStats {
+				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
 			}
 			out += " " // the same padding as the highlighted entry, so nothing shifts
 		}
@@ -257,36 +333,57 @@ func (m model) topBar(p pal) string {
 	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
-// trackSelector is a labelled field, "track  All  SWE  Platform  t", collapsing to
-// "track  All +2  t" when it doesn't fit in w.
+// trackSelector is a labelled field, "track  All  SWE  Platform  t track", collapsing
+// in steps — "track  All +2  t track", then "All +2  t track", "All  t track", "All" —
+// so the header never spills on a narrow terminal.
 func (m model) trackSelector(p pal, w int) string {
 	opts := append([]string{"All"}, m.tracks...)
 	on := p.text(p.accent).Bold(true).Underline(true)
+	// The active track is bracketed as well as underlined, so it is marked without colour.
+	mark := func(name string) string {
+		return p.text(p.accent).Render("[") + on.Render(name) + p.text(p.accent).Render("]")
+	}
 	parts := make([]string, len(opts))
 	for i, t := range opts {
 		parts[i] = p.text(p.dim).Render(t)
 		if i == m.track {
-			parts[i] = on.Render(t)
+			parts[i] = mark(t)
 		}
 	}
-	key := p.text(p.accent).Bold(true).Render("  t")
-	full := p.text(p.dim).Render("track  ") + strings.Join(parts, "  ") + key
-	if xansi.StringWidth(full) <= w {
-		return full
-	}
+	key := p.text(p.accent).Bold(true).Render("  t track")
+	label := p.text(p.dim).Render("track  ")
 	name := "All"
 	if m.track > 0 {
 		name = m.tracks[m.track-1]
 	}
-	return p.text(p.dim).Render("track  ") + on.Render(name) + p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1)) + key
+	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
+	activeName := mark(name)
+	// Longest to shortest; the last always fits any terminal the layout supports.
+	for _, cand := range []string{
+		label + strings.Join(parts, "  ") + key,
+		label + activeName + plus + key,
+		activeName + plus + key,
+		activeName + key,
+		activeName,
+	} {
+		if xansi.StringWidth(cand) <= w {
+			return cand
+		}
+	}
+	return activeName
 }
 
-// viewRow is the screen's views, cycled with Tab, plus the search in force. A screen
-// with one view keeps the row (blank) so the layout doesn't jump between screens.
+// viewRow is the frame's context row: the screen's views (cycled with Tab), or the one
+// view's name, plus the scope line on the right when a filter is on. The row is always
+// present, so the layout never jumps between screens.
 func (m model) viewRow(p pal) string {
+	if m.screen == statsScreen {
+		return ""
+	}
 	w := m.viewWidth()
-	row := ""
-	if ts := tables[m.screen]; len(ts) > 1 {
+	ts := tables[m.screen]
+	row := "   " + p.text(p.dim).Render(ts[0])
+	if len(ts) > 1 {
 		for _, f := range []struct {
 			gap    string
 			counts bool
@@ -295,11 +392,12 @@ func (m model) viewRow(p pal) string {
 			for i, t := range ts {
 				label := t
 				if f.counts {
-					label = fmt.Sprintf("%s %d", t, m.count(m.screen, t))
+					label = fmt.Sprintf("%s %s", t, m.countLabel(m.screen, t))
 				}
 				parts[i] = p.text(p.dim).Render(label)
 				if i == m.table {
-					parts[i] = p.text(p.fg).Bold(true).Underline(true).Render(label)
+					// Bracketed as well as bold and underlined: marked without colour.
+					parts[i] = p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(label) + p.text(p.accent).Render("]")
 				}
 			}
 			row = "   " + strings.Join(parts, f.gap)
@@ -308,50 +406,65 @@ func (m model) viewRow(p pal) string {
 			}
 		}
 	}
-	if m.text != "" {
-		n := len(m.rows())
-		noun := "matches"
-		if n == 1 {
-			noun = "match"
-		}
-		chip := p.text(p.dim).Render("search ") + p.text(p.accent).Bold(true).Render(m.text) +
-			p.text(p.dim).Render(fmt.Sprintf("  %d %s", n, noun))
-		if !m.filtering {
-			chip += "  " + p.keys([][2]string{{"esc", "clear"}})
-		}
-		row = spread(row, chip, w-rightMargin)
+	if scope := m.scopeLine(p); scope != "" {
+		// Keep the frame one line wide: the scope truncates to what the row leaves.
+		avail := max(0, w-rightMargin-xansi.StringWidth(row)-gutter)
+		row = spread(row, xansi.Truncate(scope, avail, "…"), w-rightMargin)
 	}
 	return row
 }
 
-// feedbackLine replaces the bottom rule with what just happened, when something did.
-// Successes clear on the next key; errors stay until esc.
-func (m model) feedbackLine(p pal, rule string) string {
+// scopeLine names what is filtered, when anything is: the screen and view, the track, the
+// search text and the shown-of-total count. Empty when no filter is on.
+func (m model) scopeLine(p pal) string {
+	if m.track == 0 && m.text == "" {
+		return ""
+	}
+	label := screens[m.screen]
+	if view := tables[m.screen][m.table]; view != label {
+		label += " › " + view
+	}
+	parts := []string{label}
+	if m.track > 0 {
+		parts = append(parts, "track "+m.tracks[m.track-1])
+	}
+	if m.text != "" {
+		parts = append(parts, "search "+m.text)
+	}
+	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, tables[m.screen][m.table])))
+	return p.text(p.dim).Render(strings.Join(parts, " · "))
+}
+
+// feedbackLine is the status row when something just happened: a toast (successes clear
+// on the next key), an error (stays until esc), or a build in flight (a spinner until it
+// finishes). It never replaces the bottom rule.
+func (m model) feedbackLine(p pal, w int) string {
 	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
-	if m.err != nil {
+	raw := false
+	switch {
+	case m.err != nil:
 		msg = m.rel(m.err.Error())
 		icon, c, hint = "✕", p.bad, "esc hide"
+	case m.building != nil && m.toast == "":
+		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
 	if msg == "" {
-		return p.text(p.faint).Render(rule)
+		return ""
 	}
 	bg := lipgloss.NewStyle().Background(colorPanel)
-	left := bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	var left string
+	if raw {
+		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
+	} else {
+		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	}
 	right := ""
 	if hint != "" {
 		k, d, _ := strings.Cut(hint, " ")
 		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
-	w := m.viewWidth()
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
 	gap := bg.Render(strings.Repeat(" ", n))
-	// Keep the ┴ where the pane divider meets the line, when the message leaves it free.
-	if j := strings.IndexRune(rule, '┴'); j >= 0 {
-		col := xansi.StringWidth(rule[:j]) - xansi.StringWidth(left)
-		if col > 0 && col < n-1 {
-			gap = bg.Render(strings.Repeat(" ", col)) + bg.Foreground(p.faint).Render("┴") + bg.Render(strings.Repeat(" ", n-col-1))
-		}
-	}
 	return xansi.Truncate(left+gap+right, w, "")
 }
 
@@ -366,7 +479,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 		for i, a := range rows {
 			if d, ok := dividers[i]; ok {
 				label := fmt.Sprintf("  %s · %d ", d.label, d.n)
-				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.faint).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
+				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.rule).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
 				if i > 0 {
 					lines = append([]string{""}, lines...) // air above each section
 				}
@@ -600,8 +713,14 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 // meta is a row's second line: company, track, and the dates that matter for its table.
 func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
 	dim := st(dimC)
+	// when renders a Status date, flagging one in the future as a data error.
+	when := func(e *store.StatusEntry, prefix string) string {
+		if m.futureDate(e) {
+			return st(p.warn).Render(prefix + futureFlag)
+		}
+		return dim.Render(prefix + m.agoEntry(e))
+	}
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
-	rel := m.agoEntry
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
 		switch r, days := ago(a.Closes, m.now()); {
@@ -618,18 +737,18 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		}
 	case tableDismissed:
 		if a.LastChange != nil {
-			out = append(out, dim.Render("dismissed "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, "dismissed "))
 		}
 	case tableClosed:
 		if a.LastChange != nil {
-			out = append(out, dim.Render("closed "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, "closed "))
 		}
 	default:
 		if a.AppliedDate != nil {
-			out = append(out, dim.Render("applied "+rel(a.AppliedDate)))
+			out = append(out, when(a.AppliedDate, "applied "))
 		}
 		if a.LastChange != nil && a.LastChange.At != entryAt(a.AppliedDate) {
-			out = append(out, dim.Render(strings.ToLower(a.LastChange.Status)+" "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, strings.ToLower(a.LastChange.Status)+" "))
 		}
 	}
 	return out
@@ -696,11 +815,13 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		} else {
 			b.WriteString(p.text(p.dim).Render("No notes · ") + p.text(p.accent).Render("n") + p.text(p.dim).Render(" to add"))
 		}
+		b.WriteString("\n\n" + p.text(p.dim).Render("? all keys"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
 
-// fileMarks is the one-line document set: ✓ present, ○ missing.
+// fileMarks is the one-line document set: ✓ present, ○ missing. A source mark reflects
+// content, not just presence, so it never reads "✓ resume" beside "not written".
 func (m model) fileMarks(p pal, a store.Application) string {
 	mark := func(ok bool, name string) string {
 		if ok {
@@ -712,8 +833,14 @@ func (m model) fileMarks(p pal, a store.Application) string {
 	if n := len(a.PDFs); n > 0 {
 		pdfs = fmt.Sprintf("%d pdf", n)
 	}
-	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume, "resume"), mark(a.HasCoverLetter, "cover"),
-		mark(len(a.PDFs) > 0, pdfs)}, "  ")
+	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume && m.hasContent(a, "resume.md"), "resume"),
+		mark(a.HasCoverLetter && m.hasContent(a, "cover-letter.md"), "cover"), mark(len(a.PDFs) > 0, pdfs)}, "  ")
+}
+
+// hasContent reports whether a document holds non-whitespace text.
+func (m model) hasContent(a store.Application, name string) bool {
+	b, err := m.store.ReadDocument(a.Folder, name)
+	return err == nil && strings.TrimSpace(string(b)) != ""
 }
 
 // timeline is the Status log, newest last, plus the close date for Leads and Drafts.
@@ -725,12 +852,18 @@ func (m model) timeline(p pal, a store.Application, dates bool) string {
 		if i == len(a.StatusLog)-1 {
 			dot, nameC = p.text(p.accent).Render("●"), p.fg
 		}
-		when := m.agoEntry(&e)
+		when, whenC := m.agoEntry(&e), p.dim
+		if m.futureDate(&e) {
+			when, whenC = futureFlag, p.warn
+		}
 		if dates {
-			r, _ := ago(e.At, m.now())
+			r := when
+			if !m.futureDate(&e) {
+				r, _ = ago(e.At, m.now())
+			}
 			when = entryDate(&e) + "  " + r
 		}
-		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(p.dim).Render(when) + "\n")
+		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
 	}
 	if a.Closes != "" && beforeApplied(tableOf(a)) {
 		r, days := ago(a.Closes, m.now())

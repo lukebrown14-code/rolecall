@@ -231,13 +231,28 @@ context-free review. Every colour and style is in `ui/styles.go`.
 
 - **Theme:** dark only; the view paints the terminal background `#0D1117`. Accent **Mint**
   `#5EEAD4`. Colour always pairs with a word or glyph.
+- **Active markers:** the active track, view tab and detail tab are bracketed — `[All]`,
+  `[Leads 4]`, `[JD]` — as well as coloured, so they read without colour.
+- **Accessibility:** `NO_COLOR` drops all colour but keeps bold, underline and every word
+  and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in. The `?`
+  pop-up carries a legend for `● ○ ✓ ⚠ ✕ ↩ ~ ⚑`.
 - **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
   within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
   Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and
   Written; GLOSSARY avoids "built").
-- **Layout, top to bottom:** screens and the track filter · the screen's views (`Tab`) · the
-  list (with a preview pane from 100 columns) · the feedback line · the key line (actions
-  left, navigation pinned right).
+- **Layout, top to bottom (one fixed frame):** header (screens and the track filter) ·
+  context row (the screen's views, and the scope line when a filter is on) · top rule ·
+  body (with a preview pane from 100 columns) · bottom rule · status row. The rules and
+  the `┬`/`┴` joins are always drawn; the status row holds a toast, an error, the search
+  input or the key line, one at a time (actions left, navigation pinned right).
+- **Scope line:** whenever a track or text filter is on, the context row names it once —
+  `<Screen> › <View> · track SWE · search pl · 3 of 4` — and the header and tab counts read
+  `3/4` rather than a filtered number that looks like a total.
+- **Feedback:** a toast (successes clear on the next key) or an error (stays until `Esc`)
+  shows on the status row; it never replaces the bottom rule. Paths read relative to the
+  Workspace.
+- **Search:** while typing, the search input is on the status row; after `Enter` the scope
+  line shows `search pl` and the count.
 - **Rows:** two lines (title + right-hand columns, then company · track · dates). A blank
   line between rows when they all fit; dense when they don't. Right-hand columns are
   state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
@@ -247,9 +262,6 @@ context-free review. Every colour and style is in `ui/styles.go`.
   either side of the box. A pop-up taller than the terminal drops middle lines and keeps
   its bottom border. `?` is a pop-up; any key closes it, `Esc` included. The Move pop-up
   always moves the Application it shows, even if a live refresh moved the cursor.
-- **Feedback line:** replaces the bottom rule with what just happened. Successes clear on
-  the next key; errors stay until `Esc`. Paths read relative to the Workspace.
-- **Search:** while typing, and after `Enter`, the views row shows `search pl  3 matches`.
 - **Narrow terminals:** the screens row sheds detail, the preview and detail card hide
   below 100 columns, pop-ups shrink to fit. The key line drops actions from the right but
   keeps `enter`, `a add` and `/ search` to the last. Below 50×12 a "Terminal too small"
@@ -321,7 +333,9 @@ Owner to set by hand.
 
 **Automated**
 - Go `store`: parse and patch round-trips against `fixtures/workspace/` (unknown keys and comments preserved byte for byte; malformed files refused; atomic write).
-- Go `ui`: `teatest` flows for Add → Move → Undo, and Dismiss → restore.
+- Go `ui`: `Update` driven directly (key in → model and disk state out) for Add → Move →
+  Undo and Dismiss → restore, plus a few whole-program `teatest` smoke tests; rendering
+  goldens are ANSI-stripped except one palette golden.
 - Python: `build.py` tests on the same fixtures (Lead → Draft append, no tracker writes, gates unchanged). `ruff` clean.
 - CI runs both.
 

@@ -231,7 +231,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.tab = (d.tab + step) % len(detailTabs)
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c":
 		return m, nil, false
 	}
 	if a.Malformed != nil {
@@ -245,9 +245,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.ScrollDown(1)
 	case "up", "k":
 		d.body.ScrollUp(1)
-	case "pgdown", "space", "f":
+	case "pgdown", "space":
 		d.body.PageDown()
-	case "pgup", "b":
+	case "pgup":
 		d.body.PageUp()
 	case "g":
 		d.body.GotoTop()
@@ -312,7 +312,11 @@ func (m model) detailView(p pal) string {
 		}
 		when = p.text(c).Render("closes " + r)
 	case a.AppliedDate != nil:
-		when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
+		if m.futureDate(a.AppliedDate) {
+			when = p.text(p.warn).Render("applied " + futureFlag)
+		} else {
+			when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
+		}
 	}
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
@@ -338,14 +342,14 @@ func (m model) detailView(p pal) string {
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, ruleTop, ruleBot := pane, strings.Repeat("─", w), strings.Repeat("─", w)
 	if m.cardShown() {
-		sep := p.text(p.faint).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
+		sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
 		card := lipgloss.NewStyle().Width(cardWidth).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
 		body = lipgloss.JoinHorizontal(lipgloss.Top, card, sep, pane)
 		ruleTop = strings.Repeat("─", cardWidth) + "┬" + strings.Repeat("─", paneW)
 		ruleBot = strings.Repeat("─", cardWidth) + "┴" + strings.Repeat("─", paneW)
 	}
-	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.faint).Render(ruleTop) + "\n" + body + "\n" +
-		m.feedbackLine(p, ruleBot) + "\n" + m.keyLine(p, w)
+	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.rule).Render(ruleTop) + "\n" + body + "\n" +
+		p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 
 func (m model) detailTabsRow(p pal) string {
@@ -353,7 +357,8 @@ func (m model) detailTabsRow(p pal) string {
 	for i, t := range detailTabs {
 		tabs[i] = p.text(p.dim).Render(" " + t + " ")
 		if i == m.detail.tab {
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render(" " + t + " ")
+			// Bracketed as well as filled: the active tab is marked without colour.
+			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + t + "]")
 		}
 	}
 	return strings.Join(tabs, " ")

@@ -1,7 +1,6 @@
 package ui_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,10 +8,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/lukebrown14-code/rolecall/store"
-	"github.com/lukebrown14-code/rolecall/ui"
 )
 
 // reviewHarness drives the whole program over a hand-built Workspace holding one Application.
@@ -20,7 +15,7 @@ type reviewHarness struct {
 	t      *testing.T
 	root   string
 	folder string
-	tm     *teatest.TestModel
+	tm     *driver
 }
 
 func entry(status, day string) string {
@@ -51,21 +46,14 @@ func newReviewHarness(t *testing.T, log string, files map[string]string) *review
 
 func (h *reviewHarness) start() {
 	h.t.Helper()
-	s, err := store.Open(h.root)
-	if err != nil {
-		h.t.Fatal(err)
-	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC) })
-	if err != nil {
-		h.t.Fatal(err)
-	}
-	h.tm = teatest.NewTestModel(h.t, m, teatest.WithInitialTermSize(120, 40))
-	h.waitOutput("Leads")
+	h.tm = newDriver(h.t, h.root, func() time.Time { return time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC) }, 120, 40)
 }
 
 func (h *reviewHarness) waitOutput(text string) {
 	h.t.Helper()
-	teatest.WaitFor(h.t, h.tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(text)) }, teatest.WithDuration(3*time.Second))
+	if view := h.tm.plain(); !strings.Contains(view, text) {
+		h.t.Fatalf("screen lacks %q:\n%s", text, view)
+	}
 }
 
 func (h *reviewHarness) meta() string {
@@ -76,12 +64,12 @@ func (h *reviewHarness) meta() string {
 	return string(b)
 }
 
-// waitForLogLength blocks until meta.yml holds n status_log entries.
+// waitForLogLength fails unless meta.yml holds n status_log entries.
 func (h *reviewHarness) waitForLogLength(n int) {
 	h.t.Helper()
-	teatest.WaitFor(h.t, h.tm.Output(), func([]byte) bool {
-		return strings.Count(h.meta(), "- {status:") == n
-	}, teatest.WithDuration(3*time.Second))
+	if got := strings.Count(h.meta(), "- {status:"); got != n {
+		h.t.Fatalf("meta.yml holds %d status_log entries, want %d:\n%s", got, n, h.meta())
+	}
 }
 
 func (h *reviewHarness) lastStatus() string {
@@ -90,21 +78,20 @@ func (h *reviewHarness) lastStatus() string {
 	return strings.TrimPrefix(last[:strings.Index(last, ",")], "  - {status: ")
 }
 
-// finish ends the program with Ctrl-C, which works over every overlay, and returns the last screen.
+// finish returns the last screen with styling stripped.
 func (h *reviewHarness) finish() string {
 	h.t.Helper()
-	h.tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return ansi.Strip(h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content)
+	return h.tm.plain()
 }
 
 // rawFinish quits and returns the final screen with its styling, for checks that read it.
 func (h *reviewHarness) rawFinish() string {
 	h.t.Helper()
 	h.tm.Type("q")
-	return h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+	return h.tm.View()
 }
 
-func (h *reviewHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
+func (h *reviewHarness) key(code rune) { h.tm.key(code) }
 
 // The popup's default for a Dismissed row is the Status before the last Dismissed entry, however
 // many Dismissed entries an agent or an undo has stacked at the end of the log.

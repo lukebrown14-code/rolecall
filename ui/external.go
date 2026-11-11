@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"bytes"
 	tea "charm.land/bubbletea/v2"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +13,17 @@ import (
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
 type ExternalRunner func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+
+// CapturedResult is a captured run's outcome: what it printed and how it ended.
+type CapturedResult struct {
+	Stdout string
+	Stderr string
+	Err    error
+}
+
+// CapturedRunner substitutes the background run in tests: it starts a command
+// without suspending the TUI and reports its output through done.
+type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 // ResolveEditor follows the Owner's configured editor preference.
 func ResolveEditor(configured string) string {
@@ -35,6 +49,51 @@ func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
 	return runner(exec.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
 }
 
+// handoffError turns a nonzero Harness exit into the feedback line the Owner reads;
+// every other error passes through unchanged.
+func handoffError(err error) error {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return fmt.Errorf("Harness exited with status %d", exit.ExitCode())
+	}
+	return err
+}
+
+// runHandoff is the interactive boundary for a Handoff: the TUI steps aside while
+// /bin/sh runs the Harness command, and the folder is rescanned when it exits. A
+// nonzero exit is named for the feedback line.
+func (m model) runHandoff(folder, command string) tea.Cmd {
+	runner := m.external
+	if runner == nil {
+		runner = tea.ExecProcess
+	}
+	return runner(exec.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
+		return externalFinished{folder, handoffError(err)}
+	})
+}
+
+// runCaptured is the other half of the process boundary: it runs a command in the
+// background, without suspending, and keeps its output. The caller supplies done,
+// which builds the message the model handles when the run ends.
+func (m model) runCaptured(command string, args []string, done func(CapturedResult) tea.Msg) tea.Cmd {
+	runner := m.captured
+	if runner == nil {
+		runner = runCapturedProcess
+	}
+	return runner(exec.Command(command, args...), done)
+}
+
+// runCapturedProcess is the default captured runner: no suspend, stdout, stderr
+// and the exit status kept.
+func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		var stdout, stderr bytes.Buffer
+		c.Stdout, c.Stderr = &stdout, &stderr
+		err := c.Run()
+		return done(CapturedResult{Stdout: stdout.String(), Stderr: stderr.String(), Err: err})
+	}
+}
+
 // editFile opens a file of the Application folder in the Owner's editor. The editor
 // preference may include flags or quoted executable paths, so the filename is passed
 // as a shell positional argument and Application paths remain literal.
@@ -56,6 +115,15 @@ type Option func(*model)
 
 // WithExternalRunner injects a runner for external programs.
 func WithExternalRunner(r ExternalRunner) Option { return func(m *model) { m.external = r } }
+
+// WithCapturedRunner injects a runner for captured (background) programs.
+func WithCapturedRunner(r CapturedRunner) Option { return func(m *model) { m.captured = r } }
+
+// WithPlugin sets the path to the Plugin (rolecall/plugin); unset disables b.
+func WithPlugin(path string) Option { return func(m *model) { m.plugin = path } }
+
+// WithHarness sets the Harness command template for Handoff (f/p); unset hides them.
+func WithHarness(template string) Option { return func(m *model) { m.harness = template } }
 
 // WithEditor sets the configured editor command.
 func WithEditor(editor string) Option { return func(m *model) { m.editor = editor } }

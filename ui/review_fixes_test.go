@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/store"
@@ -26,6 +25,7 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Draft, at: 2026-10-01T01:00:00Z}", 1))
 	h.wait("Draft 3") // Empty log left Leads; the cursor now sits on another row
 	h.tm.Type("x")
+	h.wait("→ Dismissed")
 	s, err := store.Open(h.root)
 	if err != nil {
 		t.Fatal(err)
@@ -37,10 +37,8 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 		}
 		return a.Status
 	}
-	for deadline := time.Now().Add(5 * time.Second); status("empty-log") != "Dismissed"; time.Sleep(20 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatalf("Empty log not dismissed; it is %s", status("empty-log"))
-		}
+	if got := status("empty-log"); got != "Dismissed" {
+		t.Fatalf("Empty log is %s, want Dismissed", got)
 	}
 	if got := status("fern"); got != "Lead" {
 		t.Fatalf("the row under the cursor was moved instead: fern is %s", got)
@@ -133,13 +131,57 @@ func TestNarrowKeyLineKeepsAddAndSearch(t *testing.T) {
 	}
 }
 
-// The list and the detail view both fill the terminal exactly, so nothing jumps.
+// The frame is fixed: every screen and pop-up state is exactly the terminal height, and
+// the ┬/┴ joins where the pane divider meets the rules stay intact — a toast or error on
+// the status row never replaces the bottom rule.
 func TestEveryScreenFillsTheTerminal(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}} {
-		if n := strings.Count(runKeys(t, root, 120, keys...), "\n") + 1; n != termHeight {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"m"}, {"a"}, {"?"}, {"/pl"}, {"1", "t"}, {"G", "e"}, {"1", "x"}} {
+		view := runKeys(t, root, 120, keys...)
+		if n := strings.Count(view, "\n") + 1; n != termHeight {
 			t.Fatalf("keys %q: %d lines on a %d-line terminal", keys, n, termHeight)
 		}
+		plain := ansi.Strip(view)
+		if strings.Contains(plain, "│") && (!strings.Contains(plain, "┬") || !strings.Contains(plain, "┴")) {
+			t.Fatalf("keys %q: pane joins missing:\n%s", keys, plain)
+		}
+	}
+}
+
+// One place names every filter — the view, the track, the search and the shown-of-total
+// count — and the header count reads n/total while a filter hides rows.
+func TestScopeLineNamesEveryFilter(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	search := ansi.Strip(runKeys(t, root, 120, "1", "/pl", "enter"))
+	for _, want := range []string{"search pl", "3 of 4", "Leads 3/4"} {
+		if !strings.Contains(search, want) {
+			t.Fatalf("search scope lacks %q:\n%s", want, search)
+		}
+	}
+	track := ansi.Strip(runKeys(t, root, 120, "1", "t"))
+	if !strings.Contains(track, "track SWE") || !strings.Contains(track, "3 of 4") {
+		t.Fatalf("track scope missing:\n%s", track)
+	}
+}
+
+// A long search filter truncates in the scope line instead of spilling the frame.
+func TestLongSearchKeepsTheFrame(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 80, "1", "/abcdefghijklmnopqrstuvwxyz"))
+	if n := strings.Count(view, "\n") + 1; n != termHeight {
+		t.Fatalf("%d lines on a %d-line terminal", n, termHeight)
+	}
+	for _, line := range strings.Split(view, "\n") {
+		if w := ansi.StringWidth(line); w > 80 {
+			t.Fatalf("line is %d cells wide, terminal is 80:\n%s", w, view)
+		}
+	}
+}
+
+// A success toast shows on the status row, over the key line, with the bottom rule kept.
+func TestToastKeepsTheBottomRule(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "x"))
+	if !strings.Contains(view, "→ Dismissed") || !strings.Contains(view, "┴") {
+		t.Fatalf("toast replaced the bottom rule:\n%s", view)
 	}
 }
 

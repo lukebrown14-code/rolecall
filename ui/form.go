@@ -31,6 +31,13 @@ type form struct {
 	title  string
 	fields []formField
 	focus  int
+
+	// URL fetch state (v0.2, Add only).
+	fetching bool     // a fetch is in flight; the URL field shows a spinner
+	fetched  bool     // a fetch succeeded; jd holds the ad to write on save
+	jd       string   // the fetched ad text, written to jd.md on save
+	signals  []string // visa/clearance signals under the URL; never stored
+	fetchErr string   // one-line fetch failure, under the URL
 }
 
 const (
@@ -59,6 +66,33 @@ func (f *form) paste(s string) {
 	if fld := &f.fields[f.focus]; fld.choices == nil {
 		fld.value += pasted(s)
 		fld.err = ""
+		f.edited(fld)
+	}
+}
+
+// focused is the field the cursor is on.
+func (f *form) focused() *formField { return &f.fields[f.focus] }
+
+// setValue writes a field the form filled in itself, without touching its fetch state.
+func (f *form) setValue(label, value string) {
+	for i := range f.fields {
+		if f.fields[i].label == label {
+			f.fields[i].value = value
+			return
+		}
+	}
+}
+
+// clearFetch forgets a fetch's result.
+func (f *form) clearFetch() {
+	f.fetched, f.jd, f.fetchErr, f.signals = false, "", "", nil
+}
+
+// edited notes a text field changed. Editing the URL invalidates any fetch, so a
+// stale ad, signals or failure never linger over a new URL.
+func (f *form) edited(fld *formField) {
+	if fld.label == fieldURL {
+		f.clearFetch()
 	}
 }
 
@@ -85,6 +119,7 @@ func (f *form) key(k tea.KeyPressMsg) bool {
 		if fld.choices == nil && fld.value != "" {
 			fld.value = dropLastGrapheme(fld.value)
 			fld.err = ""
+			f.edited(fld)
 		}
 	case "enter":
 		if !fld.check() {
@@ -105,6 +140,7 @@ func (f *form) key(k tea.KeyPressMsg) bool {
 		if fld.choices == nil && k.Text != "" {
 			fld.value += k.Text
 			fld.err = ""
+			f.edited(fld)
 		}
 	}
 	return false
@@ -134,8 +170,8 @@ func (f *form) value(label string) string {
 
 // formBox draws the form: right-aligned labels in a column, * on required fields,
 // ‹ › around choices, dim italic placeholders, errors on the field's own row.
-func (m model) formBox(p pal) string {
-	f := m.form
+func (m model) formBox(p pal, fm *formMode) string {
+	f := fm.form
 	avail := max(minTitle, popWidth(popForm, m.viewWidth())-popInset-formLabelWidth-formChrome)
 	rows := make([]string, len(f.fields))
 	for i, fld := range f.fields {
@@ -166,6 +202,8 @@ func (m model) formBox(p pal) string {
 				}
 			}
 			val = p.text(arrow).Render("‹ ") + p.text(valC).Bold(focused).Render(label) + p.text(arrow).Render(" ›")
+		case fld.label == fieldURL && f.fetching:
+			val = p.text(p.accent).Render(m.spinner.View()) + p.text(p.sub).Render(" Fetching…")
 		case fld.value == "":
 			if focused {
 				val = p.text(p.accent).Render("▏")
@@ -187,7 +225,18 @@ func (m model) formBox(p pal) string {
 			// The error gets its own line under the value, so it is never cut off.
 			rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
 		}
+		if fld.label == fieldURL {
+			// Fetch failures and visa/clearance signals sit under the URL; signals are
+			// shown for the Owner's eyes only and never written to the Application.
+			indent := strings.Repeat(" ", formChrome-1+formLabelWidth)
+			for _, s := range f.signals {
+				rows[i] += "\n" + indent + p.text(p.warn).Render("⚠ "+s)
+			}
+			if f.fetchErr != "" {
+				rows[i] += "\n" + indent + p.text(p.bad).Render("✕ "+f.fetchErr)
+			}
+		}
 	}
 	return popup(p, f.title, false, popForm, m.viewWidth(), strings.Join(rows, "\n"),
-		p.keys(m.overlayHints()))
+		p.keys(fm.Keys()))
 }

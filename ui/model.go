@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/store"
@@ -10,13 +11,13 @@ import (
 	"time"
 )
 
-var screens = []string{screenLeads, screenDraft, screenApplied}
+var screens = []string{screenLeads, screenDraft, screenApplied, screenStats}
 
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
 
-var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}}
+var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, {}}
 
 var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
@@ -30,17 +31,8 @@ type model struct {
 	tracks                []string
 	track                 int
 	text                  string
-	filtering             bool
-	full                  bool
-	options               []string
-	moveSel               int    // highlighted entry in the Move pop-up
-	moveTarget            string // folder the Move pop-up acts on
-	form                  *form  // Add/Edit pop-up
-	editOf                *store.Application
-	duplicate             *store.Application
-	duplicateFields       store.CreateFields
+	overlay               mode // the pop-up, prompt or search input that owns the keyboard
 	selectAfter           string
-	confirm               *pendingMove
 	undo                  []undoMove
 	toast                 string // feedback line: what just happened (cleared on the next key)
 	toastHint             string // key hint shown with it, e.g. "u undo"
@@ -55,8 +47,13 @@ type model struct {
 	watchWindow           time.Duration
 	watch                 *watcher
 	downloads             string
-	pendingDownload       *downloadState
 	md                    *mdCache
+	plugin                string
+	harness               string
+	captured              CapturedRunner
+	capturedRun           bool // a build or fetch is in flight; only one captured run at a time
+	building              *buildState
+	spinner               spinner.Model
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -64,7 +61,8 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}}
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{},
+		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(basePal.spinnerStyle()))}
 	for _, option := range options {
 		option(&m)
 	}
@@ -102,8 +100,14 @@ func (m model) quit() tea.Cmd {
 	}
 }
 
-// rows is the active view in display order: the cursor indexes into it.
-func (m model) rows() []store.Application { return m.rowsOf(m.screen, tables[m.screen][m.table]) }
+// rows is the active view in display order: the cursor indexes into it. Stats has
+// no tables and no rows.
+func (m model) rows() []store.Application {
+	if m.screen == statsScreen {
+		return nil
+	}
+	return m.rowsOf(m.screen, tables[m.screen][m.table])
+}
 
 // rowsOf lists one view of a screen. All groups the Applied screen's tables in
 // appliedGroups order; Leads and Draft put expired close dates last.
@@ -141,6 +145,26 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 func beforeApplied(table string) bool { return table == tableLeads || table == tableDraft }
 
 func (m model) count(screen int, table string) int { return len(m.rowsOf(screen, table)) }
+
+// totalCount is the Applications in a view ignoring the track and text filters, so the
+// header and tab counts stay totals; the scope line shows the filtered number beside them.
+func (m model) totalCount(screen int, table string) int {
+	if table == allView {
+		n := 0
+		for _, g := range appliedGroups {
+			n += m.totalCount(screen, g)
+		}
+		return n
+	}
+	n := 0
+	for _, a := range m.apps {
+		s, t := StatusLocation(a.Status)
+		if s == screens[screen] && t == table {
+			n++
+		}
+	}
+	return n
+}
 func (m model) matches(a store.Application) bool {
 	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
 }
@@ -169,87 +193,68 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectAfter = ""
 		}
 	}
-	if m.form != nil {
-		return m.updateAdd(msg)
+	if tick, ok := msg.(spinner.TickMsg); ok {
+		if m.building == nil && !m.fetching() {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(tick)
+		return m, cmd
 	}
-	if paste, ok := msg.(tea.PasteMsg); ok && m.filtering {
-		m.text += pasted(paste.Content)
-		m.cursor = 0
+	if done, ok := msg.(fetchFinished); ok {
+		// The form may have been closed while the fetch was in flight: the run is still
+		// over, so clear the guard and drop the result rather than leaking it.
+		m.capturedRun = false
+		fm, ok := m.overlay.(*formMode)
+		if !ok {
+			return m, nil
+		}
+		fm.finishFetch(&m, done)
 		return m, nil
 	}
-	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
-		return m.updateDuplicate(k)
+	if done, ok := msg.(buildFinished); ok {
+		m.capturedRun = false
+		return m.finishBuild(done)
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		// The feedback line: a success clears on the next key; an error stays until esc.
+		m.toast, m.toastHint = "", ""
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}
-		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint = "", ""
-		if m.full {
-			m.full = false // any key closes the help pop-up, esc included
-			return m, nil
-		}
-		if k.String() == "esc" && m.err != nil && !m.overlayOpen() {
+	}
+	// An open overlay owns the keyboard: it handles the message and everything else waits.
+	if m.overlay != nil {
+		next, cmd := m.overlay.Update(&m, msg)
+		m.overlay = next
+		return m, cmd
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil
 		}
-		if m.pendingDownload != nil {
-			return m, m.answerDownload(k.String())
-		}
-		if m.confirm != nil {
-			pending := m.confirm
-			switch k.String() {
-			case "y":
-				m.confirm = nil
-				m.move(pending.app, pending.status, false)
-			case "n", "esc":
-				m.confirm = nil
-			}
-			return m, nil
-		}
-		if m.filtering {
-			switch k.String() {
-			case "esc":
-				m.text = ""
-				m.filtering = false
-			case "enter":
-				m.filtering = false
-			case "backspace":
-				m.text = dropLastGrapheme(m.text)
-			default:
-				if k.Text != "" {
-					m.text += k.Text
-				}
-			}
-			m.cursor = 0
-			return m, nil
-		}
-		if len(m.options) > 0 {
-			return m.moveKey(k.String()), nil
-		}
-
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {
 				return next.syncDetail(), cmd
 			}
+		}
+		if m.screen == statsScreen {
+			return m.statsKey(k)
 		}
 		switch k.String() {
 		case "v", "enter":
 			if rows := m.rows(); len(rows) > 0 {
 				m.openDetail(rows[m.cursor].Folder)
 			}
-		case "m", "x":
+		case "m":
 			if a, ok := m.current(); ok {
-				if k.String() == "x" {
-					if a.Status == store.StatusLead || a.Status == store.StatusDraft {
-						m.move(a, store.StatusDismissed, false)
-					}
-				} else {
-					m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
-					m.moveSel, m.moveTarget = 0, a.Folder
-					return m, nil
-				}
+				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
+				return m, nil
+			}
+		case "x":
+			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+				m.move(a, store.StatusDismissed, false)
 			}
 		case "u":
 			if len(m.undo) > 0 {
@@ -267,6 +272,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "a":
 			return m, m.openAdd()
+		case "b":
+			return m, m.startBuild()
+		case "f":
+			return m, m.startHandoff(skillAssessFit)
+		case "p":
+			return m, m.startHandoff(skillPrepareDocuments)
 		case "e":
 			if a, ok := m.current(); ok {
 				return m, m.openEdit(a)
@@ -277,13 +288,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		case "/":
-			m.filtering = true
+			m.overlay = &searchMode{}
 		case "esc":
 			m.text = ""
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "1", "2", "3":
+		case "1", "2", "3", "4":
 			m.screen = int(k.String()[0] - '1')
 			m.table = 0
 			m.cursor = 0
@@ -302,7 +313,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "G":
 			m.cursor = len(m.rows()) - 1
 		case "?":
-			m.full = true
+			m.overlay = &helpMode{}
 		case "n":
 			if a, ok := m.current(); ok {
 				return m, m.editNotes(a.Folder)

@@ -29,6 +29,9 @@ const (
 	groupAction helpGroup = iota
 	groupNav
 	groupMore
+	// groupCursor appears in the `?` pop-up's Navigate column but not on the key
+	// line: moving the cursor is second nature, so it does not crowd the line.
+	groupCursor
 )
 
 type helpKey struct {
@@ -45,10 +48,17 @@ func (k helpKey) pair() [2]string {
 	return [2]string{h.Key, h.Desc}
 }
 
-// overlayOpen reports whether a form, popup, prompt or search box owns the keyboard.
-func (m model) overlayOpen() bool {
-	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
-		m.confirm != nil || m.pendingDownload != nil || m.filtering
+// viewContext names where the Owner is, for the key line while a pop-up holds the
+// keyboard: the screen, its view when it has more than one, and the Application under it.
+func (m model) viewContext() string {
+	label := screens[m.screen]
+	if ts := tables[m.screen]; len(ts) > 1 && ts[m.table] != label {
+		label += " · " + ts[m.table]
+	}
+	if a, ok := m.current(); ok {
+		label += " · " + a.Title
+	}
+	return label
 }
 
 // helpKeys is the one key map behind the key line and the `?` pop-up: only the keys
@@ -65,6 +75,13 @@ func (m model) helpKeys() []helpKey {
 			keys = append(keys, help(group, kv[0], kv[1]))
 		}
 		return keys
+	}
+	if m.screen == statsScreen {
+		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-4", "screen")}
+		if len(m.tracks) > 0 {
+			keys = append(keys, help(groupMore, "t", "cycle track"))
+		}
+		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
@@ -92,14 +109,24 @@ func (m model) helpKeys() []helpKey {
 			keys = append(keys, help(groupAction, "x", "dismiss"))
 		}
 		keys = append(keys, help(groupAction, "n", "notes"))
+		if m.plugin != "" && buildable(a) {
+			keys = append(keys, help(groupAction, "b", "build"))
+		}
 		if len(a.PDFs) > 0 {
 			keys = append(keys, help(groupAction, "d", "download"))
+		}
+	}
+	// Handoff: f on any Application, p while it is still a Lead or Draft.
+	if onRow && m.harness != "" {
+		keys = append(keys, help(groupAction, "f", "assess fit"))
+		if usable && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+			keys = append(keys, help(groupAction, "p", "prepare docs"))
 		}
 	}
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-3", "screen"))
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
 	if len(tables[m.screen]) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}
@@ -107,7 +134,7 @@ func (m model) helpKeys() []helpKey {
 	if len(m.tracks) > 0 {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
-	return append(keys, help(groupMore, "j k ↑↓", "cursor"), help(groupMore, "g G", "top / bottom"),
+	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"),
 		help(groupMore, "esc", "clear search"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
@@ -125,6 +152,10 @@ func pairs(keys []helpKey, group helpGroup) [][2]string {
 // cut. When narrow, actions drop from the right, pinnedKeys last; "? all keys" on the
 // right says where the rest went.
 func (m model) keyLine(p pal, w int) string {
+	if m.boxOpen() {
+		// The pop-up's bottom border already lists its keys; the key line gives context.
+		return " " + p.text(p.dim).Render(xansi.Truncate(m.viewContext(), max(0, w-gutter), "…"))
+	}
 	keys := m.helpKeys()
 	actions, nav := pairs(keys, groupAction), p.keys(pairs(keys, groupNav))
 	fits := func() bool { return xansi.StringWidth(p.keys(actions))+xansi.StringWidth(nav)+keyLineGap <= w }
@@ -142,15 +173,19 @@ func (m model) keyLine(p pal, w int) string {
 // helpBox is the `?` pop-up: every key valid here, in columns.
 func (m model) helpBox(p pal) string {
 	keys := m.helpKeys()
-	col := func(title string, group helpGroup) string {
+	col := func(title string, list [][2]string) string {
 		var b strings.Builder
 		b.WriteString(p.heading(title) + "\n")
-		for _, kv := range pairs(keys, group) {
+		for _, kv := range list {
 			b.WriteString(p.text(p.accent).Bold(true).Render(padRight(kv[0], helpKeyWidth)) + p.text(p.fg).Render(kv[1]) + "\n")
 		}
 		return strings.TrimSuffix(b.String(), "\n")
 	}
-	cols := []string{col("Actions", groupAction), col("Navigate", groupNav), col("More", groupMore)}
-	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
-	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
+	nav := append(pairs(keys, groupNav), pairs(keys, groupCursor)...)
+	cols := []string{col("Actions", pairs(keys, groupAction)), col("Navigate", nav), col("More", pairs(keys, groupMore))}
+	legend := p.heading("Glyphs") + "\n" +
+		p.text(p.dim).Render("● ready · ○ written · ✓ present · ⚠ warning") + "\n" +
+		p.text(p.dim).Render("✕ rejected or error · ↩ withdrawn · ~ approx · ⚑ follow-up due")
+	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn) + "\n\n" + legend
+	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", hintClose}}))
 }
