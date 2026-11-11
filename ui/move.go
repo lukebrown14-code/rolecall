@@ -61,10 +61,12 @@ func (m *model) move(a store.Application, status string, undo bool) {
 		m.err, m.toast = sentErr, ""
 		return
 	}
-	if !undo {
-		m.undo = append(m.undo, undoMove{a.Folder, a.Status})
+	if undo {
+		m.toast = fmt.Sprintf("Undone · %s back to %s", a.Title, status)
+		return
 	}
-	m.toast = fmt.Sprintf("Moved to %s · u to undo", status)
+	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
+	m.toast, m.toastHint = fmt.Sprintf("%s → %s", a.Title, status), "u undo"
 }
 
 // statusBeforeDismissed is the Status the Owner restores to: the one before the last Dismissed
@@ -82,4 +84,37 @@ func statusBeforeDismissed(log []store.StatusEntry) string {
 	}
 	return "Lead"
 }
-func (m model) moveView() string { return m.moveForm.View() }
+
+// moveKey drives the Move pop-up: a status letter moves straight away; ↑↓ and enter
+// pick from the list; esc closes it.
+func (m model) moveKey(key string) model {
+	switch key {
+	case "esc":
+		m.options = nil
+	case "down", "j":
+		m.moveSel = min(m.moveSel+1, len(m.options)-1)
+	case "up", "k":
+		m.moveSel = max(m.moveSel-1, 0)
+	case "enter":
+		status := m.options[m.moveSel]
+		m.options = nil
+		m.moveTargetTo(status)
+	default:
+		for _, status := range m.options {
+			if statusLetters[status] == key {
+				m.options = nil
+				m.moveTargetTo(status)
+				break
+			}
+		}
+	}
+	return m
+}
+
+// moveTargetTo moves the Application the pop-up shows, not whatever row the cursor is
+// on now: a live refresh can move the cursor while the pop-up is open.
+func (m *model) moveTargetTo(status string) {
+	if a, ok := m.application(m.moveTarget); ok {
+		m.requestMove(a, status)
+	}
+}

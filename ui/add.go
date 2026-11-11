@@ -2,27 +2,15 @@ package ui
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	huh "charm.land/huh/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// addValues holds the Add form's answers. It is a pointer in the model so the Huh fields keep
-// writing to the same place as the model is copied between updates.
+// addValues holds the Add/Edit form's answers.
 type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
-
-func required(name string) func(string) error {
-	return func(s string) error {
-		if strings.TrimSpace(s) == "" {
-			return fmt.Errorf("%s is required", name)
-		}
-		return nil
-	}
-}
 
 func validCloses(s string) error {
 	if s == "" {
@@ -46,62 +34,65 @@ func (m *model) openAdd() tea.Cmd {
 
 // openForm shows the fields shared by Add and Edit. Edit adds Resume only.
 func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea.Cmd {
-	m.addValues = v
-	fields := []huh.Field{
-		huh.NewInput().Title("Title*").Value(&v.title).Validate(required("Title")),
-		huh.NewInput().Title("Company*").Value(&v.company).Validate(required("Company")),
-		huh.NewSelect[string]().Title("Track*").Options(huh.NewOptions(tracks...)...).Value(&v.track),
-		huh.NewInput().Title("URL").Value(&v.url),
-		huh.NewInput().Title("Closes (YYYY-MM-DD)").Value(&v.closes).Validate(validCloses),
-		huh.NewSelect[string]().Title("Fit").Options(
-			huh.NewOption("—", ""), huh.NewOption("Strong", "Strong"), huh.NewOption("Good", "Good"),
-			huh.NewOption("Marginal", "Marginal"), huh.NewOption("Poor", "Poor"),
-		).Value(&v.fit),
+	trackChoices := make([]choice, len(tracks))
+	for i, t := range tracks {
+		trackChoices[i] = choice{t, t}
 	}
+	fields := []formField{
+		{label: "Title", required: true, value: v.title},
+		{label: "Company", required: true, value: v.company},
+		{label: "Track", value: v.track, choices: trackChoices},
+		{label: "URL", value: v.url, placeholder: "https://…"},
+		{label: "Closes", value: v.closes, placeholder: "YYYY-MM-DD", validate: validCloses},
+		{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {"Strong", "Strong"}, {"Good", "Good"}, {"Marginal", "Marginal"}, {"Poor", "Poor"}}},
+	}
+	title := "Add a Lead"
 	if withResumeOnly {
-		fields = append(fields, huh.NewSelect[string]().Title("Resume only").Options(
-			huh.NewOption("No", "false"), huh.NewOption("Yes", "true"),
-		).Value(&v.resumeOnly))
+		fields = append(fields, formField{label: "Resume only", value: v.resumeOnly, choices: []choice{{"false", "No"}, {"true", "Yes"}}})
+		title = "Edit · " + v.title
 	}
-	m.addForm = huh.NewForm(huh.NewGroup(fields...)).WithShowHelp(false)
-	return m.addForm.Init()
+	m.form = &form{title: title, fields: fields}
+	return nil
 }
 
-// updateAdd routes a message to the open Add form. Nothing is written until the form completes.
+// updateAdd routes a message to the open Add/Edit form. Nothing is written until the form completes.
 func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case "ctrl+c":
-			return m, m.quit()
-		case "esc":
-			m.addForm, m.editOf = nil, nil
+	if paste, ok := msg.(tea.PasteMsg); ok {
+		m.form.paste(paste.Content)
+		return m, nil
+	}
+	k, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return m, nil
+	}
+	switch k.String() {
+	case "ctrl+c":
+		return m, m.quit()
+	case "esc":
+		m.form, m.editOf = nil, nil
+		return m, nil
+	}
+	if !m.form.key(k) {
+		return m, nil
+	}
+	f := m.form
+	m.form = nil
+	v := addValues{title: f.value("Title"), company: f.value("Company"), track: f.value("Track"), url: f.value("URL"),
+		closes: f.value("Closes"), fit: f.value("Fit"), resumeOnly: f.value("Resume only")}
+	if m.editOf != nil {
+		return m.saveEdit(*m.editOf, v)
+	}
+	fields := store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: v.track, URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
+	if fields.URL != "" {
+		if matches, err := m.store.FindByURL(fields.URL); err != nil {
+			m.err = err
+			return m, nil
+		} else if len(matches) > 0 {
+			m.duplicate, m.duplicateFields = &matches[0], fields
 			return m, nil
 		}
 	}
-	updated, cmd := m.addForm.Update(msg)
-	m.addForm = updated.(*huh.Form)
-	switch m.addForm.State {
-	case huh.StateAborted:
-		m.addForm, m.editOf = nil, nil
-	case huh.StateCompleted:
-		m.addForm = nil
-		v := m.addValues
-		if m.editOf != nil {
-			return m.saveEdit(*m.editOf, *v)
-		}
-		fields := store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: v.track, URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
-		if fields.URL != "" {
-			if matches, err := m.store.FindByURL(fields.URL); err != nil {
-				m.err = err
-				return m, nil
-			} else if len(matches) > 0 {
-				m.duplicate, m.duplicateFields = &matches[0], fields
-				return m, nil
-			}
-		}
-		return m.createLead(fields)
-	}
-	return m, cmd
+	return m.createLead(fields)
 }
 
 // updateDuplicate answers the duplicate-URL warning.
@@ -163,15 +154,4 @@ func (m *model) selectFolder(folder string) {
 		}
 		return
 	}
-}
-
-func (m model) addView() string {
-	switch {
-	case m.addForm != nil:
-		return m.addForm.View() + "\n"
-	case m.duplicate != nil:
-		d := m.duplicate
-		return fmt.Sprintf("Duplicate URL: %s · %s is already saved (%s). o open that one · s save anyway · Esc cancel\n", d.Company, d.Title, d.Status)
-	}
-	return ""
 }

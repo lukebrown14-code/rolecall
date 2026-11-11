@@ -33,7 +33,7 @@ func readFile(t *testing.T, path string) string {
 
 func TestDownloadCopiesEveryPDFAndRevealsFolder(t *testing.T) {
 	h, downloads := newDownloadHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	h.tm.Type("d")
 	run := h.lastRun()
 	if len(run) != 3 || run[0] != "open" || run[1] != "-R" || run[2] != downloads {
@@ -45,7 +45,7 @@ func TestDownloadCopiesEveryPDFAndRevealsFolder(t *testing.T) {
 			t.Fatalf("%s copied differently", name)
 		}
 	}
-	h.show("2 PDFs → " + downloads)
+	h.show("Saved 2 PDFs → ")
 }
 
 // clash puts different files under both PDF names in the downloads folder.
@@ -58,9 +58,9 @@ func clash(root, downloads string) {
 
 func TestDownloadClashPromptsAndNSkipsThatFile(t *testing.T) {
 	h, downloads := newDownloadHarness(t, clash)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	h.tm.Type("d")
-	h.wait("Overwrite Owner Resume Role.pdf? y/n")
+	h.wait("Owner Resume Role.pdf")
 	h.tm.Type("n") // keys are handled in order, so the second prompt is answered next
 	h.tm.Type("y")
 	h.lastRun()
@@ -71,16 +71,16 @@ func TestDownloadClashPromptsAndNSkipsThatFile(t *testing.T) {
 	if got := readFile(t, filepath.Join(downloads, "Owner Role Cover Letter.pdf")); got != want {
 		t.Fatalf("confirmed file was not overwritten: %q", got)
 	}
-	h.show("1 PDF → " + downloads)
+	h.show("Saved 1 PDF → ")
 }
 
 func TestDownloadPromptIsNotRevealedUntilAnswered(t *testing.T) {
 	h, downloads := newDownloadHarness(t, clash)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	h.tm.Type("d")
-	h.wait("Overwrite Owner Resume Role.pdf? y/n")
+	h.wait("Owner Resume Role.pdf")
 	h.tm.Type("j") // other keys do not answer the prompt
-	h.show("Overwrite Owner Resume Role.pdf? y/n")
+	h.show("Owner Resume Role.pdf")
 	if got := readFile(t, filepath.Join(downloads, "Owner Resume Role.pdf")); got != "older Owner Resume Role.pdf" {
 		t.Fatalf("overwritten before answering: %q", got)
 	}
@@ -123,20 +123,20 @@ func TestDownloadIsHiddenAndInertWithoutPDFs(t *testing.T) {
 func TestHelpBarOffersDownloadWhenRowHasPDFs(t *testing.T) {
 	table, _ := newDownloadHarness(t, nil)
 	table.tm.Type("3")
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		table.key(tea.KeyTab)
 	}
 	table.tm.Type("/docs-ready")
 	table.key(tea.KeyEnter)
 	table.show("d download")
 	detail, _ := newDownloadHarness(t, nil)
-	detail.open("3", 3, "docs-ready")
+	detail.open("3", 4, "docs-ready")
 	detail.show("d download")
 }
 
 func TestDownloadWorksFromDetailViewDocsTab(t *testing.T) {
 	h, downloads := newDownloadHarness(t, nil)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	h.key(tea.KeyRight)
 	h.key(tea.KeyRight)
 	h.key(tea.KeyRight) // Docs tab
@@ -144,7 +144,7 @@ func TestDownloadWorksFromDetailViewDocsTab(t *testing.T) {
 	if run := h.lastRun(); len(run) != 3 || run[2] != downloads {
 		t.Fatalf("reveal run: %q", run)
 	}
-	h.show("Docs", "2 PDFs → "+downloads)
+	h.show("Docs", "Saved 2 PDFs → ")
 	for _, name := range []string{"Owner Resume Role.pdf", "Owner Role Cover Letter.pdf"} {
 		readFile(t, filepath.Join(downloads, name))
 	}
@@ -152,9 +152,9 @@ func TestDownloadWorksFromDetailViewDocsTab(t *testing.T) {
 
 func TestDownloadPromptEscCancelsWithoutReveal(t *testing.T) {
 	h, downloads := newDownloadHarness(t, clash)
-	h.open("3", 3, "docs-ready")
+	h.open("3", 4, "docs-ready")
 	h.tm.Type("d")
-	h.wait("Overwrite Owner Resume Role.pdf? y/n")
+	h.wait("Owner Resume Role.pdf")
 	h.key(tea.KeyEscape)
 	v := h.show("Fictional Labs")
 	if strings.Contains(v, "Overwrite") || len(h.runs) != 0 {

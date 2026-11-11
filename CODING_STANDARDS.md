@@ -2,7 +2,7 @@
 
 Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and CI, not here.
 
-- Every style lives in `ui/styles.go`; default colours only until v0.1.1.
+- Every colour and style lives in `ui/styles.go`; colour always pairs with a word or glyph.
 - Status names go through one type or list, never repeated string literals in switches.
 - Rescan-and-restore-cursor goes through the one `reload` helper in `ui/model.go`.
 - Only `store` reads or writes Workspace files; `ui` never touches them directly.

@@ -20,7 +20,7 @@ func TestNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,14 +29,14 @@ func TestNavigation(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(s)) }, teatest.WithDuration(3*time.Second))
 	}
-	wait("Leads (4)")
+	wait("Leads 4")
 	tm.Type("2")
-	wait("Draft (2)")
+	wait("Draft 2")
 	tm.Type("3")
-	wait("Closed (4)")
+	wait("Closed 4")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 	tm.Type("?")
-	wait("Full help")
+	wait("Keys")
 	tm.Type("4fpb")
 	tm.Type("q")
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -52,7 +52,7 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, _ := s.Scan()
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,20 +61,37 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(text)) }, teatest.WithDuration(3*time.Second))
 	}
-	wait("Leads (4)")
+	wait("Leads 4")
 	tm.Type("x")
-	wait("Moved to Dismissed")
+	wait("→ Dismissed")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	wait("Dismissed (3)")
-	tm.Type("j")
-	tm.Type("m")
+	wait("dismissed today") // only the Dismissed view shows the row just dismissed
+	tm.Type("m")            // the row just dismissed sorts first: newest first
 	wait("Move")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
-	wait("Moved to Lead")
+	wait("→ Lead")
+	// The renderer redraws only changed cells, so undo is awaited on disk rather than on screen.
+	logLen := func() int {
+		total := 0
+		apps, _ := s.Scan()
+		for _, a := range apps {
+			total += len(a.StatusLog)
+		}
+		return total
+	}
+	waitLog := func(n int) {
+		t.Helper()
+		for deadline := time.Now().Add(3 * time.Second); logLen() < n; time.Sleep(20 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatalf("status_log never reached %d entries", n)
+			}
+		}
+	}
+	start := logLen()
 	tm.Type("u")
-	wait("Moved to Dismissed")
+	waitLog(start + 1)
 	tm.Type("u")
-	wait("Moved to Lead")
+	waitLog(start + 2)
 	tm.Type("u")
 	tm.Type("q")
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
@@ -108,15 +125,15 @@ func TestFilters(t *testing.T) {
 		t.Helper()
 		teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(want)) }, teatest.WithDuration(3*time.Second))
 	}
-	wait("Leads (4)")
+	wait("Leads 4")
 	tm.Type("/zzznomatch")
-	wait("Leads (0)")
+	wait("No matches")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	tm.Type("2")
 	wait("Draft")
 	tm.Type("r")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
-	wait("Draft (2)")
+	wait("Draft 2")
 	tm.Type("q")
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }

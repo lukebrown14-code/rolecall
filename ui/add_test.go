@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"bytes"
+	"github.com/charmbracelet/x/ansi"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -48,12 +49,12 @@ func newAddHarness(t *testing.T) *addHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, ui.WithExternalRunner(runner))
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, ui.WithExternalRunner(runner))
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
-	h.wait("Leads (4)")
+	h.wait("Leads 4")
 	return h
 }
 
@@ -97,13 +98,11 @@ func (h *addHarness) waitForStatus(folder, status string) {
 func (h *addHarness) enter() { h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) }
 func (h *addHarness) esc()   { h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape}) }
 
-// advance accepts the focused field and lets focus move on. Huh moves focus with a command, so keys
-// typed before it lands would reach the previous field. The renderer only emits changed cells, which
-// rules out waiting on the next field's label, so this settles briefly instead.
+// advance accepts the focused field. The form moves focus as it handles the key, and
+// the program handles messages in order, so the next key reaches the next field.
 func (h *addHarness) advance() {
 	h.t.Helper()
 	h.enter()
-	time.Sleep(100 * time.Millisecond)
 }
 
 // quit ends the program and returns the final rendered screen.
@@ -150,12 +149,13 @@ func sameSnapshot(a, b map[string]string) bool {
 	return true
 }
 
-// selectedRow returns the plain text of the row drawn in reverse video.
+// selectedRow returns the plain text of the selected row's first line: the one marked
+// with the selection bar ▌.
 func selectedRow(t *testing.T, view string) string {
 	t.Helper()
-	for _, line := range strings.Split(view, "\n") {
-		if rest, ok := strings.CutPrefix(line, "\x1b[7m"); ok {
-			return strings.TrimSuffix(rest, "\x1b[m")
+	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+		if _, rest, ok := strings.Cut(line, "▌ "); ok {
+			return strings.TrimSpace(rest)
 		}
 	}
 	t.Fatalf("no selected row in view:\n%s", view)
@@ -165,7 +165,7 @@ func selectedRow(t *testing.T, view string) string {
 func TestAddFormOpens(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("a")
-	h.wait("Title*", "Company*", "Track*", "URL", "Closes (YYYY-MM-DD)", "Fit")
+	h.wait("Add a Lead", "Company", "Track", "URL", "Closes", "Fit")
 	h.esc()
 	h.quit()
 }
@@ -174,7 +174,7 @@ func TestAddRejectsMissingRequiredFields(t *testing.T) {
 	h := newAddHarness(t)
 	before := h.snapshot()
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.enter()
 	h.wait("Title is required")
 	h.tm.Type("Site Reliability Engineer")
@@ -195,7 +195,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	h := newAddHarness(t)
 	before := h.snapshot()
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.tm.Type("Site Reliability Engineer")
 	h.advance()
 	h.tm.Type("Acme")
@@ -215,7 +215,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 // fillAdd completes the form, accepting the first Track and a blank Fit.
 func (h *addHarness) fillAdd(title, company, url, closes string) {
 	h.tm.Type("a")
-	h.wait("Title*")
+	h.wait("Title")
 	h.tm.Type(title)
 	h.advance()
 	h.tm.Type(company)
@@ -231,8 +231,8 @@ func (h *addHarness) fillAdd(title, company, url, closes string) {
 func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("G") // park the cursor elsewhere so selecting the new row is observable
-	h.fillAdd("Site Reliability Engineer", "Acme", "https://example.test/sre", "2026-03-01")
-	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-01-01", "jd.md"), "Pasted JD")
+	h.fillAdd("Site Reliability Engineer", "Acme", "https://example.test/sre", "2027-03-01")
+	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01", "jd.md"), "Pasted JD")
 	view := h.quit()
 
 	apps, err := h.store.Scan()
@@ -248,10 +248,10 @@ func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	if created == nil {
 		t.Fatal("Application not created")
 	}
-	if created.Status != "Lead" || len(created.StatusLog) != 1 || created.Company != "Acme" || created.Track != "SWE" || created.URL != "https://example.test/sre" || created.Closes != "2026-03-01" || created.Fit != "" {
+	if created.Status != "Lead" || len(created.StatusLog) != 1 || created.Company != "Acme" || created.Track != "SWE" || created.URL != "https://example.test/sre" || created.Closes != "2027-03-01" || created.Fit != "" {
 		t.Fatalf("unexpected Application: %+v", created)
 	}
-	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-01-01")
+	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01")
 	if created.Folder != wantFolder {
 		t.Fatalf("folder %s, want %s", created.Folder, wantFolder)
 	}
@@ -276,7 +276,6 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 	h.fillAdd("Backend Engineer", "Acme", "https://example.com/status-dismissed", "")
 	h.wait("Duplicate URL")
 	h.tm.Type("o")
-	time.Sleep(100 * time.Millisecond)
 	view := h.quit()
 	if !sameSnapshot(before, h.snapshot()) {
 		t.Fatal("opening the existing Application wrote to the Workspace")
@@ -284,18 +283,19 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 	if len(h.edited) != 0 {
 		t.Fatalf("editor opened: %v", h.edited)
 	}
-	if !strings.Contains(view, "\x1b[1mDismissed (2)\x1b[m") {
-		t.Fatalf("Dismissed table not active:\n%s", view)
+	// Engineer #1 is only on the Dismissed table, so selecting it proves the table switch.
+	if !strings.Contains(ansi.Strip(view), "Dismissed 2") {
+		t.Fatalf("Dismissed table not shown:\n%s", view)
 	}
-	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") || !strings.Contains(row, "~2026-01-01") {
+	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") {
 		t.Fatalf("selected row = %q", row)
 	}
 }
 
 func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h := newAddHarness(t)
-	h.fillAdd("Quokka Wrangler", "Acme", "https://example.test/quokka", "2026-03-01")
-	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-2026-01-01")
+	h.fillAdd("Quokka Wrangler", "Acme", "https://example.test/quokka", "2027-03-01")
+	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-2026-10-01")
 	h.waitForFile(filepath.Join(folder, "jd.md"), "Pasted JD")
 
 	// Filter to the new Application so each screen shows exactly one row.
@@ -307,9 +307,8 @@ func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h.tm.Type("2ma")
 	h.tm.Type("y") // Docs not Ready. Mark Applied anyway?
 	h.waitForStatus(folder, "Applied")
-	h.tm.Type("3mi")
+	h.tm.Type("3mi") // the All view keeps the row as it moves between sections
 	h.waitForStatus(folder, "Interviewing")
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 	h.tm.Type("mr")
 	h.waitForStatus(folder, "Rejected")
 	h.tm.Type("u")

@@ -17,7 +17,7 @@ func TestFixtureTables(t *testing.T) {
 	for _, tc := range []struct {
 		name, screen string
 		tabs         int
-	}{{"Leads", "1", 0}, {"Dismissed", "1", 1}, {"Draft", "2", 0}, {"Applied", "3", 0}, {"Interviewing", "3", 1}, {"Offer", "3", 2}, {"Closed", "3", 3}} {
+	}{{"Leads", "1", 0}, {"Dismissed", "1", 1}, {"Draft", "2", 0}, {"All", "3", 0}, {"Applied", "3", 1}, {"Interviewing", "3", 2}, {"Offer", "3", 3}, {"Closed", "3", 4}} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
@@ -27,12 +27,12 @@ func TestFixtureTables(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+			m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 			if err != nil {
 				t.Fatal(err)
 			}
 			tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
-			teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads (4)")) })
+			teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads 4")) })
 			tm.Type(tc.screen)
 			for i := 0; i < tc.tabs; i++ {
 				tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})

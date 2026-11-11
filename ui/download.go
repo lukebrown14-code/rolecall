@@ -46,7 +46,7 @@ func (m *model) continueDownload(d downloadState) tea.Cmd {
 	if d.copied == 1 {
 		noun = "PDF"
 	}
-	m.toast = fmt.Sprintf("%d %s → %s", d.copied, noun, displayPath(m.downloads))
+	m.toast = fmt.Sprintf("Saved %d %s → %s", d.copied, noun, displayPath(m.downloads))
 	return m.runExternal(d.app.Folder, "open", "-R", m.downloads)
 }
 
@@ -62,6 +62,16 @@ func (m *model) answerDownload(key string) tea.Cmd {
 		}
 		d.copied++
 		d.next++
+	case "a":
+		// Overwrite this file and every later clash without asking again.
+		for ; d.next < len(d.app.PDFs); d.next++ {
+			if err := m.store.CopyPDF(d.app.Folder, d.app.PDFs[d.next], m.downloads, true); err != nil {
+				m.pendingDownload = nil
+				m.err = err
+				return nil
+			}
+			d.copied++
+		}
 	case "n":
 		d.next++
 	case "esc":
@@ -71,13 +81,6 @@ func (m *model) answerDownload(key string) tea.Cmd {
 		return nil
 	}
 	return m.continueDownload(d)
-}
-
-func (m model) downloadPrompt() string {
-	if m.pendingDownload == nil {
-		return ""
-	}
-	return "Overwrite " + m.pendingDownload.clash() + "? y/n\n"
 }
 
 // displayPath abbreviates the home folder to ~.

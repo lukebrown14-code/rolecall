@@ -3,6 +3,7 @@ package ui_test
 import (
 	"bytes"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ const selectionWidth = 100
 // finalView runs the whole program on the fixture Workspace, sends keys (one Tab per "\t"), and returns the final screen.
 func finalView(t *testing.T, keys ...string) string {
 	t.Helper()
-	return finalViewAt(t, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), keys...)
+	return finalViewAt(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), keys...)
 }
 
 func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
@@ -37,7 +38,7 @@ func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
 		t.Fatal(err)
 	}
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(selectionWidth, 40))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads (4)")) })
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads 4")) })
 	for _, k := range keys {
 		if k == "\t" {
 			tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -49,11 +50,11 @@ func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
 	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
 }
 
-// selectedLine is the cursor row: the one drawn in reverse video.
+// selectedLine is the cursor row's first line: the one carrying the selection bar ▌.
 func selectedLine(t *testing.T, view string) string {
 	t.Helper()
 	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(line, "\x1b[7m") {
+		if strings.Contains(ansi.Strip(line), "▌ ") {
 			return line
 		}
 	}
@@ -61,7 +62,31 @@ func selectedLine(t *testing.T, view string) string {
 	return ""
 }
 
-func TestSelectionBarSpansTerminalWidthInEveryTable(t *testing.T) {
+// selectionBg is the selection bar's background as it appears in an SGR sequence.
+const selectionBg = "48;2;31;61;61"
+
+// barText is the text drawn on the selection background in a styled line.
+func barText(line string) string {
+	var b strings.Builder
+	for _, m := range regexp.MustCompile(`\x1b\[([0-9;]*)m([^\x1b]*)`).FindAllStringSubmatch(line, -1) {
+		if strings.Contains(m[1], selectionBg) {
+			b.WriteString(m[2])
+		}
+	}
+	return b.String()
+}
+
+// listColumn is the width of the list column: everything left of the preview's divider.
+func listColumn(line string) int {
+	plain := ansi.Strip(line)
+	if i := strings.Index(plain, "│"); i >= 0 {
+		return ansi.StringWidth(plain[:i])
+	}
+	return ansi.StringWidth(plain)
+}
+
+// The selection bar spans the list column, less a one-cell margin each side, in every view.
+func TestSelectionBarSpansTheListColumnInEveryView(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		keys []string
@@ -69,15 +94,16 @@ func TestSelectionBarSpansTerminalWidthInEveryTable(t *testing.T) {
 		{"Leads", []string{"1"}},
 		{"Dismissed", []string{"1", "\t"}},
 		{"Draft", []string{"2"}},
-		{"Applied", []string{"3"}},
-		{"Interviewing", []string{"3", "\t"}},
-		{"Offer", []string{"3", "\t", "\t"}},
-		{"Closed", []string{"3", "\t", "\t", "\t"}},
+		{"All", []string{"3"}},
+		{"Applied", []string{"3", "\t"}},
+		{"Interviewing", []string{"3", "\t", "\t"}},
+		{"Offer", []string{"3", "\t", "\t", "\t"}},
+		{"Closed", []string{"3", "\t", "\t", "\t", "\t"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			line := selectedLine(t, finalView(t, tc.keys...))
-			if got := ansi.StringWidth(line); got != selectionWidth {
-				t.Fatalf("selected row is %d cells wide, want %d: %q", got, selectionWidth, line)
+			if got, want := ansi.StringWidth(barText(line)), listColumn(line)-2; got != want {
+				t.Fatalf("selection bar is %d cells wide, want %d: %q", got, want, ansi.Strip(line))
 			}
 		})
 	}
@@ -85,18 +111,18 @@ func TestSelectionBarSpansTerminalWidthInEveryTable(t *testing.T) {
 
 // The ⚑ glyph is ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
 func TestFlaggedSelectedRowKeepsPaddingAfterFlag(t *testing.T) {
-	line := selectedLine(t, finalViewAt(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), "3"))
-	plain := ansi.Strip(line)
-	if !strings.Contains(plain, "⚑ ") || !strings.HasSuffix(plain, " ") || ansi.StringWidth(plain) != selectionWidth {
-		t.Fatalf("flagged row is not padded after ⚑ to %d cells: %q", selectionWidth, plain)
+	bar := barText(selectedLine(t, finalViewAt(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), "3")))
+	if !strings.Contains(bar, "⚑ quiet") || !strings.HasSuffix(bar, " ") {
+		t.Fatalf("flagged row is not padded after its last label: %q", bar)
 	}
 }
 
 func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 	const all = "e edit,m move,u undo,x dismiss,n notes,d download"
 	t.Run("malformed row offers detail only", func(t *testing.T) {
-		view := finalView(t, "G") // the malformed row sorts last on Leads
-		if !strings.Contains(view, "⚠") || !strings.Contains(ansi.Strip(selectedLine(t, view)), "⚠") {
+		raw := finalView(t, "G") // the malformed row sorts last on Leads
+		view := ansi.Strip(raw)
+		if !strings.Contains(view, "⚠") || !strings.Contains(ansi.Strip(selectedLine(t, raw)), "⚠") {
 			t.Fatalf("cursor is not on the malformed row:\n%s", view)
 		}
 		for _, k := range strings.Split(all, ",") {
@@ -104,28 +130,29 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 				t.Errorf("malformed row offers %q:\n%s", k, view)
 			}
 		}
-		if !strings.Contains(view, "v/Enter detail") {
+		if !strings.Contains(view, "enter open") {
 			t.Errorf("malformed row hides detail:\n%s", view)
 		}
 	})
-	t.Run("healthy row offers detail, edit, move and notes", func(t *testing.T) {
-		view := finalView(t)
-		for _, k := range []string{"v/Enter detail", "e edit", "m move", "x dismiss", "n notes"} {
+	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
+		// At this width n notes makes way for the pinned a add and / search; ? lists it.
+		view := ansi.Strip(finalView(t))
+		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)
 			}
 		}
 	})
 	t.Run("undo appears only once there is a move to undo", func(t *testing.T) {
-		if view := finalView(t); strings.Contains(view, "u undo") {
+		if view := ansi.Strip(finalView(t)); strings.Contains(view, "u undo") {
 			t.Errorf("empty undo stack offers undo:\n%s", view)
 		}
-		if view := finalView(t, "x"); !strings.Contains(view, "u undo") {
+		if view := ansi.Strip(finalView(t, "x")); !strings.Contains(view, "u undo") {
 			t.Errorf("undo hidden after a move:\n%s", view)
 		}
 	})
 	t.Run("detail view does not offer itself", func(t *testing.T) {
-		if view := finalView(t, "v"); strings.Contains(view, "v/Enter detail") {
+		if view := ansi.Strip(finalView(t, "v")); strings.Contains(view, "enter open") {
 			t.Errorf("detail view offers detail:\n%s", view)
 		}
 	})
