@@ -281,7 +281,7 @@ func (m model) profileHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "j k", "section"), help(groupAction, "e", "edit file"),
 			help(groupNav, "tab", "focus"))
 	}
-	keys = append(keys, help(groupNav, "1-5", "screen"), help(groupNav, "?", "all keys"))
+	keys = append(keys, help(groupNav, "1-6", "screen"), help(groupNav, "?", "all keys"))
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error"))
 	}

@@ -5,17 +5,21 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// Screens, numbered 1-5.
+// Screens, numbered 1-6.
 const (
-	screenLeads   = "Leads"
-	screenDraft   = "Draft"
-	screenApplied = "Applied"
-	screenStats   = "Stats"
-	screenProfile = "Profile"
+	screenLeads    = "Leads"
+	screenDraft    = "Draft"
+	screenApplied  = "Applied"
+	screenStats    = "Stats"
+	screenProfile  = "Profile"
+	screenSettings = "Settings"
 )
 
 // profileScreen is the Profile's index in screenDefs.
 const profileScreen = 4
+
+// settingsScreen is the Settings' index in screenDefs.
+const settingsScreen = 5
 
 // Tables: the views within a screen. Applied, Interviewing and Offer are named after
 // their one Status.
@@ -56,10 +60,11 @@ func init() {
 		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
 		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys, enter: model.loadProfile},
+		{name: screenSettings, hasTables: false, render: model.settingsView, key: model.settingsKey, help: model.settingsHelpKeys},
 	}
 }
 
-// screenKey switches screens on 1-5. It lives here rather than in each screen's key
+// screenKey switches screens on 1-6. It lives here rather than in each screen's key
 // handler so table, Stats and Profile screens all accept the same digits.
 func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 	key := k.String()
@@ -73,6 +78,9 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 	m.detail = nil
 	if enter := screenDefs[m.screen].enter; enter != nil {
 		m = enter(m)
+	}
+	if m.screen == settingsScreen {
+		m = m.loadSettings()
 	}
 	return m, true
 }

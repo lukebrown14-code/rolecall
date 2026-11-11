@@ -131,7 +131,7 @@ func (m model) helpKeys() []helpKey {
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-5", "screen"))
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-6", "screen"))
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}
@@ -157,6 +157,10 @@ func pairs(keys []helpKey, group helpGroup) [][2]string {
 // cut. When narrow, actions drop from the right, pinnedKeys last; "? all keys" on the
 // right says where the rest went.
 func (m model) keyLine(p pal, w int) string {
+	if m.boxOpen() && m.screen == settingsScreen {
+		// Settings pop-ups name their keys in the footer as well as on their border.
+		return " " + xansi.Truncate(p.keys(m.overlayHints()), max(0, w-gutter), "…")
+	}
 	if m.boxOpen() {
 		// The pop-up's bottom border already lists its keys; the key line gives context.
 		return " " + p.text(p.dim).Render(xansi.Truncate(m.viewContext(), max(0, w-gutter), "…"))

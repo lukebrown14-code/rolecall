@@ -35,6 +35,8 @@ type model struct {
 	err                   error
 	width                 int
 	followUpDays          int
+	configHome            string // where config.toml lives; empty means machine settings cannot be saved
+	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
 	now                   func() time.Time
 	editor                string
 	external              ExternalRunner
@@ -51,6 +53,7 @@ type model struct {
 	building              *buildState
 	spinner               spinner.Model
 	profile               *profileState
+	settings              *settingsState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -74,6 +77,8 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
+		// An invalid workspace.json stops startup with a sanitised error. Once running,
+		// Settings shows a file that breaks later and offers e.
 		m.tracks, e = s.Tracks()
 	}
 	if e != nil {
@@ -195,6 +200,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.screen == profileScreen || done.folder == m.store.Root() {
 			m = m.loadProfile()
 		}
+		if m.screen == settingsScreen {
+			m.rescanAll() // workspace.json holds the Tracks the header filters by
+			m = m.loadSettings()
+		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
 		if m.building == nil && !m.fetching() {
@@ -233,6 +242,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if m.settingsEditing() {
+			return m.settingsEditKey(k) // typing owns every key, digits and esc included
+		}
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil

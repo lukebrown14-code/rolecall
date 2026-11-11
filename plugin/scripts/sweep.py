@@ -173,21 +173,10 @@ def load_role_catalogue(workspace, tracks=None):
         sys.exit(f"{path}: {error}")
 
 
-# Location filter. AU-remote and Australia.
-# Matched as whole words/phrases: "remote" alone must not rescue "Remote - US".
-LOCATION_OK = [
-    r"australia", r"\baus?\b", r"\banz\b", r"apac", r"anywhere", r"flexible",
-    r"hybrid", r"remote",
-]
-LOCATION_REJECT = [
-    "sydney only", "united states", "usa", "us", "u.s.", "san francisco", "new york", "london",
-    "berlin", "chicago", "austin", "singapore", "india", "manila", "canada", "toronto",
-    "vancouver", "united kingdom", "uk", "europe", "emea", "germany", "ireland", "dublin",
-    "new zealand", "auckland", "philippines", "brazil", "mexico", "poland", "spain", "france",
-    "netherlands", "amsterdam", "latam", "japan", "tokyo",
-]
-# Only these rescue a reject-list hit; bare "remote" does not.
-AU_HINTS = [r"australia", r"\baus?\b", r"\banz\b", r"apac"]
+# Search area filter. The Places and Remote rule come from workspace.json
+# `search_area`; the gazetteer maps countries to their states and cities.
+GAZETTEER_PATH = Path(__file__).resolve().parent.parent / "gazetteer.json"
+NO_SEARCH_AREA = "no Search area set: all locations kept"
 
 # Cap on Michael Page ad fetches per category page (each is a serial request).
 MP_MAX_ADS = 25
@@ -500,16 +489,80 @@ def coverage_lines(rows):
     return lines + [""]
 
 
-def location_ok(loc):
-    """Australia / AU-remote pass. A reject-list place fails unless the string
-    also names an AU place; a bare "remote" does not rescue it."""
+def _word_re(term):
+    return re.compile(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(term.lower()))
+
+
+def _load_gazetteer():
+    """(term, level, names) rows. `names` are the lower-case Place names that
+    cover a mention of `term`; level 0 is a country or group, 1 a state or city."""
+    data = json.loads(GAZETTEER_PATH.read_text())
+    groups = {}
+    for group, members in data["groups"].items():
+        for member in members:
+            groups.setdefault(member, []).append(group)
+    rows = []
+    for country, entry in data["countries"].items():
+        names = {country.lower(), *(g.lower() for g in groups.get(country, []))}
+        for term in [country, *entry["aliases"]]:
+            rows.append((term.lower(), 0, names))
+        for term in entry["places"]:
+            rows.append((term.lower(), 1, {term.lower(), *names}))
+    for group in data["groups"]:
+        members = {m.lower() for m in data["groups"][group]}
+        rows.append((group.lower(), 0, {group.lower(), *members}))  # a group covers its members
+    return [(_word_re(term), level, names) for term, level, names in rows]
+
+
+_GAZETTEER = None
+
+
+def _gazetteer():
+    global _GAZETTEER
+    if _GAZETTEER is None:
+        _GAZETTEER = _load_gazetteer()
+    return _GAZETTEER
+
+
+def active_search_area(search_area):
+    """The Search area when it names at least one Place, else None (no filter)."""
+    if not isinstance(search_area, dict):
+        return None
+    places = search_area.get("places")
+    if not isinstance(places, list) or not any(isinstance(p, str) and p.strip() for p in places):
+        return None
+    return search_area
+
+
+def location_ok(loc, search_area=None):
+    """Keep a role unless it names a known place outside the Search area.
+
+    No Search area keeps everything. A role is kept if it names one of the Places,
+    directly or through the gazetteer (a country covers its states and cities).
+    A remote role follows the Remote rule: `anywhere` keeps it, `no` drops it and
+    `in-places` (the default) keeps it unless it names only places outside.
+    An empty or unknown location is kept."""
+    search_area = active_search_area(search_area)
+    if search_area is None:
+        return True
     place = (loc or "").lower().strip()
     if not place:
         return True
-    au = any(re.search(g, place) for g in AU_HINTS)
-    if not au and any(re.search(r"(?<![a-z])%s(?![a-z])" % re.escape(b), place) for b in LOCATION_REJECT):
+    remote = search_area.get("remote")
+    is_remote = bool(re.search(r"(?<![a-z])(remote|anywhere)(?![a-z])", place))
+    if is_remote and remote == "anywhere":
+        return True
+    if is_remote and remote == "no":
         return False
-    return au or any(re.search(g, place) for g in LOCATION_OK)
+    places = {p.strip().lower() for p in search_area.get("places") or [] if isinstance(p, str)}
+    if any(_word_re(p).search(place) for p in places if p):
+        return True
+    mentions = [(level, names) for pattern, level, names in _gazetteer() if pattern.search(place)]
+    if any(level == 0 for level, _ in mentions):
+        mentions = [m for m in mentions if m[0] == 0]  # an explicit country decides
+    if not mentions:
+        return True
+    return any(names & places for _, names in mentions)
 
 
 def norm_key(company, title):
@@ -638,8 +691,11 @@ def main():
     tracks = args.track or available
     ACTIVE_TRACKS = tracks
 
+    search_area = active_search_area(config(workspace).get("search_area"))
     blockers, favourable = load_blockers(workspace)
     seen = seen_urls(workspace)
+    if search_area is None and not args.all_locations:
+        print(NO_SEARCH_AREA)
     print(f"Sweeping tracks {', '.join(tracks)} ... ({len(seen)} URLs already known)")
 
     jobs, health = [], []
@@ -680,7 +736,7 @@ def main():
         if not hit:
             skipped_track += 1
             continue
-        if not args.all_locations and not location_ok(j["location"]):
+        if not args.all_locations and not location_ok(j["location"], search_area):
             for match in matches:
                 by_role[match["id"]]["outside"] += 1
             skipped_loc += 1
@@ -712,6 +768,7 @@ def main():
         f"{len(jobs)} fetched, {len(kept)} matched, {skipped_seen} already known"
         + (f" · **{len(failed)} source(s) FAILED**" if failed else ""),
         "",
+        *([f"Search area: {NO_SEARCH_AREA}.", ""] if search_area is None else []),
         *health_lines(health),
         *coverage_lines(coverage),
         "---",
