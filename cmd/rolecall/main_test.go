@@ -45,6 +45,25 @@ func TestCLIMissingWorkspaceNamesConfigPath(t *testing.T) {
 	}
 }
 
+func TestCLIMalformedConfigNamesPathWithoutValues(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	path := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("workspace = \"private-sentinel\"\neditor = [\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	message := string(out)
+	if err == nil || !strings.Contains(message, path) || !strings.Contains(message, "invalid TOML") || strings.Contains(message, "private-sentinel") {
+		t.Fatalf("want safe error naming %s, got %q %v", path, out, err)
+	}
+}
+
 func TestCLIMalformedWorkspaceNamesPathWithoutValues(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "rolecall")
 	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
