@@ -448,6 +448,48 @@ Markdown preview of `resume.md` and `cover-letter.md` in the Docs tab (Glamour).
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
+#### What v1.0 still needs (as of 2026-11-12)
+
+v0.1, v0.1.1 and v0.2 are merged to `main` (PR #41). Still scope only: each area needs
+agreeing in a grilling session and splitting into issues before it is built.
+
+| Area | Item | State |
+|---|---|---|
+| Onboarding | `rolecall init` wizard | To do. Today a missing workspace exits with a one-line message |
+| | `rolecall doctor` | To do |
+| | Plugin install guide per harness | To do |
+| Profile | Profile screen | To do |
+| | `import-profile` skill | To do |
+| Settings | Settings screen | To do. Settings are only in `config.toml` and `workspace.json` |
+| Documents | Neutral default template + workspace brand override | To do. `plugin/templates/brand.typ` is still the Owner's brand |
+| | Style packs AU/UK/US | Partial. Only `plugin/styles/au.md` exists |
+| | 2–3 template choices | To do |
+| Data | `rolecall migrate` (schema versions) | To do. `migrate.py` is the one-time dashboard migration only |
+| | CSV/spreadsheet import · CSV/JSON export | To do |
+| | Optional auto-commit on Status change | To do |
+| Finding | Per-workspace sources and locations | Partial. `find-jobs` reads `sources` from `workspace.json`, but `sweep.py` hard-codes an Australia location filter (`LOCATION_OK` / `LOCATION_REJECT`) |
+| Platform | Linux/Windows file opening | To do. `ui/detail.go` and `ui/download.go` call macOS `open` |
+| | `NO_COLOR`, glyph fallbacks, non-colour active markers | Done (#32, `ROLECALL_ASCII`) |
+| | Colour-blind-safe markers | Partial. Every colour pairs with a word or glyph; the palette itself is not checked for colour blindness |
+| | Small terminals | Partial. Below 50×12 shows a `too small` notice; no compact layout |
+| Release | goreleaser + Homebrew tap | To do |
+| | README | Partial. Still says v0.1 and private |
+| | Demo GIF | To do (VHS, carried over from v0.1.1) |
+| | Fictional example workspace | Partial. `fixtures/workspace` is fictional but built for tests, not as a showcase |
+| | MIT licence · CONTRIBUTING | To do |
+| | Personal-data CI guard | Partial. `plugin/tests/test_personal_data.py` covers `plugin/` only; extend to Go, docs and fixtures |
+| | No telemetry | Done (none exists); state it in the README |
+
+**Suggested order:** ship v0.3 first. Then the release blockers, so the repo can go public:
+licence, README, personal-data guard across the repo, neutral template, location filter from
+the workspace, cross-platform open, `init` and `doctor`, goreleaser. Profile and Settings
+screens, template choices, style packs, import/export and auto-commit can follow in 1.x if
+needed.
+
+**To decide in the v1.0 grilling:** whether the Profile and Settings screens are required for
+1.0 or can come in 1.x; what `rolecall migrate` versions (a `schema` field in `workspace.json`?);
+which harnesses get an install guide; and Windows support in or out.
+
 ## Open questions
 
 - **Bubble Tea v2:** confirm it's stable at setup. If not, use v1 and plan the upgrade.
