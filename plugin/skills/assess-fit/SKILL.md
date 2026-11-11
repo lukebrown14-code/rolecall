@@ -148,7 +148,7 @@ A complete `fit.md` for a fictional capture — the shape and standard to hold t
 Summary: Most essentials evidenced; the contract length is the real risk.
 Matches: TypeScript, Node, PostgreSQL, CI/CD
 
-Acme Analytics · contract, 6 months · Melbourne · closes 2026-11-20
+Acme Analytics · contract, 6 months · Australia · closes 2026-11-20
 
 The ad wants a product-minded developer to own a data-heavy service end to end, and the Profile
 evidences that directly: five years building and operating Node services, PostgreSQL schema design,
