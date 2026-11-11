@@ -239,16 +239,14 @@ func TestDetailEditOpensCurrentTabFile(t *testing.T) {
 }
 
 func docsTab(h *detailHarness) {
-	for i := 0; i < 3; i++ {
-		h.key(tea.KeyRight)
-	}
+	h.key(tea.KeyLeft)
 }
 
 func TestDetailDocsTabListsDocumentSet(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.show("✓ resume.md", "○ cover-letter.md  not written", "○ gaps.md  not written",
+	h.show("✓ resume.md", "✓ cover-letter.md", "○ gaps.md  not written",
 		"out/Owner Resume Role.pdf", "out/Owner Role Cover Letter.pdf", "sent/")
 }
 
@@ -261,14 +259,14 @@ func TestDetailDocsTabOmitsSentWhenAbsent(t *testing.T) {
 	}
 }
 
-func TestDetailDocsEnterOpensMarkdownInEditor(t *testing.T) {
+func TestDetailDocsEditOpensMarkdownInEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.key(tea.KeyEnter)
+	h.tm.Type("e")
 	run := h.lastRun()
 	if got, want := run[len(run)-1], filepath.Join(h.folder("docs-ready"), "resume.md"); got != want || !strings.Contains(strings.Join(run, " "), "myeditor") {
-		t.Fatalf("Enter on .md: %q", run)
+		t.Fatalf("e on .md: %q", run)
 	}
 	h.finalView()
 }
@@ -280,7 +278,7 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h.tm.Type("jjj") // past the absent cover letter and gaps
 	h.key(tea.KeyEnter)
 	got := h.lastRun()
-	want := []string{"open", filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf")}
+	want := expectedOpen(filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf"), false)
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("Enter on PDF: got %q want %q", got, want)
 	}
@@ -291,9 +289,9 @@ func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("j") // cover-letter.md is absent
+	h.tm.Type("jj") // gaps.md is absent
 	h.key(tea.KeyEnter)
-	h.show("cover-letter.md hasn't been written yet")
+	h.show("gaps.md hasn't been written yet")
 	if len(h.runs) != 0 {
 		t.Fatalf("ran %q", h.runs)
 	}
@@ -404,4 +402,74 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	yes.wait("Move")
 	yes.tm.Type("ay")
 	yes.show("Applied · ", "→ Applied")
+}
+
+func TestResumeReader(t *testing.T) {
+	h := newDetailHarness(t, nil)
+	h.open("3", 0, "docs-written")
+	h.show("[JD]")
+	h.key(tea.KeyRight)
+	h.key(tea.KeyRight)
+	h.show("[Resume]", "Morgan Example")
+	h.tm.Type("e")
+	if got := h.lastRun(); !strings.Contains(strings.Join(got, " "), "myeditor") || !strings.HasSuffix(got[len(got)-1], "resume.md") {
+		t.Fatalf("editor command: %v", got)
+	}
+	h.key(tea.KeyRight)
+	h.show("[Letter]")
+	h.key(tea.KeyRight)
+	h.show("[Gaps]")
+	h.key(tea.KeyRight)
+	h.show("[Notes]")
+	h.key(tea.KeyRight)
+	h.show("[Docs]")
+	h.key(tea.KeyRight)
+	h.show("[JD]")
+	h.key(tea.KeyLeft)
+	h.show("[Docs]")
+}
+
+func TestResumeReaderScrollAndRefresh(t *testing.T) {
+	h := newDetailHarness(t, func(root string) {
+		text := "# Resume start\n\n" + strings.Repeat("Experience on fictional services.\n\n", 50) + "Resume end\n"
+		if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	h.open("3", 0, "docs-written")
+	h.key(tea.KeyRight)
+	h.key(tea.KeyRight)
+	h.show("Resume start", "↓ more")
+	h.tm.Type("G")
+	h.show("Resume end")
+	if err := os.WriteFile(filepath.Join(h.folder("docs-written"), "resume.md"), []byte("# New start\n\n"+strings.Repeat("Updated fictional experience.\n\n", 50)+"Updated end\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h.tm.Type("e")
+	h.show("[Resume]", "Updated end")
+	h.tm.Type("g")
+	h.show("New start")
+	h.key(tea.KeyEscape)
+	h.key(tea.KeyEnter)
+	h.show("[JD]")
+}
+
+func TestResumeReaderHiddenWithoutText(t *testing.T) {
+	for _, name := range []string{"docs-none", "fern"} {
+		t.Run(name, func(t *testing.T) {
+			h := newDetailHarness(t, nil)
+			screen := "2"
+			if name == "fern" {
+				screen = "1"
+			}
+			h.open(screen, 0, name)
+			h.key(tea.KeyRight)
+			h.key(tea.KeyRight)
+			h.show("[Notes]")
+			h.key(tea.KeyRight)
+			h.show("[Docs]")
+			h.key(tea.KeyRight)
+			h.show("[JD]")
+		})
+	}
 }

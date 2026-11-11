@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -13,24 +14,43 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// Fit sits beside JD: the two are read together.
+// detailTab identifies a tab independently of its position in the visible list.
+type detailTab string
+
+const coverLetterFile = "cover-letter.md"
+
 const (
-	tabJD = iota
-	tabFit
-	tabNotes
-	tabDocs
+	tabLetter detailTab = "Letter"
+	tabGaps   detailTab = "Gaps"
+	tabResume detailTab = "Resume"
+	tabJD     detailTab = "JD"
+	tabFit    detailTab = "Fit"
+	tabNotes  detailTab = "Notes"
+	tabDocs   detailTab = "Docs"
 )
 
-var detailTabs = []string{"JD", "Fit", "Notes", "Docs"}
+// visibleDetailTabs derives navigation from the Application's written documents.
+func visibleDetailTabs(a store.Application) []detailTab {
+	tabs := []detailTab{tabJD, tabFit}
+	if a.ResumeHasText {
+		tabs = append(tabs, tabResume)
+	}
+	if a.CoverLetterHasText {
+		tabs = append(tabs, tabLetter)
+	}
+	if a.GapsHasText {
+		tabs = append(tabs, tabGaps)
+	}
+	return append(tabs, tabNotes, tabDocs)
+}
 
-// markdownTabFiles are the files shown by the Markdown tabs, indexed by tab.
-var markdownTabFiles = map[int]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md", tabLetter: coverLetterFile, tabGaps: "gaps.md"}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
 type detailState struct {
 	folder string
-	tab    int
+	tab    detailTab
 	docs   int // selected entry on the Docs tab
 	body   viewport.Model
 }
@@ -39,6 +59,7 @@ type detailState struct {
 type docEntry struct {
 	name    string // path relative to the Application folder
 	present bool
+	hasText bool
 }
 
 func (e docEntry) markdown() bool { return strings.HasSuffix(e.name, ".md") }
@@ -57,6 +78,8 @@ func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
 func (e docEntry) label() string {
 	switch {
+	case e.markdown() && e.present && !e.hasText:
+		return e.name + " (empty)"
 	case e.markdown() && e.present:
 		return e.name + " (present)"
 	case e.markdown():
@@ -65,13 +88,29 @@ func (e docEntry) label() string {
 	return e.name
 }
 
+const emptyDocumentStatus = "(empty)"
+
+// displayStatus keeps the inventory and card presence cues consistent.
+func (e docEntry) displayStatus(a store.Application) (string, bool) {
+	if e.name == coverLetterFile && a.ResumeOnly && !e.hasText {
+		return "not needed · Resume only", false
+	}
+	if e.markdown() && e.present && !e.hasText {
+		return emptyDocumentStatus, false
+	}
+	if !e.present {
+		return "not written", false
+	}
+	return "", true
+}
+
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{"resume.md", a.HasResume}, {"cover-letter.md", a.HasCoverLetter}, {"gaps.md", a.HasGaps}}
+	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
-		entries = append(entries, docEntry{"out/" + pdf, true})
+		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}
 	if a.HasSent {
-		entries = append(entries, docEntry{"sent/", true})
+		entries = append(entries, docEntry{"sent/", true, false})
 	}
 	return entries
 }
@@ -99,7 +138,7 @@ func (m model) current() (store.Application, bool) {
 }
 
 func (m *model) openDetail(folder string) {
-	m.detail = &detailState{folder: folder, body: viewport.New()}
+	m.detail = &detailState{folder: folder, tab: tabJD, body: viewport.New()}
 }
 
 func (m model) closeDetail() model {
@@ -155,6 +194,10 @@ func (m model) syncDetail() model {
 		return m
 	}
 	d := *m.detail
+	if !slices.Contains(visibleDetailTabs(a), d.tab) {
+		m.err = fmt.Errorf("%s is gone", markdownTabFiles[d.tab])
+		d.tab = tabDocs
+	}
 	d.docs = min(d.docs, len(docEntries(a))-1)
 	d.body.SetWidth(m.bodyWidth())
 	d.body.SetHeight(m.bodyHeight())
@@ -189,7 +232,7 @@ func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
 }
 
 // markdownBody renders one of the Markdown tabs, or its empty state.
-func (m model) markdownBody(a store.Application, tab int, name string) string {
+func (m model) markdownBody(a store.Application, tab detailTab, name string) string {
 	var out string
 	if tab == tabFit {
 		fit := a.Fit
@@ -232,11 +275,12 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	case "esc":
 		return m.closeDetail(), nil, true
 	case "right", "left":
+		tabs := visibleDetailTabs(a)
 		step := 1
 		if key == "left" {
-			step = len(detailTabs) - 1
+			step = len(tabs) - 1
 		}
-		d.tab = (d.tab + step) % len(detailTabs)
+		d.tab = tabs[(slices.Index(tabs, d.tab)+step)%len(tabs)]
 		d.body.GotoTop()
 		return m, nil, true
 	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c",
@@ -288,8 +332,16 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		e := entries[d.docs]
 		switch {
 		case e.pdf() && key == "enter":
-			return m, m.runExternal(a.Folder, "open", filepath.Join(a.Folder, e.name)), true
-		case e.markdown() && e.present:
+			return m, m.openPath(a.Folder, filepath.Join(a.Folder, e.name), false), true
+		case e.markdown() && key == "enter" && e.hasText:
+			for tab, name := range markdownTabFiles {
+				if name == e.name {
+					d.tab = tab
+					d.body.GotoTop()
+					return m.syncDetail(), nil, true
+				}
+			}
+		case e.markdown() && key == "e":
 			return m, m.editFile(a.Folder, e.name), true
 		case e.markdown():
 			m.err = fmt.Errorf("%s hasn't been written yet", e.name)
@@ -347,7 +399,7 @@ func (m model) detailView(p pal) string {
 		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
 		pane = p.text(p.fg).Render(path) + "\n\n" + p.text(p.bad).Render(msg)
 	} else {
-		pane = m.detailTabsRow(p) + "\n\n" + m.detailContent(p, a, paneW)
+		pane = m.detailTabsRow(p, a) + "\n\n" + m.detailContent(p, a, paneW)
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, ruleTop, ruleBot := pane, strings.Repeat("─", w), strings.Repeat("─", w)
@@ -362,13 +414,14 @@ func (m model) detailView(p pal) string {
 		p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 
-func (m model) detailTabsRow(p pal) string {
-	tabs := make([]string, len(detailTabs))
-	for i, t := range detailTabs {
-		tabs[i] = p.text(p.dim).Render(" " + t + " ")
-		if i == m.detail.tab {
+func (m model) detailTabsRow(p pal, a store.Application) string {
+	visible := visibleDetailTabs(a)
+	tabs := make([]string, len(visible))
+	for i, t := range visible {
+		tabs[i] = p.text(p.dim).Render(" " + string(t) + " ")
+		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + t + "]")
+			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + string(t) + "]")
 		}
 	}
 	return strings.Join(tabs, " ")
@@ -397,10 +450,17 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 			group = g
 			lines = append(lines, p.heading(g))
 		}
+		status, ready := e.displayStatus(a)
 		mark, nameC := p.text(p.ok).Render("✓ "), p.fg
 		name := e.name
-		if !e.present {
-			mark, nameC, name = p.text(p.dim).Render("○ "), p.dim, e.name+"  not written"
+		if status != "" {
+			name += "  " + status
+		}
+		if status == emptyDocumentStatus {
+			name = e.label()
+		}
+		if !ready {
+			mark, nameC = p.text(p.dim).Render("○ "), p.dim
 		}
 		row := "  " + mark + p.text(nameC).Render(name)
 		if i == m.detail.docs {
@@ -422,10 +482,17 @@ func (m model) detailCard(p pal, a store.Application) string {
 	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
 	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
 	for _, e := range docEntries(a) {
-		if e.present {
+		status, ready := e.displayStatus(a)
+		if ready {
 			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")
 		} else {
-			b.WriteString(p.text(p.dim).Render("○ "+e.name) + "\n")
+			name := e.name
+			if status == "not needed · Resume only" {
+				name += "\n  " + status
+			} else if status == emptyDocumentStatus {
+				name += " (empty)"
+			}
+			b.WriteString(p.text(p.dim).Render("○ "+name) + "\n")
 		}
 	}
 	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))

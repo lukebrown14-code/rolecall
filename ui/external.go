@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -134,3 +135,23 @@ func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays 
 // WithWatch turns on live refresh: the Workspace's job folders are watched and
 // changes are rescanned after a quiet window of the given length.
 func WithWatch(window time.Duration) Option { return func(m *model) { m.watchWindow = window } }
+
+// openPath opens a document or reveals the downloads folder with the desktop launcher.
+func (m model) openPath(folder, path string, reveal bool) tea.Cmd {
+	command, args := desktopCommand(runtime.GOOS, path, reveal)
+	return m.runExternal(folder, command, args...)
+}
+
+func desktopCommand(platform, path string, reveal bool) (string, []string) {
+	switch platform {
+	case "darwin":
+		if reveal {
+			return "open", []string{"-R", path}
+		}
+		return "open", []string{path}
+	case "windows":
+		return "rundll32.exe", []string{"url.dll,FileProtocolHandler", path}
+	default:
+		return "xdg-open", []string{path}
+	}
+}

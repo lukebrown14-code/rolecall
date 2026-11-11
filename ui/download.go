@@ -49,7 +49,7 @@ func (m *model) continueDownload(d downloadState) (mode, tea.Cmd) {
 		noun = "PDF"
 	}
 	m.toast = fmt.Sprintf("Saved %d %s → %s", d.copied, noun, displayPath(m.downloads))
-	return nil, m.runExternal(d.app.Folder, "open", "-R", m.downloads)
+	return nil, m.openPath(d.app.Folder, m.downloads, true)
 }
 
 // answerDownload applies y/a/n/esc to the pending clash; other keys leave the prompt open.

@@ -100,3 +100,35 @@ func TestWorkspaceReads(t *testing.T) {
 		t.Fatalf("gone: %v %v", a, err)
 	}
 }
+
+func TestDocumentText(t *testing.T) {
+	for _, name := range []string{"resume.md", "cover-letter.md", "gaps.md"} {
+		for _, content := range []string{"absent", "", " \n\t", "Written text"} {
+			t.Run(name+"/"+content, func(t *testing.T) {
+				root := t.TempDir()
+				if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
+					t.Fatal(err)
+				}
+				dir := filepath.Join(root, "jobs/SWE/fern")
+				if content != "absent" {
+					if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				s, err := store.Open(root)
+				if err != nil {
+					t.Fatal(err)
+				}
+				a, err := s.Rescan(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				present := map[string]bool{"resume.md": a.HasResume, "cover-letter.md": a.HasCoverLetter, "gaps.md": a.HasGaps}
+				text := map[string]bool{"resume.md": a.ResumeHasText, "cover-letter.md": a.CoverLetterHasText, "gaps.md": a.GapsHasText}
+				if present[name] != (content != "absent") || text[name] != (content == "Written text") {
+					t.Fatalf("presence=%v text=%v", present[name], text[name])
+				}
+			})
+		}
+	}
+}

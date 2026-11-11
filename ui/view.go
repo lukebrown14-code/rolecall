@@ -444,7 +444,7 @@ func (m model) feedbackLine(p pal, w int) string {
 	switch {
 	case m.err != nil:
 		msg = m.rel(m.err.Error())
-		icon, c, hint = "✕", p.bad, "esc hide"
+		icon, c, hint = "✕", p.bad, "enter inspect · esc hide"
 	case m.building != nil && m.toast == "":
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
@@ -463,6 +463,7 @@ func (m model) feedbackLine(p pal, w int) string {
 		k, d, _ := strings.Cut(hint, " ")
 		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
+	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-1), "…")
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
 	gap := bg.Render(strings.Repeat(" ", n))
 	return xansi.Truncate(left+gap+right, w, "")
