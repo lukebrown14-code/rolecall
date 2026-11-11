@@ -50,6 +50,8 @@ type model struct {
 	now                   func() time.Time
 	editor                string
 	external              ExternalRunner
+	detail                *detailState
+	height                int
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -88,7 +90,7 @@ func (m model) matches(a store.Application) bool {
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = size.Width
+		m.width, m.height = size.Width, size.Height
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
@@ -109,7 +111,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd := m.moveForm.Update(msg)
 			m.moveForm = updated.(*huh.Form)
 			if m.moveForm.State == huh.StateCompleted {
-				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.moveCurrent(m.moveForm.GetString("status"))
 				m.options = nil
 				m.moveForm = nil
 			}
@@ -148,7 +150,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			for _, status := range m.options {
 				if statusLetters[status] == k.String() {
-					m.move(m.rows()[m.cursor], status, false)
+					m.moveCurrent(status)
 					m.options = nil
 					m.moveForm = nil
 					return m, nil
@@ -157,18 +159,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd := m.moveForm.Update(msg)
 			m.moveForm = updated.(*huh.Form)
 			if m.moveForm.State == huh.StateCompleted {
-				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.moveCurrent(m.moveForm.GetString("status"))
 				m.options = nil
 				m.moveForm = nil
 			}
 			return m, cmd
 		}
 
+		if m.detail != nil {
+			if next, cmd, handled := m.detailKey(k); handled {
+				return next.syncDetail(), cmd
+			}
+		}
 		switch k.String() {
+		case "v", "enter":
+			if rows := m.rows(); len(rows) > 0 {
+				m.openDetail(rows[m.cursor].Folder)
+			}
 		case "m", "x":
-			rows := m.rows()
-			if len(rows) > 0 {
-				a := rows[m.cursor]
+			if a, ok := m.current(); ok {
 				if k.String() == "x" {
 					if a.Status == "Lead" || a.Status == "Draft" {
 						m.move(a, "Dismissed", false)
@@ -234,9 +243,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "?":
 			m.full = !m.full
 		case "n":
-			rows := m.rows()
-			if len(rows) > 0 {
-				return m, m.editNotes(rows[m.cursor].Folder)
+			if a, ok := m.current(); ok {
+				return m, m.editNotes(a.Folder)
 			}
 		case "r":
 			folder := ""
@@ -257,6 +265,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	m = m.syncDetail()
 	n := len(m.rows())
 	if m.cursor >= n {
 		m.cursor = n - 1
@@ -267,6 +276,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 func (m model) View() tea.View {
+	if m.detail != nil {
+		return tea.NewView(m.detailView())
+	}
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(screens[m.screen]) + "\n")
 	for i, t := range tables[m.screen] {

@@ -34,14 +34,19 @@ func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
 	return runner(exec.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
 }
 
+// editFile opens a file of the Application folder in the Owner's editor. The editor
+// preference may include flags or quoted executable paths, so the filename is passed
+// as a shell positional argument and Application paths remain literal.
+func (m model) editFile(folder, name string) tea.Cmd {
+	return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, name))
+}
+
 func (m model) editNotes(folder string) tea.Cmd {
 	return func() tea.Msg {
 		if err := m.store.EnsureNotes(folder); err != nil {
 			return externalFinished{folder, err}
 		}
-		// The editor preference may include flags or quoted executable paths. Pass the
-		// filename as a shell positional argument so Application paths remain literal.
-		return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, "notes.md"))()
+		return m.editFile(folder, "notes.md")()
 	}
 }
 
