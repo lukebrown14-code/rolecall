@@ -12,6 +12,9 @@ import (
 	"time"
 )
 
+// watchDebounce groups bursts of file events into one rescan.
+const watchDebounce = 200 * time.Millisecond
+
 func main() {
 	dir := flag.String("dir", "", "Workspace path")
 	flag.Parse()
@@ -40,7 +43,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithWatch(200*time.Millisecond))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithWatch(watchDebounce))
 	if err != nil {
 		return err
 	}

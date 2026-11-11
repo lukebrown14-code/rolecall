@@ -28,7 +28,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 		return "", a.Malformed
 	}
 	parent := filepath.Join(s.root, "jobs", fields.Track)
-	if err = os.MkdirAll(parent, 0700); err != nil {
+	if err = os.MkdirAll(parent, privateDirMode); err != nil {
 		return "", err
 	}
 	slug := strings.Trim(slugSeparators.ReplaceAllString(strings.ToLower(fields.Company+"-"+fields.Title), "-"), "-") + "-" + now.Format("2006-01-02")
@@ -38,7 +38,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 			name += fmt.Sprintf("-%d", n)
 		}
 		folder = filepath.Join(parent, name)
-		err = os.Mkdir(folder, 0700)
+		err = os.Mkdir(folder, privateDirMode)
 		if os.IsExist(err) {
 			continue
 		}
@@ -53,10 +53,10 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 			os.RemoveAll(created)
 		}
 	}()
-	if err = os.WriteFile(filepath.Join(folder, "jd.md"), nil, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(folder, "jd.md"), nil, privateFileMode); err != nil {
 		return "", err
 	}
-	if err = s.atomicWrite(filepath.Join(folder, "meta.yml"), []byte(text), 0600); err != nil {
+	if err = s.atomicWrite(filepath.Join(folder, "meta.yml"), []byte(text), privateFileMode); err != nil {
 		return "", err
 	}
 	return folder, nil

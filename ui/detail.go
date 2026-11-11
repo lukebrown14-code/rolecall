@@ -107,17 +107,27 @@ func (m model) closeDetail() model {
 	return m
 }
 
+// Detail body sizing, used before the first resize and as lower bounds.
+const (
+	fallbackBodyHeight = 20
+	fallbackBodyWidth  = 80
+	minBodyHeight      = 3
+	chromeHeight       = 8 // header, tab bar, footer and Move popup
+	minWrapWidth       = 20
+	wrapMargin         = 4
+)
+
 // bodyHeight leaves room for the header, tab bar, footer and Move popup.
 func (m model) bodyHeight() int {
 	if m.height == 0 {
-		return 20
+		return fallbackBodyHeight
 	}
-	return max(3, m.height-8)
+	return max(minBodyHeight, m.height-chromeHeight)
 }
 
 func (m model) bodyWidth() int {
 	if m.width == 0 {
-		return 80
+		return fallbackBodyWidth
 	}
 	return m.width
 }
@@ -160,7 +170,7 @@ func (m model) markdownBody(a store.Application, tab int, name string) string {
 	if err != nil || strings.TrimSpace(string(b)) == "" {
 		return out + "No content in " + name
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(max(20, m.bodyWidth()-4)))
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(max(minWrapWidth, m.bodyWidth()-wrapMargin)))
 	if err == nil {
 		var rendered string
 		if rendered, err = r.Render(string(b)); err == nil {

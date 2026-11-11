@@ -59,7 +59,7 @@ func scalar(raw string) (string, error) {
 }
 func decodeQuoted(token string) (string, error) {
 	var out strings.Builder
-	escapes := map[byte]rune{'0': 0, 'a': 7, 'b': 8, 't': 9, 'n': 10, 'v': 11, 'f': 12, 'r': 13, 'e': 27, ' ': 32, '"': 34, '/': 47, '\\': 92, 'N': 0x85, '_': 0xa0, 'L': 0x2028, 'P': 0x2029}
+	escapes := map[byte]rune{'0': '\x00', 'a': '\a', 'b': '\b', 't': '\t', 'n': '\n', 'v': '\v', 'f': '\f', 'r': '\r', 'e': '\x1b', ' ': ' ', '"': '"', '/': '/', '\\': '\\', 'N': '\u0085', '_': '\u00a0', 'L': '\u2028', 'P': '\u2029'}
 	for i := 1; i < len(token)-1; i++ {
 		if token[i] != '\\' {
 			out.WriteByte(token[i])

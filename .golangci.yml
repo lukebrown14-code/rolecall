@@ -1,0 +1,13 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - dupl
+    - mnd
+  settings:
+    dupl:
+      threshold: 100
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [dupl, mnd]

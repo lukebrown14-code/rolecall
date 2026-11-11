@@ -21,9 +21,12 @@ type Config struct {
 // Path is where the Owner's settings file lives under home.
 func Path(home string) string { return filepath.Join(home, ".config/rolecall/config.toml") }
 
+// defaultFollowUpDays is the Follow-up threshold when config sets none.
+const defaultFollowUpDays = 14
+
 // Load reads settings under home; dir overrides the configured Workspace.
 func Load(home, dir string) (Config, error) {
-	c := Config{FollowUpDays: 14}
+	c := Config{FollowUpDays: defaultFollowUpDays}
 	path := Path(home)
 	b, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
