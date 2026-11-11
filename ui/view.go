@@ -215,7 +215,7 @@ func (m model) listView(p pal) string {
 // one, otherwise the line the caller prepared (the search input while typing, else the
 // key line). The rule above it is never replaced.
 func (m model) statusRow(p pal, w int, fallback string) string {
-	if m.err != nil || m.toast != "" {
+	if m.err != nil || m.toast != "" || m.building != nil {
 		return m.feedbackLine(p, w)
 	}
 	return fallback
@@ -412,18 +412,28 @@ func (m model) scopeLine(p pal) string {
 }
 
 // feedbackLine is the status row when something just happened: a toast (successes clear
-// on the next key) or an error (stays until esc). It never replaces the bottom rule.
+// on the next key), an error (stays until esc), or a build in flight (a spinner until it
+// finishes). It never replaces the bottom rule.
 func (m model) feedbackLine(p pal, w int) string {
 	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
-	if m.err != nil {
+	raw := false
+	switch {
+	case m.err != nil:
 		msg = m.rel(m.err.Error())
 		icon, c, hint = "✕", p.bad, "esc hide"
+	case m.building != nil && m.toast == "":
+		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
 	if msg == "" {
 		return ""
 	}
 	bg := lipgloss.NewStyle().Background(colorPanel)
-	left := bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	var left string
+	if raw {
+		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
+	} else {
+		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	}
 	right := ""
 	if hint != "" {
 		k, d, _ := strings.Cut(hint, " ")

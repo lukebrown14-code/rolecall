@@ -31,6 +31,36 @@ func TestLoader(t *testing.T) {
 	}
 }
 
+func TestPlugin(t *testing.T) {
+	home := t.TempDir()
+	p := filepath.Join(home, ".config/rolecall")
+	os.MkdirAll(p, 0700)
+	write := func(body string) {
+		if err := os.WriteFile(filepath.Join(p, "config.toml"), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Configured, with ~ expansion.
+	write("workspace = \"~/work\"\nplugin = \"~/rolecall/plugin\"\n")
+	t.Setenv("ROLECALL_PLUGIN", "/env/plugin")
+	c, err := config.Load(home, "")
+	if err != nil || c.Plugin != filepath.Join(home, "rolecall/plugin") {
+		t.Fatalf("configured: %+v %v", c, err)
+	}
+	// Unset falls back to $ROLECALL_PLUGIN.
+	write("workspace = \"~/work\"\n")
+	c, err = config.Load(home, "")
+	if err != nil || c.Plugin != "/env/plugin" {
+		t.Fatalf("env fallback: %+v %v", c, err)
+	}
+	// Neither set: empty, and nothing is auto-detected.
+	t.Setenv("ROLECALL_PLUGIN", "")
+	c, err = config.Load(home, "")
+	if err != nil || c.Plugin != "" {
+		t.Fatalf("unset: %+v %v", c, err)
+	}
+}
+
 func TestTOMLLiteralAndComments(t *testing.T) {
 	home := t.TempDir()
 	p := filepath.Join(home, ".config/rolecall")

@@ -52,6 +52,9 @@ var dimmedPal = pal{fg: colorDimmed, dim: colorFaint, sub: colorDimmed, faint: c
 
 func (p pal) text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
+// spinnerStyle colours the progress spinner in the feedback line.
+func (p pal) spinnerStyle() lipgloss.Style { return lipgloss.NewStyle().Foreground(p.accent) }
+
 // heading is a dim, bold, upper-case section label.
 func (p pal) heading(s string) string { return p.text(p.dim).Bold(true).Render(strings.ToUpper(s)) }
 
@@ -250,6 +253,9 @@ var asciiGlyphs = strings.NewReplacer(
 	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o",
 	"↑", "^", "↓", "v", "─", "-", "│", "|", "┬", "+", "┴", "+",
 	"╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "...",
+	// the progress spinner's Braille frames
+	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
+	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
 )
 
 // asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set.
