@@ -41,3 +41,34 @@ func TestNavigation(t *testing.T) {
 	tm.Type("q")
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
+
+func TestFilters(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := ui.New(s, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
+	wait := func(want string) {
+		t.Helper()
+		teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(want)) }, teatest.WithDuration(3*time.Second))
+	}
+	wait("Leads (4)")
+	tm.Type("/zzznomatch")
+	wait("Leads (0)")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	tm.Type("2")
+	wait("Draft")
+	tm.Type("r")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	wait("Draft (2)")
+	tm.Type("q")
+	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
+}

@@ -33,6 +33,10 @@ type model struct {
 	store                 *store.Store
 	apps                  []store.Application
 	screen, table, cursor int
+	tracks                []string
+	track                 int
+	text                  string
+	filtering             bool
 	full                  bool
 	err                   error
 	now                   func() time.Time
@@ -49,7 +53,11 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, apps: a, now: now}
+	tracks, e := s.Tracks()
+	if e != nil {
+		return nil, e
+	}
+	m := model{store: s, apps: a, tracks: tracks, now: now}
 	for _, option := range options {
 		option(&m)
 	}
@@ -60,11 +68,14 @@ func (m model) rows() []store.Application {
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[m.screen] && t == tables[m.screen][m.table] {
+		if s == screens[m.screen] && t == tables[m.screen][m.table] && m.matches(a) {
 			out = append(out, a)
 		}
 	}
 	return out
+}
+func (m model) matches(a store.Application) bool {
+	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
@@ -82,7 +93,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if k.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		if m.filtering {
+			switch k.String() {
+			case "esc":
+				m.text = ""
+				m.filtering = false
+			case "enter":
+				m.filtering = false
+			case "backspace":
+				r := []rune(m.text)
+				if len(r) > 0 {
+					m.text = string(r[:len(r)-1])
+				}
+			default:
+				if k.Text != "" {
+					m.text += k.Text
+				}
+			}
+			m.cursor = 0
+			return m, nil
+		}
 		switch k.String() {
+		case "t":
+			if len(m.tracks) > 0 {
+				m.track = (m.track + 1) % (len(m.tracks) + 1)
+				m.cursor = 0
+			}
+		case "/":
+			m.filtering = true
+		case "esc":
+			m.text = ""
+			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "1", "2", "3":
@@ -145,7 +189,7 @@ func (m model) View() tea.View {
 		count := 0
 		for _, a := range m.apps {
 			s, tbl := StatusLocation(a.Status)
-			if s == screens[m.screen] && tbl == t {
+			if s == screens[m.screen] && tbl == t && m.matches(a) {
 				count++
 			}
 		}
@@ -166,6 +210,18 @@ func (m model) View() tea.View {
 		}
 		b.WriteString(row + "\n")
 	}
+	if len(m.tracks) > 0 {
+		track := "All"
+		if m.track > 0 {
+			track = m.tracks[m.track-1]
+		}
+		b.WriteString("Track: " + track + " · t track  ")
+	}
+	b.WriteString("/ filter · Esc clear")
+	if m.text != "" || m.filtering {
+		b.WriteString(" · Filter: " + m.text)
+	}
+	b.WriteString("\n")
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
 	}
