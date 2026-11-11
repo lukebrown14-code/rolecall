@@ -245,6 +245,31 @@ func TestBuildFromDetailView(t *testing.T) {
 	}
 }
 
+func TestBuildSpinnerFallsBackToASCII(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "1")
+	h := newBuildHarness(t, ui.WithPlugin("/plugin"))
+	h.fake.block = make(chan struct{})
+	h.fake.run = writePDFs
+	h.tm.Type("/Engineer")
+	h.enter()
+	h.tm.Type("2")
+	h.wait("Engineer #1")
+	h.tm.Type("b")
+	var seen []byte
+	teatest.WaitFor(t, h.tm.Output(), func(b []byte) bool {
+		seen = append(seen, b...)
+		return bytes.Contains(seen, []byte("Building Engineer #1"))
+	}, teatest.WithDuration(3*time.Second))
+	for _, g := range []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"} {
+		if bytes.Contains(seen, []byte(g)) {
+			t.Fatalf("Braille spinner frame %q survived ROLECALL_ASCII", g)
+		}
+	}
+	close(h.fake.block)
+	h.wait("Built 2 PDFs")
+	h.quit()
+}
+
 func TestBuildReportsPDFsAndRefreshesDocs(t *testing.T) {
 	h := newBuildHarness(t, ui.WithPlugin("/plugin"))
 	h.fake.run = writePDFs

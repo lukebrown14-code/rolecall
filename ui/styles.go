@@ -253,6 +253,9 @@ var asciiGlyphs = strings.NewReplacer(
 	"●", "(*)", "○", "( )", "✓", "v", "⚠", "!", "✕", "x", "◌", "o",
 	"↑", "^", "↓", "v", "─", "-", "│", "|", "┬", "+", "┴", "+",
 	"╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "...",
+	// the progress spinner's Braille frames
+	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
+	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
 )
 
 // asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set.
