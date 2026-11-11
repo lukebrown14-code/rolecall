@@ -10,7 +10,14 @@ import (
 	"strings"
 )
 
-type Application struct{ Folder, Title, Company, Track, Status string }
+type Application struct {
+	Folder, Title, Company, Track, Status                                string
+	URL                                                                  string   `json:",omitempty"`
+	ResumeOnly                                                           bool     `json:",omitempty"`
+	Documents                                                            string   `json:",omitempty"`
+	PDFs                                                                 []string `json:",omitempty"`
+	HasJD, HasNotes, HasFit, HasGaps, HasResume, HasCoverLetter, HasSent bool
+}
 type Store struct{ root string }
 
 func Open(root string) (*Store, error) {
@@ -48,46 +55,63 @@ func (s *Store) Scan() ([]Application, error) {
 				continue
 			}
 			dir := filepath.Join(s.root, "jobs", track.Name(), folder.Name())
-			b, err := os.ReadFile(filepath.Join(dir, "meta.yml"))
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
+			a, err := s.Rescan(dir)
 			if err != nil {
 				return nil, err
 			}
-			a := Application{Folder: dir, Status: "Lead"}
-			for _, line := range strings.Split(string(b), "\n") {
-				if m := statusEntry.FindStringSubmatch(line); m != nil {
-					a.Status = m[1]
-					continue
-				}
-				k, v, ok := strings.Cut(line, ":")
-				if !ok {
-					continue
-				}
-				v = strings.TrimSpace(v)
-				if strings.HasPrefix(v, "\"") {
-					if end := strings.LastIndex(v, "\""); end > 0 {
-						if q, e := strconv.Unquote(v[:end+1]); e == nil {
-							v = q
-						}
-					}
-				} else {
-					if i := strings.Index(v, " #"); i >= 0 {
-						v = strings.TrimSpace(v[:i])
-					}
-				}
-				switch k {
-				case "title":
-					a.Title = v
-				case "company":
-					a.Company = v
-				case "track":
-					a.Track = v
-				}
+			if a != nil {
+				apps = append(apps, *a)
 			}
-			apps = append(apps, a)
 		}
 	}
 	return apps, nil
+}
+
+func (s *Store) Rescan(dir string) (*Application, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "meta.yml"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	a := Application{Folder: dir, Status: "Lead"}
+	for _, line := range strings.Split(string(b), "\n") {
+		if m := statusEntry.FindStringSubmatch(line); m != nil {
+			a.Status = m[1]
+			continue
+		}
+		k, v, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		v = strings.TrimSpace(v)
+		if strings.HasPrefix(v, "\"") {
+			if end := strings.LastIndex(v, "\""); end > 0 {
+				if q, e := strconv.Unquote(v[:end+1]); e == nil {
+					v = q
+				}
+			}
+		} else {
+			if i := strings.Index(v, " #"); i >= 0 {
+				v = strings.TrimSpace(v[:i])
+			}
+		}
+		switch k {
+		case "url":
+			a.URL = v
+		case "resume_only":
+			a.ResumeOnly = v == "true"
+		case "title":
+			a.Title = v
+		case "company":
+			a.Company = v
+		case "track":
+			a.Track = v
+		}
+	}
+	if err := readFolder(&a); err != nil {
+		return nil, err
+	}
+	return &a, nil
 }

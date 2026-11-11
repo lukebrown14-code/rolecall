@@ -1,0 +1,8 @@
+schema: 1
+title: docs-dismissed
+company: Fictional Labs
+track: SWE
+url: https://example.test/shared
+legacy_key: "kept" # unknown
+status_log:
+  - {status: Dismissed, at: 2026-09-24, approx: true}

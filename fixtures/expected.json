@@ -1,4 +1,100 @@
 [
- {"Title":"Platform Engineer","Company":"Fern Systems","Track":"Platform","Status":"Lead"},
- {"Title":"Software Engineer","Company":"Orbit Labs","Track":"SWE","Status":"Applied"}
+  {
+    "Title": "docs-dismissed",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Dismissed",
+    "URL": "https://example.test/shared",
+    "HasJD": true
+  },
+  {
+    "Title": "docs-none",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Draft",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true
+  },
+  {
+    "Title": "docs-partial",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Offer",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "PDFs": [
+      "Owner Resume Role.pdf"
+    ],
+    "Documents": "Written"
+  },
+  {
+    "Title": "docs-ready",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Rejected",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "PDFs": [
+      "Owner Resume Role.pdf",
+      "Owner Role Cover Letter.pdf"
+    ],
+    "Documents": "Ready"
+  },
+  {
+    "Title": "docs-resume-only",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Withdrawn",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "ResumeOnly": true,
+    "PDFs": [
+      "Owner Resume Role.pdf"
+    ],
+    "Documents": "Ready"
+  },
+  {
+    "Title": "docs-written",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Interviewing",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "HasNotes": true,
+    "HasFit": true,
+    "HasGaps": true,
+    "HasCoverLetter": true,
+    "Documents": "Written"
+  },
+  {
+    "Title": "Empty log",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Lead"
+  },
+  {
+    "Title": "Platform Engineer",
+    "Company": "Fern Systems",
+    "Track": "Platform",
+    "Status": "Lead",
+    "HasJD": true
+  },
+  {
+    "Title": "Malformed",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Lead"
+  },
+  {
+    "Title": "Software Engineer",
+    "Company": "Orbit Labs",
+    "Track": "SWE",
+    "Status": "Applied",
+    "HasJD": true
+  }
 ]
