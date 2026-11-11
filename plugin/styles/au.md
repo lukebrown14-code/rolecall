@@ -1,5 +1,5 @@
-<!-- Ticket #25 refines this file (tone layering and writing rules). Keep it free of
-     personal data: Owner facts live in the workspace's profile/writing-preferences.md. -->
+<!-- Generic AU style guide. Keep it free of personal data: the Owner's facts and
+     preferences live in the workspace's profile/writing-preferences.md. -->
 
 # Style Rules
 
@@ -17,9 +17,9 @@ AU hiring culture is warier of visible self-promotion than the US. Understatemen
 confidence here; the same sentence that lands as assured in New York can read as skiting in an
 Australian context. The fix is register, not substance.
 
-**Understatement means dropping adjectives, not hedging facts.** The Owner's sole-ownership
-claims are true and they are the strongest thing on the CV. Keep them. Strip the swagger
-around them.
+**Understatement means dropping adjectives, not hedging facts.** Where the Profile shows the
+Owner held sole ownership, that claim is true and it is among the strongest things on the CV.
+Keep it. Strip the swagger around it.
 
 | Retire | Use |
 | :-- | :-- |
@@ -86,8 +86,8 @@ question and describe it in those terms.
    ad") is doing real work in the AU market — it keeps the confident structure without the
    presumption of diagnosing a company the Owner has not worked at.
 2. **Answer it.** The specific capability that addresses that problem, evidenced by one
-   concrete thing actually done. Evidence beats adjectives: "lifted coverage 70% to 80% in a
-   national-security environment" not "strong testing skills".
+   concrete thing actually done. Evidence beats adjectives: "lifted coverage 70% to 80% across
+   a live service" not "strong testing skills".
 3. **Second and third priority.** Same shape, shorter. Two or three of these paragraphs
    total — pick the JD's top priorities, do not walk the whole list.
 4. **Close on the work.** What the Owner would pick up early, or where the Owner would be
