@@ -5,12 +5,22 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
-type Application struct{ Folder, Title, Company, Track, Status string }
+type Application struct {
+	Folder, Title, Company, Track, Status string
+	Schema                                int
+	URL, Closes, Fit                      string
+	ResumeOnly                            bool
+	StatusLog                             []StatusEntry
+	AppliedDate, LastChange               *StatusEntry
+	Malformed                             error `json:"-"`
+}
+type StatusEntry struct {
+	Status string
+	At     string
+	Approx bool
+}
 type Store struct{ root string }
 
 func Open(root string) (*Store, error) {
@@ -23,8 +33,6 @@ func Open(root string) (*Store, error) {
 	}
 	return &Store{root: root}, nil
 }
-
-var statusEntry = regexp.MustCompile(`^  - \{status: ([A-Za-z]+),`)
 
 func (s *Store) Scan() ([]Application, error) {
 	apps := []Application{}
@@ -55,37 +63,7 @@ func (s *Store) Scan() ([]Application, error) {
 			if err != nil {
 				return nil, err
 			}
-			a := Application{Folder: dir, Status: "Lead"}
-			for _, line := range strings.Split(string(b), "\n") {
-				if m := statusEntry.FindStringSubmatch(line); m != nil {
-					a.Status = m[1]
-					continue
-				}
-				k, v, ok := strings.Cut(line, ":")
-				if !ok {
-					continue
-				}
-				v = strings.TrimSpace(v)
-				if strings.HasPrefix(v, "\"") {
-					if end := strings.LastIndex(v, "\""); end > 0 {
-						if q, e := strconv.Unquote(v[:end+1]); e == nil {
-							v = q
-						}
-					}
-				} else {
-					if i := strings.Index(v, " #"); i >= 0 {
-						v = strings.TrimSpace(v[:i])
-					}
-				}
-				switch k {
-				case "title":
-					a.Title = v
-				case "company":
-					a.Company = v
-				case "track":
-					a.Track = v
-				}
-			}
+			a := readApplication(dir, b)
 			apps = append(apps, a)
 		}
 	}

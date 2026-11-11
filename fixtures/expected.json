@@ -1,4 +1,251 @@
 [
- {"Title":"Platform Engineer","Company":"Fern Systems","Track":"Platform","Status":"Lead"},
- {"Title":"Software Engineer","Company":"Orbit Labs","Track":"SWE","Status":"Applied"}
+  {
+    "Title": "Empty",
+    "Company": "Example",
+    "Track": "SWE",
+    "Schema": 1,
+    "Status": "Lead"
+  },
+  {
+    "Title": "Platform Engineer",
+    "Company": "Fern Systems",
+    "Track": "Platform",
+    "Status": "Lead",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Lead",
+        "At": "2026-09-24T01:00:00Z"
+      }
+    ],
+    "LastChange": {
+      "Status": "Lead",
+      "At": "2026-09-24T01:00:00Z"
+    }
+  },
+  {
+    "Title": "Broken",
+    "Company": "Example",
+    "Track": "SWE",
+    "Schema": 1,
+    "Status": "Lead",
+    "MalformedExpected": true
+  },
+  {
+    "Title": "Software Engineer",
+    "Company": "Orbit Labs",
+    "Track": "SWE",
+    "Status": "Applied",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Lead",
+        "At": "2026-09-24T01:00:00Z"
+      },
+      {
+        "Status": "Applied",
+        "At": "2026-09-25T01:00:00Z"
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2026-09-25T01:00:00Z"
+    },
+    "LastChange": {
+      "Status": "Applied",
+      "At": "2026-09-25T01:00:00Z"
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-dismissed",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Dismissed",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Dismissed",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Dismissed",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-draft",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Draft",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Draft",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Draft",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-interviewing",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Interviewing",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Interviewing",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Interviewing",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-offer",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Offer",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Offer",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Offer",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-rejected",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Rejected",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Rejected",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Rejected",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-withdrawn",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Withdrawn",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Withdrawn",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Withdrawn",
+      "At": "2026-01-01",
+      "Approx": true
+    }
+  }
 ]

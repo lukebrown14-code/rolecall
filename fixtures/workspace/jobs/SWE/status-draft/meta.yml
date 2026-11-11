@@ -1,0 +1,11 @@
+title: "Engineer #1" # advertised title
+company: Example
+track: Unknown
+url: https://example.com/status-draft
+fit: Good
+resume_only: true
+salary: "legacy value" # preserved
+contact: Someone
+status_log:
+  - {status: Applied, at: 2025-01-01, approx: true}
+  - {status: Draft, at: 2026-01-01, approx: true}
