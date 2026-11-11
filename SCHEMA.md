@@ -12,6 +12,7 @@ Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in 
 ```
 <workspace>/
 ├─ workspace.json              # tracks, gates, sweep sources
+├─ brand.typ                   # optional document Template override (see below)
 ├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
 │  ├─ phrasing-bank.md
@@ -202,6 +203,14 @@ A missing `search_area` means no filter: the Sweep keeps every location and repo
 countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
 if it names a Place, dropped if it names only known places outside the Places, and kept if its
 location is empty or unknown. `--all-locations` bypasses the filter.
+
+## `brand.typ` (optional document Template override)
+
+The Plugin's default document Template is `plugin/templates/brand.typ`. To customize the
+resume and cover-letter look for a Workspace, copy that file to `<workspace>/brand.typ` and
+edit the copy. The next Build uses the Workspace file; if it is absent, the Plugin default is
+used. Keep the `#let` names imported by `resume.typ` and `cover-letter.typ` when editing, or
+Typst may fail to compile the documents.
 
 ## Fixtures
 
