@@ -182,7 +182,11 @@ The TUI reads `tracks` (array of strings, display order) and shows `search_area`
 `blockers` on the Settings screen. It writes `tracks` (add, reorder, remove) and the four gates
 (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track
-filter and the plugin's defaults. An invalid file is shown, with its parse error, on the Settings
+filter and the plugin's defaults.
+Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write: it
+rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
+`meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`. Folders
+never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does not undo it. An invalid file is shown, with its parse error, on the Settings
 screen. `sources`, `blockers` and the gates are used by the plugin.
 
 `search_area` (read by the Sweep and `find-jobs`) is where roles must be:

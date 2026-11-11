@@ -112,6 +112,7 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
 	keys = append(keys, m.trackHelpKeys()...)
+	keys = append(keys, m.renameHelpKey()...)
 	keys = append(keys, m.gateHelpKeys()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
@@ -129,6 +130,9 @@ func (m model) settingsHelpKeys() []helpKey {
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.settings != nil && m.settings.editing {
 		return m.settingsEditKey(k)
+	}
+	if next, ok := m.renameKey(k); ok {
+		return next, nil
 	}
 	switch k.String() {
 	case "r":
