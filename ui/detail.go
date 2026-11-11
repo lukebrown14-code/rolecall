@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/viewport"
@@ -13,24 +14,29 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// Fit sits beside JD: the two are read together.
+// detailTab identifies a tab independently of its position in the visible list.
+type detailTab string
+
 const (
-	tabJD = iota
-	tabFit
-	tabNotes
-	tabDocs
+	tabJD    detailTab = "JD"
+	tabFit   detailTab = "Fit"
+	tabNotes detailTab = "Notes"
+	tabDocs  detailTab = "Docs"
 )
 
-var detailTabs = []string{"JD", "Fit", "Notes", "Docs"}
+// visibleDetailTabs derives the reader navigation from the Application. Document
+// readers will join this list when their text is available on the Application.
+func visibleDetailTabs(_ store.Application) []detailTab {
+	return []detailTab{tabJD, tabFit, tabNotes, tabDocs}
+}
 
-// markdownTabFiles are the files shown by the Markdown tabs, indexed by tab.
-var markdownTabFiles = map[int]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md"}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
 type detailState struct {
 	folder string
-	tab    int
+	tab    detailTab
 	docs   int // selected entry on the Docs tab
 	body   viewport.Model
 }
@@ -102,7 +108,7 @@ func (m model) current() (store.Application, bool) {
 }
 
 func (m *model) openDetail(folder string) {
-	m.detail = &detailState{folder: folder, body: viewport.New()}
+	m.detail = &detailState{folder: folder, tab: tabJD, body: viewport.New()}
 }
 
 func (m model) closeDetail() model {
@@ -189,7 +195,7 @@ func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
 }
 
 // markdownBody renders one of the Markdown tabs, or its empty state.
-func (m model) markdownBody(a store.Application, tab int, name string) string {
+func (m model) markdownBody(a store.Application, tab detailTab, name string) string {
 	var out string
 	if tab == tabFit {
 		fit := a.Fit
@@ -227,11 +233,12 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	case "esc":
 		return m.closeDetail(), nil, true
 	case "right", "left":
+		tabs := visibleDetailTabs(a)
 		step := 1
 		if key == "left" {
-			step = len(detailTabs) - 1
+			step = len(tabs) - 1
 		}
-		d.tab = (d.tab + step) % len(detailTabs)
+		d.tab = tabs[(slices.Index(tabs, d.tab)+step)%len(tabs)]
 		d.body.GotoTop()
 		return m, nil, true
 	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c":
@@ -340,7 +347,7 @@ func (m model) detailView(p pal) string {
 		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
 		pane = p.text(p.fg).Render(path) + "\n\n" + p.text(p.bad).Render(msg)
 	} else {
-		pane = m.detailTabsRow(p) + "\n\n" + m.detailContent(p, a, paneW)
+		pane = m.detailTabsRow(p, a) + "\n\n" + m.detailContent(p, a, paneW)
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, ruleTop, ruleBot := pane, strings.Repeat("─", w), strings.Repeat("─", w)
@@ -355,13 +362,14 @@ func (m model) detailView(p pal) string {
 		p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 
-func (m model) detailTabsRow(p pal) string {
-	tabs := make([]string, len(detailTabs))
-	for i, t := range detailTabs {
-		tabs[i] = p.text(p.dim).Render(" " + t + " ")
-		if i == m.detail.tab {
+func (m model) detailTabsRow(p pal, a store.Application) string {
+	visible := visibleDetailTabs(a)
+	tabs := make([]string, len(visible))
+	for i, t := range visible {
+		tabs[i] = p.text(p.dim).Render(" " + string(t) + " ")
+		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + t + "]")
+			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + string(t) + "]")
 		}
 	}
 	return strings.Join(tabs, " ")
