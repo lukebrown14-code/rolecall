@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "id": "backend",
+      "category": "Engineering",
+      "track": "SWE",
+      "priority": "primary",
+      "titles": ["Software Engineer"],
+      "search_terms": ["software engineer"],
+      "evidence": "Fictional fixture evidence",
+      "gaps": "Fictional fixture gap"
+    },
+    {
+      "id": "sre",
+      "category": "Infrastructure",
+      "track": "Platform",
+      "priority": "secondary",
+      "titles": ["Platform Engineer"],
+      "search_terms": ["platform engineer"],
+      "evidence": "Fictional fixture evidence",
+      "gaps": "Fictional fixture gap"
+    }
+  ]
+}
