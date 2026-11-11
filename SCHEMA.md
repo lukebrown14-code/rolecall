@@ -147,6 +147,19 @@ patch it without reformatting.
 The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
 filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
 
+`search_area` (read by the Sweep and `find-jobs`) is where roles must be:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `places` | array of strings | countries, regions, states or cities, e.g. `Australia`, `APAC`, `Sydney`. Matched ignoring case |
+| `remote` | `in-places` \| `anywhere` \| `no` | whether remote roles count. Default `in-places`: a remote role is kept when it names a Place or no known place |
+
+A missing `search_area` means no filter: the Sweep keeps every location and reports
+`no Search area set: all locations kept`. A built-in gazetteer (`plugin/gazetteer.json`) maps
+countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
+if it names a Place, dropped if it names only known places outside the Places, and kept if its
+location is empty or unknown. `--all-locations` bypasses the filter.
+
 ## Fixtures
 
 `fixtures/workspace/` holds a fictional workspace that covers: every Status; Ready, Written and
