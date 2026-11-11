@@ -2,12 +2,16 @@ package ui
 
 import "github.com/lukebrown14-code/rolecall/store"
 
-// Screens, numbered 1-3.
+// Screens, numbered 1-4.
 const (
 	screenLeads   = "Leads"
 	screenDraft   = "Draft"
 	screenApplied = "Applied"
+	screenStats   = "Stats"
 )
+
+// statsScreen is the index of Stats in screens.
+const statsScreen = 3
 
 // Tables: the views within a screen. Applied, Interviewing and Offer are named after
 // their one Status.

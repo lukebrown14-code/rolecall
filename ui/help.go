@@ -66,6 +66,13 @@ func (m model) helpKeys() []helpKey {
 		}
 		return keys
 	}
+	if m.screen == statsScreen {
+		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-3", "screen")}
+		if len(m.tracks) > 0 {
+			keys = append(keys, help(groupMore, "t", "cycle track"))
+		}
+		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
 	usable := !onRow || a.Malformed == nil
