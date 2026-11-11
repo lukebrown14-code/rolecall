@@ -24,7 +24,7 @@ func TestCheckReportsLooseWorkspaceFilesAndFolders(t *testing.T) {
 		}
 	}
 
-	warnings, err := Check(root)
+	warnings, err := Check(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestCheckReportsAllClearForPrivateWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	warnings, err := Check(root)
+	warnings, err := Check(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

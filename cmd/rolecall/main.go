@@ -115,7 +115,7 @@ func runDoctor(dir string) error {
 	if err != nil {
 		return err
 	}
-	warnings, err := doctor.Check(c.Workspace)
+	warnings, err := doctor.Check(c.Workspace, doctor.GitHubVisibilityLookup)
 	if err != nil {
 		return fmt.Errorf("check Workspace permissions: %w", err)
 	}
