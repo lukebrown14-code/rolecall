@@ -74,3 +74,71 @@ func TestCLIMalformedWorkspaceNamesPathWithoutValues(t *testing.T) {
 		t.Fatalf("want safe error naming %s, got %q %v", workspaceConfig, out, err)
 	}
 }
+
+func TestCLIDoctorUsesConfiguredWorkspaceAndIgnoresDownloads(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspace := filepath.Join(home, "private-workspace")
+	if err := os.Mkdir(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(home, "Downloads")
+	if err := os.Mkdir(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outside, "loose.txt"), []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte("workspace = \""+workspace+"\"\ndownloads = \""+outside+"\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "Workspace permissions are private.") || strings.Contains(string(out), outside) {
+		t.Fatalf("doctor output = %q, err = %v", out, err)
+	}
+}
+
+func TestCLIDoctorDirWarnsButExitsSuccessfully(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspace := filepath.Join(home, "selected")
+	if err := os.Mkdir(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte("workspace = \"/a/different/workspace\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binary, "doctor", "--dir", workspace)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) {
+		t.Fatalf("doctor output = %q, err = %v", out, err)
+	}
+}
+
+func buildRolecall(t *testing.T) string {
+	t.Helper()
+	binary := filepath.Join(t.TempDir(), "rolecall")
+	if out, err := exec.Command("go", "build", "-o", binary, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %s %v", out, err)
+	}
+	return binary
+}
