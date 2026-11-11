@@ -143,6 +143,102 @@ func TestProfileMissingShowsTheMessageAndNoList(t *testing.T) {
 	}
 }
 
+// hasProfileDivider reports a run of rule dashes in the list column, before the pane
+// separator: the row the other Profile files sit under.
+func hasProfileDivider(view string) bool {
+	for _, line := range strings.Split(view, "\n") {
+		left, _, ok := strings.Cut(line, "│")
+		if !ok {
+			continue
+		}
+		left = strings.TrimSpace(left)
+		if len(left) >= 2 && strings.Trim(left, "─") == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// profileKeysToFile opens the fixture Profile and walks past its six sections to the
+// first other file.
+var profileKeysToFile = []string{"5", "j", "j", "j", "j", "j", "j"}
+
+// The other Profile files that exist sit below a divider, after the sections.
+func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	if !hasProfileDivider(view) {
+		t.Fatalf("no divider above the other Profile files:\n%s", view)
+	}
+	last := strings.Index(view, "Facts that are NOT")
+	projects := strings.Index(view, "projects.md")
+	if last < 0 || projects < 0 || projects < last {
+		t.Fatalf("projects.md not below the sections:\n%s", view)
+	}
+	if !strings.Contains(view[last:projects], "─") {
+		t.Fatalf("projects.md not below a divider:\n%s", view)
+	}
+	for _, absent := range []string{"writing-preferences.md", "phrasing-bank.md"} {
+		if strings.Contains(view, absent) {
+			t.Fatalf("%s listed but not in the Workspace:\n%s", absent, view)
+		}
+	}
+}
+
+// j crosses from the last section to the first file and k crosses straight back.
+func TestProfileJKCrossesTheDivider(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	file := ansi.Strip(runKeys(t, root, 120, profileKeysToFile...))
+	if !strings.Contains(file, "▸ projects.md") || !strings.Contains(file, "prints local tide times") {
+		t.Fatalf("j did not reach projects.md:\n%s", file)
+	}
+	keys := append(append([]string{}, profileKeysToFile...), "k")
+	back := ansi.Strip(runKeys(t, root, 120, keys...))
+	if !strings.Contains(back, "No Kubernetes production experience") || strings.Contains(back, "prints local tide times") {
+		t.Fatalf("k did not cross back to the last section:\n%s", back)
+	}
+}
+
+// A selected file renders whole, and the context row names it rather than the Profile.
+func TestProfileSelectingAFileRendersItAndShowsItsPath(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, profileKeysToFile...))
+	for _, want := range []string{"▸ projects.md", "Tide Tables", "A command-line tool that prints local tide times. Go, open source.", "profile/projects.md"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("selected projects.md lacks %q:\n%s", want, view)
+		}
+	}
+}
+
+// With no other Profile files there is nothing under a divider, so the divider goes too.
+func TestProfileWithoutOtherFilesHasNoDivider(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		if err := os.Remove(filepath.Join(root, "profile", "projects.md")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	if hasProfileDivider(view) {
+		t.Fatalf("divider shown with no other Profile files:\n%s", view)
+	}
+}
+
+// A missing master-profile.md is still the missing Profile, other files or not.
+func TestProfileMissingMasterProfileKeepsTheMessage(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		if err := os.Remove(filepath.Join(root, "profile", "master-profile.md")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	if !strings.Contains(view, noProfile) {
+		t.Fatalf("missing Profile message absent:\n%s", view)
+	}
+	for _, unwanted := range []string{"SECTIONS", "projects.md"} {
+		if strings.Contains(view, unwanted) {
+			t.Fatalf("missing Profile still shows %q:\n%s", unwanted, view)
+		}
+	}
+}
+
 func TestProfileWithoutHeadingsShowsOneSection(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
 		writeMasterProfile(t, root, "Just prose.\n\nMore prose.\n")

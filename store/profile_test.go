@@ -194,6 +194,57 @@ func TestProfileMissingFileHasNoSections(t *testing.T) {
 	}
 }
 
+// The other Profile files are the three the Harness reads, in a fixed order, and only
+// the ones that exist. Anything else in profile/ is ignored.
+func TestProfileListsOtherFilesInOrder(t *testing.T) {
+	s := fixtureProfileStore(t)
+	dir := filepath.Join(s.Root(), "profile")
+	for _, name := range []string{"phrasing-bank.md", "writing-preferences.md", "notes.md"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("body of "+name+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got, paths []string
+	for _, f := range p.Files {
+		got = append(got, f.Name)
+		paths = append(paths, f.Path)
+	}
+	want := []string{"projects.md", "writing-preferences.md", "phrasing-bank.md"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("files = %v, want %v", got, want)
+	}
+	wantPaths := []string{"profile/projects.md", "profile/writing-preferences.md", "profile/phrasing-bank.md"}
+	if !reflect.DeepEqual(paths, wantPaths) {
+		t.Fatalf("paths = %v, want %v", paths, wantPaths)
+	}
+	if !strings.Contains(p.Files[0].Body, "Tide Tables") {
+		t.Fatalf("projects.md body = %q", p.Files[0].Body)
+	}
+}
+
+// A missing master-profile.md is still the missing Profile, but the other files it
+// can read are listed.
+func TestProfileMissingMasterProfileStillListsOtherFiles(t *testing.T) {
+	s := fixtureProfileStore(t)
+	if err := os.Remove(filepath.Join(s.Root(), "profile", "master-profile.md")); err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Exists || len(p.Sections) != 0 {
+		t.Fatalf("%+v", p)
+	}
+	if len(p.Files) != 1 || p.Files[0].Name != "projects.md" {
+		t.Fatalf("files = %+v, want projects.md", p.Files)
+	}
+}
+
 // `###` is a subheading inside a section, not a section of its own.
 func TestProfileSubheadingsAreNotSections(t *testing.T) {
 	s := fixtureProfileStore(t)

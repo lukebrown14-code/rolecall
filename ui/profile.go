@@ -40,9 +40,51 @@ const (
 // mutated in place, so copies of the model stay independent.
 type profileState struct {
 	profile  store.Profile
-	selected int // section index
+	selected int // index over the sections, then the other files
 	focus    int // profileList or profileContent
 	body     viewport.Model
+}
+
+// sectionCount is the selectable sections, before the divider.
+func (st profileState) sectionCount() int { return len(st.profile.Sections) }
+
+// entries is the whole selection: the sections, then the other files below the divider.
+func (st profileState) entries() int { return st.sectionCount() + len(st.profile.Files) }
+
+// file returns the selected other Profile file; false when a section is selected.
+func (st profileState) file() (store.ProfileFile, bool) {
+	i := st.selected - st.sectionCount()
+	if i < 0 || i >= len(st.profile.Files) {
+		return store.ProfileFile{}, false
+	}
+	return st.profile.Files[i], true
+}
+
+// path is the file the current selection reads.
+func (st profileState) path() string {
+	if file, ok := st.file(); ok {
+		return file.Path
+	}
+	return profilePath
+}
+
+// row is the list row the selection sits on. The divider takes one row between the
+// sections and the files, and is never selected itself.
+func (st profileState) row() int {
+	if len(st.profile.Files) > 0 && st.selected >= st.sectionCount() {
+		return st.selected + 1
+	}
+	return st.selected
+}
+
+// profileSelectedPath is the file the current selection reads: an other Profile file's
+// path, or master-profile.md for a section. e opens it. A missing Profile names the file
+// the notice names, because nothing can be selected.
+func (m model) profileSelectedPath() string {
+	if m.profile == nil || !m.profile.profile.Exists {
+		return profilePath
+	}
+	return m.profile.path()
 }
 
 // loadProfile re-reads the Profile. It runs when the Owner switches to the screen and on
@@ -57,7 +99,7 @@ func (m model) loadProfile() model {
 	if m.profile != nil {
 		st.selected, st.focus = m.profile.selected, m.profile.focus
 	}
-	st.selected = min(max(st.selected, 0), max(len(p.Sections)-1, 0))
+	st.selected = min(max(st.selected, 0), max(st.entries()-1, 0))
 	m.profile = st
 	return m.syncProfile()
 }
@@ -89,13 +131,16 @@ func (m model) profilePaneWidth() int {
 // profileContentWidth is the Markdown wrap width inside that pane.
 func (m model) profileContentWidth() int { return m.profilePaneWidth() - profileGutter }
 
-// profileMarkdown renders the selected section. Glamour tables can run wider than the
-// wrap width, so every line is cut to the pane rather than spilling over the frame.
+// profileMarkdown renders the selected section or other Profile file. Glamour tables can
+// run wider than the wrap width, so every line is cut to the pane rather than spilling
+// over the frame.
 func (m model) profileMarkdown(st profileState) string {
-	if st.selected < 0 || st.selected >= len(st.profile.Sections) {
-		return ""
+	var body string
+	if file, ok := st.file(); ok {
+		body = file.Body
+	} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
+		body = st.profile.Sections[st.selected].Body
 	}
-	body := st.profile.Sections[st.selected].Body
 	if body == "" {
 		return ""
 	}
@@ -110,7 +155,7 @@ func (m model) profileMarkdown(st profileState) string {
 // selectProfile moves the selection and follows it with the content pane.
 func (m model) selectProfile(delta int) model {
 	st := *m.profile
-	st.selected = min(max(st.selected+delta, 0), len(st.profile.Sections)-1)
+	st.selected = min(max(st.selected+delta, 0), max(st.entries()-1, 0))
 	st.body.GotoTop()
 	m.profile = &st
 	return m.syncProfile()
@@ -198,7 +243,7 @@ func (m model) profileContextRow(p pal, w int) string {
 	}
 	left := "  " + p.heading(pane)
 	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
-	return spread(left, p.text(p.dim).Render(xansi.Truncate(profilePath, avail, "…")), w-rightMargin)
+	return spread(left, p.text(p.dim).Render(xansi.Truncate(m.profileSelectedPath(), avail, "…")), w-rightMargin)
 }
 
 // profileBody is the list and content panes, or the missing-Profile notice. Both panes
@@ -214,23 +259,33 @@ func (m model) profileBody(p pal, w, h int) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, list, sep, pane)
 }
 
-// profileSectionList is one row per section, the selected one marked and bold. The
-// window follows the selection when there are more sections than lines.
+// profileSectionList is the sections, a divider, then the other Profile files that exist:
+// one row each, the selected one marked and bold. The window follows the selection when
+// the entries outrun the lines.
 func (m model) profileSectionList(p pal, h int) string {
 	st := m.profile
-	lines := make([]string, len(st.profile.Sections))
-	width := profileListWidth - profileGutter
+	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {
-		heading := xansi.Truncate(section.Heading, width-profileGutter, "…")
-		if i == st.selected {
-			lines[i] = p.text(p.accent).Bold(true).Render(profileMarker + heading)
-		} else {
-			lines[i] = "  " + p.text(p.dim).Render(heading)
-		}
+		rows = append(rows, profileListRow(p, section.Heading, i == st.selected))
 	}
-	if len(lines) > h {
-		start := min(max(0, st.selected-h/2), len(lines)-h)
-		lines = lines[start:]
+	if len(st.profile.Files) > 0 {
+		rows = append(rows, p.text(p.rule).Render(strings.Repeat("─", profileListWidth-profileGutter)))
 	}
-	return strings.Join(lines, "\n")
+	for i, file := range st.profile.Files {
+		rows = append(rows, profileListRow(p, file.Name, st.sectionCount()+i == st.selected))
+	}
+	if len(rows) > h {
+		start := min(max(0, st.row()-h/2), len(rows)-h)
+		rows = rows[start:]
+	}
+	return strings.Join(rows, "\n")
+}
+
+// profileListRow is one entry in the list column, cut to fit beside the marker.
+func profileListRow(p pal, name string, selected bool) string {
+	heading := xansi.Truncate(name, profileListWidth-2*profileGutter, "…")
+	if selected {
+		return p.text(p.accent).Bold(true).Render(profileMarker + heading)
+	}
+	return "  " + p.text(p.dim).Render(heading)
 }

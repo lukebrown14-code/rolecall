@@ -14,14 +14,25 @@ type ProfileSection struct {
 	Heading, Body string
 }
 
-// Profile is the locked fact set documents are written from: its Contact fields and
-// its sections in file order. Counts and the other Profile files come later.
+// ProfileFile is one of the other Profile files beside master-profile.md: its whole
+// Markdown for the screen to read, and the path e opens.
+type ProfileFile struct {
+	Name, Path, Body string
+}
+
+// Profile is the locked fact set documents are written from: its Contact fields, its
+// sections in file order, and the other Profile files that exist.
 type Profile struct {
 	Exists   bool              // master-profile.md was read
 	Contact  map[string]string // field -> cleaned value
 	Missing  []string          // required fields with no value, in Name, Email order
 	Sections []ProfileSection  // `##` sections in file order
+	Files    []ProfileFile     // other Profile files, in profileFileNames order
 }
+
+// profileFileNames are the other files the Harness reads, in the order the screen lists
+// them. Anything else in profile/ is the Owner's business and is not listed.
+var profileFileNames = []string{"projects.md", "writing-preferences.md", "phrasing-bank.md"}
 
 // requiredContact is the order the Profile screen reports missing fields in.
 var requiredContact = []string{"Name", "Email"}
@@ -33,9 +44,9 @@ var (
 	contactMarkup = regexp.MustCompile("\\*\\*([^*\\n]+)\\*\\*|\\*([^*\\n]+)\\*|`([^`\\n]+)`")
 )
 
-// Profile reads profile/master-profile.md: its Contact and its `##` sections. A
-// missing file or section has no fields, so the required ones are reported missing,
-// not an error.
+// Profile reads profile/master-profile.md: its Contact, its `##` sections, and the
+// other Profile files that exist. A missing file or section has no fields, so the
+// required ones are reported missing, not an error.
 func (s *Store) Profile() (Profile, error) {
 	b, err := os.ReadFile(filepath.Join(s.root, "profile", "master-profile.md"))
 	exists := true
@@ -49,7 +60,28 @@ func (s *Store) Profile() (Profile, error) {
 	if exists {
 		sections = parseSections(string(b))
 	}
-	return Profile{Exists: exists, Contact: contact, Missing: missingContact(contact), Sections: sections}, nil
+	files, err := s.profileFiles()
+	if err != nil {
+		return Profile{}, err
+	}
+	return Profile{Exists: exists, Contact: contact, Missing: missingContact(contact), Sections: sections, Files: files}, nil
+}
+
+// profileFiles reads the other Profile files, skipping the ones that do not exist: a
+// file the Owner never made is simply absent from the list.
+func (s *Store) profileFiles() ([]ProfileFile, error) {
+	var files []ProfileFile
+	for _, name := range profileFileNames {
+		path := filepath.Join("profile", name)
+		b, err := os.ReadFile(filepath.Join(s.root, path))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		files = append(files, ProfileFile{Name: name, Path: path, Body: string(b)})
+	}
+	return files, nil
 }
 
 // parseSections splits the Profile at its `##` headings. Text before the first heading
