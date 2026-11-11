@@ -50,6 +50,7 @@ type model struct {
 	capturedRun           bool // a build or fetch is in flight; only one captured run at a time
 	building              *buildState
 	spinner               spinner.Model
+	profile               *profileState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -235,6 +236,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return next.syncDetail(), cmd
 			}
 		}
+		if next, ok := m.screenKey(k); ok {
+			return next, nil
+		}
 		if !m.hasTables() {
 			return screenDefs[m.screen].key(m, k)
 		}
@@ -290,10 +294,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "1", "2", "3", "4":
-			m.screen = int(k.String()[0] - '1')
-			m.table = 0
-			m.cursor = 0
 		case "tab":
 			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
@@ -323,6 +323,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m = m.syncDetail()
+	m = m.syncProfile()
 	n := len(m.rows())
 	if m.cursor >= n {
 		m.cursor = n - 1
