@@ -4,6 +4,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -43,6 +44,23 @@ func TestFolderDocuments(t *testing.T) {
 				t.Fatalf("got %q want %q", app.Documents, tc.want)
 			}
 		})
+	}
+}
+
+func TestMalformedWorkspaceErrorNamesPathWithoutValues(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "workspace.json")
+	const sentinel = "PRIVATE_WORKSPACE_SENTINEL"
+	if err := os.WriteFile(path, []byte(`{"tracks":["`+sentinel+`"],}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.Tracks()
+	if err == nil || !strings.Contains(err.Error(), path) || strings.Contains(err.Error(), sentinel) {
+		t.Fatalf("error should name workspace path without quoting values: %v", err)
 	}
 }
 
