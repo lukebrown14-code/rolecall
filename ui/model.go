@@ -141,6 +141,26 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 func beforeApplied(table string) bool { return table == tableLeads || table == tableDraft }
 
 func (m model) count(screen int, table string) int { return len(m.rowsOf(screen, table)) }
+
+// totalCount is the Applications in a view ignoring the track and text filters, so the
+// header and tab counts stay totals; the scope line shows the filtered number beside them.
+func (m model) totalCount(screen int, table string) int {
+	if table == allView {
+		n := 0
+		for _, g := range appliedGroups {
+			n += m.totalCount(screen, g)
+		}
+		return n
+	}
+	n := 0
+	for _, a := range m.apps {
+		s, t := StatusLocation(a.Status)
+		if s == screens[screen] && t == table {
+			n++
+		}
+	}
+	return n
+}
 func (m model) matches(a store.Application) bool {
 	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
 }
