@@ -1,0 +1,155 @@
+# Workspace schema
+
+The contract between every writer of a rolecall workspace: the TUI (Go), the plugin scripts
+(`build.py`, `sweep.py`, Python) and the harness agent following the plugin skills. If a
+writer disagrees with this file, the writer is wrong. Both codebases test against the shared
+fixtures in `fixtures/`.
+
+Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in `GLOSSARY.md`.
+
+## Workspace layout
+
+```
+<workspace>/
+├─ workspace.json              # tracks, gates, sweep sources
+├─ profile/                    # Owner facts: read by the agent, never by the TUI
+│  ├─ master-profile.md
+│  ├─ phrasing-bank.md
+│  ├─ projects.md
+│  └─ writing-preferences.md
+├─ cv/                         # the Owner's general CV (optional)
+└─ jobs/
+   └─ <track>/
+      └─ <slug>/               # one folder per Application
+```
+
+- A folder is an Application **if and only if** it contains `meta.yml`.
+- Anything else under `jobs/` (stray files, `TRACKER.md` remnants) is ignored.
+- `<track>` is where the folder was created. After that, the `track` key in `meta.yml` wins.
+  Folders are never moved when the track changes.
+
+### Folder name
+
+`<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
+`[a-z0-9]` becomes `-`, trimmed, with the creation date. If the name is taken, append `-2`,
+`-3`, and so on. The name is an identifier only. Never parse meaning out of it.
+
+## Application folder
+
+| File | Required | Written by | Meaning |
+|---|---|---|---|
+| `meta.yml` | ✅ | TUI, agent, `build.py` | the record (below) |
+| `jd.md` | ✅ (may be empty) | TUI (Add), agent | job description, plain Markdown |
+| `notes.md` | — | TUI (`$EDITOR`), Owner | free-text notes |
+| `fit.md` | — | agent | the reasoning behind `fit` |
+| `gaps.md` | — | agent | gaps found while writing |
+| `resume.md` | — | agent | resume source (writing-rules Markdown format) |
+| `cover-letter.md` | — | agent | cover letter source |
+| `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
+| `sent/` | — | TUI (on → Applied) | frozen copy of what was sent. Never overwritten |
+
+`jd.md` has no front matter. Older folders may still have it, and readers ignore it.
+
+### Documents state
+
+Worked out from files, never stored:
+
+| State | Rule |
+|---|---|
+| **Ready** | `out/` holds a resume PDF, plus a cover letter PDF unless `resume_only: true` |
+| **Written** | not Ready, and `resume.md` has non-whitespace text |
+| *(none)* | otherwise |
+
+PDF names come from `build.py`: `<Owner name> Resume <label>.pdf` and
+`<Owner name> <label> Cover Letter.pdf`. To classify a file, readers match `Resume` /
+`Cover Letter` in the name.
+
+## `meta.yml`
+
+### Example
+
+```yaml
+schema: 1
+title: Software Engineer
+company: UpGuard
+track: SWE
+url: https://jobs.ashbyhq.com/upguard/78833788
+closes: 2026-12-01
+fit: Strong
+resume_only: false
+status_log:
+  - {status: Lead, at: 2026-09-24T01:00:00Z}
+  - {status: Draft, at: 2026-09-24T03:12:00Z}
+  - {status: Applied, at: 2026-09-25T00:30:00Z}
+```
+
+### Keys
+
+| Key | Type | Required | Notes |
+|---|---|---|---|
+| `schema` | int | ✅ | `1`. A missing key means 1 (pre-migration files) |
+| `title` | string | ✅ | role title as advertised |
+| `company` | string | ✅ | |
+| `track` | string | ✅ | one of `workspace.json` → `tracks`. Unknown values are shown, not rejected |
+| `url` | string | — | ad URL. The Sweep's dedupe key |
+| `closes` | date `YYYY-MM-DD` | — | application close date |
+| `fit` | enum | — | `Strong` · `Good` · `Marginal` · `Poor`. Empty or missing = not assessed |
+| `resume_only` | bool | — | `true` / `false`. Missing = `false` |
+| `status_log` | list | ✅ | append-only history (below). The current Status is the **last** entry |
+
+**Unknown keys must be preserved** by every writer, byte for byte. Legacy keys from the
+dashboard era (`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`,
+`outcome_date`, `rejection_reason`) fall under this rule. No writer adds them any more.
+
+### `status_log`
+
+Each entry is a flow map on one line:
+
+```yaml
+  - {status: <Status>, at: <RFC 3339 UTC, Z suffix>}
+  - {status: <Status>, at: <date or timestamp>, approx: true}   # migration only
+```
+
+- **Status values:** `Lead` · `Draft` · `Applied` · `Interviewing` · `Offer` · `Rejected` ·
+  `Withdrawn` · `Dismissed`. Case-sensitive.
+- **Append only.** Entries are never edited or removed. Undo appends the earlier Status again.
+- An entry is never appended if it repeats the current Status.
+- An empty log (`status_log: []` or no entries) is read as `Lead`.
+- **Applied date** = `at` of the **first** `Applied` entry. It's never stored separately.
+- **Last change** = `at` of the last entry. Follow-up due is measured from it.
+- `approx: true` marks a date rebuilt by migration. Readers show it with a `~` prefix.
+
+### Who may change what
+
+| Writer | May write | Must not |
+|---|---|---|
+| **TUI** | creates folders. Writes any key through Add / Edit. Appends any Status | touch docs, `fit.md`, `out/` |
+| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs and `fit.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
+| **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
+
+### Format rules (both languages)
+
+The format is a strict subset of YAML, so Python can read it with no YAML library and Go can
+patch it without reformatting.
+
+1. Top-level lines: `key: value`. Key matches `[A-Za-z_][A-Za-z0-9_-]*`. No nesting except `status_log`.
+2. Scalars may be plain or double-quoted. Inline `# comments` on scalar lines are allowed and kept.
+3. `status_log:` is followed by entries indented two spaces, each `- {…}` on its own line.
+4. UTF-8, LF line endings, trailing newline.
+5. **Writers patch, they don't rewrite.** Re-read the file right before writing, change only the
+   lines for the keys being set (append missing keys at the end, before `status_log`), and
+   write atomically (temp file in the same folder, then rename).
+6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
+   and its path. Writers refuse to touch it.
+
+## `workspace.json` (read by the TUI)
+
+The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
+filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
+
+## Fixtures
+
+`fixtures/workspace/` holds a fictional workspace that covers: every Status; Ready, Written and
+no docs; `resume_only`; unknown keys; `approx` entries; an empty log; and one malformed
+`meta.yml`. The Go store tests and the Python `build.py` tests both load it. Any change to this
+file updates the fixtures in the same commit.
