@@ -1,0 +1,35 @@
+---
+name: Bug report
+about: Report a problem with rolecall
+title: ""
+labels: bug
+assignees: ""
+---
+
+## Before you report
+
+**Do not paste `meta.yml`, your CV, or your Profile here.** These files may contain
+personal information. Remove personal information from any logs or screenshots
+too.
+
+Please try to reproduce the problem with the example workspace at
+`fixtures/workspace` before filing the report.
+
+## Describe the bug
+
+What happened?
+
+## Steps to reproduce
+
+1.
+2.
+3.
+
+## Expected behaviour
+
+What did you expect to happen?
+
+## Environment
+
+- rolecall version / commit:
+- OS:

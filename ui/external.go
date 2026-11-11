@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -93,6 +94,15 @@ func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd 
 		err := c.Run()
 		return done(CapturedResult{Stdout: stdout.String(), Stderr: stderr.String(), Err: err})
 	}
+}
+
+// InitGit creates a local repository for a newly initialized Workspace.
+func InitGit(root string) error {
+	cmd := exec.Command("git", "init", "--quiet", root)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
 }
 
 // editFile opens a file of the Application folder in the Owner's editor. The editor

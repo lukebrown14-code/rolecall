@@ -69,3 +69,28 @@ func TestStatusHistoryAndMalformedFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestMalformedMetaErrorNamesPathWithoutValues(t *testing.T) {
+	root := t.TempDir()
+	folder := filepath.Join(root, "jobs", "SWE", "bad")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const sentinel = "PrivateMetaSentinel"
+	body := "title: Engineer\ncompany: Acme\ntrack: SWE\nstatus_log:\n  - {status: " + sentinel + ", at: 2026-01-01}\n"
+	if err := os.WriteFile(filepath.Join(folder, "meta.yml"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apps, err := s.Scan()
+	if err != nil || len(apps) != 1 {
+		t.Fatalf("scan: %v, %v", apps, err)
+	}
+	message := apps[0].Malformed.Error()
+	if !strings.Contains(message, filepath.Join(folder, "meta.yml")) || strings.Contains(message, sentinel) {
+		t.Fatalf("malformed metadata error should name path without quoting values: %s", message)
+	}
+}
