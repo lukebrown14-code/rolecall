@@ -31,6 +31,29 @@ read `plugin/skills/<name>/SKILL.md` by path, and the Python scripts under
 which are personal data: set `ROLECALL_GITHUB_OWNER` and
 `ROLECALL_GITHUB_REPOS` (comma-separated) rather than committing them here.
 
+## One-time migration from the dashboard era
+
+`plugin/scripts/migrate.py` converts an older Workspace (job folders with `jd.md`
+front matter plus `TRACKER.md`, `SHORTLIST.md` and `DISMISSED.md`) to SCHEMA v1.
+It is a **one-time** step: after it runs, the TUI and the plugin skills own the
+Workspace. Run it with the TUI closed.
+
+Always print the plan first. `--dry-run` writes nothing:
+
+```sh
+python3 plugin/scripts/migrate.py --data /path/to/workspace --dry-run
+python3 plugin/scripts/migrate.py --data /path/to/workspace
+```
+
+The plan lists every folder, key, Status, Fit conflict and archived file. The
+apply step writes `meta.yml` through the same validating atomic writer as the
+other scripts, removes `jd.md` front matter while keeping the body bytes, turns
+`SHORTLIST.md` rows at `New` into Lead folders and `DISMISSED.md` rows into
+Dismissed folders, then moves the five dashboard-era files to `jobs/_archive/`.
+Nothing is deleted. A folder whose `meta.yml` already has `schema` is skipped,
+so a second run changes nothing. Fit values that cannot be mapped are reported
+and left unset for the Owner to set by hand.
+
 ## Building documents
 
 `build.py` turns an Application's `resume.md` and `cover-letter.md` into the

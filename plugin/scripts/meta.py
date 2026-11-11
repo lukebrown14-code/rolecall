@@ -550,8 +550,34 @@ def append_status(folder, status, at):
     _update(folder, change)
 
 
-def create(workspace, fields, now=None):
-    """Create a Lead Application and return its folder."""
+def _entry_line(status, at, approx):
+    if status not in STATUSES:
+        raise MetaError(f"invalid Status {status!r}")
+    if not _valid_timestamp(str(at)):
+        raise MetaError(f"invalid status timestamp {at!r}")
+    line = f"  - {{status: {status}, at: {at}"
+    if approx:
+        line += ", approx: true"
+    return line + "}"
+
+
+def _meta_text(fields, status_log):
+    """Render a complete meta.yml, validating every Status entry."""
+    text = "schema: 1\n"
+    for key in ("title", "company", "track", "url", "closes", "fit"):
+        value = fields.get(key, "")
+        if value:
+            text += key + ": " + quote_scalar(value) + "\n"
+    text += "status_log:\n"
+    for status, at, approx in status_log:
+        text += _entry_line(status, at, approx) + "\n"
+    checked = _read_meta("", text.encode("utf-8"))
+    if checked.malformed:
+        raise MetaError(checked.malformed)
+    return text
+
+
+def _required_fields(fields):
     title = fields.get("title", "")
     company = fields.get("company", "")
     track = fields.get("track", "")
@@ -564,13 +590,18 @@ def create(workspace, fields, now=None):
         or "\\" in track
     ):
         raise MetaError("Title, Company and a single Track folder are required")
+
+
+def create(workspace, fields, now=None, status_log=None):
+    """Create a Lead Application and return its folder."""
+    _required_fields(fields)
+    title = fields.get("title", "")
+    company = fields.get("company", "")
+    track = fields.get("track", "")
     moment = now if now is not None else datetime.now(timezone.utc)
-    text = "schema: 1\n"
-    for key in ("title", "company", "track", "url", "closes", "fit"):
-        value = fields.get(key, "")
-        if value:
-            text += key + ": " + quote_scalar(value) + "\n"
-    text += "status_log:\n  - {status: Lead, at: " + _utc_stamp(moment) + "}\n"
+    if status_log is None:
+        status_log = [("Lead", _utc_stamp(moment), False)]
+    text = _meta_text(fields, status_log)
     checked = _read_meta("", text.encode("utf-8"))
     if checked.malformed:
         raise MetaError(checked.malformed)
@@ -598,6 +629,47 @@ def create(workspace, fields, now=None):
         shutil.rmtree(folder, ignore_errors=True)
         raise
     return folder
+
+
+def create_migrated(folder, fields, status_log):
+    """Write a complete meta.yml into an existing folder (migration only)."""
+    _required_fields(fields)
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise MetaError(f"no such folder: {folder}")
+    text = _meta_text(fields, status_log)
+    _atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
+
+
+def set_status_log(folder, status_log):
+    """Replace the status_log entries, keeping every other byte and comment."""
+    entries = [_entry_line(status, at, approx) for status, at, approx in status_log]
+
+    def change(lines):
+        index = -1
+        for position, line in enumerate(lines):
+            if line.startswith("status_log:"):
+                index = position
+                break
+        if index < 0:
+            while lines and not lines[-1].strip():
+                lines.pop()
+            lines.append("status_log:")
+            lines.extend(entries)
+            return lines
+        lines[index] = "status_log:"
+        # Keep indented comments inside the block; replace only entry lines.
+        kept = []
+        end = index + 1
+        while end < len(lines) and (
+            lines[end].startswith((" ", "\t")) or not lines[end].strip()
+        ):
+            if lines[end].strip() and not lines[end].lstrip().startswith("- "):
+                kept.append(lines[end])
+            end += 1
+        return lines[: index + 1] + entries + kept + lines[end:]
+
+    _update(folder, change)
 
 
 def find_by_url(workspace, url):
