@@ -158,7 +158,8 @@ func TestAddRejectsMissingRequiredFields(t *testing.T) {
 	before := h.snapshot()
 	h.tm.Type("a")
 	h.wait("Title")
-	h.enter()
+	h.enter() // empty URL moves on to Title
+	h.enter() // Title is empty
 	h.wait("Title is required")
 	h.tm.Type("Site Reliability Engineer")
 	h.advance()
@@ -179,10 +180,10 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	before := h.snapshot()
 	h.tm.Type("a")
 	h.wait("Title")
+	h.advance() // empty URL moves on to Title
 	h.tm.Type("Site Reliability Engineer")
 	h.advance()
 	h.tm.Type("Acme")
-	h.advance()
 	h.advance()
 	h.advance()
 	h.tm.Type("2026-13-45")
@@ -198,13 +199,13 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 // fillAdd completes the form, accepting the first Track and a blank Fit.
 func (h *addHarness) fillAdd(title, company, url, closes string) {
 	h.tm.Type("a")
-	h.wait("Title")
+	h.wait("URL")
+	h.tm.Type(url)
+	h.advance()
 	h.tm.Type(title)
 	h.advance()
 	h.tm.Type(company)
 	h.advance()
-	h.advance()
-	h.tm.Type(url)
 	h.advance()
 	h.tm.Type(closes)
 	h.advance()
