@@ -87,8 +87,10 @@ func (m model) profileSelectedPath() string {
 	return m.profile.path()
 }
 
-// loadProfile re-reads the Profile. It runs when the Owner switches to the screen and on
-// r; profile/ is not watched, so this is how the screen sees a change.
+// loadProfile re-reads the Profile. It runs when the Owner switches to the screen, on
+// r, and after the editor closes; profile/ is not watched, so this is how the screen
+// sees a change. The selection is kept by name, not index, so a heading added above it
+// does not move it; focus stays on the pane the Owner left it on.
 func (m model) loadProfile() model {
 	p, err := m.store.Profile()
 	if err != nil {
@@ -97,11 +99,34 @@ func (m model) loadProfile() model {
 	}
 	st := &profileState{profile: p, focus: profileList, body: viewport.New()}
 	if m.profile != nil {
-		st.selected, st.focus = m.profile.selected, m.profile.focus
+		st.selected, st.focus = m.profile.selectedIndex(p), m.profile.focus
 	}
 	st.selected = min(max(st.selected, 0), max(st.entries()-1, 0))
 	m.profile = st
 	return m.syncProfile()
+}
+
+// selectedIndex finds where the selection points in a freshly read Profile: the same
+// section heading or other file name. A selection that is gone falls back to the first
+// section, which is where a missing Profile starts too.
+func (st profileState) selectedIndex(p store.Profile) int {
+	if st.selected < len(st.profile.Sections) {
+		heading := st.profile.Sections[st.selected].Heading
+		for i, section := range p.Sections {
+			if section.Heading == heading {
+				return i
+			}
+		}
+		return 0
+	}
+	if file, ok := st.file(); ok {
+		for i, other := range p.Files {
+			if other.Name == file.Name {
+				return len(p.Sections) + i
+			}
+		}
+	}
+	return 0
 }
 
 // syncProfile keeps the content pane at the current size and on the selected section,
@@ -173,11 +198,16 @@ func (m model) scrollProfile(delta int) model {
 	return m
 }
 
-// profileHelpKeys is the keys Profile accepts: sections, focus, screens, rescan, help
-// and quit. Application actions are absent because they do nothing here.
+// profileHelpKeys is the keys Profile accepts: sections, edit, focus, screens, rescan,
+// help and quit. Application actions are absent because they do nothing here.
 func (m model) profileHelpKeys() []helpKey {
-	keys := []helpKey{help(groupAction, "j k", "section"), help(groupNav, "tab", "focus"),
-		help(groupNav, "1-5", "screen"), help(groupNav, "?", "all keys")}
+	keys := []helpKey{help(groupAction, "j k", "section")}
+	if m.profile != nil && m.profile.profile.Exists {
+		// e can only act on a Profile that exists.
+		keys = append(keys, help(groupAction, "e", "edit file"))
+	}
+	keys = append(keys, help(groupNav, "tab", "focus"),
+		help(groupNav, "1-5", "screen"), help(groupNav, "?", "all keys"))
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error"))
 	}
@@ -199,9 +229,13 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.quit()
 	}
 	if m.profile == nil || !m.profile.profile.Exists {
-		return m, nil // nothing to select or scroll, and e does not exist yet
+		return m, nil // nothing to select, scroll or edit
 	}
 	switch k.String() {
+	case "e":
+		// The screen never writes profile/: the Owner's editor does, and the reload
+		// follows when it exits, so the selection can stay on the same heading.
+		return m, m.editFile(m.store.Root(), m.profileSelectedPath())
 	case "tab", "shift+tab":
 		st := *m.profile
 		st.focus = (st.focus + 1) % profilePanes

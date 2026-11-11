@@ -189,6 +189,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectFolder(done.folder)
 			m.selectAfter = ""
 		}
+		// A Profile edit suspends from screen 5 and finishes with the Workspace root as
+		// its folder; profile/ is not watched, so reread it here. An Application edit
+		// still rescans its own folder above.
+		if m.screen == profileScreen || done.folder == m.store.Root() {
+			m = m.loadProfile()
+		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
 		if m.building == nil && !m.fetching() {

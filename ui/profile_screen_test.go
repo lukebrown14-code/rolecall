@@ -256,7 +256,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	before := profileFiles(t, root)
 	plain := ansi.Strip(runKeys(t, root, 120, "5"))
-	withKeys := ansi.Strip(runKeys(t, root, 120, "5", "a", "b", "f", "p", "e", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
+	withKeys := ansi.Strip(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
 	if plain != withKeys {
 		t.Fatalf("an Application key or t changed Profile:\n--- plain ---\n%s\n--- with keys ---\n%s", plain, withKeys)
 	}
@@ -267,15 +267,27 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 
 func TestProfileHelpListsOnlyValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "?"))
-	for _, want := range []string{"j k", "section", "tab", "focus", "1-5", "screen", "rescan", "all keys", "quit"} {
+	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-5", "screen", "rescan", "all keys", "quit"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}
 	}
-	for _, unwanted := range []string{"move", "add", "search", "edit", "notes", "dismiss", "download", "build", "handoff", "enter"} {
+	for _, unwanted := range []string{"move", "add", "search", "notes", "dismiss", "download", "build", "handoff", "enter"} {
 		if strings.Contains(view, unwanted) {
 			t.Fatalf("help shows %q on Profile:\n%s", unwanted, view)
 		}
+	}
+}
+
+func TestProfileHelpOmitsEditFileWithNoProfile(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		if err := os.Remove(filepath.Join(root, "profile", "master-profile.md")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	view := ansi.Strip(runKeys(t, root, 120, "5", "?"))
+	if strings.Contains(view, "edit file") {
+		t.Fatalf("help offers e with no Profile:\n%s", view)
 	}
 }
 
