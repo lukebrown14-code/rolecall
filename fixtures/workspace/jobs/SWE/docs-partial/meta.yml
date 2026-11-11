@@ -1,0 +1,8 @@
+schema: 1
+title: docs-partial
+company: Fictional Labs
+track: SWE
+url: https://example.test/shared
+legacy_key: "kept" # unknown
+status_log:
+  - {status: Offer, at: 2026-09-24, approx: true}

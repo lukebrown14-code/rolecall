@@ -1,10 +1,169 @@
 [
   {
+    "Title": "docs-dismissed",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Dismissed",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Dismissed",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Dismissed",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "docs-none",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Draft",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Draft",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Draft",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "docs-partial",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Offer",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "PDFs": [
+      "Owner Resume Role.pdf"
+    ],
+    "Documents": "Written",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Offer",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Offer",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "docs-ready",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Rejected",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "PDFs": [
+      "Owner Resume Role.pdf",
+      "Owner Role Cover Letter.pdf"
+    ],
+    "Documents": "Ready",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Rejected",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Rejected",
+      "At": "2026-09-24",
+      "Approx": true
+    },
+    "HasSent": true
+  },
+  {
+    "Title": "docs-resume-only",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Withdrawn",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "ResumeOnly": true,
+    "PDFs": [
+      "Owner Resume Role.pdf"
+    ],
+    "Documents": "Ready",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Withdrawn",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Withdrawn",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "docs-written",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Interviewing",
+    "URL": "https://example.test/shared",
+    "HasJD": true,
+    "HasResume": true,
+    "HasNotes": true,
+    "HasFit": true,
+    "HasGaps": true,
+    "HasCoverLetter": true,
+    "Documents": "Written",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Interviewing",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Interviewing",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
     "Title": "Empty",
     "Company": "Example",
     "Track": "SWE",
     "Schema": 1,
-    "Status": "Lead"
+    "Status": "Lead",
+    "HasJD": true
+  },
+  {
+    "Title": "Empty log",
+    "Company": "Fictional Labs",
+    "Track": "SWE",
+    "Status": "Lead",
+    "Schema": 1
   },
   {
     "Title": "Platform Engineer",
@@ -21,7 +180,8 @@
     "LastChange": {
       "Status": "Lead",
       "At": "2026-09-24T01:00:00Z"
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Broken",
@@ -29,7 +189,8 @@
     "Track": "SWE",
     "Schema": 1,
     "Status": "Lead",
-    "MalformedExpected": true
+    "MalformedExpected": true,
+    "HasJD": true
   },
   {
     "Title": "Software Engineer",
@@ -54,7 +215,8 @@
     "LastChange": {
       "Status": "Applied",
       "At": "2026-09-25T01:00:00Z"
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -86,7 +248,8 @@
       "Status": "Dismissed",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -118,7 +281,8 @@
       "Status": "Draft",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -150,7 +314,8 @@
       "Status": "Interviewing",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -182,7 +347,8 @@
       "Status": "Offer",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -214,7 +380,8 @@
       "Status": "Rejected",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   },
   {
     "Title": "Engineer #1",
@@ -246,6 +413,7 @@
       "Status": "Withdrawn",
       "At": "2026-01-01",
       "Approx": true
-    }
+    },
+    "HasJD": true
   }
 ]

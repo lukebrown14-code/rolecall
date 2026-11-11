@@ -1,0 +1,9 @@
+schema: 1
+title: docs-resume-only
+company: Fictional Labs
+track: SWE
+url: https://example.test/shared
+resume_only: true
+legacy_key: "kept" # unknown
+status_log:
+  - {status: Withdrawn, at: 2026-09-24, approx: true}

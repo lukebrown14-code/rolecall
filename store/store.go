@@ -8,13 +8,16 @@ import (
 )
 
 type Application struct {
-	Folder, Title, Company, Track, Status string
-	Schema                                int
-	URL, Closes, Fit                      string
-	ResumeOnly                            bool
-	StatusLog                             []StatusEntry
-	AppliedDate, LastChange               *StatusEntry
-	Malformed                             error `json:"-"`
+	Folder, Title, Company, Track, Status                                string
+	Documents                                                            string
+	PDFs                                                                 []string
+	HasJD, HasNotes, HasFit, HasGaps, HasResume, HasCoverLetter, HasSent bool
+	Schema                                                               int
+	URL, Closes, Fit                                                     string
+	ResumeOnly                                                           bool
+	StatusLog                                                            []StatusEntry
+	AppliedDate, LastChange                                              *StatusEntry
+	Malformed                                                            error `json:"-"`
 }
 type StatusEntry struct {
 	Status string
@@ -56,16 +59,29 @@ func (s *Store) Scan() ([]Application, error) {
 				continue
 			}
 			dir := filepath.Join(s.root, "jobs", track.Name(), folder.Name())
-			b, err := os.ReadFile(filepath.Join(dir, "meta.yml"))
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
+			a, err := s.Rescan(dir)
 			if err != nil {
 				return nil, err
 			}
-			a := readApplication(dir, b)
-			apps = append(apps, a)
+			if a != nil {
+				apps = append(apps, *a)
+			}
 		}
 	}
 	return apps, nil
+}
+
+func (s *Store) Rescan(dir string) (*Application, error) {
+	b, err := os.ReadFile(filepath.Join(dir, "meta.yml"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	a := readApplication(dir, b)
+	if err = readFolder(&a); err != nil {
+		return nil, err
+	}
+	return &a, nil
 }
