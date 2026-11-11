@@ -39,10 +39,15 @@ func (m model) editNotes(folder string) tea.Cmd {
 		if err := m.store.EnsureNotes(folder); err != nil {
 			return externalFinished{folder, err}
 		}
-		// The editor preference may include flags or quoted executable paths. Pass the
-		// filename as a shell positional argument so Application paths remain literal.
-		return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, "notes.md"))()
+		return m.editFile(folder, "notes.md")()
 	}
+}
+
+// editFile opens a file of an Application in the Owner's editor.
+func (m model) editFile(folder, name string) tea.Cmd {
+	// The editor preference may include flags or quoted executable paths. Pass the
+	// filename as a shell positional argument so Application paths remain literal.
+	return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, name))
 }
 
 // Option configures the external-program boundary.

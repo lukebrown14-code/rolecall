@@ -24,6 +24,7 @@ func keys() []binding {
 		{key.NewBinding(key.WithKeys("1", "2", "3"), key.WithHelp("1/2/3", "screens")), false},
 		{key.NewBinding(key.WithKeys("tab", "shift+tab"), key.WithHelp("Tab/Shift-Tab", "tables")), true},
 		{key.NewBinding(key.WithKeys("up", "k", "down", "j", "g", "G"), key.WithHelp("↑↓/j/k/g/G", "cursor")), false},
+		{key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add")), false},
 		{key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rescan")), false},
 		{key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "full help")), false},
 		{key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q/Ctrl-C", "quit")), false},
@@ -42,6 +43,11 @@ type model struct {
 	options               []string
 	moveForm              *huh.Form
 	moveTarget            string
+	addForm               *huh.Form
+	addValues             *addValues
+	duplicate             *store.Application
+	duplicateFields       store.CreateFields
+	selectAfter           string
 	undo                  []undoMove
 	toast                 string
 	err                   error
@@ -103,6 +109,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+		if done.folder == m.selectAfter {
+			m.selectFolder(done.folder)
+			m.selectAfter = ""
+		}
+	}
+	if m.addForm != nil {
+		return m.updateAdd(msg)
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
+		return m.updateDuplicate(k)
 	}
 	if m.moveForm != nil {
 		if _, key := msg.(tea.KeyPressMsg); !key {
@@ -201,6 +217,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
+		case "a":
+			return m, m.openAdd()
 		case "t":
 			if len(m.tracks) > 0 {
 				m.track = (m.track + 1) % (len(m.tracks) + 1)
@@ -322,6 +340,7 @@ func (m model) View() tea.View {
 	if len(m.options) > 0 {
 		b.WriteString(m.moveView())
 	}
+	b.WriteString(m.addView())
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
 	}
