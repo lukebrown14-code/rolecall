@@ -8,12 +8,12 @@ built from every Application's ``meta.yml`` URL, whatever its Status.
 
 import importlib.util
 import json
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import copy_fixture_workspace, run_script
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "plugin" / "scripts" / "sweep.py"
@@ -28,20 +28,6 @@ def load():
 
 
 sw = load()
-
-
-def run(workspace, *args):
-    return subprocess.run(
-        [sys.executable, str(SCRIPT), "--data", str(workspace), *args],
-        capture_output=True,
-        text=True,
-    )
-
-
-def workspace_copy(tmp_path):
-    workspace = tmp_path / "workspace"
-    shutil.copytree(FIXTURE, workspace)
-    return workspace
 
 
 def write_workspace(workspace, config):
@@ -138,29 +124,29 @@ def test_malformed_json_stops_sweep(tmp_path):
 
 def test_catalogue_cli_is_workspace_local_and_read_only(tmp_path, catalogue):
     write_catalogue(tmp_path, catalogue)
-    result = run(tmp_path, "--roles")
+    result = run_script(tmp_path, SCRIPT, "--roles")
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == catalogue
     assert not (tmp_path / "jobs" / "sweep-candidates.md").exists()
     (tmp_path / "jobs" / "roles.json").unlink()
-    result = run(tmp_path, "--roles")
+    result = run_script(tmp_path, SCRIPT, "--roles")
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) is None
 
 
 def test_sources_cli_uses_same_catalogue_and_overrides_as_sweep(tmp_path, catalogue):
     write_catalogue(tmp_path, catalogue)
-    sources = json.loads(run(tmp_path, "--sources").stdout)
+    sources = json.loads(run_script(tmp_path, SCRIPT, "--sources").stdout)
     assert sources["greenhouse"].count("cultureamp") == 1
     assert "smartsheet" in sources["greenhouse"]
     (tmp_path / "workspace.json").write_text(json.dumps({"sources": {}}))
-    sources = json.loads(run(tmp_path, "--sources").stdout)
+    sources = json.loads(run_script(tmp_path, SCRIPT, "--sources").stdout)
     assert sources == {}
     assert not (tmp_path / "jobs" / "sweep-candidates.md").exists()
 
 
 def test_platforms_cli_is_read_only(tmp_path):
-    result = run(tmp_path, "--platforms")
+    result = run_script(tmp_path, SCRIPT, "--platforms")
     assert result.returncode == 0, result.stderr
     platforms = json.loads(result.stdout)
     assert "greenhouse" in platforms and "lever" in platforms
@@ -217,7 +203,7 @@ def test_sweep_explains_candidates_and_accounts_for_each_family_outcome(
     catalogue["roles"].append({**catalogue["roles"][0], "id": "excluded", "track": "AI"})
     workspace = sweep_workspace(tmp_path, catalogue, tracks=("SWE", "Analyst", "AI"))
 
-    def job(slug, location="Melbourne", content=""):
+    def job(slug, location="Brisbane, Australia", content=""):
         return dict(
             title=f"Implementation Consultant {slug}",
             company="Acme",
@@ -291,7 +277,7 @@ def test_sweep_collects_non_swe_roles_from_catalogue(tmp_path, monkeypatch, cata
             dict(
                 title="Implementation Consultant",
                 company="Acme",
-                location="Melbourne",
+                location="Brisbane, Australia",
                 url="https://example.com/implementation",
                 content="",
                 type_hint="Contract",
@@ -346,9 +332,8 @@ def test_scan_favourable_only_short_terms():
 @pytest.mark.parametrize(
     "loc",
     [
-        "Melbourne",
-        "Melbourne, VIC",
-        "Melbourne, Victoria, Australia",
+        "Brisbane, Australia",
+        "Brisbane, Queensland, Australia",
         "Remote - Australia",
         "Remote (AU)",
         "Australia",
@@ -383,7 +368,7 @@ def test_location_rejected(loc):
 
 
 def test_location_reject_overridden_by_au_place():
-    assert sw.location_ok("Melbourne or Singapore")
+    assert sw.location_ok("Brisbane, Australia or Singapore")
 
 
 def test_location_us_not_matched_inside_words():
@@ -412,7 +397,7 @@ def candidate(title, url):
     return dict(
         title=title,
         company="Fictional Labs",
-        location="Melbourne",
+        location="Brisbane, Australia",
         url=url,
         content="",
         type_hint="",
@@ -422,7 +407,7 @@ def candidate(title, url):
 
 
 def test_seen_urls_include_every_status(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     seen = sw.seen_urls(workspace)
     assert "https://example.com/status-dismissed" in seen
     assert "https://example.com/status-offer" in seen
@@ -431,7 +416,7 @@ def test_seen_urls_include_every_status(tmp_path):
 
 
 def test_sweep_drops_candidates_already_in_any_application(tmp_path, monkeypatch):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     candidates = [
         candidate("Software Engineer (new)", "https://example.test/jobs/new?utm_source=x"),
         candidate("Software Engineer (dismissed)", "https://example.com/status-dismissed"),
@@ -444,7 +429,7 @@ def test_sweep_drops_candidates_already_in_any_application(tmp_path, monkeypatch
 
 
 def test_sweep_drops_within_run_duplicates(tmp_path, monkeypatch):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     duplicates = [
         candidate("Software Engineer One", "https://example.test/jobs/dupe?utm_source=a"),
         candidate("Software Engineer One", "https://example.test/jobs/dupe?utm_source=b"),
@@ -454,7 +439,7 @@ def test_sweep_drops_within_run_duplicates(tmp_path, monkeypatch):
 
 
 def test_sweep_writes_the_expected_sections(tmp_path, monkeypatch):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     candidates = [
         candidate("Software Engineer New", "https://example.test/jobs/new"),
         candidate(
@@ -551,7 +536,7 @@ def test_greenhouse_company_fallback(monkeypatch):
         "jobs": [
             {
                 "title": "Dev",
-                "location": {"name": "Melbourne"},
+                "location": {"name": "Brisbane, Australia"},
                 "absolute_url": "u",
                 "content": "",
             }
@@ -568,7 +553,7 @@ def test_smartrecruiters_gets_content_for_blocker_scan(monkeypatch):
                 "id": "1",
                 "name": "Software Engineer",
                 "company": {"name": "Wise Co"},
-                "location": {"city": "Melbourne", "country": "au"},
+                "location": {"city": "Brisbane", "country": "au"},
             },
             {"id": "2", "name": "Chef", "location": {}},
         ]
@@ -587,7 +572,7 @@ def test_smartrecruiters_gets_content_for_blocker_scan(monkeypatch):
     monkeypatch.setattr(sw, "get", fake)
     monkeypatch.setattr(sw, "ACTIVE_TRACKS", ["SWE"])
     jobs = sw.from_smartrecruiters("wise")
-    assert jobs[0]["company"] == "Wise Co" and jobs[0]["location"] == "Melbourne, AU"
+    assert jobs[0]["company"] == "Wise Co" and jobs[0]["location"] == "Brisbane, AU"
     assert "NV1" in jobs[0]["content"]
     assert jobs[1]["content"] == ""
     assert not any(url.endswith("/2") for url in calls)
@@ -607,12 +592,12 @@ def test_michael_page_company_and_cap(monkeypatch):
     monkeypatch.setattr(sw, "get", fake)
     monkeypatch.setattr(sw, "MP_DELAY", 0)
     jobs = sw.from_michael_page(
-        "https://www.michaelpage.com.au/jobs/technology/melbourne"
+        "https://www.michaelpage.com.au/jobs/technology"
     )
     assert len(jobs) == 30
     assert len(fetched) == 1 + sw.MP_MAX_ADS
     assert all("via Michael Page" not in job["company"] for job in jobs)
-    assert jobs[0]["location"] == "Melbourne"
+    assert jobs[0]["location"] == "Technology"
     assert jobs[-1]["content"] == ""
     _jobs, health = sw.collect("michaelpage", "u", lambda target: jobs)
     assert "cap" in health["note"]

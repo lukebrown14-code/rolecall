@@ -14,3 +14,4 @@ Valid values: Draft, Applied, Screening, Interview, Offer, Rejected, Withdrawn.
 | 2026-06-01 | Wayne | QA Engineer | SWE | Poor — skip | Rejected | 5 | https://example.test/jobs/wayne-qa | `jobs/SWE/wayne-qa-2026-06-01` |
 | 2026-07-01 | Stark | Ops Lead | SWE | Don't apply | Withdrawn | 0 | https://example.test/jobs/stark-ops | `jobs/SWE/stark-ops-2026-07-01` |
 | 2026-08-01 | Cyberdyne | ML Engineer | SWE | Maybe later | Applied | 2 | https://example.test/jobs/cyberdyne-ml | `jobs/SWE/cyberdyne-ml-2026-08-01` |
+| 2026-09-03 | Fictional | Lead Role | SWE | — | Lead | 0 | https://example.test/jobs/fictional-lead | `jobs/SWE/fictional-lead-2026-09-03` |

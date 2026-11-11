@@ -217,7 +217,7 @@ def test_build_fails_and_names_the_missing_identity_field(tmp_path, monkeypatch)
     assert "Email" in str(e.value)
 
 
-# --- --check: the acceptance gates, without compiling ---------------------------
+# --- document fixtures ---------------------------------------------------------
 
 CHECK_JD = "Acme needs a developer to own Python services.\n"
 CHECK_RESUME = (
@@ -234,47 +234,6 @@ CHECK_LETTER = (
     "One practical note: I hold full working rights in Australia.\n\n"
     "Kind regards,\nAlex Quinn\n"
 )
-
-
-def check_workspace(tmp_path, resume_text=CHECK_RESUME, letter_text=CHECK_LETTER):
-    (tmp_path / "profile").mkdir(exist_ok=True)
-    (tmp_path / "profile" / "master-profile.md").write_text(CONTACT_PROFILE)
-    job = tmp_path / "jobs" / "SWE" / "acme"
-    job.mkdir(parents=True)
-    (job / "jd.md").write_text(CHECK_JD)
-    (job / "resume.md").write_text(resume_text)
-    (job / "cover-letter.md").write_text(letter_text)
-    (job / "gaps.md").write_text("- Kubernetes\n")
-    (job / "meta.yml").write_text(meta_text())
-    return job
-
-
-def test_check_passes_gate_clean_documents_and_compiles_nothing(tmp_path, monkeypatch):
-    monkeypatch.setattr(build, "need", lambda *args: None)
-    job = check_workspace(tmp_path)
-    monkeypatch.setattr(
-        sys, "argv", ["build.py", "--check", str(job), "--data", str(tmp_path)]
-    )
-    with pytest.raises(SystemExit) as e:
-        build.main()
-    assert e.value.code == 0
-    assert not (job / "out").exists()  # --check never compiles a PDF
-
-
-def test_check_reports_the_letter_cap_gate_without_building(tmp_path, monkeypatch):
-    monkeypatch.setattr(build, "need", lambda *args: None)
-    long = CHECK_LETTER.replace(
-        "Acme needs a developer to own Python services, and that is the shape of my recent work.",
-        " ".join(["extra"] * (build.LETTER_MAX_WORDS + 5)),
-    )
-    job = check_workspace(tmp_path, letter_text=long)
-    monkeypatch.setattr(
-        sys, "argv", ["build.py", "--check", str(job), "--data", str(tmp_path)]
-    )
-    with pytest.raises(SystemExit) as e:
-        build.main()
-    assert "hard cap is" in str(e.value)
-    assert not (job / "out").exists()
 
 
 # --- titlecase -----------------------------------------------------------------
@@ -555,6 +514,41 @@ def test_cli_gate_failure_writes_no_pdf_and_no_status(tmp_path):
     assert result.returncode != 0
     assert "Key Skills" in result.stderr
     assert not list((folder / "out").glob("*.pdf"))
+    assert (folder / "meta.yml").read_text() == before
+
+
+def test_cli_later_letter_gate_failure_leaves_no_out_and_no_status(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+    # The resume is valid; only the letter breaks a gate. The resume must not
+    # be left behind as a PDF, and out/ must not even be created.
+    (folder / "cover-letter.md").write_text(
+        CHECK_LETTER.replace(
+            "Acme needs a developer to own Python services, and that is the shape of my recent work.",
+            "I am passionate about Python services.",
+        )
+    )
+    before = (folder / "meta.yml").read_text()
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode != 0
+    assert "banned phrase" in result.stderr
+    assert not (folder / "out").exists()
+    assert not list(folder.glob(".build-*"))
+    assert (folder / "meta.yml").read_text() == before
+
+
+def test_cli_later_resume_skill_gate_failure_leaves_no_out(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+    # The letter is valid; the resume has no Key Skills block.
+    (folder / "resume.md").write_text("# Alex Quinn\n\n## Professional Summary\n\nText.\n")
+    before = (folder / "meta.yml").read_text()
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode != 0
+    assert "Key Skills" in result.stderr
+    assert not (folder / "out").exists()
     assert (folder / "meta.yml").read_text() == before
 
 

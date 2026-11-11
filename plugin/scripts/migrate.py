@@ -17,7 +17,6 @@ import json
 import os
 import re
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -34,6 +33,7 @@ ARCHIVE = [
     "sweep-candidates.md",
 ]
 STATUS_MAP = {
+    "Lead": "Lead",
     "Draft": "Draft",
     "Applied": "Applied",
     "Screening": "Interviewing",
@@ -41,6 +41,7 @@ STATUS_MAP = {
     "Offer": "Offer",
     "Rejected": "Rejected",
     "Withdrawn": "Withdrawn",
+    "Dismissed": "Dismissed",
 }
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 LINK = re.compile(r"^\s*\[([^\]]*)\]\(([^)]*)\)\s*$")
@@ -246,36 +247,37 @@ def read_dismissed(workspace):
     return rows
 
 
-def _slug(company, title, day):
-    text = re.sub(r"[^a-z0-9]+", "-", (company + "-" + title).lower()).strip("-")
-    return f"{text}-{day}"
-
-
-def _unique(parent, slug, reserved):
-    number = 1
-    while True:
-        name = slug if number == 1 else f"{slug}-{number}"
-        if name not in reserved and not (parent / name).exists():
-            reserved.add(name)
-            return parent / name
-        number += 1
-
-
 def _default_track(workspace):
+    """The Workspace's first track, or None when it configures none."""
     try:
         config = json.loads((workspace / "workspace.json").read_text())
     except (OSError, ValueError):
-        return "SWE"
-    tracks = config.get("tracks") or []
-    return tracks[0] if tracks and isinstance(tracks[0], str) else "SWE"
+        return None
+    if not isinstance(config, dict):
+        return None
+    for track in config.get("tracks") or []:
+        if isinstance(track, str) and track.strip():
+            return track
+    return None
+
+
+def _preserved(entry):
+    """An existing entry, made SCHEMA-valid for migration.
+
+    A date-only entry is migration-only and must carry ``approx: true``.
+    RFC3339 entries keep their own flag.
+    """
+    approx = entry.approx or bool(DATE.fullmatch(entry.at))
+    return (entry.status, entry.at, approx)
 
 
 def _plan_log(app, status, applied, tracker_date, fallback, details):
     """The migrated status_log, or None to leave the existing one untouched.
 
-    Bulk rule: a single existing entry is a bulk stamp, not history. Prepend
-    ``Applied`` at the legacy ``applied`` date (else the tracker Date), then the
-    mapped tracker Status at the tracker Date when it is not already Applied.
+    Bulk rule: a single existing entry is a bulk stamp, not history. Keep it
+    and prepend ``Applied`` at the legacy ``applied`` date (else the tracker
+    Date), then append the mapped tracker Status when it differs and does not
+    repeat.
     """
     log = list(app.status_log) if app is not None else []
     applied_stamp = applied or tracker_date or fallback
@@ -284,28 +286,27 @@ def _plan_log(app, status, applied, tracker_date, fallback, details):
         if status:
             details.append(f"status_log: {status} (approx, {status_stamp})")
             return [(status, status_stamp, True)]
-        details.append(f"status_log: Lead ({fallback})")
-        return [("Lead", fallback, False)]
+        details.append(f"status_log: Lead (approx, {fallback})")
+        return [("Lead", fallback, True)]
     if len(log) > 1:
         details.append(f"status_log: left unchanged ({len(log)} entries)")
         return None
-    if not status:
-        details.append("status_log: left unchanged (no TRACKER status)")
-        return None
-    entry = log[0]
-    if entry.status == "Applied":
-        result = [(entry.status, entry.at, entry.approx)]
-        if status != "Applied":
+    entry = _preserved(log[0])
+    if entry[0] == "Applied":
+        result = [entry]
+        if status and status != "Applied":
             details.append(f"status_log: {status} appended (approx, {status_stamp})")
             result.append((status, status_stamp, True))
         else:
             details.append("status_log: Applied already present; no duplicate")
         return result
-    result = [("Applied", applied_stamp, True)]
+    result = [("Applied", applied_stamp, True), entry]
     details.append(
-        f"status_log: Applied prepended (approx, {applied_stamp}); bulk stamp replaced"
+        f"status_log: Applied prepended (approx, {applied_stamp}); existing entry kept"
     )
-    if status != "Applied":
+    # The mapped tracker Status wins when it differs from the current (kept)
+    # Status; a repeat of the current Status is not appended.
+    if status and status != result[-1][0]:
         details.append(f"status_log: {status} appended (approx, {status_stamp})")
         result.append((status, status_stamp, True))
     return result
@@ -341,6 +342,16 @@ def plan(workspace):
 
             front, body, had_front = parse_front_matter(jd_path)
             row = row or {}
+            status_raw = str(row.get("status", "")).strip()
+            status = map_status(status_raw) if status_raw else None
+            if status_raw and status is None:
+                reports.append(
+                    Report(
+                        f"{relative}: unknown TRACKER Status {status_raw!r}; "
+                        "folder skipped"
+                    )
+                )
+                continue
             details = []
             conflicts = []
 
@@ -376,17 +387,20 @@ def plan(workspace):
                 fields["closes"] = closes
             details.extend(conflicts)
 
-            fit_raw = str(row.get("fit", ""))
-            fit = map_fit(fit_raw)
-            if row and fit is None:
-                reports.append(
-                    Report(
-                        f"{relative}: Fit {fit_raw!r} is unmappable; not written "
-                        "(set it by hand)"
+            # An empty Fit cell, "—", "-" or "n/a" means "not assessed": leave
+            # it unset silently. Only non-empty unmappable text is reported.
+            fit_raw = str(row.get("fit", "")).strip()
+            if fit_raw.lower() not in ("", "—", "-", "n/a", "na"):
+                fit = map_fit(fit_raw)
+                if fit is None:
+                    reports.append(
+                        Report(
+                            f"{relative}: Fit {fit_raw!r} is unmappable; not written "
+                            "(set it by hand)"
+                        )
                     )
-                )
-            elif fit:
-                fields["fit"] = fit
+                elif fit:
+                    fields["fit"] = fit
 
             if not title or not company:
                 reports.append(
@@ -394,12 +408,6 @@ def plan(workspace):
                 )
                 continue
 
-            status_raw = str(row.get("status", "")).strip()
-            status = map_status(status_raw) if status_raw else None
-            if status_raw and status is None:
-                reports.append(
-                    Report(f"{relative}: unknown TRACKER Status {status_raw!r}; log skipped")
-                )
             tracker_date = _iso_date(row.get("date")) or _iso_date(front.get("captured"))
             applied = ""
             if application is not None:
@@ -444,8 +452,18 @@ def plan(workspace):
             )
             continue
         track = _default_track(workspace)
+        if track is None:
+            reports.append(
+                Report(
+                    f'SHORTLIST row {row["row"]} {row["title"]!r} skipped: '
+                    "workspace.json has no tracks"
+                )
+            )
+            continue
         parent = jobs / track
-        folder = _unique(parent, _slug(row["company"], row["title"], day), reserved)
+        folder = meta.unique_folder(
+            parent, row["company"], row["title"], day, reserved
+        )
         jd = _stub(row["title"], row["company"], row["url"], row["reason"])
         changes.append(
             FolderChange(
@@ -456,12 +474,12 @@ def plan(workspace):
                     "track": track,
                     "url": row["url"],
                 },
-                status_log=[("Lead", day, False)],
+                status_log=[("Lead", day, True)],
                 jd_body=jd,
                 had_meta=False,
                 details=[
                     f'source: SHORTLIST row {row["row"]} (Status New)',
-                    f"status_log: Lead ({day})",
+                    f"status_log: Lead (approx, {day})",
                     "jd.md: stub with URL and triage reason",
                 ],
             )
@@ -475,8 +493,18 @@ def plan(workspace):
             )
             continue
         track = _default_track(workspace)
+        if track is None:
+            reports.append(
+                Report(
+                    f'DISMISSED row {row["title"]!r} skipped: '
+                    "workspace.json has no tracks"
+                )
+            )
+            continue
         parent = jobs / track
-        folder = _unique(parent, _slug(row["company"], row["title"], row_date), reserved)
+        folder = meta.unique_folder(
+            parent, row["company"], row["title"], row_date, reserved
+        )
         changes.append(
             FolderChange(
                 folder=folder,
@@ -522,24 +550,6 @@ def _stub(title, company, url, reason):
     return ("\n".join(lines).rstrip("\n") + "\n").encode("utf-8")
 
 
-def _atomic_write(path, data, mode):
-    path = Path(path)
-    descriptor, name = tempfile.mkstemp(dir=str(path.parent), prefix=".migrate-")
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            os.chmod(name, mode)
-            handle.write(data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(name, path)
-    except BaseException:
-        try:
-            os.unlink(name)
-        except FileNotFoundError:
-            pass
-        raise
-
-
 def render(workspace, changes):
     if not changes:
         return "No changes."
@@ -576,12 +586,12 @@ def apply(workspace, changes):
                 meta.set_status_log(change.folder, change.status_log)
         else:
             if not (change.folder / "jd.md").exists():
-                _atomic_write(change.folder / "jd.md", b"", 0o600)
+                meta.atomic_write(change.folder / "jd.md", b"", 0o600)
             meta.create_migrated(change.folder, change.fields, change.status_log)
         if change.jd_body is not None:
             jd_path = change.folder / "jd.md"
             mode = jd_path.stat().st_mode & 0o777 if jd_path.exists() else 0o600
-            _atomic_write(jd_path, change.jd_body, mode)
+            meta.atomic_write(jd_path, change.jd_body, mode)
         written += 1
     return written
 

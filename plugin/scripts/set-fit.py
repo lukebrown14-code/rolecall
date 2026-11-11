@@ -22,40 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
 from workspace import workspace_from_cli  # noqa: E402
 
-FITS = ("Strong", "Good", "Marginal", "Poor")
-
-
-class FolderError(Exception):
-    """The folder argument does not name exactly one Application."""
-
-
-def resolve_folder(workspace, value):
-    """The Application folder named by ``value`` under ``workspace``."""
-    raw = Path(value).expanduser()
-    if raw.is_absolute():
-        return raw
-    jobs = workspace / "jobs"
-    candidates = []
-    for base in (workspace, jobs):
-        candidate = base / raw
-        if candidate.is_dir():
-            candidates.append(candidate.resolve())
-    if len(raw.parts) == 1 and jobs.is_dir():
-        for track in sorted(jobs.iterdir()):
-            candidate = track / raw
-            if track.is_dir() and candidate.is_dir():
-                candidates.append(candidate.resolve())
-    unique = sorted(set(candidates))
-    if not unique:
-        raise FolderError(
-            f"no Application folder {value!r} under {jobs}"
-        )
-    if len(unique) > 1:
-        listed = "\n  ".join(str(path) for path in unique)
-        raise FolderError(
-            f"--folder {value!r} is ambiguous; name one of:\n  {listed}"
-        )
-    return unique[0]
+FITS = tuple(sorted(fit for fit in meta_store.FITS if fit))
 
 
 def main(argv=None):
@@ -69,11 +36,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     try:
-        folder = resolve_folder(workspace, args.folder)
+        folder = meta_store.resolve_folder(workspace, args.folder)
         if not (folder / "meta.yml").is_file():
-            raise FolderError(f"{folder} has no meta.yml, so it is not an Application")
+            raise meta_store.FolderError(
+                f"{folder} has no meta.yml, so it is not an Application"
+            )
         meta_store.patch(folder, {"fit": args.fit})
-    except (FolderError, meta_store.MetaError, OSError) as error:
+    except (meta_store.FolderError, meta_store.MetaError, OSError) as error:
         print(f"rolecall: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 

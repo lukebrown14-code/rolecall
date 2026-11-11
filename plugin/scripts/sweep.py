@@ -4,7 +4,7 @@
     python3 plugin/scripts/sweep.py                 # all workspace tracks
     python3 plugin/scripts/sweep.py --track SWE     # one track
     python3 plugin/scripts/sweep.py --source greenhouse
-    python3 plugin/scripts/sweep.py --all-locations # ignore the Melbourne/remote filter
+    python3 plugin/scripts/sweep.py --all-locations # ignore the location filter
     python3 plugin/scripts/sweep.py --probe greenhouse:cultureamp  # one source, health JSON
     python3 plugin/scripts/sweep.py --platforms    # the registry as JSON (for the dashboard)
 
@@ -70,16 +70,16 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
 GREENHOUSE = [  # slug from job-boards.greenhouse.io/<slug>
     "cultureamp",
-    "buildkite",       # Melbourne
-    "eucalyptus",      # Sydney/Melbourne health-tech
-    "octopusdeploy",   # Brisbane, remote AU
+    "buildkite",
+    "eucalyptus",      # health-tech
+    "octopusdeploy",   # remote AU
 ]
 
 ASHBY = [  # slug from <slug>.ashbyhq.com
-    "upguard",         # Sydney/Hobart, remote AU
-    "airtasker",       # Sydney
-    "lorikeet",        # Sydney, AI support
-    "relevanceai",     # Sydney, AI agents
+    "upguard",         # remote AU
+    "airtasker",
+    "lorikeet",        # AI support
+    "relevanceai",     # AI agents
 ]
 
 LEVER = []  # slug from jobs.lever.co/<slug>
@@ -87,8 +87,8 @@ LEVER = []  # slug from jobs.lever.co/<slug>
 SMARTRECRUITERS = []  # company identifier
 
 MICHAEL_PAGE = [  # category pages worth sweeping
-    "https://www.michaelpage.com.au/jobs/technology/melbourne",
-    "https://www.michaelpage.com.au/jobs/business-analyst/melbourne",
+    "https://www.michaelpage.com.au/jobs/technology",
+    "https://www.michaelpage.com.au/jobs/business-analyst",
 ]
 
 # Title keywords per track, used only when jobs/roles.json is absent. A role
@@ -173,12 +173,11 @@ def load_role_catalogue(workspace, tracks=None):
         sys.exit(f"{path}: {error}")
 
 
-# Location filter. AU-remote and Melbourne only, per the standing search scope.
-# Matched as whole words/phrases: " vic" used to match "victoria, bc" and
-# "remote" alone used to rescue "Remote - US".
+# Location filter. AU-remote and Australia.
+# Matched as whole words/phrases: "remote" alone must not rescue "Remote - US".
 LOCATION_OK = [
-    r"melbourne", r"victoria,?\s*(?:australia|au)\b", r"\bvic\b", r"australia", r"\baus?\b",
-    r"\banz\b", r"apac", r"anywhere", r"flexible", r"hybrid", r"remote",
+    r"australia", r"\baus?\b", r"\banz\b", r"apac", r"anywhere", r"flexible",
+    r"hybrid", r"remote",
 ]
 LOCATION_REJECT = [
     "sydney only", "united states", "usa", "us", "u.s.", "san francisco", "new york", "london",
@@ -188,7 +187,7 @@ LOCATION_REJECT = [
     "netherlands", "amsterdam", "latam", "japan", "tokyo",
 ]
 # Only these rescue a reject-list hit; bare "remote" does not.
-AU_HINTS = [r"melbourne", r"australia", r"\baus?\b", r"\banz\b", r"apac", r"\bvic\b"]
+AU_HINTS = [r"australia", r"\baus?\b", r"\banz\b", r"apac"]
 
 # Cap on Michael Page ad fetches per category page (each is a serial request).
 MP_MAX_ADS = 25
@@ -502,8 +501,8 @@ def coverage_lines(rows):
 
 
 def location_ok(loc):
-    """Melbourne / AU / AU-remote pass. A reject-list place fails unless the
-    string also names an AU place; a bare "remote" does not rescue it."""
+    """Australia / AU-remote pass. A reject-list place fails unless the string
+    also names an AU place; a bare "remote" does not rescue it."""
     place = (loc or "").lower().strip()
     if not place:
         return True

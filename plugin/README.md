@@ -65,9 +65,9 @@ PDFs in `out/`. It needs:
   installing for fonts.
 - `pdftotext` (poppler), optional — used for the ATS/identity check when present.
 
-On macOS: `brew install pandoc typst poppler`. The document gates need none of
-these: `python3 plugin/scripts/build.py <job_dir> --check` reads Markdown,
-`meta.yml` and the Profile only, compiles nothing and writes no `out/`.
+On macOS: `brew install pandoc typst poppler`. The build gates every document
+before it compiles either one, and publishes PDFs into `out/` only when every
+gate, build and ATS check has passed.
 
 The style rules the letter gate reads are in `plugin/styles/au.md`.
 
@@ -97,8 +97,8 @@ python3 -m pytest plugin/tests
 ruff check plugin
 ```
 
-The Python tests stub `pandoc`, `typst` and `pdftotext` (or run `--check`,
-which needs none of them), so they pass on a bare Python install.
+The Python tests stub `pandoc`, `typst` and `pdftotext`, so they pass on a
+bare Python install.
 
 `store/build_integration_test.go` runs `build.py` for real. It skips with a
 clear reason when `python3`, `pandoc` or `typst` is missing; the CI Go job

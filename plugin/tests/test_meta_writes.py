@@ -6,12 +6,11 @@ means the two implementations cannot drift apart silently.
 """
 
 import json
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import copy_fixture_workspace, run_script
 
 ROOT = Path(__file__).resolve().parents[2]
 META = ROOT / "plugin" / "scripts" / "meta.py"
@@ -31,29 +30,15 @@ VALUES = {
 }
 
 
-def run(workspace, *args):
-    return subprocess.run(
-        [sys.executable, str(META), "--data", str(workspace), *args],
-        capture_output=True,
-        text=True,
-    )
-
-
-def copy_workspace(tmp_path):
-    workspace = tmp_path / "workspace"
-    shutil.copytree(FIXTURE, workspace)
-    return workspace
-
-
 @pytest.mark.parametrize("key", sorted(VALUES))
 def test_patch_matches_the_go_golden(tmp_path, key):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     path = folder / "meta.yml"
     path.write_bytes((PATCH / "input.yml").read_bytes())
     path.chmod(0o640)
 
-    result = run(workspace, "patch", "--folder", str(folder), "--set", f"{key}={VALUES[key]}")
+    result = run_script(workspace, META, "patch", "--folder", str(folder), "--set", f"{key}={VALUES[key]}")
 
     assert result.returncode == 0, result.stderr
     assert path.read_bytes() == (PATCH / f"{key}.golden.yml").read_bytes()
@@ -61,7 +46,7 @@ def test_patch_matches_the_go_golden(tmp_path, key):
 
 
 def test_patch_changes_only_the_target_lines(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     path = folder / "meta.yml"
     path.write_text(
@@ -73,8 +58,9 @@ def test_patch_changes_only_the_target_lines(tmp_path):
         "status_log: []\n"
     )
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "patch",
         "--folder",
         str(folder),
@@ -97,11 +83,11 @@ def test_patch_changes_only_the_target_lines(tmp_path):
 
 
 def test_patch_quotes_like_the_go_encoder(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     value = 'A "B" \\ C\t'
 
-    result = run(workspace, "patch", "--folder", str(folder), "--set", f"title={value}")
+    result = run_script(workspace, META, "patch", "--folder", str(folder), "--set", f"title={value}")
 
     assert result.returncode == 0, result.stderr
     line = next(
@@ -113,24 +99,25 @@ def test_patch_quotes_like_the_go_encoder(tmp_path):
 
 
 def test_patch_rejects_status_log_and_invalid_keys(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     before = (folder / "meta.yml").read_bytes()
 
     for setting in ("status_log=[]", "not a key=1"):
-        result = run(workspace, "patch", "--folder", str(folder), "--set", setting)
+        result = run_script(workspace, META, "patch", "--folder", str(folder), "--set", setting)
         assert result.returncode != 0
         assert result.stderr.strip()
         assert (folder / "meta.yml").read_bytes() == before
 
 
 def test_appending_the_current_status_is_byte_identical(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     before = (folder / "meta.yml").read_bytes()
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "append-status",
         "--folder",
         str(folder),
@@ -144,12 +131,61 @@ def test_appending_the_current_status_is_byte_identical(tmp_path):
     assert (folder / "meta.yml").read_bytes() == before
 
 
+@pytest.mark.parametrize("folder_name", ["status-draft", "orbit"])
+def test_append_only_if_current_skips_a_non_lead_status(tmp_path, folder_name):
+    workspace = copy_fixture_workspace(tmp_path)
+    folder = workspace / "jobs" / "SWE" / folder_name
+    before = (folder / "meta.yml").read_bytes()
+
+    result = run_script(
+        workspace,
+        META,
+        "append-status",
+        "--folder",
+        str(folder),
+        "--status",
+        "Draft",
+        "--at",
+        "2030-01-01T00:00:00Z",
+        "--only-if-current",
+        "Lead",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (folder / "meta.yml").read_bytes() == before
+
+
+def test_append_only_if_current_appends_when_the_status_matches(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path)
+    folder = workspace / "jobs" / "SWE" / "fern"
+
+    result = run_script(
+        workspace,
+        META,
+        "append-status",
+        "--folder",
+        str(folder),
+        "--status",
+        "Draft",
+        "--at",
+        "2030-01-01T00:00:00Z",
+        "--only-if-current",
+        "Lead",
+    )
+
+    assert result.returncode == 0, result.stderr
+    text = (folder / "meta.yml").read_text()
+    assert text.endswith("  - {status: Draft, at: 2030-01-01T00:00:00Z}\n")
+    assert text.count("status: Draft") == 1
+
+
 def test_append_status_adds_one_utc_entry(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "append-status",
         "--folder",
         str(folder),
@@ -166,14 +202,15 @@ def test_append_status_adds_one_utc_entry(tmp_path):
 
 
 def test_append_status_converts_an_empty_log(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     (folder / "meta.yml").write_text(
         "schema: 1\ntitle: Engineer\ncompany: Acme\ntrack: SWE\nstatus_log: []\n"
     )
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "append-status",
         "--folder",
         str(folder),
@@ -191,12 +228,13 @@ def test_append_status_converts_an_empty_log(tmp_path):
 
 
 def test_invalid_status_is_rejected(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "orbit"
     before = (folder / "meta.yml").read_bytes()
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "append-status",
         "--folder",
         str(folder),
@@ -212,14 +250,15 @@ def test_invalid_status_is_rejected(tmp_path):
 
 
 def test_writers_refuse_malformed_files_and_leave_no_temp(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     folder = workspace / "jobs" / "SWE" / "malformed"
     path = folder / "meta.yml"
     before = path.read_bytes()
 
-    patch = run(workspace, "patch", "--folder", str(folder), "--set", "fit=Good")
-    append = run(
+    patch = run_script(workspace, META, "patch", "--folder", str(folder), "--set", "fit=Good")
+    append = run_script(
         workspace,
+        META,
         "append-status",
         "--folder",
         str(folder),
@@ -249,8 +288,9 @@ def test_create_slug_and_collision_suffixes(tmp_path, company, title, want):
 
     folders = []
     for _ in range(3):
-        result = run(
+        result = run_script(
             workspace,
+            META,
             "create",
             "--track",
             "SWE",
@@ -271,8 +311,9 @@ def test_create_writes_only_supplied_keys_and_one_lead(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "create",
         "--track",
         "SWE",
@@ -305,8 +346,9 @@ def test_create_records_the_optional_fields(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "create",
         "--track",
         "SWE",
@@ -335,8 +377,9 @@ def test_create_rejects_an_unsafe_track(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    result = run(
+    result = run_script(
         workspace,
+        META,
         "create",
         "--track",
         "..",
@@ -353,9 +396,9 @@ def test_create_rejects_an_unsafe_track(tmp_path):
 
 
 def test_find_by_url_matches_every_status(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
 
-    result = run(workspace, "find-url", "https://example.test/shared")
+    result = run_script(workspace, META, "find-url", "https://example.test/shared")
 
     assert result.returncode == 0, result.stderr
     matches = json.loads(result.stdout)
@@ -364,9 +407,9 @@ def test_find_by_url_matches_every_status(tmp_path):
 
 
 def test_find_by_url_is_exact(tmp_path):
-    workspace = copy_workspace(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
 
-    result = run(workspace, "find-url", "https://example.test/shar")
+    result = run_script(workspace, META, "find-url", "https://example.test/shar")
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == []

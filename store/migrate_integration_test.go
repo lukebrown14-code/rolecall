@@ -53,6 +53,7 @@ func TestMigrateDashboardEra(t *testing.T) {
 		"northwind-platform-engineer-2026-09-01-2":     "Lead",
 		"initech-site-reliability-engineer-2026-08-15": "Dismissed",
 		"contoso-data-engineer-2026-07-20":             "Dismissed",
+		"fictional-lead-2026-09-03":                    "Lead",
 	}
 	if len(apps) != len(want) {
 		t.Fatalf("got %d Applications, want %d", len(apps), len(want))
@@ -68,6 +69,12 @@ func TestMigrateDashboardEra(t *testing.T) {
 		}
 		if app.Status != status {
 			t.Errorf("%s: Status = %q, want %q", name, app.Status, status)
+		}
+		// A date-only entry is migration-only and must carry approx: true.
+		for _, entry := range app.StatusLog {
+			if len(entry.At) == len("2006-01-02") && !entry.Approx {
+				t.Errorf("%s: date-only entry %+v has no approx flag", name, entry)
+			}
 		}
 	}
 

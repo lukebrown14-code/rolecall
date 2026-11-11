@@ -208,7 +208,7 @@ PLACEHOLDERS = re.compile(
     r"<[A-Z][A-Za-z ]{1,30}>|\b(?:Company|Employer|Role|Hiring Manager) Name\b",
     re.I,
 )
-VISA_WORDS = re.compile(r"\b417\b|subclass|working holiday", re.I)
+VISA_WORDS = re.compile(r"subclass|working holiday", re.I)
 NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?\+?%?")
 # Extra terms that the NOT-available bullets imply but do not spell out.
 EXTRA_FORBIDDEN = ["certification", "incident response", "threat detection", "security operations"]
@@ -590,11 +590,7 @@ def fit_verdict(job_dir):
 
 
 def run_gates(md_name, md, company, subs, job_dir):
-    """Every hard document gate for one file, in the build's own order.
-
-    Shared by the build loop and --check so the two cannot disagree about what
-    "passes the gates" means.
-    """
+    """Every hard document gate for one file, in the build's own order."""
     if md_name == "cover-letter.md":
         check_letter_length(md)
         check_letter_content(md, company)
@@ -623,18 +619,6 @@ def check_letter_present(job_dir):
         )
 
 
-def _job_folder(given):
-    """Resolve the positional folder against the Workspace, then the cwd."""
-    given = Path(given)
-    if given.is_absolute():
-        return given.resolve()
-    candidates = [Path(DATA) / given, Path.cwd() / given]
-    return next(
-        (candidate.resolve() for candidate in candidates if (candidate / "meta.yml").exists()),
-        candidates[0].resolve(),
-    )
-
-
 def main(argv=None):
     global DATA
     parser = argparse.ArgumentParser(
@@ -645,18 +629,10 @@ def main(argv=None):
         "--data",
         help="Workspace path; or set ROLECALL_WORKSPACE",
     )
-    parser.add_argument(
-        "--check",
-        action="store_true",
-        help="run the document gates only and exit; compile nothing and write no out/",
-    )
     args = parser.parse_args(argv)
 
-    # --check is a gate-only run: it reads Markdown, meta.yml and the Profile,
-    # never pandoc or typst, so it works where the toolchain is absent.
-    if not args.check:
-        need("pandoc")
-        need("typst")
+    need("pandoc")
+    need("typst")
 
     DATA = workspace_from_cli(argv)
     load_config()
@@ -672,7 +648,10 @@ def main(argv=None):
             + " in its ## Contact table.\n  Add the field(s) and build again."
         )
 
-    d = _job_folder(args.job_dir)
+    try:
+        d = meta_module.resolve_folder(DATA, args.job_dir)
+    except meta_module.FolderError as error:
+        sys.exit(f"rolecall: {error}")
     if not (d / "jd.md").exists():
         sys.exit(f"{d} does not look like an Application folder (no jd.md).")
 
@@ -686,11 +665,9 @@ def main(argv=None):
     role = titlecase(application.title)
     label = f"{company} {role}"
 
-    # GitHub is omitted for the Analyst track; every other track shows it when
-    # the Profile carries the field.
     subs = {
         "NAME": ident.name,
-        "CONTACT": ident.contact_line(github=application.track != "Analyst"),
+        "CONTACT": ident.contact_line(),
         "CONTACT2": ident.work_rights,
         "DATELINE": date.today().strftime("%d %B %Y"),
         "HEADLINE": headline_for(profile_text(), application.track),
@@ -698,58 +675,64 @@ def main(argv=None):
 
     check_letter_present(d)
 
-    # Gate-only: run every hard gate and stop. No out/, no PDFs, no status
-    # update -- nothing but the verdict. A missing document is not an error
-    # here (there is nothing to gate yet); an existing empty one is, above.
-    if args.check:
-        for md_name in ("resume.md", "cover-letter.md"):
-            md = d / md_name
-            if md.exists() and md.read_text().strip():
-                run_gates(md_name, md, company, subs, d)
-        sys.exit(0)
-
-    out = d / "out"
-    out.mkdir(exist_ok=True)
-    built = []
-
-    jobs = [
+    candidates = [
         ("resume.md", "resume.typ", f"{ident.name} Resume {label}.pdf"),
         ("cover-letter.md", "cover-letter.typ", f"{ident.name} {label} Cover Letter.pdf"),
     ]
-    for md_name, template, pdf_name in jobs:
-        md = d / md_name
+    jobs = []
+    for job in candidates:
+        md = d / job[0]
         if not md.exists() or not md.read_text().strip():
-            print(f"  skip  {md_name} is empty -- ask the agent to write it first")
+            print(f"  skip  {job[0]} is empty -- ask the agent to write it first")
             continue
-        run_gates(md_name, md, company, subs, d)
-        pdf = build(md, template, out / pdf_name, dict(subs))
-        print(f"  built {pdf.name}")
-        result = ats_check(pdf, md_name, ident)
-        if result:
-            message, pages = result
-            print(f"        ATS: {message}")
-            # AU convention: the resume runs to two pages, three only for
-            # senior/technical roles. The cover letter is always one page.
-            if md_name == "resume.md":
-                limit = 3
-                if pages > limit:
-                    print(f"        OVERFLOW: {pages} pages, limit is {limit}.")
-                elif pages < 2:
-                    print(
-                        f"        UNDERFULL: {pages} page. The AU norm is two —"
-                        " a one-page CV reads as junior."
-                    )
-            elif pages > 1:
-                print(f"        OVERFLOW: {pages} pages, the cover letter must be one.")
-        built.append(pdf)
-
-    if not built:
+        jobs.append(job)
+    if not jobs:
         sys.exit("\nNothing built. Write resume.md and cover-letter.md first.")
+
+    # Gate every document before anything is compiled: a later gate failure
+    # must leave no PDF of an earlier one behind.
+    for md_name, _template, _pdf_name in jobs:
+        run_gates(md_name, d / md_name, company, subs, d)
+
+    # Build into a staging folder in the Application. Only a fully successful
+    # build publishes anything into out/, so a failure leaves out/ untouched.
+    built = []
+    staging = Path(tempfile.mkdtemp(dir=d, prefix=".build-"))
+    try:
+        for md_name, template, pdf_name in jobs:
+            pdf = build(d / md_name, template, staging / pdf_name, dict(subs))
+            print(f"  built {pdf.name}")
+            result = ats_check(pdf, md_name, ident)
+            if result:
+                message, pages = result
+                print(f"        ATS: {message}")
+                # AU convention: the resume runs to two pages, three only for
+                # senior/technical roles. The cover letter is always one page.
+                if md_name == "resume.md":
+                    limit = 3
+                    if pages > limit:
+                        print(f"        OVERFLOW: {pages} pages, limit is {limit}.")
+                    elif pages < 2:
+                        print(
+                            f"        UNDERFULL: {pages} page. The AU norm is two —"
+                            " a one-page CV reads as junior."
+                        )
+                elif pages > 1:
+                    print(f"        OVERFLOW: {pages} pages, the cover letter must be one.")
+            built.append(pdf)
+
+        out = d / "out"
+        out.mkdir(exist_ok=True)
+        for pdf in built:
+            pdf.replace(out / pdf.name)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
     # SCHEMA.md: build.py appends Draft only when the current Status is Lead
     # and the build produced PDFs. It never touches any other Status.
-    if application.status == "Lead":
-        meta_module.append_status(d, "Draft", datetime.now(timezone.utc))
+    if meta_module.append_status(
+        d, "Draft", datetime.now(timezone.utc), only_if_current="Lead"
+    ):
         print("\n  status: Lead -> Draft")
 
     print(f"\nDone. {len(built)} PDF(s) in {out}/")

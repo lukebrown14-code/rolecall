@@ -6,14 +6,16 @@ tests drive the CLI and assert on the files: one Lead entry, a plain-Markdown
 """
 
 import importlib.util
+import io
 import json
-import shutil
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
 import pytest
+
+from conftest import copy_fixture_workspace, run_script
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "plugin" / "scripts" / "new-job.py"
@@ -28,21 +30,6 @@ def load():
 
 
 nj = load()
-
-
-def run(workspace, *args, stdin=""):
-    return subprocess.run(
-        [sys.executable, str(SCRIPT), "--data", str(workspace), *args],
-        input=stdin,
-        capture_output=True,
-        text=True,
-    )
-
-
-def workspace_copy(tmp_path):
-    workspace = tmp_path / "workspace"
-    shutil.copytree(FIXTURE, workspace)
-    return workspace
 
 
 def only_application(workspace):
@@ -79,7 +66,7 @@ def labels(text, kind="BLOCKER"):
         ("No sponsorship available.", "states sponsorship is not available"),
         (
             "Unrestricted working rights are essential.",
-            "asks for unrestricted work rights (working-holiday visas cap at six months per employer)",
+            "asks for unrestricted work rights (short-contract visas have a term limit)",
         ),
     ],
 )
@@ -116,11 +103,11 @@ def test_sponsorship_refusal_not_cancelled_by_negation_logic():
 
 
 def test_favourable_short_contract():
-    assert "short contract term — fits within a six-month cap" in labels(
+    assert "short contract term — suits a short-contract visa" in labels(
         "This is a 6 month contract.", "in your favour"
     )
     assert labels("12 month contract with extension.", "in your favour") == [
-        "contract role — the six-month cap is a non-issue"
+        "contract role — the contract-term limit is a non-issue"
     ]
 
 
@@ -255,10 +242,10 @@ BODY = (
 
 
 def test_paste_creates_one_application_with_a_plain_jd(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     html = JSONLD.replace("<p>x</p>", f"<p>{BODY}</p>")
 
-    result = run(workspace, "--track", "SWE", "--paste", stdin=html)
+    result = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=html)
 
     assert result.returncode == 0, result.stderr
     folder = only_application(workspace)
@@ -284,11 +271,11 @@ def test_paste_creates_one_application_with_a_plain_jd(tmp_path):
 
 
 def test_capturing_twice_suffixes_the_second_folder(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     text = f"Company: Initech\nRole: Junior Dev\n{BODY}"
 
-    first = run(workspace, "--track", "SWE", "--paste", stdin=text)
-    second = run(workspace, "--track", "SWE", "--paste", stdin=text)
+    first = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=text)
+    second = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=text)
 
     assert first.returncode == 0, first.stderr
     assert second.returncode == 0, second.stderr
@@ -302,10 +289,11 @@ def test_capturing_twice_suffixes_the_second_folder(tmp_path):
 
 
 def test_explicit_company_role_and_source_fill_the_record(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
 
-    result = run(
+    result = run_script(
         workspace,
+        SCRIPT,
         "--track",
         "SWE",
         "--paste",
@@ -329,15 +317,16 @@ def test_explicit_company_role_and_source_fill_the_record(tmp_path):
 
 
 def test_existing_folder_is_left_untouched(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     today = date.today().isoformat()
     existing = workspace / "jobs" / "SWE" / f"acme-dev-{today}"
     existing.mkdir()
     marker = existing / "marker.txt"
     marker.write_text("hand-written\n")
 
-    result = run(
+    result = run_script(
         workspace,
+        SCRIPT,
         "--track",
         "SWE",
         "--paste",
@@ -354,11 +343,11 @@ def test_existing_folder_is_left_untouched(tmp_path):
 
 
 def test_file_source_creates_the_application(tmp_path):
-    workspace = workspace_copy(tmp_path)
+    workspace = copy_fixture_workspace(tmp_path)
     source = tmp_path / "jd.txt"
     source.write_text(f"Company: Globex\nRole: QA Analyst\n{BODY}")
 
-    result = run(workspace, "--track", "SWE", "--file", str(source))
+    result = run_script(workspace, SCRIPT, "--track", "SWE", "--file", str(source))
 
     assert result.returncode == 0, result.stderr
     folder = only_application(workspace)
@@ -372,13 +361,35 @@ def test_fetch_only_writes_nothing(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
 
-    result = run(workspace, "--fetch-only", "--paste", stdin=BODY)
+    result = run_script(workspace, SCRIPT, "--fetch-only", "--paste", stdin=BODY)
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["meta"]["salary"] == "$120k - $140k"
     assert payload["meta"]["closes"] == "2026-10-31"
     assert not (workspace / "jobs").exists()
+
+
+def test_jd_write_failure_is_reported_without_a_traceback(tmp_path, monkeypatch, capsys):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    folder = workspace / "jobs" / "SWE" / "captured"
+    folder.mkdir(parents=True)
+    (folder / "jd.md").mkdir()  # writing text to a directory is an OSError
+
+    monkeypatch.setattr(nj.meta_store, "create", lambda *args, **kwargs: folder)
+    monkeypatch.setattr(
+        sys, "argv", ["new-job.py", "--data", str(workspace), "--track", "SWE", "--paste"]
+    )
+    monkeypatch.setattr(sys, "stdin", io.StringIO(BODY))
+
+    with pytest.raises(SystemExit) as e:
+        nj.main()
+
+    assert e.value.code == 1
+    err = capsys.readouterr().err
+    assert "rolecall:" in err and "jd.md" in err
+    assert "Traceback" not in err
 
 
 def test_missing_workspace_is_a_clear_error(tmp_path):

@@ -67,6 +67,10 @@ class MetaError(Exception):
     """A meta.yml line that breaks the SCHEMA.md format."""
 
 
+class FolderError(Exception):
+    """A folder argument does not name exactly one Application."""
+
+
 class StatusEntry:
     def __init__(self, status, at, approx=False):
         self.status = status
@@ -451,7 +455,7 @@ def _utc_stamp(value):
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _atomic_write(path, data, mode):
+def atomic_write(path, data, mode):
     """Publish bytes through a same-folder temporary file, then rename."""
     path = Path(path)
     descriptor, name = tempfile.mkstemp(dir=str(path.parent), prefix=".meta-")
@@ -485,7 +489,7 @@ def _update(folder, change):
         raise MetaError(checked.malformed)
     if out == data:
         return
-    _atomic_write(path, out, path.stat().st_mode & 0o777)
+    atomic_write(path, out, path.stat().st_mode & 0o777)
 
 
 def patch(folder, keys):
@@ -515,16 +519,27 @@ def patch(folder, keys):
     _update(folder, change)
 
 
-def append_status(folder, status, at):
-    """Append one Status entry, unless it repeats the current Status."""
+def append_status(folder, status, at, only_if_current=None):
+    """Append one Status entry, unless it repeats the current Status.
+
+    ``only_if_current`` makes the append conditional on the current Status,
+    re-read inside the writer at write time (not during an earlier scan).
+    Returns ``True`` when an entry was appended, ``False`` otherwise.
+    """
     if status not in STATUSES:
         raise MetaError(f"invalid Status {status!r}")
+    if only_if_current is not None and only_if_current not in STATUSES:
+        raise MetaError(f"invalid Status {only_if_current!r}")
     stamp = _utc_stamp(at)
+    appended = False
 
     def change(lines):
+        nonlocal appended
         current = _read_meta(Path(folder), ("\n".join(lines) + "\n").encode("utf-8"))
         if current.malformed:
             raise MetaError(current.malformed)
+        if only_if_current is not None and current.status != only_if_current:
+            return lines
         if current.status == status:
             return lines
         index = -1
@@ -545,9 +560,11 @@ def append_status(folder, status, at):
         ):
             end += 1
         lines.insert(end, f"  - {{status: {status}, at: {stamp}}}")
+        appended = True
         return lines
 
     _update(folder, change)
+    return appended
 
 
 def _entry_line(status, at, approx):
@@ -592,6 +609,57 @@ def _required_fields(fields):
         raise MetaError("Title, Company and a single Track folder are required")
 
 
+def unique_folder(parent, company, title, day, reserved=None):
+    """The first free ``<slug>-<day>`` / ``-2`` / ``-3`` path under ``parent``.
+
+    Mirrors the Go store's slug and collision rule. ``reserved`` lets a planner
+    claim names before they exist on disk.
+    """
+    if reserved is None:
+        reserved = set()
+    parent = Path(parent)
+    slug = re.sub(r"[^a-z0-9]+", "-", (company + "-" + title).lower()).strip("-")
+    slug += "-" + day
+    number = 1
+    while True:
+        name = slug if number == 1 else f"{slug}-{number}"
+        if name not in reserved and not (parent / name).exists():
+            reserved.add(name)
+            return parent / name
+        number += 1
+
+
+def resolve_folder(workspace, value):
+    """The Application folder named by ``value`` under ``workspace``.
+
+    An absolute path is taken as given. A relative path resolves against the
+    Workspace, then ``jobs/``; a bare folder name also resolves to the one
+    track that holds it. An ambiguous name is refused rather than guessed.
+    """
+    raw = Path(value).expanduser()
+    if raw.is_absolute():
+        return raw
+    workspace = Path(workspace)
+    jobs = workspace / "jobs"
+    candidates = []
+    for base in (workspace, jobs):
+        candidate = base / raw
+        if candidate.is_dir():
+            candidates.append(candidate.resolve())
+    if len(raw.parts) == 1 and jobs.is_dir():
+        for track in sorted(jobs.iterdir()):
+            candidate = track / raw
+            if track.is_dir() and candidate.is_dir():
+                candidates.append(candidate.resolve())
+    unique = sorted(set(candidates))
+    if not unique:
+        raise FolderError(f"no Application folder {value!r} under {jobs}")
+    if len(unique) > 1:
+        listed = "\n  ".join(str(path) for path in unique)
+        raise FolderError(f"--folder {value!r} is ambiguous; name one of:\n  {listed}")
+    return unique[0]
+
+
 def create(workspace, fields, now=None, status_log=None):
     """Create a Lead Application and return its folder."""
     _required_fields(fields)
@@ -608,23 +676,19 @@ def create(workspace, fields, now=None, status_log=None):
 
     parent = Path(workspace) / "jobs" / track
     parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    slug = re.sub(r"[^a-z0-9]+", "-", (company + "-" + title).lower()).strip("-")
-    slug += "-" + moment.strftime("%Y-%m-%d")
-    number = 1
+    day = moment.strftime("%Y-%m-%d")
     while True:
-        name = slug if number == 1 else f"{slug}-{number}"
-        folder = parent / name
+        folder = unique_folder(parent, company, title, day)
         try:
             folder.mkdir(mode=0o700)
         except FileExistsError:
-            number += 1
             continue
         break
     try:
         os.chmod(folder, 0o700)
         (folder / "jd.md").write_bytes(b"")
         os.chmod(folder / "jd.md", 0o600)
-        _atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
+        atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -638,7 +702,7 @@ def create_migrated(folder, fields, status_log):
     if not folder.is_dir():
         raise MetaError(f"no such folder: {folder}")
     text = _meta_text(fields, status_log)
-    _atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
+    atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
 
 
 def set_status_log(folder, status_log):
@@ -690,6 +754,10 @@ def _parser():
     append_parser.add_argument("--folder", required=True)
     append_parser.add_argument("--status", required=True)
     append_parser.add_argument("--at", help="RFC 3339 or YYYY-MM-DD (default: now)")
+    append_parser.add_argument(
+        "--only-if-current",
+        help="append only when the Status read at write time is this value",
+    )
 
     create_parser = commands.add_parser("create", help="create a Lead Application")
     create_parser.add_argument("--track", required=True)
@@ -730,6 +798,7 @@ def main(argv=None):
                 args.folder,
                 args.status,
                 args.at or datetime.now(timezone.utc),
+                only_if_current=args.only_if_current,
             )
         elif args.command == "create":
             folder = create(
