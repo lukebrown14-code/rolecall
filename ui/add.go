@@ -13,7 +13,7 @@ import (
 
 // addValues holds the Add form's answers. It is a pointer in the model so the Huh fields keep
 // writing to the same place as the model is copied between updates.
-type addValues struct{ title, company, track, url, closes, fit string }
+type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
 
 func required(name string) func(string) error {
 	return func(s string) error {
@@ -40,19 +40,30 @@ func (m *model) openAdd() tea.Cmd {
 		m.err = errors.New("Add needs at least one track in workspace.json")
 		return nil
 	}
-	v := &addValues{track: m.tracks[0]}
+	m.editOf = nil
+	return m.openForm(&addValues{track: m.tracks[0]}, m.tracks, false)
+}
+
+// openForm shows the fields shared by Add and Edit. Edit adds Resume only.
+func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea.Cmd {
 	m.addValues = v
-	m.addForm = huh.NewForm(huh.NewGroup(
+	fields := []huh.Field{
 		huh.NewInput().Title("Title*").Value(&v.title).Validate(required("Title")),
 		huh.NewInput().Title("Company*").Value(&v.company).Validate(required("Company")),
-		huh.NewSelect[string]().Title("Track*").Options(huh.NewOptions(m.tracks...)...).Value(&v.track),
+		huh.NewSelect[string]().Title("Track*").Options(huh.NewOptions(tracks...)...).Value(&v.track),
 		huh.NewInput().Title("URL").Value(&v.url),
 		huh.NewInput().Title("Closes (YYYY-MM-DD)").Value(&v.closes).Validate(validCloses),
 		huh.NewSelect[string]().Title("Fit").Options(
 			huh.NewOption("—", ""), huh.NewOption("Strong", "Strong"), huh.NewOption("Good", "Good"),
 			huh.NewOption("Marginal", "Marginal"), huh.NewOption("Poor", "Poor"),
 		).Value(&v.fit),
-	)).WithShowHelp(false)
+	}
+	if withResumeOnly {
+		fields = append(fields, huh.NewSelect[string]().Title("Resume only").Options(
+			huh.NewOption("No", "false"), huh.NewOption("Yes", "true"),
+		).Value(&v.resumeOnly))
+	}
+	m.addForm = huh.NewForm(huh.NewGroup(fields...)).WithShowHelp(false)
 	return m.addForm.Init()
 }
 
@@ -63,7 +74,7 @@ func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			m.addForm = nil
+			m.addForm, m.editOf = nil, nil
 			return m, nil
 		}
 	}
@@ -71,10 +82,13 @@ func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.addForm = updated.(*huh.Form)
 	switch m.addForm.State {
 	case huh.StateAborted:
-		m.addForm = nil
+		m.addForm, m.editOf = nil, nil
 	case huh.StateCompleted:
 		m.addForm = nil
 		v := m.addValues
+		if m.editOf != nil {
+			return m.saveEdit(*m.editOf, *v)
+		}
 		fields := store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: v.track, URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
 		if fields.URL != "" {
 			if matches, err := m.store.FindByURL(fields.URL); err != nil {

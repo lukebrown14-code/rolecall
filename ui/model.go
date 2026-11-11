@@ -45,6 +45,7 @@ type model struct {
 	moveTarget            string
 	addForm               *huh.Form
 	addValues             *addValues
+	editOf                *store.Application
 	duplicate             *store.Application
 	duplicateFields       store.CreateFields
 	selectAfter           string
@@ -240,6 +241,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "a":
 			return m, m.openAdd()
+		case "e":
+			if a, ok := m.current(); ok {
+				return m, m.openEdit(a)
+			}
 		case "t":
 			if len(m.tracks) > 0 {
 				m.track = (m.track + 1) % (len(m.tracks) + 1)
@@ -372,7 +377,7 @@ func (m model) View() tea.View {
 		b.WriteString(m.toast + "\n")
 	}
 	if len(m.rows()) > 0 {
-		b.WriteString("m move · u undo")
+		b.WriteString("e edit · m move · u undo")
 		a := m.rows()[m.cursor]
 		if a.Status == "Lead" || a.Status == "Draft" {
 			b.WriteString(" · x dismiss")
