@@ -259,14 +259,14 @@ func TestDetailDocsTabOmitsSentWhenAbsent(t *testing.T) {
 	}
 }
 
-func TestDetailDocsEnterOpensMarkdownInEditor(t *testing.T) {
+func TestDetailDocsEditOpensMarkdownInEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.key(tea.KeyEnter)
+	h.tm.Type("e")
 	run := h.lastRun()
 	if got, want := run[len(run)-1], filepath.Join(h.folder("docs-ready"), "resume.md"); got != want || !strings.Contains(strings.Join(run, " "), "myeditor") {
-		t.Fatalf("Enter on .md: %q", run)
+		t.Fatalf("e on .md: %q", run)
 	}
 	h.finalView()
 }

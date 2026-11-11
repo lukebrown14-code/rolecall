@@ -168,6 +168,10 @@ func (m model) syncDetail() model {
 		return m
 	}
 	d := *m.detail
+	if !slices.Contains(visibleDetailTabs(a), d.tab) {
+		m.err = fmt.Errorf("%s is gone", markdownTabFiles[d.tab])
+		d.tab = tabDocs
+	}
 	d.docs = min(d.docs, len(docEntries(a))-1)
 	d.body.SetWidth(m.bodyWidth())
 	d.body.SetHeight(m.bodyHeight())
@@ -293,7 +297,15 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		switch {
 		case e.pdf() && key == "enter":
 			return m, m.runExternal(a.Folder, "open", filepath.Join(a.Folder, e.name)), true
-		case e.markdown() && e.present:
+		case e.markdown() && key == "enter" && e.hasText:
+			for tab, name := range markdownTabFiles {
+				if name == e.name {
+					d.tab = tab
+					d.body.GotoTop()
+					return m.syncDetail(), nil, true
+				}
+			}
+		case e.markdown() && key == "e":
 			return m, m.editFile(a.Folder, e.name), true
 		case e.markdown():
 			m.err = fmt.Errorf("%s hasn't been written yet", e.name)

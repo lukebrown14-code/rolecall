@@ -89,6 +89,9 @@ func (m model) helpKeys() []helpKey {
 	var keys []helpKey
 	if m.detail != nil {
 		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", "scroll"))
+		if m.detail.tab == tabDocs {
+			keys = append(keys, help(groupAction, "enter", "open document tab / PDF"))
+		}
 		if usable {
 			keys = append(keys, help(groupAction, "e", "edit file"))
 		}

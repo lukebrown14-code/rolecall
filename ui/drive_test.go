@@ -1,7 +1,9 @@
 package ui_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -123,5 +125,47 @@ func TestDocsEmptyLabel(t *testing.T) {
 	v := ansi.Strip(m.View().Content)
 	if !strings.Contains(v, "resume.md (empty)") {
 		t.Fatalf("missing empty label:\n%s", v)
+	}
+}
+
+func TestDocsEnterOpensReader(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "enter")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Resume]") {
+		t.Fatalf("reader did not open:\n%s", v)
+	}
+}
+
+func TestReaderFilesFollowRefresh(t *testing.T) {
+	for _, text := range []string{"", "   "} {
+		t.Run(text, func(t *testing.T) {
+			root := fixtureCopy(t, nil)
+			m := driveStart(t, root, fixtureClock, 120, 40)
+			m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "right", "right")
+			if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0600); err != nil {
+				t.Fatal(err)
+			}
+			m = driveModel(t, m, "e")
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "resume.md is gone") {
+				t.Fatalf("missing fallback:\n%s", v)
+			}
+			m = driveModel(t, m, "enter")
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "resume.md hasn't been written yet") {
+				t.Fatalf("missing feedback:\n%s", v)
+			}
+		})
+	}
+}
+
+func TestNewReaderTabKeepsCurrentTab(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right")
+	if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-none", "resume.md"), []byte("# New resume"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m = driveModel(t, m, "e")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Notes]") || !strings.Contains(v, "Resume") {
+		t.Fatalf("tab changed or missing:\n%s", v)
 	}
 }
