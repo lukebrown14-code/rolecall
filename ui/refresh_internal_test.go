@@ -32,12 +32,10 @@ func fixtureModel(t *testing.T) model {
 	return m.(model)
 }
 
-func (m model) root() string { return m.store.Root() }
-
 // A live refresh that finds an Application gone drops it and keeps the header count right.
 func TestRefreshDropsRemovedApplication(t *testing.T) {
 	m := fixtureModel(t)
-	fern := filepath.Join(m.root(), "jobs", "SWE", "fern")
+	fern := filepath.Join(m.store.Root(), "jobs", "SWE", "fern")
 	if err := os.RemoveAll(fern); err != nil {
 		t.Fatal(err)
 	}
@@ -56,13 +54,13 @@ func TestRefreshDropsRemovedApplication(t *testing.T) {
 // the same Application.
 func TestRefreshKeepsCursorWhenARowAboveLeaves(t *testing.T) {
 	m := fixtureModel(t)
-	fern := filepath.Join(m.root(), "jobs", "SWE", "fern")
+	fern := filepath.Join(m.store.Root(), "jobs", "SWE", "fern")
 	m.keepCursor(fern)
 	if m.cursorFolder() != fern {
 		t.Fatalf("cursor not on Fern to start")
 	}
 	// The agent dismisses a Lead above Fern; Fern must stay selected.
-	emptyLog := filepath.Join(m.root(), "jobs", "SWE", "empty-log")
+	emptyLog := filepath.Join(m.store.Root(), "jobs", "SWE", "empty-log")
 	meta := filepath.Join(emptyLog, "meta.yml")
 	b, err := os.ReadFile(meta)
 	if err != nil {

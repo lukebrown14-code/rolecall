@@ -9,8 +9,9 @@ Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and C
 - Only `store` reads or writes Workspace files; `ui` never touches them directly.
 - Behaviour tests drive `Update` directly, not the whole program: a key in, model and disk
   state out, with external programs faked (`ui/drive_test.go`). No `teatest`, no `WaitFor`,
-  no `time.Sleep` except where the program genuinely waits on an external process. A
-  handful of `teatest` smoke tests remain: start, move, add, live refresh, quit.
+  no `time.Sleep` except where the program genuinely waits on an external process. A few
+  `teatest` smoke tests remain where the program itself is the subject: live refresh, the
+  captured build runner, and external programs.
 - Rendering tests draw `View()` from fixed model states into ANSI-stripped goldens; one
   coloured golden (`TestFixtureTables/palette`) covers the palette, so a palette change
   touches one file. Regenerate with `go test ./ui -update` only when the change is
