@@ -4,6 +4,7 @@ package ui
 import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	huh "charm.land/huh/v2"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/store"
 	"strings"
@@ -39,7 +40,8 @@ type model struct {
 	filtering             bool
 	full                  bool
 	options               []string
-	moveCursor            int
+	moveForm              *huh.Form
+	moveTarget            string
 	undo                  []undoMove
 	toast                 string
 	err                   error
@@ -102,6 +104,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	if m.moveForm != nil {
+		if _, key := msg.(tea.KeyPressMsg); !key {
+			updated, cmd := m.moveForm.Update(msg)
+			m.moveForm = updated.(*huh.Form)
+			if m.moveForm.State == huh.StateCompleted {
+				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.options = nil
+				m.moveForm = nil
+			}
+			return m, cmd
+		}
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -127,34 +141,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if len(m.options) > 0 {
-			switch k.String() {
-			case "esc":
+			if k.String() == "esc" {
 				m.options = nil
-			case "down", "j":
-				m.moveCursor = (m.moveCursor + 1) % len(m.options)
-			case "up", "k":
-				m.moveCursor = (m.moveCursor + len(m.options) - 1) % len(m.options)
-			default:
-				target := ""
-				if k.String() == "enter" {
-					target = m.options[m.moveCursor]
-				} else {
-					for _, s := range m.options {
-						if statusLetters[s] == k.String() {
-							target = s
-						}
-					}
-				}
-				if target != "" {
-					rows := m.rows()
-					if len(rows) > 0 {
-						m.move(rows[m.cursor], target, false)
-					}
+				m.moveForm = nil
+				return m, nil
+			}
+			for _, status := range m.options {
+				if statusLetters[status] == k.String() {
+					m.move(m.rows()[m.cursor], status, false)
 					m.options = nil
+					m.moveForm = nil
+					return m, nil
 				}
 			}
-			return m, nil
+			updated, cmd := m.moveForm.Update(msg)
+			m.moveForm = updated.(*huh.Form)
+			if m.moveForm.State == huh.StateCompleted {
+				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.options = nil
+				m.moveForm = nil
+			}
+			return m, cmd
 		}
+
 		switch k.String() {
 		case "m", "x":
 			rows := m.rows()
@@ -170,7 +179,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						previous = a.StatusLog[len(a.StatusLog)-2].Status
 					}
 					m.options = MoveOptions(a.Status, previous)
-					m.moveCursor = 0
+					opts := make([]huh.Option[string], 0, len(m.options))
+					for _, status := range m.options {
+						opts = append(opts, huh.NewOption(statusLetters[status]+" "+status, status))
+					}
+					m.moveForm = huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Key("status").Title("Move").Options(opts...))).WithShowHelp(false).WithShowErrors(false)
+					return m, m.moveForm.Init()
 				}
 			}
 		case "u":

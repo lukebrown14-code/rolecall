@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/store"
-	"strings"
 )
 
 var statusLetters = map[string]string{"Lead": "l", "Draft": "d", "Applied": "a", "Interviewing": "i", "Offer": "o", "Rejected": "r", "Withdrawn": "w", "Dismissed": "x"}
@@ -41,15 +40,4 @@ func (m *model) move(a store.Application, status string, undo bool) {
 	m.apps, m.err = m.store.Scan()
 	m.toast = fmt.Sprintf("Moved to %s · u to undo", status)
 }
-func (m model) moveView() string {
-	var b strings.Builder
-	b.WriteString("Move\n")
-	for i, s := range m.options {
-		mark := "  "
-		if i == m.moveCursor {
-			mark = "> "
-		}
-		fmt.Fprintf(&b, "%s%s %s\n", mark, statusLetters[s], s)
-	}
-	return b.String()
-}
+func (m model) moveView() string { return m.moveForm.View() }
