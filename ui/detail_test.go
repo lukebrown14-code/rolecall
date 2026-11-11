@@ -246,7 +246,7 @@ func TestDetailDocsTabListsDocumentSet(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.show("✓ resume.md", "○ cover-letter.md  not written", "○ gaps.md  not written",
+	h.show("✓ resume.md", "✓ cover-letter.md", "○ gaps.md  not written",
 		"out/Owner Resume Role.pdf", "out/Owner Role Cover Letter.pdf", "sent/")
 }
 
@@ -289,9 +289,9 @@ func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("j") // cover-letter.md is absent
+	h.tm.Type("jj") // gaps.md is absent
 	h.key(tea.KeyEnter)
-	h.show("cover-letter.md hasn't been written yet")
+	h.show("gaps.md hasn't been written yet")
 	if len(h.runs) != 0 {
 		t.Fatalf("ran %q", h.runs)
 	}
@@ -415,6 +415,10 @@ func TestResumeReader(t *testing.T) {
 	if got := h.lastRun(); !strings.Contains(strings.Join(got, " "), "myeditor") || !strings.HasSuffix(got[len(got)-1], "resume.md") {
 		t.Fatalf("editor command: %v", got)
 	}
+	h.key(tea.KeyRight)
+	h.show("[Letter]")
+	h.key(tea.KeyRight)
+	h.show("[Gaps]")
 	h.key(tea.KeyRight)
 	h.show("[Notes]")
 	h.key(tea.KeyRight)
