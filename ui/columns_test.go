@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"errors"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 	"strings"
@@ -73,5 +74,12 @@ func TestColumnsAcrossTables(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMalformedColumns(t *testing.T) {
+	got := ui.ApplicationColumns(store.Application{Folder: "jobs/tech/broken", Malformed: errors.New("bad metadata")}, "Leads", time.Time{}, 14)
+	if len(got) != 1 || got[0] != "⚠ broken" {
+		t.Fatalf("malformed row: %v", got)
 	}
 }
