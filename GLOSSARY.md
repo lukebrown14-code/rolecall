@@ -88,6 +88,10 @@ _Avoid_: CV
 The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.
 _Avoid_: done
 
+**Template**:
+The design every document is built with. The Plugin ships a default; a Workspace can override it with its own.
+_Avoid_: brand, theme
+
 **Build**:
 The Plugin's script that turns an Application's documents into PDFs. The verb is "build", and "Built N PDFs" reports one. It is not a synonym for Written, which is about the text alone; a build of a Lead appends Draft.
 _Avoid_: compile, render

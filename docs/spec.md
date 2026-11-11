@@ -487,47 +487,37 @@ Documents state rules, Build and the Plugin are unchanged.
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
-#### What v1.0 still needs (as of 2026-11-12)
+#### What v1.0 still needs (agreed 2026-11-12)
 
-v0.1, v0.1.1 and v0.2 are merged to `main` (PR #41). Still scope only: each area needs
-agreeing in a grilling session and splitting into issues before it is built.
+Agreed in the v1.0 grilling session of 2026-11-12. Every item below is ticketed, and the
+public-repo cut (#82) is blocked by all of them.
 
-| Area | Item | State |
+**In 1.0:** privacy and the public-repo cut (ADR-0005, #73), the Profile screen (#49), the
+Settings screen (#58, including the Search area filter in the Sweep), the `create-profile`
+skill, and the release blockers in the table.
+
+**Moved to 1.x:** UK/US style packs and spelling, template choices, CSV import/export,
+auto-commit on Status change, `rolecall migrate`, and #59–#61.
+
+**Platforms:** macOS and Linux are supported; Windows through WSL. Native Windows file
+opening stays but is best-effort, with no CI.
+
+| # | Item | Decision |
 |---|---|---|
-| Onboarding | `rolecall init` wizard | To do. Today a missing workspace exits with a one-line message |
-| | `rolecall doctor` | To do |
-| | Plugin install guide per harness | To do |
-| Profile | Profile screen | To do |
-| | `import-profile` skill | To do |
-| Settings | Settings screen | To do. Settings are only in `config.toml` and `workspace.json` |
-| Documents | Neutral default template + workspace brand override | To do. `plugin/templates/brand.typ` is still the Owner's brand |
-| | Style packs AU/UK/US | Partial. Only `plugin/styles/au.md` exists |
-| | 2–3 template choices | To do |
-| Data | `rolecall migrate` (schema versions) | To do. `migrate.py` is the one-time dashboard migration only |
-| | CSV/spreadsheet import · CSV/JSON export | To do |
-| | Optional auto-commit on Status change | To do |
-| Finding | Per-workspace sources and locations | Partial. `find-jobs` reads `sources` from `workspace.json`, but `sweep.py` hard-codes an Australia location filter (`LOCATION_OK` / `LOCATION_REJECT`) |
-| Platform | Linux/Windows file opening | To do. `ui/detail.go` and `ui/download.go` call macOS `open` |
-| | `NO_COLOR`, glyph fallbacks, non-colour active markers | Done (#32, `ROLECALL_ASCII`) |
-| | Colour-blind-safe markers | Partial. Every colour pairs with a word or glyph; the palette itself is not checked for colour blindness |
-| | Small terminals | Partial. Below 50×12 shows a `too small` notice; no compact layout |
-| Release | goreleaser + Homebrew tap | To do |
-| | README | Partial. Still says v0.1 and private |
-| | Demo GIF | To do (VHS, carried over from v0.1.1) |
-| | Fictional example workspace | Partial. `fixtures/workspace` is fictional but built for tests, not as a showcase |
-| | MIT licence · CONTRIBUTING | To do |
-| | Personal-data CI guard | Partial. `plugin/tests/test_personal_data.py` covers `plugin/` only; extend to Go, docs and fixtures |
-| | No telemetry | Done (none exists); state it in the README |
-
-**Suggested order:** ship v0.3 first. Then the release blockers, so the repo can go public:
-licence, README, personal-data guard across the repo, neutral template, location filter from
-the workspace, cross-platform open, `init` and `doctor`, goreleaser. Profile and Settings
-screens, template choices, style packs, import/export and auto-commit can follow in 1.x if
-needed.
-
-**To decide in the v1.0 grilling:** whether the Profile and Settings screens are required for
-1.0 or can come in 1.x; what `rolecall migrate` versions (a `schema` field in `workspace.json`?);
-which harnesses get an install guide; and Windows support in or out.
+| 1 | Org move | Public repo is `Archipelago-Software/rolecall`; module path `github.com/Archipelago-Software/rolecall`; tap `Archipelago-Software/homebrew-tap`. Done in the private repo before the cut |
+| 2 | Licence · CONTRIBUTING | MIT, "the rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
+| 3 | README | Rewrite for the public release, including "Make your documents yours" (the Privacy section is #77) |
+| 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
+| 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
+| 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
+| 7 | `init` wizard | Huh v2 prompts with matching flags: Contact (Name and Email required), Tracks, Search area (optional), Workspace path. Ends with "Create your Profile now?": from resume, answer questions, or later. Builds on #80 |
+| 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
+| 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
+| 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |
+| 11 | Codebase review | Full review of the codebase against `CODING_STANDARDS.md` and the ADRs once all code work has merged |
+| 12 | Design review | Full design review of the TUI, `init` and the documents once all UI work has merged |
+| 13 | Showcase workspace | One fictional Owner, about 10 Applications across every Status, with built PDFs. `fixtures/workspace` stays test-only |
+| 14 | Demo GIF | Recorded with VHS from the showcase workspace |
 
 ## Open questions
 
