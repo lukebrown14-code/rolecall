@@ -48,20 +48,6 @@ func (k helpKey) pair() [2]string {
 	return [2]string{h.Key, h.Desc}
 }
 
-// overlayOpen reports whether a form, popup, prompt or search box owns the keyboard.
-func (m model) overlayOpen() bool {
-	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
-		m.confirm != nil || m.pendingDownload != nil || m.buildFail != nil || m.filtering
-}
-
-// boxOpen reports whether a pop-up whose bottom border carries its own keys is open.
-// The key line then shows context instead of repeating those keys. The help pop-up is
-// excluded: its border says "any key close", so the key line keeps the view's keys.
-func (m model) boxOpen() bool {
-	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
-		m.confirm != nil || m.pendingDownload != nil
-}
-
 // viewContext names where the Owner is, for the key line while a pop-up holds the
 // keyboard: the screen, its view when it has more than one, and the Application under it.
 func (m model) viewContext() string {
@@ -187,5 +173,5 @@ func (m model) helpBox(p pal) string {
 		p.text(p.dim).Render("● ready · ○ written · ✓ present · ⚠ warning") + "\n" +
 		p.text(p.dim).Render("✕ rejected or error · ↩ withdrawn · ~ approx · ⚑ follow-up due")
 	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn) + "\n\n" + legend
-	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
+	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", hintClose}}))
 }

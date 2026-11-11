@@ -31,17 +31,8 @@ type model struct {
 	tracks                []string
 	track                 int
 	text                  string
-	filtering             bool
-	full                  bool
-	options               []string
-	moveSel               int    // highlighted entry in the Move pop-up
-	moveTarget            string // folder the Move pop-up acts on
-	form                  *form  // Add/Edit pop-up
-	editOf                *store.Application
-	duplicate             *store.Application
-	duplicateFields       store.CreateFields
+	overlay               mode // the pop-up, prompt or search input that owns the keyboard
 	selectAfter           string
-	confirm               *pendingMove
 	undo                  []undoMove
 	toast                 string // feedback line: what just happened (cleared on the next key)
 	toastHint             string // key hint shown with it, e.g. "u undo"
@@ -56,12 +47,10 @@ type model struct {
 	watchWindow           time.Duration
 	watch                 *watcher
 	downloads             string
-	pendingDownload       *downloadState
 	md                    *mdCache
 	plugin                string
 	captured              CapturedRunner
 	building              *buildState
-	buildFail             *buildFailure
 	spinner               spinner.Model
 }
 
@@ -207,75 +196,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(buildFinished); ok {
 		return m.finishBuild(done)
 	}
-	if m.form != nil {
-		return m.updateAdd(msg)
-	}
-	if paste, ok := msg.(tea.PasteMsg); ok && m.filtering {
-		m.text += pasted(paste.Content)
-		m.cursor = 0
-		return m, nil
-	}
-	if k, ok := msg.(tea.KeyPressMsg); ok && m.buildFail != nil {
-		switch k.String() {
-		case "esc":
-			m.buildFail = nil
-		case "ctrl+c":
-			return m, m.quit()
-		}
-		return m, nil
-	}
-	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
-		return m.updateDuplicate(k)
-	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		// The feedback line: a success clears on the next key; an error stays until esc.
+		m.toast, m.toastHint = "", ""
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}
-		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint = "", ""
-		if m.full {
-			m.full = false // any key closes the help pop-up, esc included
-			return m, nil
-		}
-		if k.String() == "esc" && m.err != nil && !m.overlayOpen() {
+	}
+	// An open overlay owns the keyboard: it handles the message and everything else waits.
+	if m.overlay != nil {
+		next, cmd := m.overlay.Update(&m, msg)
+		m.overlay = next
+		return m, cmd
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil
 		}
-		if m.pendingDownload != nil {
-			return m, m.answerDownload(k.String())
-		}
-		if m.confirm != nil {
-			pending := m.confirm
-			switch k.String() {
-			case "y":
-				m.confirm = nil
-				m.move(pending.app, pending.status, false)
-			case "n", "esc":
-				m.confirm = nil
-			}
-			return m, nil
-		}
-		if m.filtering {
-			switch k.String() {
-			case "esc":
-				m.text = ""
-				m.filtering = false
-			case "enter":
-				m.filtering = false
-			case "backspace":
-				m.text = dropLastGrapheme(m.text)
-			default:
-				if k.Text != "" {
-					m.text += k.Text
-				}
-			}
-			m.cursor = 0
-			return m, nil
-		}
-		if len(m.options) > 0 {
-			return m.moveKey(k.String()), nil
-		}
-
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {
 				return next.syncDetail(), cmd
@@ -286,17 +224,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if rows := m.rows(); len(rows) > 0 {
 				m.openDetail(rows[m.cursor].Folder)
 			}
-		case "m", "x":
+		case "m":
 			if a, ok := m.current(); ok {
-				if k.String() == "x" {
-					if a.Status == store.StatusLead || a.Status == store.StatusDraft {
-						m.move(a, store.StatusDismissed, false)
-					}
-				} else {
-					m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
-					m.moveSel, m.moveTarget = 0, a.Folder
-					return m, nil
-				}
+				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
+				return m, nil
+			}
+		case "x":
+			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+				m.move(a, store.StatusDismissed, false)
 			}
 		case "u":
 			if len(m.undo) > 0 {
@@ -326,7 +261,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		case "/":
-			m.filtering = true
+			m.overlay = &searchMode{}
 		case "esc":
 			m.text = ""
 			m.cursor = 0
@@ -351,7 +286,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "G":
 			m.cursor = len(m.rows()) - 1
 		case "?":
-			m.full = true
+			m.overlay = &helpMode{}
 		case "n":
 			if a, ok := m.current(); ok {
 				return m, m.editNotes(a.Folder)

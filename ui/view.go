@@ -135,7 +135,7 @@ func (m model) View() tea.View {
 	default:
 		body = m.listView(p)
 	}
-	if box := m.overlayBox(p); box != "" && !m.tooSmall() {
+	if box := m.overlayView(p); box != "" && !m.tooSmall() {
 		base := m.listView(dimmedPal)
 		if m.detail != nil {
 			base = m.detailView(dimmedPal)
@@ -201,7 +201,7 @@ func (m model) listView(p pal) string {
 		}
 	}
 	keys := m.keyLine(p, w)
-	if m.filtering {
+	if m.searching() {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
 		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
 	}

@@ -134,8 +134,8 @@ func (f *form) value(label string) string {
 
 // formBox draws the form: right-aligned labels in a column, * on required fields,
 // ‹ › around choices, dim italic placeholders, errors on the field's own row.
-func (m model) formBox(p pal) string {
-	f := m.form
+func (m model) formBox(p pal, fm *formMode) string {
+	f := fm.form
 	avail := max(minTitle, popWidth(popForm, m.viewWidth())-popInset-formLabelWidth-formChrome)
 	rows := make([]string, len(f.fields))
 	for i, fld := range f.fields {
@@ -189,5 +189,5 @@ func (m model) formBox(p pal) string {
 		}
 	}
 	return popup(p, f.title, false, popForm, m.viewWidth(), strings.Join(rows, "\n"),
-		p.keys(m.overlayHints()))
+		p.keys(fm.Keys()))
 }

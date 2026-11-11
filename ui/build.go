@@ -98,7 +98,7 @@ func (m model) finishBuild(done buildFinished) (tea.Model, tea.Cmd) {
 		}
 	}
 	if done.err != nil {
-		m.buildFail = &buildFailure{title: buildTitle(build), output: done.output}
+		m.overlay = &buildFailMode{failure: &buildFailure{title: buildTitle(build), output: done.output}}
 		return m, nil
 	}
 	n := 0
