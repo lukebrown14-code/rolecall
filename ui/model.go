@@ -35,11 +35,13 @@ type model struct {
 	screen, table, cursor int
 	full                  bool
 	err                   error
+	width                 int
+	followUpDays          int
 	now                   func() time.Time
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
-func New(s *store.Store, now func() time.Time) (tea.Model, error) {
+func New(s *store.Store, now func() time.Time, followUpDays ...int) (tea.Model, error) {
 	a, e := s.Scan()
 	if e != nil {
 		return nil, e
@@ -47,7 +49,11 @@ func New(s *store.Store, now func() time.Time) (tea.Model, error) {
 	if now == nil {
 		now = time.Now
 	}
-	return model{store: s, apps: a, now: now}, nil
+	days := 14
+	if len(followUpDays) > 0 {
+		days = followUpDays[0]
+	}
+	return model{store: s, apps: a, now: now, followUpDays: days}, nil
 }
 func (m model) Init() tea.Cmd { return nil }
 func (m model) rows() []store.Application {
@@ -58,9 +64,13 @@ func (m model) rows() []store.Application {
 			out = append(out, a)
 		}
 	}
+	sortApplications(out, tables[m.screen][m.table])
 	return out
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "q", "ctrl+c":
@@ -130,12 +140,25 @@ func (m model) View() tea.View {
 		}
 		b.WriteString(label + "  ")
 	}
-	b.WriteString("\n" + headerStyle.Render("Title | Company | Track") + "\n")
-	for i, a := range m.rows() {
-		row := fmt.Sprintf("%s | %s | %s", a.Title, a.Company, a.Track)
-		if a.Malformed != nil {
-			row = "⚠ " + a.Folder
-		}
+	table := tables[m.screen][m.table]
+	headers := []string{"Title", "Company", "Track"}
+	switch table {
+	case "Leads":
+		headers = append(headers, "Closes", "Fit")
+	case "Draft":
+		headers = append(headers, "Closes", "Fit", "Docs")
+	case "Dismissed":
+		headers = append(headers, "Dismissed date")
+	default:
+		headers = append(headers, "Applied", "Fit", "Docs", "Follow-up")
+	}
+	cells := [][]string{headers}
+	for _, a := range m.rows() {
+		cells = append(cells, ApplicationColumns(a, table, m.now(), m.followUpDays))
+	}
+	lines := renderColumns(cells, m.width)
+	b.WriteString("\n" + headerStyle.Render(lines[0]) + "\n")
+	for i, row := range lines[1:] {
 		if i == m.cursor {
 			row = selectedStyle.Render(row)
 		}
