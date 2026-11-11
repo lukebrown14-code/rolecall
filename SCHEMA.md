@@ -179,8 +179,9 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 
 The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
-`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove) and the four gates
-(edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
+`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
+most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track
 filter and the plugin's defaults.
 Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write: it

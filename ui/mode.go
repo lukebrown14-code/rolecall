@@ -64,7 +64,7 @@ type formMode struct {
 }
 
 func (fm *formMode) Keys() [][2]string {
-	return [][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}
+	return [][2]string{{"tab", hintNext}, {"←→", "change"}, {"enter", hintSave}, {"esc", "cancel"}}
 }
 
 func (fm *formMode) boxed() bool { return true }
@@ -311,3 +311,9 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	m.cursor = 0
 	return sm, nil
 }
+
+// Key-hint labels shared by the pop-up modes.
+const (
+	hintNext = "next"
+	hintSave = "save"
+)

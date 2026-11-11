@@ -52,7 +52,9 @@ type gateEditMode struct {
 	err               string
 }
 
-func (gm *gateEditMode) Keys() [][2]string { return [][2]string{{"enter", "save"}, {"esc", "cancel"}} }
+func (gm *gateEditMode) Keys() [][2]string {
+	return [][2]string{{"enter", hintSave}, {"esc", "cancel"}}
+}
 
 func (gm *gateEditMode) boxed() bool { return true }
 
