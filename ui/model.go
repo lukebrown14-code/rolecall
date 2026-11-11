@@ -197,7 +197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
-		if m.building == nil {
+		if m.building == nil && !m.fetching() {
 			return m, nil
 		}
 		var cmd tea.Cmd
