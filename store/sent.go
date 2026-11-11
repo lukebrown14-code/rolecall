@@ -8,7 +8,7 @@ import (
 )
 
 // sentFiles are the Application files frozen into sent/ when it is first created.
-var sentFiles = []string{"resume.md", "cover-letter.md", "jd.md", "fit.md", "gaps.md"}
+var sentFiles = []string{resumeFile, coverLetterFile, "jd.md", "fit.md", gapsFile}
 
 // RecordSent freezes a copy of what was sent into the Application's sent/ folder:
 // whichever of resume.md, cover-letter.md, jd.md, fit.md, gaps.md and out/*.pdf exist.

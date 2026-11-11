@@ -18,7 +18,7 @@ each other directly: files are the only link.
 | **v0.1** | personal, works without a harness | TUI layout and behaviour, `SCHEMA.md`, plugin port + rewrite for the schema, data migration |
 | **v0.1.1** | styling | colour palette (dark only), status colours, layout tweaks, empty states, header, demo GIF |
 | **v0.2** | harness + extras | `f`/`p` keys that hand off to the harness, URL fetch in Add, Stats screen (`4`), `b` build key |
-| **v0.3** | reading | Markdown preview of `resume.md` / `cover-letter.md` in the Docs tab |
+| **v0.3** | reading | Markdown reader tabs for Resume, Letter and Gaps |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Non-goals for v0.1
@@ -434,7 +434,46 @@ success/failure, fetch success/failure); Stats numbers as pure functions over th
 (funnel, Response rate exclusion window, week bucketing across a Monday boundary).
 
 ### v0.3: reading
-Markdown preview of `resume.md` and `cover-letter.md` in the Docs tab (Glamour).
+The detail view opens on JD and shows these tabs in order:
+
+| Tab | Source | Visibility |
+|---|---|---|
+| JD | `jd.md` | Always |
+| Fit | `fit.md` | Always |
+| Resume | `resume.md` | Has non-whitespace text |
+| Letter | `cover-letter.md` | Has non-whitespace text |
+| Gaps | `gaps.md` | Has non-whitespace text |
+| Notes | `notes.md` | Always |
+| Docs | Document inventory | Always |
+
+Reader tabs render the Markdown source as written, using the JD tab's Glamour
+renderer, reading width and scroll keys. `e` opens the reader's file in `$EDITOR`.
+The current tab is tracked by identity. Left/right wraps through visible tabs.
+Live refresh keeps the current tab and scroll offset when text changes; newly
+written documents add tabs without moving the reader. If the current reader's
+file is deleted or emptied, move to Docs with `<file> is gone`. Moving to an
+Application without the current tab falls back to JD.
+
+Docs keeps the source files, PDFs and `sent/` inventory. Enter on a written
+Markdown document opens its reader tab; on an absent or empty document it says
+it hasn't been written yet. `e` still opens the Markdown file in `$EDITOR`, and
+Enter on a PDF opens the system viewer. Empty files are labelled `(empty)`.
+For a Resume only Application without letter text, the card and Docs show
+`not needed · Resume only` for the cover letter, and no Letter tab appears.
+Reader scroll/edit hints match JD; help explains Enter in Docs.
+
+Acceptance:
+
+1. A Draft with all three written documents shows JD · Fit · Resume · Letter · Gaps · Notes · Docs; Resume scrolls and `e` edits it.
+2. A Lead without documents shows JD · Fit · Notes · Docs.
+3. A resume written through `p` adds its tab on return without moving the current tab.
+4. Enter on `resume.md` in Docs opens Resume; empty and absent documents show `(empty)` and `not written` where appropriate.
+5. Resume only Applications show no Letter tab and show `not needed · Resume only` in the card and Docs.
+6. Tabs fit at 80 columns and readers work with `harness` and `plugin` unset.
+7. `scripts/check-go.sh` and `go test -race -count=3 ./ui` pass.
+
+These are readers; preview continues to mean the side pane beside the tables.
+Documents state rules, Build and the Plugin are unchanged.
 
 ### v1.0: public
 | Area | Features |

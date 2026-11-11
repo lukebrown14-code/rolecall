@@ -192,7 +192,45 @@ func TestHelpFitsAShortTerminal(t *testing.T) {
 	if n := strings.Count(view, "\n") + 1; n > height {
 		t.Fatalf("%d lines on a %d-line terminal", n, height)
 	}
-	if !strings.Contains(view, "any key close") {
+	if !strings.Contains(view, "esc close") {
 		t.Fatalf("help lost its bottom border:\n%s", view)
+	}
+}
+
+func TestCompactHelpCanReachLastPage(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
+	m = driveModel(t, m, "?")
+	seen := ""
+	for range 30 {
+		seen += ansi.Strip(m.View().Content)
+		m = driveModel(t, m, "down")
+	}
+	for _, text := range []string{"quit", "Docs: ○ not written", "esc close"} {
+		if !strings.Contains(seen, text) {
+			t.Fatalf("help never showed %q", text)
+		}
+	}
+}
+
+func TestCompactAddExplainsEmptyTitle(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
+	m = driveModel(t, m, "a", "enter", "enter")
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Title is required") {
+		t.Fatalf("missing validation: %s", view)
+	}
+}
+
+func TestCompactMalformedErrorKeepsRecoveryKeys(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
+	m = driveModel(t, m, "G", "e")
+	view := ansi.Strip(m.View().Content)
+	for _, hint := range []string{"enter inspect", "esc hide"} {
+		if !strings.Contains(view, hint) {
+			t.Fatalf("missing %s: %s", hint, view)
+		}
+	}
+	m = driveModel(t, m, "enter")
+	if !strings.Contains(ansi.Strip(m.View().Content), "invalid status_log entry") {
+		t.Fatal("inspect lost diagnostic")
 	}
 }

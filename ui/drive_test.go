@@ -1,7 +1,9 @@
 package ui_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -115,3 +117,110 @@ func (d *driver) plain() string { return ansi.Strip(d.View()) }
 
 // FinalModel returns the current model, ignoring teatest's timeout options.
 func (d *driver) FinalModel(...any) tea.Model { return d.m }
+
+func TestDocsEmptyLabel(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right", "right")
+	v := ansi.Strip(m.View().Content)
+	if strings.Count(v, "resume.md (empty)") != 2 {
+		t.Fatalf("missing empty label:\n%s", v)
+	}
+}
+
+func TestDocsEnterOpensReader(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "enter")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Resume]") {
+		t.Fatalf("reader did not open:\n%s", v)
+	}
+}
+
+func TestReaderFilesFollowRefresh(t *testing.T) {
+	for _, text := range []string{"", "   "} {
+		t.Run(text, func(t *testing.T) {
+			root := fixtureCopy(t, nil)
+			m := driveStart(t, root, fixtureClock, 120, 40)
+			m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "right", "right")
+			if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0600); err != nil {
+				t.Fatal(err)
+			}
+			m = driveModel(t, m, "e")
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "resume.md is gone") {
+				t.Fatalf("missing fallback:\n%s", v)
+			}
+			m = driveModel(t, m, "enter")
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "resume.md hasn't been written yet") {
+				t.Fatalf("missing feedback:\n%s", v)
+			}
+		})
+	}
+}
+
+func TestNewReaderTabKeepsCurrentTab(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right")
+	if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-none", "resume.md"), []byte("# New resume"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m = driveModel(t, m, "e")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Notes]") || !strings.Contains(v, "Resume") {
+		t.Fatalf("tab changed or missing:\n%s", v)
+	}
+}
+
+func TestLetterAndGapsReaders(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	folder := filepath.Join(root, "jobs", "SWE", "docs-written")
+	for name, text := range map[string]string{"cover-letter.md": "Fictional letter text", "gaps.md": "Fictional gaps text"} {
+		if err := os.WriteFile(filepath.Join(folder, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := driveStart(t, root, fixtureClock, 80, 40)
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter")
+	v := ansi.Strip(m.View().Content)
+	if !strings.Contains(v, "[JD]  Fit   Resume   Letter   Gaps   Notes   Docs") {
+		t.Fatalf("tabs: %s", v)
+	}
+	m = driveModel(t, m, "right", "right", "right")
+	if !strings.Contains(ansi.Strip(m.View().Content), "Fictional letter text") {
+		t.Fatal("letter reader missing")
+	}
+	m = driveModel(t, m, "right")
+	if !strings.Contains(ansi.Strip(m.View().Content), "Fictional gaps text") {
+		t.Fatal("gaps reader missing")
+	}
+}
+
+func TestResumeOnlyLetterChoice(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter")
+	v := ansi.Strip(m.View().Content)
+	if !strings.Contains(v, "not needed · Resume only") || strings.Contains(v, " Letter ") {
+		t.Fatalf("Resume only card: %s", v)
+	}
+	m = driveModel(t, m, "left")
+	v = ansi.Strip(m.View().Content)
+	if strings.Count(v, "not needed · Resume only") != 2 {
+		t.Fatalf("Resume only Docs: %s", v)
+	}
+}
+
+func TestResumeOnlyWrittenLetterOpensFromDocs(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-resume-only", "cover-letter.md"), []byte("Fictional retained letter"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter", "left")
+	if v := ansi.Strip(m.View().Content); strings.Contains(v, "not needed") {
+		t.Fatalf("written letter labelled unnecessary: %s", v)
+	}
+	m = driveModel(t, m, "down", "enter")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
+		t.Fatalf("letter did not open: %s", v)
+	}
+}
