@@ -111,7 +111,7 @@ func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 	for _, bad := range []string{"0", "91", "abc", ""} {
 		d, cfg := machineDriver(t, 120)
-		selectRow(d, 2, 1)
+		selectRow(d, 2, 2)
 		d.Type("enter")
 		for range 3 {
 			d.Type("backspace")
@@ -127,7 +127,7 @@ func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 
 func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 2, 1)
+	selectRow(d, 2, 2)
 	d.Type("enter")
 	d.Type("backspace")
 	d.Type("backspace")

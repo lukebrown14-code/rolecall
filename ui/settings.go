@@ -112,14 +112,17 @@ func (m model) settingsListShown(w int) bool { return w >= settingsSplitWidth }
 
 // settingsHelpKeys is the keys Settings accepts. Application actions are absent.
 func (m model) settingsHelpKeys() []helpKey {
+	if m.settings != nil && m.settings.editing {
+		return []helpKey{help(groupAction, "enter", hintSave), help(groupNav, "esc", "cancel")}
+	}
 	keys := []helpKey{}
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
 	keys = append(keys, m.trackHelpKeys()...)
-	keys = append(keys, m.renameHelpKey()...)
 	keys = append(keys, m.gateHelpKeys()...)
 	keys = append(keys, m.searchHelpKeys()...)
+	keys = append(keys, m.machineHelpKeys()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "tab", "focus"))
@@ -257,7 +260,7 @@ func (m model) settingsRowsView(p pal, width int) string {
 	var lines []string
 	for i, r := range m.settingsRowsShown(m.settings.group) {
 		mark, label := "  ", p.text(p.dim).Render(r.label)
-		if m.settings.focus == settingsRows && i == m.settings.row {
+		if (m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())) && i == m.settings.row {
 			mark, label = profileMarker, p.text(p.accent).Bold(true).Render(r.label)
 		}
 		line := mark + label

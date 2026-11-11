@@ -33,7 +33,11 @@ func (m model) trackHelpKeys() []helpKey {
 	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupTracking {
 		return nil
 	}
-	return []helpKey{help(groupAction, "a", "add Track"), help(groupAction, "J K", "reorder"), help(groupAction, "x", "remove")}
+	keys := []helpKey{help(groupAction, "a", "add")}
+	if m.settings.row < len(m.settings.ws.Tracks) {
+		keys = append(keys, help(groupAction, "r", "rename"), help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
+	}
+	return keys
 }
 
 // validTrackName applies the Track name rules: non-empty after trimming, unique ignoring

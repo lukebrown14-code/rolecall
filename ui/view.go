@@ -140,7 +140,8 @@ func (m model) View() tea.View {
 		if m.detail != nil {
 			base = m.detailView(dimmedPal)
 		}
-		body = overlay(base, box, m.viewWidth())
+		x0 := m.overlayLeft()
+		body = overlayIn(base, box, x0, m.viewWidth()-x0)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
 	// Dark only: paint the terminal background so the palette reads the same on a light
