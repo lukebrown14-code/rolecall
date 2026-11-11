@@ -103,13 +103,15 @@ func TestProfileJKMoveSectionAndContentFollows(t *testing.T) {
 
 // profileListRowText is the list column of the row whose heading starts with name, with
 // the padding before the divider trimmed. The content pane is ignored, so a warning
-// that names a section does not read as a list row.
+// that names a section does not read as a list row. ASCII folds the pane separator, so
+// both forms are accepted.
 func profileListRowText(view, name string) (string, bool) {
 	for _, line := range strings.Split(view, "\n") {
-		left, _, ok := strings.Cut(line, "│")
-		if ok && strings.Contains(left, name) {
-			return strings.TrimRight(left, " "), true
+		i := strings.IndexAny(line, "│|")
+		if i < 0 || !strings.Contains(line[:i], name) {
+			continue
 		}
+		return strings.TrimRight(line[:i], " "), true
 	}
 	return "", false
 }
@@ -288,15 +290,16 @@ func TestProfileMissingShowsTheMessageAndNoList(t *testing.T) {
 }
 
 // hasProfileDivider reports a run of rule dashes in the list column, before the pane
-// separator: the row the other Profile files sit under.
+// separator: the row the other Profile files sit under. ASCII folds both the dashes and
+// the separator, so both forms are accepted.
 func hasProfileDivider(view string) bool {
 	for _, line := range strings.Split(view, "\n") {
-		left, _, ok := strings.Cut(line, "│")
-		if !ok {
+		i := strings.IndexAny(line, "│|")
+		if i < 0 {
 			continue
 		}
-		left = strings.TrimSpace(left)
-		if len(left) >= 2 && strings.Trim(left, "─") == "" {
+		left := strings.TrimSpace(line[:i])
+		if len(left) >= 2 && strings.Trim(left, "─-") == "" {
 			return true
 		}
 	}
@@ -435,6 +438,89 @@ func TestProfileHelpOmitsEditFileWithNoProfile(t *testing.T) {
 	}
 }
 
+// Below 80 columns the section list has no room: it is hidden and the context row names
+// the selected entry and its 1-based position instead. At 80 columns the list is back.
+func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
+	narrow := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))
+	if !strings.Contains(narrow, "Experience 3/6") {
+		t.Fatalf("narrow context row lacks the selection and position:\n%s", narrow)
+	}
+	for _, hidden := range []string{"SECTIONS", "Key Skills", "projects.md"} {
+		if strings.Contains(narrow, hidden) {
+			t.Fatalf("narrow layout still shows %q:\n%s", hidden, narrow)
+		}
+	}
+	wide := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "5"))
+	if !strings.Contains(wide, "SECTIONS") || !strings.Contains(wide, "Key Skills") {
+		t.Fatalf("80 columns still hides the section list:\n%s", wide)
+	}
+}
+
+// j and k still move the selection when the list is hidden, and the content follows.
+func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	headlines := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j"))
+	if !strings.Contains(headlines, " 2/6") || !strings.Contains(headlines, "Full Stack Software Engineer") {
+		t.Fatalf("j did not move to Headlines:\n%s", headlines)
+	}
+	back := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j", "k"))
+	if !strings.Contains(back, " 1/6") || !strings.Contains(back, "alex.quinn@example.test") {
+		t.Fatalf("k did not move back to Contact:\n%s", back)
+	}
+}
+
+// The narrow position continues from the sections into the other files under the divider.
+func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, profileKeysToFile...))
+	if !strings.Contains(view, "projects.md 7/7") {
+		t.Fatalf("narrow context row lacks projects.md 7/7:\n%s", view)
+	}
+	if !strings.Contains(view, "profile/projects.md") {
+		t.Fatalf("narrow context row lost the file path:\n%s", view)
+	}
+}
+
+// Below the minimum size the too-small notice replaces Profile, as on every screen.
+func TestProfileTooSmallShowsTheNotice(t *testing.T) {
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 49, 11, "5"))
+	if !strings.Contains(view, "Terminal too small") {
+		t.Fatalf("no too-small notice:\n%s", view)
+	}
+}
+
+// The wide layouts keep their goldens; the narrow, missing, warning and ASCII states get
+// one each.
 func TestProfileGolden(t *testing.T) {
 	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))))
+}
+
+func TestProfileNarrowGolden(t *testing.T) {
+	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))))
+}
+
+func TestProfileMissingGolden(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		if err := os.Remove(filepath.Join(root, "profile", "master-profile.md")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, root, 120, "5"))))
+}
+
+func TestProfileWarningGolden(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		removeProfileLines(t, root, "| Email | alex.quinn@example.test |")
+	})
+	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, root, 120, "5"))))
+}
+
+func TestProfileAsciiGolden(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "1")
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "5"))
+	for _, r := range view {
+		if r > 127 {
+			t.Fatalf("non-ASCII glyph %q survived ROLECALL_ASCII:\n%s", r, view)
+		}
+	}
+	teatest.RequireEqualOutput(t, []byte(view))
 }
