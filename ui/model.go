@@ -46,6 +46,7 @@ type model struct {
 	moveTarget            string
 	addForm               *huh.Form
 	addValues             *addValues
+	editOf                *store.Application
 	duplicate             *store.Application
 	duplicateFields       store.CreateFields
 	selectAfter           string
@@ -62,6 +63,8 @@ type model struct {
 	height                int
 	watchWindow           time.Duration
 	watch                 *watcher
+	downloads             string
+	pendingDownload       *downloadState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -167,6 +170,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}
+		if m.pendingDownload != nil {
+			return m, m.answerDownload(k.String())
+		}
 		if m.confirm != nil {
 			pending := m.confirm
 			switch k.String() {
@@ -268,6 +274,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "a":
 			return m, m.openAdd()
+		case "e":
+			if a, ok := m.current(); ok {
+				return m, m.openEdit(a)
+			}
 		case "t":
 			if len(m.tracks) > 0 {
 				m.track = (m.track + 1) % (len(m.tracks) + 1)
@@ -303,6 +313,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			if a, ok := m.current(); ok {
 				return m, m.editNotes(a.Folder)
+			}
+		case "d":
+			if a, ok := m.current(); ok && len(a.PDFs) > 0 {
+				return m, m.download(a)
 			}
 		case "r":
 			folder := ""
@@ -396,11 +410,12 @@ func (m model) View() tea.View {
 	if m.confirm != nil {
 		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
+	b.WriteString(m.downloadPrompt())
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
 	}
 	if len(m.rows()) > 0 {
-		b.WriteString("m move · u undo")
+		b.WriteString("e edit · m move · u undo")
 		a := m.rows()[m.cursor]
 		if a.Status == "Lead" || a.Status == "Draft" {
 			b.WriteString(" · x dismiss")
@@ -412,6 +427,9 @@ func (m model) View() tea.View {
 	}
 	if len(m.rows()) > 0 {
 		b.WriteString("n notes  ")
+		if len(m.rows()[m.cursor].PDFs) > 0 {
+			b.WriteString("d download  ")
+		}
 	}
 	if m.full {
 		b.WriteString("Full help\n")

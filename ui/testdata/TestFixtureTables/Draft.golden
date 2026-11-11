@@ -4,5 +4,5 @@
 [7mdocs-none   | Fictional Labs | SWE     |        | —    |[m
 Engineer #1 | Example        | Unknown |        | Good |
 Track: All · t track  / filter · Esc clear
-m move · u undo · x dismiss
+e edit · m move · u undo · x dismiss
 n notes  1/2/3 screens  ↑↓/j/k/g/G cursor  a add  r rescan  ? full help  q/Ctrl-C quit  

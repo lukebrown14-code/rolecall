@@ -32,7 +32,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithWatch(200*time.Millisecond))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithWatch(200*time.Millisecond))
 	if err != nil {
 		return err
 	}
