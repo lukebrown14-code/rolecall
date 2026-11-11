@@ -249,10 +249,14 @@ func stripColor(s string) string {
 
 // asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
-	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "◌", "o", "█", "#",
+	"◆", "*", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
+	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "✗", "x", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
+	// the box rules Glamour draws around a Markdown table
+	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
+	// Glamour pads table cells with a non-breaking space
+	"\u00a0", " ",
 	// the progress spinner's Braille frames
 	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
 	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",

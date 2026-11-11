@@ -31,6 +31,7 @@ var snapshotStates = []struct {
 	{"14-track-cycled", []string{"1", "t"}},
 	{"15-stats", []string{"4"}},
 	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "right", "right"}},
+	{"17-profile", []string{"5"}},
 }
 
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to

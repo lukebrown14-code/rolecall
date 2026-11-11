@@ -221,7 +221,10 @@ func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
 	if c != nil && c.r != nil && c.width == width {
 		return c.r, nil
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width))
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width),
+		// Glamour otherwise moves a table's links to a footnote, which empties the
+		// Contact table's Email cell; the value belongs in its row.
+		glamour.WithInlineTableLinks(true))
 	if err == nil && c != nil {
 		c.width, c.r = width, r
 	}
@@ -242,14 +245,19 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 	if err != nil || strings.TrimSpace(string(b)) == "" {
 		return out + "No content in " + name
 	}
-	r, err := m.md.renderer(m.bodyWidth())
+	return out + m.renderMarkdown(string(b), m.bodyWidth())
+}
+
+// renderMarkdown draws Markdown at a wrap width, falling back to the source when
+// Glamour cannot. The renderer is cached per width, so repeated frames are cheap.
+func (m model) renderMarkdown(text string, width int) string {
+	r, err := m.md.renderer(width)
 	if err == nil {
-		var rendered string
-		if rendered, err = r.Render(string(b)); err == nil {
-			return out + strings.Trim(rendered, "\n")
+		if rendered, err := r.Render(text); err == nil {
+			return strings.Trim(rendered, "\n")
 		}
 	}
-	return out + string(b)
+	return text
 }
 
 // detailKey handles keys specific to the detail view. Keys it does not handle fall
@@ -275,7 +283,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.tab = tabs[(slices.Index(tabs, d.tab)+step)%len(tabs)]
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c",
+		// screen digits fall through to screenKey, which closes the detail
+		"1", "2", "3", "4", "5":
 		return m, nil, false
 	}
 	if a.Malformed != nil {

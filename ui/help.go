@@ -52,8 +52,8 @@ func (k helpKey) pair() [2]string {
 // viewContext names where the Owner is, for the key line while a pop-up holds the
 // keyboard: the screen, its view when it has more than one, and the Application under it.
 func (m model) viewContext() string {
-	label := screens[m.screen]
-	if ts := tables[m.screen]; len(ts) > 1 && ts[m.table] != label {
+	label := screenDefs[m.screen].name
+	if ts := m.views(); len(ts) > 1 && ts[m.table] != label {
 		label += " · " + ts[m.table]
 	}
 	if a, ok := m.current(); ok {
@@ -77,12 +77,9 @@ func (m model) helpKeys() []helpKey {
 		}
 		return keys
 	}
-	if m.screen == statsScreen {
-		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-4", "screen")}
-		if len(m.tracks) > 0 {
-			keys = append(keys, help(groupMore, "t", "cycle track"))
-		}
-		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	// A screen without Application tables owns its keys, and so its help.
+	if !m.hasTables() {
+		return screenDefs[m.screen].help(m)
 	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
@@ -134,8 +131,8 @@ func (m model) helpKeys() []helpKey {
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
-	if len(tables[m.screen]) > 1 {
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-5", "screen"))
+	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}
 	keys = append(keys, help(groupNav, "?", "all keys"))

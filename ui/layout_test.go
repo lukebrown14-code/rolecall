@@ -126,7 +126,7 @@ func fixtureCopy(t *testing.T, edit func(root string)) string {
 func TestEverySizeFitsTheTerminal(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	sizes := [][2]int{{1, 1}, {10, 3}, {49, 30}, {120, 11}, {50, 12}, {64, 13}}
-	states := [][]string{{"1"}, {"3"}, {"m"}, {"a"}, {"?"}, {"3", "enter"}, {"G", "e"}}
+	states := [][]string{{"1"}, {"3"}, {"5"}, {"m"}, {"a"}, {"?"}, {"3", "enter"}, {"G", "e"}}
 	for _, size := range sizes {
 		for _, keys := range states {
 			w, h := size[0], size[1]
