@@ -322,7 +322,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		e := entries[d.docs]
 		switch {
 		case e.pdf() && key == "enter":
-			return m, m.runExternal(a.Folder, "open", filepath.Join(a.Folder, e.name)), true
+			return m, m.openPath(a.Folder, filepath.Join(a.Folder, e.name), false), true
 		case e.markdown() && key == "enter" && e.hasText:
 			for tab, name := range markdownTabFiles {
 				if name == e.name {

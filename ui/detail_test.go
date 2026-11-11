@@ -278,7 +278,7 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h.tm.Type("jjj") // past the absent cover letter and gaps
 	h.key(tea.KeyEnter)
 	got := h.lastRun()
-	want := []string{"open", filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf")}
+	want := expectedOpen(filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf"), false)
 	if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("Enter on PDF: got %q want %q", got, want)
 	}
