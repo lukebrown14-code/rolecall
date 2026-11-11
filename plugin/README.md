@@ -54,9 +54,34 @@ Nothing is deleted. A folder whose `meta.yml` already has `schema` is skipped,
 so a second run changes nothing. Fit values that cannot be mapped are reported
 and left unset for the Owner to set by hand.
 
+## Building documents
+
+`build.py` turns an Application's `resume.md` and `cover-letter.md` into the
+PDFs in `out/`. It needs:
+
+- `pandoc` — Markdown to Typst markup.
+- `typst` — Typst to PDF. The templates and the eight Hanken Grotesk fonts
+  (plus their OFL licence) are shipped in `plugin/templates/`; nothing needs
+  installing for fonts.
+- `pdftotext` (poppler), optional — used for the ATS/identity check when present.
+
+On macOS: `brew install pandoc typst poppler`. The document gates need none of
+these: `python3 plugin/scripts/build.py <job_dir> --check` reads Markdown,
+`meta.yml` and the Profile only, compiles nothing and writes no `out/`.
+
+The style rules the letter gate reads are in `plugin/styles/au.md`.
+
 ## Tests
 
 ```sh
 python3 -m pytest plugin/tests
 ruff check plugin
 ```
+
+The Python tests stub `pandoc`, `typst` and `pdftotext` (or run `--check`,
+which needs none of them), so they pass on a bare Python install.
+
+`store/build_integration_test.go` runs `build.py` for real. It skips with a
+clear reason when `python3`, `pandoc` or `typst` is missing; the CI Go job
+installs only Go and Python, so it skips there. Install the tools locally to
+exercise it.
