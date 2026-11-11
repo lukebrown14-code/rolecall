@@ -113,11 +113,14 @@ func (st profileState) row() int {
 	return st.selected
 }
 
+// profileLoaded reports whether there is a Profile to show: a loaded master-profile.md.
+func (m model) profileLoaded() bool { return m.profile != nil && m.profile.profile.Exists }
+
 // profileSelectedPath is the file the current selection reads: an other Profile file's
 // path, or master-profile.md for a section. e opens it. A missing Profile names the file
 // the notice names, because nothing can be selected.
 func (m model) profileSelectedPath() string {
-	if m.profile == nil || !m.profile.profile.Exists {
+	if !m.profileLoaded() {
 		return profilePath
 	}
 	return m.profile.path()
@@ -174,6 +177,10 @@ func (m model) syncProfile() model {
 	st := *m.profile
 	st.body.SetWidth(m.profileContentWidth(m.viewWidth()))
 	st.body.SetHeight(m.profileBodyHeight())
+	if !m.profileListShown(m.viewWidth()) {
+		// The list is hidden, so it keeps the focus: there is no second pane to own it.
+		st.focus = profileList
+	}
 	offset := st.body.YOffset()
 	st.body.SetContent(m.profileMarkdown(st))
 	st.body.SetYOffset(offset)
@@ -266,15 +273,15 @@ func (m model) scrollProfile(delta int) model {
 }
 
 // profileHelpKeys is the keys Profile accepts: sections, edit, focus, screens, rescan,
-// help and quit. Application actions are absent because they do nothing here.
+// help and quit. Application actions are absent because they do nothing here, and so are
+// sections and focus when there is no Profile to move through.
 func (m model) profileHelpKeys() []helpKey {
-	keys := []helpKey{help(groupAction, "j k", "section")}
-	if m.profile != nil && m.profile.profile.Exists {
-		// e can only act on a Profile that exists.
-		keys = append(keys, help(groupAction, "e", "edit file"))
+	var keys []helpKey
+	if m.profileLoaded() {
+		keys = append(keys, help(groupAction, "j k", "section"), help(groupAction, "e", "edit file"),
+			help(groupNav, "tab", "focus"))
 	}
-	keys = append(keys, help(groupNav, "tab", "focus"),
-		help(groupNav, "1-5", "screen"), help(groupNav, "?", "all keys"))
+	keys = append(keys, help(groupNav, "1-5", "screen"), help(groupNav, "?", "all keys"))
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error"))
 	}
@@ -295,25 +302,31 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, m.quit()
 	}
-	if m.profile == nil || !m.profile.profile.Exists {
+	if !m.profileLoaded() {
 		return m, nil // nothing to select, scroll or edit
 	}
+	listShown := m.profileListShown(m.viewWidth())
 	switch k.String() {
 	case "e":
 		// The screen never writes profile/: the Owner's editor does, and the reload
 		// follows when it exits, so the selection can stay on the same heading.
 		return m, m.editFile(m.store.Root(), m.profileSelectedPath())
 	case "tab", "shift+tab":
+		// Below the split the list is hidden, so focus has nowhere to go and stays
+		// on the list; j and k still change the selection.
+		if !listShown {
+			return m, nil
+		}
 		st := *m.profile
 		st.focus = (st.focus + 1) % profilePanes
 		m.profile = &st
 	case "down", "j":
-		if m.profile.focus == profileContent {
+		if m.profile.focus == profileContent && listShown {
 			return m.scrollProfile(1), nil
 		}
 		return m.selectProfile(1), nil
 	case "up", "k":
-		if m.profile.focus == profileContent {
+		if m.profile.focus == profileContent && listShown {
 			return m.scrollProfile(-1), nil
 		}
 		return m.selectProfile(-1), nil
@@ -342,7 +355,7 @@ func (m model) profileContextRow(p pal, w int) string {
 // profileContextLabel is the context row's left: the focused pane, or the selected entry's
 // name and 1-based position when the section list is hidden.
 func (m model) profileContextLabel(p pal, w int) string {
-	if m.profile == nil || !m.profile.profile.Exists {
+	if !m.profileLoaded() {
 		return "  " + p.heading("PROFILE")
 	}
 	if !m.profileListShown(w) {
@@ -360,7 +373,7 @@ func (m model) profileContextLabel(p pal, w int) string {
 // profileBody is the list and content panes, or the missing-Profile notice. Both panes
 // are exactly the body height so the rules never move.
 func (m model) profileBody(p pal, w, h int) string {
-	if m.profile == nil || !m.profile.profile.Exists {
+	if !m.profileLoaded() {
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "  "+p.text(p.fg).Render(noProfile))
 	}
 	pane := lipgloss.NewStyle().Width(m.profilePaneWidth(w)).Height(h).MaxHeight(h).
