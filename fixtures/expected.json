@@ -71,6 +71,7 @@
     }
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-ready",
     "Company": "Fictional Labs",
     "Track": "SWE",
@@ -99,6 +100,7 @@
     "HasSent": true
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-resume-only",
     "Company": "Fictional Labs",
     "Track": "SWE",

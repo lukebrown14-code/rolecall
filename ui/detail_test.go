@@ -239,9 +239,7 @@ func TestDetailEditOpensCurrentTabFile(t *testing.T) {
 }
 
 func docsTab(h *detailHarness) {
-	for i := 0; i < 3; i++ {
-		h.key(tea.KeyRight)
-	}
+	h.key(tea.KeyLeft)
 }
 
 func TestDetailDocsTabListsDocumentSet(t *testing.T) {
@@ -404,4 +402,70 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	yes.wait("Move")
 	yes.tm.Type("ay")
 	yes.show("Applied · ", "→ Applied")
+}
+
+func TestResumeReader(t *testing.T) {
+	h := newDetailHarness(t, nil)
+	h.open("3", 0, "docs-written")
+	h.show("[JD]")
+	h.key(tea.KeyRight)
+	h.key(tea.KeyRight)
+	h.show("[Resume]", "Morgan Example")
+	h.tm.Type("e")
+	if got := h.lastRun(); !strings.Contains(strings.Join(got, " "), "myeditor") || !strings.HasSuffix(got[len(got)-1], "resume.md") {
+		t.Fatalf("editor command: %v", got)
+	}
+	h.key(tea.KeyRight)
+	h.show("[Notes]")
+	h.key(tea.KeyRight)
+	h.show("[Docs]")
+	h.key(tea.KeyRight)
+	h.show("[JD]")
+	h.key(tea.KeyLeft)
+	h.show("[Docs]")
+}
+
+func TestResumeReaderScrollAndRefresh(t *testing.T) {
+	h := newDetailHarness(t, func(root string) {
+		text := "# Resume start\n\n" + strings.Repeat("Experience on fictional services.\n\n", 50) + "Resume end\n"
+		if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	})
+	h.open("3", 0, "docs-written")
+	h.key(tea.KeyRight)
+	h.key(tea.KeyRight)
+	h.show("Resume start", "↓ more")
+	h.tm.Type("G")
+	h.show("Resume end")
+	if err := os.WriteFile(filepath.Join(h.folder("docs-written"), "resume.md"), []byte("# New start\n\n"+strings.Repeat("Updated fictional experience.\n\n", 50)+"Updated end\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h.tm.Type("e")
+	h.show("[Resume]", "Updated end")
+	h.tm.Type("g")
+	h.show("New start")
+	h.key(tea.KeyEscape)
+	h.key(tea.KeyEnter)
+	h.show("[JD]")
+}
+
+func TestResumeReaderHiddenWithoutText(t *testing.T) {
+	for _, name := range []string{"docs-none", "fern"} {
+		t.Run(name, func(t *testing.T) {
+			h := newDetailHarness(t, nil)
+			screen := "2"
+			if name == "fern" {
+				screen = "1"
+			}
+			h.open(screen, 0, name)
+			h.key(tea.KeyRight)
+			h.key(tea.KeyRight)
+			h.show("[Notes]")
+			h.key(tea.KeyRight)
+			h.show("[Docs]")
+			h.key(tea.KeyRight)
+			h.show("[JD]")
+		})
+	}
 }

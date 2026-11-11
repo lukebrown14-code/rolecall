@@ -18,19 +18,23 @@ import (
 type detailTab string
 
 const (
-	tabJD    detailTab = "JD"
-	tabFit   detailTab = "Fit"
-	tabNotes detailTab = "Notes"
-	tabDocs  detailTab = "Docs"
+	tabResume detailTab = "Resume"
+	tabJD     detailTab = "JD"
+	tabFit    detailTab = "Fit"
+	tabNotes  detailTab = "Notes"
+	tabDocs   detailTab = "Docs"
 )
 
-// visibleDetailTabs derives the reader navigation from the Application. Document
-// readers will join this list when their text is available on the Application.
-func visibleDetailTabs(_ store.Application) []detailTab {
-	return []detailTab{tabJD, tabFit, tabNotes, tabDocs}
+// visibleDetailTabs derives navigation from the Application's written documents.
+func visibleDetailTabs(a store.Application) []detailTab {
+	tabs := []detailTab{tabJD, tabFit}
+	if a.ResumeHasText {
+		tabs = append(tabs, tabResume)
+	}
+	return append(tabs, tabNotes, tabDocs)
 }
 
-var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md"}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
