@@ -72,6 +72,10 @@ _Avoid_: reply, callback
 The verdict on how well an Application matches the Profile: Strong, Good, Marginal or Poor. Empty means not yet assessed; the reasoning lives beside it, not in it.
 _Avoid_: score, match
 
+**Resume**:
+The resume tailored for one Application, written from the Profile. It is one of the Application's documents, beside the cover letter.
+_Avoid_: CV
+
 **Written**:
 The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.
 _Avoid_: done
