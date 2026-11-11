@@ -51,6 +51,7 @@ type model struct {
 	building              *buildState
 	spinner               spinner.Model
 	profile               *profileState
+	settings              *settingsState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -74,7 +75,9 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
-		m.tracks, e = s.Tracks()
+		// An invalid workspace.json must not stop the program: Settings shows it and
+		// offers e. The header has no Track filter until it reads again.
+		m.tracks, m.err = s.Tracks()
 	}
 	if e != nil {
 		m.watch.close()
@@ -194,6 +197,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// still rescans its own folder above.
 		if m.screen == profileScreen || done.folder == m.store.Root() {
 			m = m.loadProfile()
+		}
+		if m.screen == settingsScreen {
+			m.rescanAll() // workspace.json holds the Tracks the header filters by
+			m = m.loadSettings()
 		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {

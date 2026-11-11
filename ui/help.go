@@ -123,7 +123,7 @@ func (m model) helpKeys() []helpKey {
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-6", "screen"))
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}

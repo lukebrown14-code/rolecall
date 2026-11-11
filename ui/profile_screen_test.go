@@ -414,7 +414,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 
 func TestProfileHelpListsOnlyValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "?"))
-	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-5", "screen", "rescan", "all keys", "quit"} {
+	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-6", "screen", "rescan", "all keys", "quit"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}

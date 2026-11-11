@@ -177,8 +177,11 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 
 ## `workspace.json` (read by the TUI)
 
-The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
-filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
+The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
+(`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
+`blockers` on the Settings screen. It writes none of them yet. Missing file or key = no track
+filter and the plugin's defaults. An invalid file is shown, with its parse error, on the Settings
+screen. `sources`, `blockers` and the gates are used by the plugin.
 
 `search_area` (read by the Sweep and `find-jobs`) is where roles must be:
 

@@ -281,7 +281,7 @@ func (m model) statsApps() []store.Application {
 
 // statsHelpKeys is the keys Stats accepts: add and screens, track, help, rescan, quit.
 func (m model) statsHelpKeys() []helpKey {
-	keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-5", "screen")}
+	keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-6", "screen")}
 	if len(m.tracks) > 0 {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
