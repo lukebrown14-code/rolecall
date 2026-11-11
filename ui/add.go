@@ -44,7 +44,7 @@ func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea
 		{label: "Track", value: v.track, choices: trackChoices},
 		{label: "URL", value: v.url, placeholder: "https://…"},
 		{label: "Closes", value: v.closes, placeholder: "YYYY-MM-DD", validate: validCloses},
-		{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {"Strong", "Strong"}, {"Good", "Good"}, {"Marginal", "Marginal"}, {"Poor", "Poor"}}},
+		{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {store.FitStrong, store.FitStrong}, {store.FitGood, store.FitGood}, {store.FitMarginal, store.FitMarginal}, {store.FitPoor, store.FitPoor}}},
 	}
 	title := "Add a Lead"
 	if withResumeOnly {

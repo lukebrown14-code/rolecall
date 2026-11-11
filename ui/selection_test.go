@@ -20,7 +20,7 @@ const selectionWidth = 100
 // finalView runs the whole program on the fixture Workspace, sends keys (one Tab per "\t"), and returns the final screen.
 func finalView(t *testing.T, keys ...string) string {
 	t.Helper()
-	return finalViewAt(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), keys...)
+	return finalViewAt(t, fixtureNow, keys...)
 }
 
 func finalViewAt(t *testing.T, now time.Time, keys ...string) string {

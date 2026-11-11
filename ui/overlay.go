@@ -6,11 +6,12 @@ import (
 
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/store"
 )
 
 // likelyCount is how many of MoveOptions form the "likely next" group (spec → Move popup).
 // Group sizes come from the spec's Move popup table.
-var likelyCount = map[string]int{"Lead": 2, "Draft": 1, "Applied": 3, "Interviewing": 3, "Offer": 2, "Rejected": 2, "Withdrawn": 2, "Dismissed": 1} //nolint:mnd // spec table
+var likelyCount = map[string]int{store.StatusLead: 2, store.StatusDraft: 1, store.StatusApplied: 3, store.StatusInterviewing: 3, store.StatusOffer: 2, store.StatusRejected: 2, store.StatusWithdrawn: 2, store.StatusDismissed: 1} //nolint:mnd // spec table
 
 const statusColumn = 14 // width of a Status name in the move pop-up
 
@@ -65,10 +66,10 @@ func (m model) moveBox(p pal) string {
 			b.WriteString(p.text(p.dim).Render("other ") + p.text(p.faint).Render(strings.Repeat("─", cw-len("other "))) + "\n")
 		}
 		hint := ""
-		if s == "Applied" && a.Documents != "Ready" {
+		if s == store.StatusApplied && a.Documents != store.DocsReady {
 			hint = "⚠ docs not Ready"
 		}
-		if a.Status == "Dismissed" && i == 0 {
+		if a.Status == store.StatusDismissed && i == 0 {
 			hint = "restore"
 		}
 		nameC := p.fg
@@ -92,8 +93,8 @@ func (m model) moveBox(p pal) string {
 func (m model) confirmBox(p pal) string {
 	a := m.confirm.app
 	state := "not written yet"
-	if a.Documents == "Written" {
-		state = "Written, but the PDFs aren't built yet, so not Ready"
+	if a.Documents == store.DocsWritten {
+		state = "Written, but the build hasn't made its PDFs yet, so not Ready"
 	}
 	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render("Docs for "+lipgloss.NewStyle().Bold(true).Render(a.Title)+" are "+state+".") +
 		"\n\n" + p.text(p.sub).Render("Mark it Applied anyway?")

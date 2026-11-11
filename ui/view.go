@@ -17,6 +17,8 @@ import (
 const (
 	fallbackWidth  = 100
 	fallbackHeight = 30
+	minTermWidth   = 50 // below this, or minTermHeight, a "too small" notice replaces the layout
+	minTermHeight  = 12
 	splitWidth     = 100 // the preview pane appears from this width
 	listShare      = 55  // percent of the width the list takes beside the preview
 	minListWidth   = 56
@@ -109,12 +111,14 @@ func (m model) View() tea.View {
 	p := basePal
 	var body string
 	switch {
+	case m.tooSmall():
+		body = m.tooSmallView(p)
 	case m.detail != nil:
 		body = m.detailView(p)
 	default:
 		body = m.listView(p)
 	}
-	if box := m.overlayBox(p); box != "" {
+	if box := m.overlayBox(p); box != "" && !m.tooSmall() {
 		base := m.listView(dimmedPal)
 		if m.detail != nil {
 			base = m.detailView(dimmedPal)
@@ -125,6 +129,21 @@ func (m model) View() tea.View {
 	// Dark only: paint the terminal background so the palette reads the same on a light terminal.
 	v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
 	return v
+}
+
+// tooSmall reports a terminal below the smallest size the layout supports. Before the
+// first size message the fallback size applies, which is never too small.
+func (m model) tooSmall() bool {
+	return m.width > 0 && (m.width < minTermWidth || m.height < minTermHeight)
+}
+
+// tooSmallView says so, in place of a layout that would spill off the screen.
+func (m model) tooSmallView(p pal) string {
+	msg := p.text(p.fg).Bold(true).Render("Terminal too small") + "\n" +
+		p.text(p.dim).Render(fmt.Sprintf("%d×%d, needs %d×%d", m.width, m.height, minTermWidth, minTermHeight))
+	lines := strings.Split(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.NewStyle().Width(m.width).Align(lipgloss.Center).Render(msg)), "\n")
+	return strings.Join(lines[:min(len(lines), m.height)], "\n")
 }
 
 // listView is a screen: top bar, views, the list (with the preview pane when wide),
@@ -171,19 +190,19 @@ func (m model) listView(p pal) string {
 // emptyMessage says how Applications reach an empty view.
 func emptyMessage(table string) (string, string) {
 	switch table {
-	case "Leads":
+	case tableLeads:
 		return "No Leads yet", "Press a to add one, or run capture-job from your harness."
-	case "Dismissed":
+	case tableDismissed:
 		return "Nothing dismissed", "Press x on a Lead to dismiss it."
-	case "Draft":
+	case tableDraft:
 		return "No Drafts", "Move a Lead here with m → d."
-	case "All", "Applied":
+	case allView, tableApplied:
 		return "Nothing applied for yet", "Mark a Draft as sent with m → a."
-	case "Interviewing":
+	case tableInterviewing:
 		return "No interviews", "Move an Application here with m → i from Applied."
-	case "Offer":
+	case tableOffer:
 		return "No offers yet", "Move an Application here with m → o from Interviewing."
-	case "Closed":
+	case tableClosed:
 		return "Nothing closed", "Rejected and Withdrawn Applications land here (m → r / w)."
 	}
 	return "Nothing here", ""
@@ -192,7 +211,7 @@ func emptyMessage(table string) (string, string) {
 func (m model) screenCount(si int) int {
 	n := 0
 	for _, t := range tables[si] {
-		if t != allView && t != "Dismissed" {
+		if t != allView && t != tableDismissed {
 			n += m.count(si, t)
 		}
 	}
@@ -394,7 +413,7 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 				div[i] = divider{t, m.count(m.screen, t)}
 			}
 		}
-	case "Leads", "Draft":
+	case tableLeads, tableDraft:
 		for i, a := range rows {
 			if m.expired(a) {
 				div[i] = divider{"Expired", len(rows) - i}
@@ -472,19 +491,19 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 		return "", "", ""
 	}
 	t := tableOf(a)
-	if cols := ApplicationColumns(a, t, m.now(), m.followUpDays); (t == "Applied" || t == "Interviewing") && cols[len(cols)-1] == followUpFlag && a.LastChange != nil {
+	if cols := ApplicationColumns(a, t, m.now(), m.followUpDays); (t == tableApplied || t == tableInterviewing) && cols[len(cols)-1] == followUpFlag && a.LastChange != nil {
 		rel, _ := ago(a.LastChange.At, m.now())
 		flag = followUpFlag + " quiet " + strings.TrimSuffix(rel, " ago")
 	}
 	switch {
-	case t == "Draft":
+	case t == tableDraft:
 		state, _ = basePal.docsLabel(a)
-	case a.Status == "Rejected":
+	case a.Status == store.StatusRejected:
 		state = "✕ rejected"
-	case a.Status == "Withdrawn":
+	case a.Status == store.StatusWithdrawn:
 		state = "↩ withdrawn"
 	}
-	if t != "Dismissed" {
+	if t != tableDismissed {
 		fit = a.Fit
 		if fit == "" {
 			fit = "—"
@@ -508,11 +527,11 @@ func (p pal) docsLabel(a store.Application) (string, color.Color) {
 // stateColor is the colour of a row's state slot.
 func (p pal) stateColor(a store.Application, dimC color.Color) color.Color {
 	switch {
-	case tableOf(a) == "Draft":
+	case tableOf(a) == tableDraft:
 		if _, c := p.docsLabel(a); c != p.dim {
 			return c
 		}
-	case a.Status == "Rejected":
+	case a.Status == store.StatusRejected:
 		return p.bad
 	}
 	return dimC
@@ -584,7 +603,7 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
 	rel := m.agoEntry
 	switch t := tableOf(a); t {
-	case "Leads", "Draft":
+	case tableLeads, tableDraft:
 		switch r, days := ago(a.Closes, m.now()); {
 		case a.Closes == "":
 			out = append(out, dim.Render("no close date"))
@@ -597,11 +616,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		default:
 			out = append(out, dim.Render("closes "+r))
 		}
-	case "Dismissed":
+	case tableDismissed:
 		if a.LastChange != nil {
 			out = append(out, dim.Render("dismissed "+rel(a.LastChange)))
 		}
-	case "Closed":
+	case tableClosed:
 		if a.LastChange != nil {
 			out = append(out, dim.Render("closed "+rel(a.LastChange)))
 		}

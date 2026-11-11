@@ -37,7 +37,7 @@ func newLiveHarness(t *testing.T, setup func(root string)) *liveHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, ui.WithWatch(20*time.Millisecond))
+	m, err := ui.New(s, fixtureClock, ui.WithWatch(20*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}

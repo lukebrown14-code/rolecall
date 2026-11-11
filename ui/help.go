@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/store"
 )
 
 // helpGroup places a key in the layout: the key line's left (actions) or right
@@ -87,7 +88,7 @@ func (m model) helpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "u", "undo"))
 	}
 	if onRow && usable {
-		if m.detail == nil && (a.Status == "Lead" || a.Status == "Draft") {
+		if m.detail == nil && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
 			keys = append(keys, help(groupAction, "x", "dismiss"))
 		}
 		keys = append(keys, help(groupAction, "n", "notes"))

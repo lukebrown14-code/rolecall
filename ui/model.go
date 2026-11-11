@@ -10,15 +10,15 @@ import (
 	"time"
 )
 
-var screens = []string{"Leads", "Draft", "Applied"}
+var screens = []string{screenLeads, screenDraft, screenApplied}
 
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
 
-var tables = [][]string{{"Leads", "Dismissed"}, {"Draft"}, {allView, "Applied", "Interviewing", "Offer", "Closed"}}
+var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}}
 
-var appliedGroups = []string{"Applied", "Interviewing", "Offer", "Closed"}
+var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
 // defaultFollowUpDays applies when the Owner configures none.
 const defaultFollowUpDays = 14
@@ -138,7 +138,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 }
 
 // beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.
-func beforeApplied(table string) bool { return table == "Leads" || table == "Draft" }
+func beforeApplied(table string) bool { return table == tableLeads || table == tableDraft }
 
 func (m model) count(screen int, table string) int { return len(m.rowsOf(screen, table)) }
 func (m model) matches(a store.Application) bool {
@@ -242,8 +242,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m", "x":
 			if a, ok := m.current(); ok {
 				if k.String() == "x" {
-					if a.Status == "Lead" || a.Status == "Draft" {
-						m.move(a, "Dismissed", false)
+					if a.Status == store.StatusLead || a.Status == store.StatusDraft {
+						m.move(a, store.StatusDismissed, false)
 					}
 				} else {
 					m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))

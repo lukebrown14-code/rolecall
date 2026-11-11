@@ -38,7 +38,7 @@ func readFolder(a *Application) error {
 		letter = letter || strings.Contains(e.Name(), "Cover Letter")
 	}
 	if resume && (letter || a.ResumeOnly) {
-		a.Documents = "Ready"
+		a.Documents = DocsReady
 		return nil
 	}
 	if a.HasResume {
@@ -47,7 +47,7 @@ func readFolder(a *Application) error {
 			return err
 		}
 		if strings.TrimSpace(string(b)) != "" {
-			a.Documents = "Written"
+			a.Documents = DocsWritten
 		}
 	}
 	return nil

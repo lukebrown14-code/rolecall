@@ -3,11 +3,19 @@ linters:
   default: none
   enable:
     - dupl
+    - goconst
     - mnd
   settings:
     dupl:
       threshold: 100
+    goconst:
+      # Domain names (Status, table, Fit, meta.yml keys) must be constants. Bubble Tea
+      # key names, pop-up hint words and YAML booleans read better as literals.
+      min-len: 3
+      min-occurrences: 3
+      ignore-string-values:
+        - '^(esc|enter|tab|shift\+tab|up|down|left|right|ctrl\+c|cancel|true|false)$'
   exclusions:
     rules:
       - path: _test\.go
-        linters: [dupl, mnd]
+        linters: [dupl, goconst, mnd]

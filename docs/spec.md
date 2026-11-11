@@ -252,7 +252,8 @@ context-free review. Every colour and style is in `ui/styles.go`.
 - **Search:** while typing, and after `Enter`, the views row shows `search pl  3 matches`.
 - **Narrow terminals:** the screens row sheds detail, the preview and detail card hide
   below 100 columns, pop-ups shrink to fit. The key line drops actions from the right but
-  keeps `enter`, `a add` and `/ search` to the last.
+  keeps `enter`, `a add` and `/ search` to the last. Below 50×12 a "Terminal too small"
+  notice replaces the layout.
 
 ## Plugin (v0.1)
 
