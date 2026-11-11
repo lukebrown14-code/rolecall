@@ -1,4 +1,4 @@
-title: Malformed
-company: Fictional Labs
+title: Broken
+company: Example
 track: SWE
-  invalid nested value
+  unexpected: nesting

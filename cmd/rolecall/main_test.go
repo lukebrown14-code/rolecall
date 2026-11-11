@@ -15,7 +15,7 @@ func TestCLI(t *testing.T) {
 	}
 	cmd := exec.Command("go", "run", ".", "--dir", root)
 	out, err := cmd.CombinedOutput()
-	if err != nil || string(out) != "Lead: 3\nDraft: 1\nApplied: 1\nInterviewing: 1\nOffer: 1\nRejected: 1\nWithdrawn: 1\nDismissed: 1\n" {
+	if err != nil || string(out) != "Lead: 4\nDraft: 2\nApplied: 1\nInterviewing: 2\nOffer: 2\nRejected: 2\nWithdrawn: 2\nDismissed: 2\n" {
 		t.Fatalf("%s %v", out, err)
 	}
 	home := t.TempDir()

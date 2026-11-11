@@ -5,7 +5,20 @@
     "Track": "SWE",
     "Status": "Dismissed",
     "URL": "https://example.test/shared",
-    "HasJD": true
+    "HasJD": true,
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Dismissed",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Dismissed",
+      "At": "2026-09-24",
+      "Approx": true
+    }
   },
   {
     "Title": "docs-none",
@@ -14,7 +27,20 @@
     "Status": "Draft",
     "URL": "https://example.test/shared",
     "HasJD": true,
-    "HasResume": true
+    "HasResume": true,
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Draft",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Draft",
+      "At": "2026-09-24",
+      "Approx": true
+    }
   },
   {
     "Title": "docs-partial",
@@ -27,7 +53,20 @@
     "PDFs": [
       "Owner Resume Role.pdf"
     ],
-    "Documents": "Written"
+    "Documents": "Written",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Offer",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Offer",
+      "At": "2026-09-24",
+      "Approx": true
+    }
   },
   {
     "Title": "docs-ready",
@@ -41,7 +80,21 @@
       "Owner Resume Role.pdf",
       "Owner Role Cover Letter.pdf"
     ],
-    "Documents": "Ready"
+    "Documents": "Ready",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Rejected",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Rejected",
+      "At": "2026-09-24",
+      "Approx": true
+    },
+    "HasSent": true
   },
   {
     "Title": "docs-resume-only",
@@ -55,7 +108,20 @@
     "PDFs": [
       "Owner Resume Role.pdf"
     ],
-    "Documents": "Ready"
+    "Documents": "Ready",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Withdrawn",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Withdrawn",
+      "At": "2026-09-24",
+      "Approx": true
+    }
   },
   {
     "Title": "docs-written",
@@ -69,32 +135,285 @@
     "HasFit": true,
     "HasGaps": true,
     "HasCoverLetter": true,
-    "Documents": "Written"
+    "Documents": "Written",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Interviewing",
+        "At": "2026-09-24",
+        "Approx": true
+      }
+    ],
+    "LastChange": {
+      "Status": "Interviewing",
+      "At": "2026-09-24",
+      "Approx": true
+    }
+  },
+  {
+    "Title": "Empty",
+    "Company": "Example",
+    "Track": "SWE",
+    "Schema": 1,
+    "Status": "Lead",
+    "HasJD": true
   },
   {
     "Title": "Empty log",
     "Company": "Fictional Labs",
     "Track": "SWE",
-    "Status": "Lead"
+    "Status": "Lead",
+    "Schema": 1
   },
   {
     "Title": "Platform Engineer",
     "Company": "Fern Systems",
     "Track": "Platform",
     "Status": "Lead",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Lead",
+        "At": "2026-09-24T01:00:00Z"
+      }
+    ],
+    "LastChange": {
+      "Status": "Lead",
+      "At": "2026-09-24T01:00:00Z"
+    },
     "HasJD": true
   },
   {
-    "Title": "Malformed",
-    "Company": "Fictional Labs",
+    "Title": "Broken",
+    "Company": "Example",
     "Track": "SWE",
-    "Status": "Lead"
+    "Schema": 1,
+    "Status": "Lead",
+    "MalformedExpected": true,
+    "HasJD": true
   },
   {
     "Title": "Software Engineer",
     "Company": "Orbit Labs",
     "Track": "SWE",
     "Status": "Applied",
+    "Schema": 1,
+    "StatusLog": [
+      {
+        "Status": "Lead",
+        "At": "2026-09-24T01:00:00Z"
+      },
+      {
+        "Status": "Applied",
+        "At": "2026-09-25T01:00:00Z"
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2026-09-25T01:00:00Z"
+    },
+    "LastChange": {
+      "Status": "Applied",
+      "At": "2026-09-25T01:00:00Z"
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-dismissed",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Dismissed",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Dismissed",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Dismissed",
+      "At": "2026-01-01",
+      "Approx": true
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-draft",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Draft",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Draft",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Draft",
+      "At": "2026-01-01",
+      "Approx": true
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-interviewing",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Interviewing",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Interviewing",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Interviewing",
+      "At": "2026-01-01",
+      "Approx": true
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-offer",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Offer",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Offer",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Offer",
+      "At": "2026-01-01",
+      "Approx": true
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-rejected",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Rejected",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Rejected",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Rejected",
+      "At": "2026-01-01",
+      "Approx": true
+    },
+    "HasJD": true
+  },
+  {
+    "Title": "Engineer #1",
+    "Company": "Example",
+    "Track": "Unknown",
+    "URL": "https://example.com/status-withdrawn",
+    "Fit": "Good",
+    "ResumeOnly": true,
+    "Schema": 1,
+    "Status": "Withdrawn",
+    "StatusLog": [
+      {
+        "Status": "Applied",
+        "At": "2025-01-01",
+        "Approx": true
+      },
+      {
+        "Status": "Withdrawn",
+        "At": "2026-01-01",
+        "Approx": true
+      }
+    ],
+    "AppliedDate": {
+      "Status": "Applied",
+      "At": "2025-01-01",
+      "Approx": true
+    },
+    "LastChange": {
+      "Status": "Withdrawn",
+      "At": "2026-01-01",
+      "Approx": true
+    },
     "HasJD": true
   }
 ]

@@ -5,18 +5,24 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 type Application struct {
 	Folder, Title, Company, Track, Status                                string
-	URL                                                                  string   `json:",omitempty"`
-	ResumeOnly                                                           bool     `json:",omitempty"`
-	Documents                                                            string   `json:",omitempty"`
-	PDFs                                                                 []string `json:",omitempty"`
+	Documents                                                            string
+	PDFs                                                                 []string
 	HasJD, HasNotes, HasFit, HasGaps, HasResume, HasCoverLetter, HasSent bool
+	Schema                                                               int
+	URL, Closes, Fit                                                     string
+	ResumeOnly                                                           bool
+	StatusLog                                                            []StatusEntry
+	AppliedDate, LastChange                                              *StatusEntry
+	Malformed                                                            error `json:"-"`
+}
+type StatusEntry struct {
+	Status string
+	At     string
+	Approx bool
 }
 type Store struct{ root string }
 
@@ -30,8 +36,6 @@ func Open(root string) (*Store, error) {
 	}
 	return &Store{root: root}, nil
 }
-
-var statusEntry = regexp.MustCompile(`^  - \{status: ([A-Za-z]+),`)
 
 func (s *Store) Scan() ([]Application, error) {
 	apps := []Application{}
@@ -75,42 +79,8 @@ func (s *Store) Rescan(dir string) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := Application{Folder: dir, Status: "Lead"}
-	for _, line := range strings.Split(string(b), "\n") {
-		if m := statusEntry.FindStringSubmatch(line); m != nil {
-			a.Status = m[1]
-			continue
-		}
-		k, v, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		v = strings.TrimSpace(v)
-		if strings.HasPrefix(v, "\"") {
-			if end := strings.LastIndex(v, "\""); end > 0 {
-				if q, e := strconv.Unquote(v[:end+1]); e == nil {
-					v = q
-				}
-			}
-		} else {
-			if i := strings.Index(v, " #"); i >= 0 {
-				v = strings.TrimSpace(v[:i])
-			}
-		}
-		switch k {
-		case "url":
-			a.URL = v
-		case "resume_only":
-			a.ResumeOnly = v == "true"
-		case "title":
-			a.Title = v
-		case "company":
-			a.Company = v
-		case "track":
-			a.Track = v
-		}
-	}
-	if err := readFolder(&a); err != nil {
+	a := readApplication(dir, b)
+	if err = readFolder(&a); err != nil {
 		return nil, err
 	}
 	return &a, nil
