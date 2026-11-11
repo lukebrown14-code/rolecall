@@ -119,11 +119,9 @@ func TestStatsWeeksStartOnMonday(t *testing.T) {
 }
 
 func TestStatsUsesLocalTimeForTheWeek(t *testing.T) {
-	old := time.Local
-	time.Local = time.FixedZone("Test", -7*60*60)
-	defer func() { time.Local = old }()
-
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.Local)
+	// The zone comes from "now", so the test never mutates the process-global
+	// time.Local (which would race with the runtime timer goroutine under -race).
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.FixedZone("Test", -7*60*60))
 	apps := []store.Application{statsApp("edge", "SWE", store.StatusEntry{Status: store.StatusApplied, At: "2026-09-25T01:00:00Z"})}
 	got := ui.Stats(apps, now, 14)
 	if len(got.Weeks) != 12 {

@@ -72,7 +72,7 @@ func Stats(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 	if len(followUpDays) > 0 {
 		days = followUpDays[0]
 	}
-	local := now.In(time.Local)
+	loc := now.Location()
 
 	reached := map[string]int{}
 	for _, a := range apps {
@@ -103,8 +103,8 @@ func Stats(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 		if a.Malformed != nil {
 			continue
 		}
-		applied, ok := appliedAt(a)
-		if !ok || tooNewToJudge(applied, local, days) {
+		applied, ok := appliedAt(a, loc)
+		if !ok || tooNewToJudge(applied, now, days) {
 			continue
 		}
 		report.Response.Applied++
@@ -117,8 +117,8 @@ func Stats(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 		report.Response.Rate = percentOf(report.Response.Reached, report.Response.Applied)
 	}
 
-	report.Weeks = weeksOf(apps, local, statsWeeks)
-	report.Tracks = tracksOf(apps, local, days)
+	report.Weeks = weeksOf(apps, now, statsWeeks)
+	report.Tracks = tracksOf(apps, now, days)
 	return report
 }
 
@@ -144,12 +144,12 @@ func everReached(a store.Application, status string) bool {
 	return false
 }
 
-// appliedAt is the first Applied entry's local date, or false when the Application
+// appliedAt is the first Applied entry's date in loc, or false when the Application
 // never reached Applied.
-func appliedAt(a store.Application) (time.Time, bool) {
+func appliedAt(a store.Application, loc *time.Location) (time.Time, bool) {
 	for _, e := range a.StatusLog {
 		if e.Status == store.StatusApplied {
-			if t, ok := parseLocal(e.At); ok {
+			if t, ok := parseLocal(e.At, loc); ok {
 				return t, true
 			}
 		}
@@ -157,13 +157,15 @@ func appliedAt(a store.Application) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// parseLocal reads a date-only or RFC3339 timestamp in local time.
-func parseLocal(s string) (time.Time, bool) {
-	if t, err := time.ParseInLocation("2006-01-02", s, time.Local); err == nil {
+// parseLocal reads a date-only or RFC3339 timestamp in loc. The zone comes from the
+// caller's "now", not the process-global time.Local, so the Stats value is a pure
+// function of its inputs.
+func parseLocal(s string, loc *time.Location) (time.Time, bool) {
+	if t, err := time.ParseInLocation("2006-01-02", s, loc); err == nil {
 		return t, true
 	}
 	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t.In(time.Local), true
+		return t.In(loc), true
 	}
 	return time.Time{}, false
 }
@@ -190,18 +192,19 @@ func percentOf(n, d int) int {
 	return int(math.Round(float64(n) * 100 / float64(d)))
 }
 
-// weekStart is the Monday 00:00 local time at the start of t's week.
-func weekStart(t time.Time) time.Time {
-	t = t.In(time.Local)
+// weekStart is the Monday 00:00 in loc at the start of t's week.
+func weekStart(t time.Time, loc *time.Location) time.Time {
+	t = t.In(loc)
 	day := (int(t.Weekday()) - int(time.Monday) + daysPerWeek) % daysPerWeek // Monday = 0
 	t = t.AddDate(0, 0, -day)
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
 }
 
 // weeksOf returns the last n Monday-start weeks, current week last, with Applied
 // counts. An Application outside the window is ignored.
 func weeksOf(apps []store.Application, now time.Time, n int) []Week {
-	current := weekStart(now)
+	loc := now.Location()
+	current := weekStart(now, loc)
 	out := make([]Week, n)
 	index := make(map[time.Time]int, n)
 	for i := range out {
@@ -213,11 +216,11 @@ func weeksOf(apps []store.Application, now time.Time, n int) []Week {
 		if a.Malformed != nil {
 			continue
 		}
-		applied, ok := appliedAt(a)
+		applied, ok := appliedAt(a, loc)
 		if !ok {
 			continue
 		}
-		if i, ok := index[weekStart(applied)]; ok {
+		if i, ok := index[weekStart(applied, loc)]; ok {
 			out[i].Count++
 		}
 	}
@@ -227,6 +230,7 @@ func weeksOf(apps []store.Application, now time.Time, n int) []Week {
 // tracksOf returns one row per track in first-appearance order, with eligible
 // Applied and Response counts.
 func tracksOf(apps []store.Application, now time.Time, followUpDays int) []TrackStats {
+	loc := now.Location()
 	var order []string
 	seen := map[string]bool{}
 	for _, a := range apps {
@@ -242,7 +246,7 @@ func tracksOf(apps []store.Application, now time.Time, followUpDays int) []Track
 			if a.Malformed != nil || a.Track != track {
 				continue
 			}
-			applied, ok := appliedAt(a)
+			applied, ok := appliedAt(a, loc)
 			if !ok || tooNewToJudge(applied, now, followUpDays) {
 				continue
 			}
