@@ -253,6 +253,10 @@ var asciiGlyphs = strings.NewReplacer(
 	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "✗", "x", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
+	// the box rules Glamour draws around a Markdown table
+	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
+	// Glamour pads table cells with a non-breaking space
+	"\u00a0", " ",
 	// the progress spinner's Braille frames
 	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
 	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
