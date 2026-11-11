@@ -34,6 +34,10 @@ type model struct {
 	apps                  []store.Application
 	screen, table, cursor int
 	full                  bool
+	options               []string
+	moveCursor            int
+	undo                  []undoMove
+	toast                 string
 	err                   error
 	now                   func() time.Time
 }
@@ -62,7 +66,67 @@ func (m model) rows() []store.Application {
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if len(m.options) > 0 {
+			switch k.String() {
+			case "esc":
+				m.options = nil
+			case "down", "j":
+				m.moveCursor = (m.moveCursor + 1) % len(m.options)
+			case "up", "k":
+				m.moveCursor = (m.moveCursor + len(m.options) - 1) % len(m.options)
+			default:
+				target := ""
+				if k.String() == "enter" {
+					target = m.options[m.moveCursor]
+				} else {
+					for _, s := range m.options {
+						if statusLetters[s] == k.String() {
+							target = s
+						}
+					}
+				}
+				if target != "" {
+					rows := m.rows()
+					if len(rows) > 0 {
+						m.move(rows[m.cursor], target, false)
+					}
+					m.options = nil
+				}
+			}
+			return m, nil
+		}
 		switch k.String() {
+		case "m", "x":
+			rows := m.rows()
+			if len(rows) > 0 {
+				a := rows[m.cursor]
+				if k.String() == "x" {
+					if a.Status == "Lead" || a.Status == "Draft" {
+						m.move(a, "Dismissed", false)
+					}
+				} else {
+					previous := "Lead"
+					if len(a.StatusLog) > 1 {
+						previous = a.StatusLog[len(a.StatusLog)-2].Status
+					}
+					m.options = MoveOptions(a.Status, previous)
+					m.moveCursor = 0
+				}
+			}
+		case "u":
+			if len(m.undo) > 0 {
+				last := m.undo[len(m.undo)-1]
+				for _, a := range m.apps {
+					if a.Folder == last.folder {
+						m.move(a, last.status, true)
+						if m.err == nil {
+							m.undo = m.undo[:len(m.undo)-1]
+						}
+						break
+					}
+				}
+			}
+
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "1", "2", "3":
@@ -140,6 +204,20 @@ func (m model) View() tea.View {
 			row = selectedStyle.Render(row)
 		}
 		b.WriteString(row + "\n")
+	}
+	if len(m.options) > 0 {
+		b.WriteString(m.moveView())
+	}
+	if m.toast != "" {
+		b.WriteString(m.toast + "\n")
+	}
+	if len(m.rows()) > 0 {
+		b.WriteString("m move · u undo")
+		a := m.rows()[m.cursor]
+		if a.Status == "Lead" || a.Status == "Draft" {
+			b.WriteString(" · x dismiss")
+		}
+		b.WriteString("\n")
 	}
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
