@@ -30,8 +30,9 @@ const (
 )
 
 // A screen declares itself: its name, the views within it, whether it has Application
-// tables, and — when it has none — the view, keys and help it owns instead. A new
-// screen joins here rather than adding a check to the shared layout.
+// tables, and — when it has none — the view, keys and help it owns instead, plus the
+// refresh it runs when the Owner switches to it. A new screen joins here rather than
+// adding a check to the shared layout.
 type screenDef struct {
 	name      string
 	tables    []string
@@ -39,6 +40,7 @@ type screenDef struct {
 	render    func(model, pal) string
 	key       func(model, tea.KeyPressMsg) (tea.Model, tea.Cmd)
 	help      func(model) []helpKey
+	enter     func(model) model
 }
 
 // screenDefs is the screens in key order. Stats reports on Applications and Profile
@@ -53,7 +55,7 @@ func init() {
 		{name: screenDraft, tables: []string{tableDraft}, hasTables: true},
 		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
-		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys},
+		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys, enter: model.loadProfile},
 	}
 }
 
@@ -66,8 +68,11 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 		return m, false
 	}
 	m.screen, m.table, m.cursor = int(key[0]-'1'), 0, 0
-	if m.screen == profileScreen {
-		m = m.loadProfile()
+	// Switching screens leaves any open detail behind, so its keys cannot shadow the
+	// new screen's.
+	m.detail = nil
+	if enter := screenDefs[m.screen].enter; enter != nil {
+		m = enter(m)
 	}
 	return m, true
 }

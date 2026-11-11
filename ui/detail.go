@@ -178,7 +178,10 @@ func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
 	if c != nil && c.r != nil && c.width == width {
 		return c.r, nil
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width))
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width),
+		// Glamour otherwise moves a table's links to a footnote, which empties the
+		// Contact table's Email cell; the value belongs in its row.
+		glamour.WithInlineTableLinks(true))
 	if err == nil && c != nil {
 		c.width, c.r = width, r
 	}
@@ -236,7 +239,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.tab = (d.tab + step) % len(detailTabs)
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c",
+		// screen digits fall through to screenKey, which closes the detail
+		"1", "2", "3", "4", "5":
 		return m, nil, false
 	}
 	if a.Malformed != nil {

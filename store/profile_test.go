@@ -205,6 +205,53 @@ func TestProfileSectionCountsFollowTheRules(t *testing.T) {
 	}
 }
 
+// A single paragraph with commas is prose unless it reads as a bare list: sentence
+// punctuation or a colon marks a sentence, however many commas it holds.
+func TestProfileCommaListRejectsProse(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"sentence", "Works with startups, banks, and consultancies."},
+		{"question", "Python, Go, or Rust?"},
+		{"exclamation", "Python, Go, and Rust!"},
+		{"semicolon", "Python, Go; Docker, SQL"},
+		{"colon", "Stack: Python, Go, Docker"},
+		{"one item", "Python"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := fixtureProfileStore(t)
+			writeMasterProfile(t, s, "# Title\n\n## Summary\n\n"+tc.body+"\n")
+			p, err := s.Profile()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := p.Sections[0]; got.Count != 0 || got.Kind != "" {
+				t.Fatalf("%q counted as %d %q, want prose", tc.body, got.Count, got.Kind)
+			}
+		})
+	}
+}
+
+// The fixture's Key Skills is a bare comma list, so it still counts all eight.
+func TestProfileFixtureKeySkillsCountsEveryItem(t *testing.T) {
+	s := fixtureProfileStore(t)
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range p.Sections {
+		if section.Heading == "Key Skills keyword pool" {
+			if section.Count != 8 || section.Kind != "items" {
+				t.Fatalf("Key Skills = %d %q, want 8 items", section.Count, section.Kind)
+			}
+			return
+		}
+	}
+	t.Fatal("fixture has no Key Skills section")
+}
+
 // A file with no `##` headings is one section holding the whole file.
 func TestProfileWithoutHeadingsIsOneSection(t *testing.T) {
 	s := fixtureProfileStore(t)

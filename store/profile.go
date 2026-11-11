@@ -39,6 +39,9 @@ var profileFileNames = []string{"projects.md", "writing-preferences.md", "phrasi
 // requiredContact is the order the Profile screen reports missing fields in.
 var requiredContact = []string{"Name", "Email"}
 
+// minCommaListItems is the shortest comma list: one comma joins two items.
+const minCommaListItems = 2
+
 var (
 	// A trailing italic aside on a cell is a note to the human, not the value.
 	contactNote = regexp.MustCompile(`\s*\*\([^)\n]*\)\*\s*$`)
@@ -186,10 +189,14 @@ func isBullet(line string) bool {
 	return strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") || strings.HasPrefix(line, "+ ")
 }
 
-// commaItems counts the items in a single-paragraph comma list. A blank-line break
-// means more than one paragraph, which is prose rather than a list.
+// commaItems counts the items in a single-paragraph comma list. Prose is not a list:
+// sentence punctuation or a colon means the commas join clauses, and a blank-line break
+// means more than one paragraph. A list also needs at least two items.
 func commaItems(body string) (int, bool) {
 	if !strings.Contains(body, ",") {
+		return 0, false
+	}
+	if strings.ContainsAny(body, ".!?;:") {
 		return 0, false
 	}
 	for _, line := range strings.Split(body, "\n") {
@@ -203,7 +210,10 @@ func commaItems(body string) (int, bool) {
 			items++
 		}
 	}
-	return items, items > 0
+	if items < minCommaListItems {
+		return 0, false
+	}
+	return items, true
 }
 
 // trimBlank drops the blank lines around a section's text.
