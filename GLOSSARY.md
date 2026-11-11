@@ -64,6 +64,10 @@ _Avoid_: rejected, deleted, passed (for this)
 A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status.
 _Avoid_: stale, reminder
 
+**Response**:
+A sent Application that reached Interviewing or Offer. A rejection without an interview is not a Response. Response rate leaves out Applications sent within the follow-up period, because they are too new to judge.
+_Avoid_: reply, callback
+
 **Fit**:
 The verdict on how well an Application matches the Profile: Strong, Good, Marginal or Poor. Empty means not yet assessed; the reasoning lives beside it, not in it.
 _Avoid_: score, match
@@ -84,6 +88,10 @@ An Application sent without a cover letter, by choice. It is Ready with the resu
 **Harness**:
 The AI coding tool the Owner already uses (Claude Code, Codex, Gemini CLI, opencode…). It does all AI work using the Owner's own credentials and model.
 _Avoid_: provider (for the harness), AI connection
+
+**Handoff**:
+The Owner passing one Application to the Harness from the TUI to run a Plugin skill. The TUI steps aside while the Owner and the agent talk, then re-reads the folder when the agent exits.
+_Avoid_: AI action, job (for this), task
 
 **Plugin**:
 The skills, scripts and templates rolecall ships for the Harness. It is how the Harness knows the Workspace's files and rules.

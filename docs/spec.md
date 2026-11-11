@@ -8,8 +8,8 @@ each other directly: files are the only link.
 - **Decisions:** ADR-0001 (personal local TUI replaces the dashboard), ADR-0002 (Status lives
   in each folder), ADR-0003 (files are the only harness contract).
 - **Data contract:** [`SCHEMA.md`](../SCHEMA.md). **Terms:** [`GLOSSARY.md`](../GLOSSARY.md).
-- **Status of this doc:** agreed in the grilling session of 2026-11-11. Covers v0.1 in full;
-  later versions are listed as scope only.
+- **Status of this doc:** v0.1 agreed in the grilling session of 2026-11-11; v0.2 agreed in a
+  second session the same day. Covers v0.1 and v0.2 in full; later versions are listed as scope only.
 
 ## Roadmap
 
@@ -26,7 +26,7 @@ each other directly: files are the only link.
 - Any AI action, harness detection or harness command in the TUI. It must feel fully usable with no harness installed.
 - Colour, theming or visual polish (v0.1.1).
 - Hosting, multiple users, email intake, phone access.
-- Fetching JDs from URLs (v0.2), building PDFs (v0.2), stats (v0.2).
+- Fetching JDs from URLs, building PDFs, stats (all v0.2).
 - Being usable by anyone but the Owner (v1.0).
 
 ## Repositories
@@ -34,10 +34,9 @@ each other directly: files are the only link.
 ```
 rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)        
 ├─ cmd/rolecall/main.go                       ├─ workspace.json
-├─ internal/                                  ├─ profile/   (+ writing-preferences.md)
-│  ├─ store/   meta.yml read/patch, scan      ├─ cv/
-│  ├─ ui/      Bubble Tea models, views       └─ jobs/<track>/<slug>/
-│  └─ config/
+├─ store/   meta.yml read/patch, scan         ├─ profile/   (+ writing-preferences.md)
+├─ ui/      Bubble Tea models, views          ├─ cv/
+├─ config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
 │  ├─ skills/  capture-job, find-jobs, assess-fit, prepare-documents
@@ -73,6 +72,8 @@ workspace = "~/job-search"
 editor = ""            # empty = $VISUAL, then $EDITOR, then vi
 follow_up_days = 14
 downloads = "~/Downloads"
+harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
+plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
 ```
 
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
@@ -84,7 +85,7 @@ If there is no workspace, rolecall exits with a one-line message naming the conf
 | `1` | Leads | **Leads** │ **Dismissed** | Lead │ Dismissed |
 | `2` | Draft | — | Draft |
 | `3` | Applied | **All** │ **Applied** │ **Interviewing** │ **Offer** │ **Closed** | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
-| `4` | *(reserved: Stats, v0.2)* | | |
+| `4` | Stats (v0.2) | — | — |
 
 Each table shows a count in its tab label. The active screen and table stay put across
 refreshes, and the cursor stays on the same Application (matched by folder) when rows shift.
@@ -128,7 +129,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `?` | global | full help |
 | `q` / `Ctrl-C` | global | quit |
 
-- **Reserved, unbound in v0.1:** `f`, `p`, `b`, `4`.
+- **v0.2 adds** `4` (Stats), `f`, `p`, `b`: see [v0.2](#v02-harness-and-extras).
 - The bottom help bar shows only the keys valid for the current row (e.g. `d` hidden when nothing is built).
 
 ### Move popup (`m`)
@@ -202,8 +203,8 @@ macOS). Feedback line: `Saved 2 PDFs → ~/Downloads`.
 
 Every external program runs through one helper, `ui.runExternal(cmd)`: Bubble Tea
 `tea.ExecProcess` suspends the TUI, runs the command, resumes, then rescans the affected
-folder. v0.1 uses it for `$EDITOR` and the system viewer. v0.2 adds harness command templates
-on the same helper. Nothing else in the TUI should launch processes.
+folder. v0.1 uses it for `$EDITOR` and the system viewer. v0.2 adds a second, captured mode
+on the same helper (see v0.2). Nothing else in the TUI should launch processes.
 
 ### Live refresh
 
@@ -220,7 +221,7 @@ patch, write atomically. It refuses to touch malformed files and shows the error
 ### Styling policy for v0.1
 
 Layout only. Use terminal default colours, plus bold for headers and reverse video for the
-selected row. Put every Lip Gloss style in one file (`internal/ui/styles.go`) as neutral
+selected row. Put every Lip Gloss style in one file (`ui/styles.go`) as neutral
 styles, so v0.1.1 changes look by editing that file alone.
 
 ### v0.1.1 look (built)
@@ -318,8 +319,8 @@ Owner to set by hand.
 ## Testing and acceptance
 
 **Automated**
-- Go `internal/store`: parse and patch round-trips against `fixtures/workspace/` (unknown keys and comments preserved byte for byte; malformed files refused; atomic write).
-- Go `internal/ui`: `teatest` flows for Add → Move → Undo, and Dismiss → restore.
+- Go `store`: parse and patch round-trips against `fixtures/workspace/` (unknown keys and comments preserved byte for byte; malformed files refused; atomic write).
+- Go `ui`: `teatest` flows for Add → Move → Undo, and Dismiss → restore.
 - Python: `build.py` tests on the same fixtures (Lead → Draft append, no tracker writes, gates unchanged). `ruff` clean.
 - CI runs both.
 
@@ -339,10 +340,83 @@ Owner to set by hand.
 Built: see **v0.1.1 look** above. Dark only (light mode dropped). Still to do: VHS demo GIF.
 
 ### v0.2: harness and extras
-- `f` assess fit, `p` prepare documents: command templates in config, run through `runExternal` (interactive handoff, ADR-0003).
-- URL fetch in Add.
-- Stats screen on `4`.
-- `b` build key (runs `build.py`).
+
+Agreed in full (no longer scope only). Four items; the open polish issues (#29–33) are a
+separate track.
+
+#### Config and the process seam
+
+- `harness`: one command template for every Handoff. `{skill}` is the Plugin skill name,
+  `{dir}` the absolute Application folder, shell-quoted. Runs through `/bin/sh -c`, like the editor.
+- `plugin`: path to `rolecall/plugin`, else `$ROLECALL_PLUGIN`. No auto-detection.
+- `runExternal` gains a mode:
+  - **interactive** (v0.1 behaviour): suspend, run, resume, rescan. Used by `$EDITOR`, the viewer, Handoffs.
+  - **captured**: run in the background without suspending, keep stdout/stderr, report a
+    message when done, then rescan the folder. Used by `b` and URL fetch. One at a time;
+    other keys keep working.
+- Unset `harness` hides `f`/`p` from the help bar; pressing one shows
+  `Set harness in ~/.config/rolecall/config.toml`. Unset `plugin` does the same for `b` and
+  fetch (Add still works by hand).
+
+#### Handoff: `f` and `p`
+
+| Key | Skill | Applications | From |
+|---|---|---|---|
+| `f` | `assess-fit` | any | table row, detail view |
+| `p` | `prepare-documents` | Lead, Draft | table row, detail view |
+
+Interactive mode: the Owner talks to the agent in their terminal (ADR-0003). On exit the
+folder is rescanned. A non-zero exit shows `Harness exited with status N` in the feedback
+line. No pop-up, no retry.
+
+#### Build: `b`
+
+- Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode.
+- Shown only on Lead or Draft whose Documents state is Written or Ready (rebuilds Ready).
+- Spinner in the feedback line, then `Built 2 PDFs`. If the build fails (e.g. a gate), a pop-up shows
+  `build.py`'s output.
+- A build of a Lead appends `Draft` (SCHEMA). The view stays on the current screen and says
+  `Built 2 PDFs · moved to Draft`. This is not the Owner's move, so `u` does not undo it.
+
+#### URL fetch in Add
+
+- URL becomes the **first** field of the Add form.
+- `Enter` on a URL: duplicate check first (as on save). If new, run
+  `new-job.py --fetch-only --url <url> --data <workspace>` in captured mode, spinner on the field.
+- On success: fill Title, Company and Closes where still empty, and keep the ad text. Visa
+  and clearance signals show as a `⚠` line under the URL. They are not stored.
+- On save after a successful fetch: `jd.md` gets the fetched text and `$EDITOR` is skipped.
+- On failure (login wall, text under 200 characters, no Python): one line saying why. The form
+  goes on by hand, and save opens `$EDITOR` as in v0.1.
+
+#### Stats screen (`4`)
+
+Answers "how is my search going?". No tables: `Tab` and row keys do nothing. The `t` track
+filter applies. Top to bottom:
+
+1. **Funnel**: Applications that **ever reached** each Status (from `status_log`, `approx`
+   entries included): Lead → Draft → Applied → Interviewing → Offer, with drop-off
+   percentages. Dismissed, Rejected and Withdrawn as side counts.
+2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
+   leaving out Applications whose Applied date is within `follow_up_days`.
+3. **Applied per week**: last 12 weeks, Monday-start, local time, by Applied date. Unicode
+   block bars with counts.
+4. **By track**: track × Applied · Responses · Rate. Hidden when the filter is on one track.
+
+#### v0.2 is done when the Owner can
+
+1. Press `f` on a Lead, talk to the agent, and see Fit appear on return.
+2. Press `p` on a Draft, and on return see Docs go to Written or Ready.
+3. Press `b` on a Written Lead and see `Built 2 PDFs · moved to Draft` without leaving the
+   Leads screen. Then see a failed gate's message in a pop-up.
+4. Paste a Greenhouse or Ashby URL into Add, see the fields fill, save, and find `jd.md` filled.
+   Paste a Seek URL and get the paste-by-hand path.
+5. Open Stats, check the funnel and response rate against the fixtures, and filter by track.
+6. Do all of v0.1's acceptance list with `harness` and `plugin` unset.
+
+**Automated:** config parsing for the new keys; captured-mode runner fake in `ui` tests (`b`
+success/failure, fetch success/failure); Stats numbers as pure functions over the fixtures
+(funnel, Response rate exclusion window, week bucketing across a Monday boundary).
 
 ### v0.3: reading
 Markdown preview of `resume.md` and `cover-letter.md` in the Docs tab (Glamour).
