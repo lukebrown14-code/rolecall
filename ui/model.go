@@ -59,6 +59,7 @@ type model struct {
 	pendingDownload       *downloadState
 	md                    *mdCache
 	plugin                string
+	harness               string
 	captured              CapturedRunner
 	building              *buildState
 	buildFail             *buildFailure
@@ -316,6 +317,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.openAdd()
 		case "b":
 			return m, m.startBuild()
+		case "f":
+			return m, m.startHandoff(skillAssessFit)
+		case "p":
+			return m, m.startHandoff(skillPrepareDocuments)
 		case "e":
 			if a, ok := m.current(); ok {
 				return m, m.openEdit(a)

@@ -3,6 +3,8 @@ package ui
 import (
 	"bytes"
 	tea "charm.land/bubbletea/v2"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +47,29 @@ func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
 		runner = tea.ExecProcess
 	}
 	return runner(exec.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
+}
+
+// handoffError turns a nonzero Harness exit into the feedback line the Owner reads;
+// every other error passes through unchanged.
+func handoffError(err error) error {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return fmt.Errorf("Harness exited with status %d", exit.ExitCode())
+	}
+	return err
+}
+
+// runHandoff is the interactive boundary for a Handoff: the TUI steps aside while
+// /bin/sh runs the Harness command, and the folder is rescanned when it exits. A
+// nonzero exit is named for the feedback line.
+func (m model) runHandoff(folder, command string) tea.Cmd {
+	runner := m.external
+	if runner == nil {
+		runner = tea.ExecProcess
+	}
+	return runner(exec.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
+		return externalFinished{folder, handoffError(err)}
+	})
 }
 
 // runCaptured is the other half of the process boundary: it runs a command in the
@@ -96,6 +121,9 @@ func WithCapturedRunner(r CapturedRunner) Option { return func(m *model) { m.cap
 
 // WithPlugin sets the path to the Plugin (rolecall/plugin); unset disables b.
 func WithPlugin(path string) Option { return func(m *model) { m.plugin = path } }
+
+// WithHarness sets the Harness command template for Handoff (f/p); unset hides them.
+func WithHarness(template string) Option { return func(m *model) { m.harness = template } }
 
 // WithEditor sets the configured editor command.
 func WithEditor(editor string) Option { return func(m *model) { m.editor = editor } }

@@ -231,7 +231,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.tab = (d.tab + step) % len(detailTabs)
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "b", "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c":
 		return m, nil, false
 	}
 	if a.Malformed != nil {
@@ -245,7 +245,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.ScrollDown(1)
 	case "up", "k":
 		d.body.ScrollUp(1)
-	case "pgdown", "space", "f":
+	case "pgdown", "space":
 		d.body.PageDown()
 	case "pgup":
 		d.body.PageUp()
