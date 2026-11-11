@@ -1,0 +1,11 @@
+# rolecall machine settings (fixture)
+workspace = "~/rolecall-workspace" # the Workspace to open
+
+# Opened for e on a file.
+editor = "vim"
+
+# Days before an Applied role is flagged for follow-up.
+follow_up_days = 14
+downloads = "~/Downloads"
+# harness = "claude \"/{skill} {dir}\""
+ascii = false # Yes/No in Settings
