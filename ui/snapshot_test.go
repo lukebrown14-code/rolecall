@@ -29,6 +29,7 @@ var snapshotStates = []struct {
 	{"12-search-no-match", []string{"/", "z", "z", "q", "enter"}},
 	{"13-error", []string{"G", "e"}},
 	{"14-track-cycled", []string{"1", "t"}},
+	{"15-stats", []string{"4"}},
 }
 
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to

@@ -90,6 +90,13 @@ func (m model) helpKeys() []helpKey {
 		}
 		return keys
 	}
+	if m.screen == statsScreen {
+		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-3", "screen")}
+		if len(m.tracks) > 0 {
+			keys = append(keys, help(groupMore, "t", "cycle track"))
+		}
+		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
 	usable := !onRow || a.Malformed == nil
@@ -121,6 +128,13 @@ func (m model) helpKeys() []helpKey {
 		}
 		if len(a.PDFs) > 0 {
 			keys = append(keys, help(groupAction, "d", "download"))
+		}
+	}
+	// Handoff: f on any Application, p while it is still a Lead or Draft.
+	if onRow && m.harness != "" {
+		keys = append(keys, help(groupAction, "f", "assess fit"))
+		if usable && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+			keys = append(keys, help(groupAction, "p", "prepare docs"))
 		}
 	}
 	if m.detail != nil {

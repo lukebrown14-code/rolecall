@@ -17,6 +17,7 @@ type Config struct {
 	FollowUpDays int    `toml:"follow_up_days"`
 	Downloads    string `toml:"downloads"`
 	Plugin       string `toml:"plugin"`
+	Harness      string `toml:"harness"`
 }
 
 // Path is where the Owner's settings file lives under home.

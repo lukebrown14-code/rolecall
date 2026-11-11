@@ -61,6 +61,28 @@ func TestPlugin(t *testing.T) {
 	}
 }
 
+func TestHarness(t *testing.T) {
+	home := t.TempDir()
+	p := filepath.Join(home, ".config/rolecall")
+	os.MkdirAll(p, 0700)
+	write := func(body string) {
+		if err := os.WriteFile(filepath.Join(p, "config.toml"), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The command template is read verbatim, braces and quotes intact.
+	write("workspace = \"~/work\"\nharness = \"claude \\\"/{skill} {dir}\\\"\"\n")
+	c, err := config.Load(home, "")
+	if err != nil || c.Harness != `claude "/{skill} {dir}"` {
+		t.Fatalf("configured: %+v %v", c, err)
+	}
+	// Missing: empty, and config still loads as before.
+	write("workspace = \"~/work\"\n")
+	if c, err = config.Load(home, ""); err != nil || c.Harness != "" {
+		t.Fatalf("unset: %+v %v", c, err)
+	}
+}
+
 func TestTOMLLiteralAndComments(t *testing.T) {
 	home := t.TempDir()
 	p := filepath.Join(home, ".config/rolecall")
