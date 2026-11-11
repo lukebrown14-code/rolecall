@@ -6,13 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/lukebrown14-code/rolecall/store"
-	"github.com/lukebrown14-code/rolecall/ui"
 )
 
 // The Applied screen opens on All: every Application past Draft, one section per table.
@@ -51,17 +46,13 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 	}
 }
 
-// An error stays on the feedback line through other keys until esc dismisses it.
+// An error stays on the status row through other keys until esc dismisses it.
 func TestErrorsStayUntilEsc(t *testing.T) {
 	const want = "invalid status_log entry"
 	if view := ansi.Strip(finalView(t, "G", "e", "j")); !strings.Contains(view, want) {
 		t.Fatalf("error cleared by another key:\n%s", view)
 	}
-	view := ansi.Strip(runKeysThen(t, func(tm *teatest.TestModel) {
-		tm.Type("G")
-		tm.Type("e")
-		tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
-	}))
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), selectionWidth, "G", "e", "esc"))
 	if strings.Contains(view, want) {
 		t.Fatalf("esc did not dismiss the error:\n%s", view)
 	}
@@ -113,36 +104,8 @@ const termHeight = 40
 
 func runKeysSized(t *testing.T, root string, width, height int, keys ...string) string {
 	t.Helper()
-	s, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := ui.New(s, fixtureClock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(width, height))
-	// Any first frame will do: narrow screens drop "rolecall", tiny ones every word.
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return len(b) > 0 })
-	drive(tm, keys...)
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
-}
-
-// drive sends keys: "enter", "esc", "tab", "backspace" and the arrows by name, "paste:…" as a
-// bracketed paste, anything else typed as text.
-func drive(tm *teatest.TestModel, keys ...string) {
-	named := map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "backspace": tea.KeyBackspace,
-		"right": tea.KeyRight, "left": tea.KeyLeft, "up": tea.KeyUp, "down": tea.KeyDown}
-	for _, k := range keys {
-		if code, ok := named[k]; ok {
-			tm.Send(tea.KeyPressMsg{Code: code})
-		} else if text, ok := strings.CutPrefix(k, "paste:"); ok {
-			tm.Send(tea.PasteMsg{Content: text})
-		} else {
-			tm.Type(k)
-		}
-	}
+	m := driveStart(t, root, fixtureClock, width, height)
+	return driveModel(t, m, keys...).View().Content
 }
 
 // fixtureCopy is a fresh copy of the fixture Workspace, with edit applied to it.
@@ -156,29 +119,6 @@ func fixtureCopy(t *testing.T, edit func(root string)) string {
 		edit(root)
 	}
 	return root
-}
-
-// runKeysThen runs the program on the fixture Workspace, lets drive send keys, and
-// returns the final screen.
-func runKeysThen(t *testing.T, drive func(*teatest.TestModel)) string {
-	t.Helper()
-	root := t.TempDir()
-	if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
-		t.Fatal(err)
-	}
-	s, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := ui.New(s, fixtureClock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(selectionWidth, termHeight))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("rolecall")) })
-	drive(tm)
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
 }
 
 // At any size, from a sliver to the minimum and just above it, every screen and pop-up

@@ -317,8 +317,9 @@ func (m model) statsView(p pal) string {
 		lines = append(lines, "")
 	}
 	ruleTop, ruleBot := strings.Repeat("─", w), strings.Repeat("─", w)
-	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.faint).Render(ruleTop) + "\n" +
-		strings.Join(lines, "\n") + "\n" + m.feedbackLine(p, ruleBot) + "\n" + m.keyLine(p, w)
+	keys := m.keyLine(p, w)
+	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
+		strings.Join(lines, "\n") + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
 }
 
 // statsBody renders the report top to bottom. The per-track table is hidden when

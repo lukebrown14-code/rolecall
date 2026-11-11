@@ -9,7 +9,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 )
@@ -35,31 +34,23 @@ func appliedWorkspace(t *testing.T, files map[string]string) (root, folder strin
 }
 
 // appliedSession starts the program on the Draft screen and returns a key sender and a waiter.
-func appliedSession(t *testing.T, root string) (tm *teatest.TestModel, wait func(string)) {
+func appliedSession(t *testing.T, root string) (tm *driver, wait func(string)) {
 	t.Helper()
-	s, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC) })
-	if err != nil {
-		t.Fatal(err)
-	}
-	tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
+	tm = newDriver(t, root, func() time.Time { return time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC) }, 120, 40)
 	wait = func(text string) {
 		t.Helper()
-		teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(text)) }, teatest.WithDuration(3*time.Second))
+		if view := tm.plain(); !strings.Contains(view, text) {
+			t.Fatalf("screen lacks %q:\n%s", text, view)
+		}
 	}
-	wait("Leads")
 	tm.Type("2")
 	wait("Draft 1")
 	return tm, wait
 }
 
-func quit(t *testing.T, tm *teatest.TestModel) {
+func quit(t *testing.T, tm *driver) {
 	t.Helper()
 	tm.Type("q")
-	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
 func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
@@ -241,17 +232,13 @@ func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, nil)
+	m, err := ui.New(s, nil, ui.WithExternalRunner(fakeExternal(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads")) }, teatest.WithDuration(3*time.Second))
-	tm.Type("2") // the broken row still carries its logged Status, Draft
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("⚠")) }, teatest.WithDuration(3*time.Second))
-	tm.Type("ma")
-	tm.Type("q")
-	view := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+	m = runMsg(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = driveModel(t, m, "2", "ma", "q") // the broken row still carries its logged Status, Draft
+	view := m.View().Content
 	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not Ready") {
 		t.Fatalf("want the store error and no prompt, got:\n%s", view)
 	}

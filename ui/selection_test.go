@@ -1,18 +1,12 @@
 package ui_test
 
 import (
-	"bytes"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/teatest/v2"
-	"github.com/lukebrown14-code/rolecall/store"
-	"github.com/lukebrown14-code/rolecall/ui"
 )
 
 const selectionWidth = 100
@@ -25,29 +19,8 @@ func finalView(t *testing.T, keys ...string) string {
 
 func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
 	t.Helper()
-	root := t.TempDir()
-	if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
-		t.Fatal(err)
-	}
-	s, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := ui.New(s, func() time.Time { return now })
-	if err != nil {
-		t.Fatal(err)
-	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(selectionWidth, 40))
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Leads 4")) })
-	for _, k := range keys {
-		if k == "\t" {
-			tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-		} else {
-			tm.Type(k)
-		}
-	}
-	tm.Type("q")
-	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+	m := driveStart(t, fixtureCopy(t, nil), func() time.Time { return now }, selectionWidth, 40)
+	return driveModel(t, m, keys...).View().Content
 }
 
 // selectedLine is the cursor row's first line: the one carrying the selection bar ▌.
