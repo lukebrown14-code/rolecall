@@ -440,7 +440,7 @@ def fake_tools(tmp_path):
 def cli_workspace(tmp_path, status="Lead"):
     workspace = tmp_path / "workspace"
     shutil.copytree(FIXTURE, workspace)
-    (workspace / "profile").mkdir()
+    (workspace / "profile").mkdir(exist_ok=True)
     (workspace / "profile" / "master-profile.md").write_text(CONTACT_PROFILE)
     folder = workspace / "jobs" / "SWE" / "acme-developer"
     folder.mkdir()

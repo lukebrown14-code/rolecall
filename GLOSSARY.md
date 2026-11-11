@@ -21,6 +21,10 @@ _Avoid_: category, stream, career path
 The locked fact set every document is written from: career facts plus the rules for using them. Nothing goes in a document that is not in the Profile.
 _Avoid_: personal details, master profile (for the whole set), CV
 
+**Contact**:
+The Owner's name and how to reach them, printed on every document. Part of the Profile.
+_Avoid_: personal details, identity
+
 **Experience**:
 One employment entry in the Profile: employer, dates, approved titles, bullets.
 _Avoid_: job, role (for these)
@@ -40,7 +44,7 @@ A mechanical run of all Sources: fetch, filter by Track and Search area, dedupe.
 _Avoid_: search, scan
 
 **Search area**:
-The places a role must be in, and whether remote roles count, for a Sweep to keep it. Not the Owner's own location, which is part of their Profile.
+The places a role must be in, and whether remote roles count, for a Sweep to keep it. Not the Owner's own location, which is part of their Contact.
 _Avoid_: location (alone), region
 
 ### Applying

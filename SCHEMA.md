@@ -12,7 +12,7 @@ Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in 
 ```
 <workspace>/
 ├─ workspace.json              # tracks, gates, sweep sources
-├─ profile/                    # Owner facts: read by the agent, never by the TUI
+├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
 │  ├─ phrasing-bank.md
 │  ├─ projects.md
@@ -142,6 +142,39 @@ patch it without reformatting.
 6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
    and its path. Writers refuse to touch it.
 
+## Profile
+
+`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and never
+writes it. The Profile files are free Markdown, apart from the Contact table below.
+
+### Contact table
+
+The Contact is the `## Contact` section of `profile/master-profile.md`: a two-column table of
+`| Field | Value |` rows. The section ends at the next `## ` heading or the end of the file.
+
+```markdown
+## Contact
+
+| Field | Value |
+| :-- | :-- |
+| Name | Alex Quinn |
+| Email | alex.quinn@example.test |
+| Phone | +61 400 000 000 |
+| Location | Brisbane, QLD |
+| LinkedIn | linkedin.com/in/alexquinn |
+| GitHub | github.com/alexquinn |
+| Work rights | Full working rights in Australia *(subclass never printed)* |
+```
+
+- **Required:** `Name` and `Email`. A Profile missing either fails the build, and the Profile
+  screen marks Contact with ✗ and says why.
+- **Known fields:** `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
+  kept and shown, and the build ignores them.
+- **Header and divider rows** (`Field`, and rows of only `:`, `-` and spaces) are skipped.
+- **Cell values:** a trailing italic note `*(…)*` is a note to the human and is dropped.
+  `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
+- **Missing section or file:** no fields, so both required fields are missing.
+
 ## `workspace.json` (read by the TUI)
 
 The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
@@ -150,8 +183,9 @@ filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
 ## Fixtures
 
 `fixtures/workspace/` holds a fictional workspace that covers: every Status; Ready, Written and
-no docs; `resume_only`; unknown keys; `approx` entries; an empty log; and one malformed
-`meta.yml`. The Go store tests and the Python `build.py` tests both load it. Any change to this
+no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malformed
+`meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py` tests
+both load it. Any change to this
 file updates the fixtures in the same commit.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed

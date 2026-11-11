@@ -479,7 +479,7 @@ Documents state rules, Build and the Plugin are unchanged.
 | Area | Features |
 |---|---|
 | Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, spelling, paper size, workspace path, `git init`) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
-| Profile | Profile screen (contact and preferences form, experience in `$EDITOR`) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
+| Profile | read-only Profile screen (screen 5; editing in 1.x) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
 | Settings | Settings screen: tracks, gates, follow-up days, downloads, editor, theme, harness commands |
 | Documents | neutral default template + workspace brand override · style packs AU/UK/US · 2–3 template choices |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
@@ -518,6 +518,27 @@ opening stays but is best-effort, with no CI.
 | 12 | Design review | Full design review of the TUI, `init` and the documents once all UI work has merged |
 | 13 | Showcase workspace | One fictional Owner, about 10 Applications across every Status, with built PDFs. `fixtures/workspace` stays test-only |
 | 14 | Demo GIF | Recorded with VHS from the showcase workspace |
+
+#### Profile screen (v1.0)
+
+Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size are not part
+of the Profile, and writing preferences stay prose, so the 1.x edit form covers the Contact only.
+
+- **Screen 5**, after Stats. A section list on the left, built from the `##` headings of
+  `profile/master-profile.md`, then a divider and the other Profile files (`projects.md`,
+  `writing-preferences.md`, `phrasing-bank.md`). The selected section renders as Markdown on
+  the right.
+- **Counts** beside each section: entries for `###` sections, rows for tables, bullets for
+  lists, items for comma lists, none for prose. Contact shows ✓, or ✗ with the reason in the
+  content pane when Name or Email is missing (builds would fail).
+- **Keys:** `j`/`k` section, `tab` focus, `e` opens the current file in `$EDITOR` (as on the
+  Resume tab).
+- **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
+  found` and `e` does nothing; a file with no `##` headings is one section, "Profile"; below
+  80 columns the section list hides and the header names the section.
+- **Refresh:** re-read on entering the screen, after `$EDITOR` closes, and on `r`. `profile/` is
+  not watched.
+- The Contact table is a file contract: see `SCHEMA.md`.
 
 ## Open questions
 
