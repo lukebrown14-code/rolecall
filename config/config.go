@@ -18,10 +18,13 @@ type Config struct {
 	Downloads    string `toml:"downloads"`
 }
 
+// Path is where the Owner's settings file lives under home.
+func Path(home string) string { return filepath.Join(home, ".config/rolecall/config.toml") }
+
 // Load reads settings under home; dir overrides the configured Workspace.
 func Load(home, dir string) (Config, error) {
 	c := Config{FollowUpDays: 14}
-	path := filepath.Join(home, ".config/rolecall/config.toml")
+	path := Path(home)
 	b, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return c, err
@@ -43,6 +46,9 @@ func Load(home, dir string) (Config, error) {
 	}
 	c.Workspace = expand(c.Workspace)
 	c.Downloads = expand(c.Downloads)
+	if c.Downloads == "" {
+		c.Downloads = filepath.Join(home, "Downloads")
+	}
 	if c.Workspace == "" {
 		return c, fmt.Errorf("no Workspace configured in %s", path)
 	}

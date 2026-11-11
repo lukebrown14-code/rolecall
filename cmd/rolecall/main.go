@@ -1,11 +1,15 @@
 package main
 
 import (
+	tea "charm.land/bubbletea/v2"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/store"
+	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
+	"time"
 )
 
 func main() {
@@ -26,19 +30,20 @@ func run(dir string) error {
 		return err
 	}
 	s, err := store.Open(c.Workspace)
+	if errors.Is(err, os.ErrNotExist) {
+		source := "workspace in " + config.Path(home)
+		if dir != "" {
+			source = "--dir"
+		}
+		return fmt.Errorf("Workspace %s does not exist; check %s", c.Workspace, source)
+	}
 	if err != nil {
 		return err
 	}
-	apps, err := s.Scan()
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithWatch(200*time.Millisecond))
 	if err != nil {
 		return err
 	}
-	counts := map[string]int{}
-	for _, a := range apps {
-		counts[a.Status]++
-	}
-	for _, status := range []string{"Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed"} {
-		fmt.Printf("%s: %d\n", status, counts[status])
-	}
-	return nil
+	_, err = tea.NewProgram(m).Run()
+	return err
 }

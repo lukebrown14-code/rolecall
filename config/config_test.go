@@ -26,7 +26,7 @@ func TestLoader(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(p, "config.toml"), []byte("follow_up_days = 21\n"), 0644)
 	c, err = config.Load(home, "/override")
-	if err != nil || c.FollowUpDays != 21 || c.Workspace != "/override" {
+	if err != nil || c.FollowUpDays != 21 || c.Workspace != "/override" || c.Downloads != filepath.Join(home, "Downloads") {
 		t.Fatalf("%+v %v", c, err)
 	}
 }
