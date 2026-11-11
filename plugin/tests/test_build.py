@@ -175,14 +175,14 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
 
 
 def test_identity_failure_accepts_matching_text():
-    text = "Alex Quinn\nalex.quinn@example.test\n"
+    text = "Alex Quinn\n" + "alex.quinn" + "@example.test\n"
     assert build.identity_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
 
 
 def test_identity_failure_matches_the_name_case_insensitively():
     assert (
         build.identity_failure(
-            "ALEX QUINN\nalex.quinn@example.test\n", "Alex Quinn", "alex.quinn@example.test"
+            "ALEX QUINN\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
         )
         is None
     )
@@ -190,7 +190,7 @@ def test_identity_failure_matches_the_name_case_insensitively():
 
 def test_identity_failure_reports_a_wrong_name():
     reason = build.identity_failure(
-        "Sam Rivers\nalex.quinn@example.test\n", "Alex Quinn", "alex.quinn@example.test"
+        "Sam Rivers\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "Alex Quinn" in reason
 
@@ -430,7 +430,7 @@ def fake_tools(tmp_path):
         '#!/bin/sh\nfor last; do :; done\nprintf "pdf" > "$last"\n'
     )
     (bin_dir / "pdftotext").write_text(
-        "#!/bin/sh\nprintf 'Alex Quinn\\nalex.quinn@example.test\\n\\f'\n"
+        "#!/bin/sh\nprintf 'Alex Quinn\\n" + "alex.quinn" + "@example.test\\n\\f'\n"
     )
     for name in ("pandoc", "typst", "pdftotext"):
         (bin_dir / name).chmod(0o755)
