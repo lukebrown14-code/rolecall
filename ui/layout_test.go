@@ -41,7 +41,7 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 	}
 	meta := filepath.Join(root, "jobs", "SWE", "fern", "meta.yml")
 	b, _ := os.ReadFile(meta)
-	if err := os.WriteFile(meta, bytes.Replace(b, []byte("track: Platform\n"), []byte("track: Platform\ncloses: 2025-12-01\n"), 1), 0o600); err != nil {
+	if err := os.WriteFile(meta, bytes.Replace(b, []byte("track: Platform\n"), []byte("track: Platform\ncloses: 2026-09-01\n"), 1), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	view := ansi.Strip(runKeys(t, root, 120, "1"))
@@ -102,29 +102,58 @@ func TestNarrowTerminalKeepsEveryLineInside(t *testing.T) {
 	}
 }
 
-// runKeys runs the program on a Workspace at the given width, types keys ("enter" sends
-// Enter), and returns the final screen.
+// runKeys runs the program on a Workspace at the given width and returns the final
+// screen. Keys are typed as text, except the names drive understands.
 func runKeys(t *testing.T, root string, width int, keys ...string) string {
+	t.Helper()
+	return runKeysSized(t, root, width, termHeight, keys...)
+}
+
+const termHeight = 40
+
+func runKeysSized(t *testing.T, root string, width, height int, keys ...string) string {
 	t.Helper()
 	s, err := store.Open(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(width, 40))
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(width, height))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("rolecall")) })
+	drive(tm, keys...)
+	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+}
+
+// drive sends keys: "enter", "esc", "tab" and "backspace" by name, "paste:…" as a
+// bracketed paste, anything else typed as text.
+func drive(tm *teatest.TestModel, keys ...string) {
+	named := map[string]rune{"enter": tea.KeyEnter, "esc": tea.KeyEscape, "tab": tea.KeyTab, "backspace": tea.KeyBackspace}
 	for _, k := range keys {
-		if k == "enter" {
-			tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if code, ok := named[k]; ok {
+			tm.Send(tea.KeyPressMsg{Code: code})
+		} else if text, ok := strings.CutPrefix(k, "paste:"); ok {
+			tm.Send(tea.PasteMsg{Content: text})
 		} else {
 			tm.Type(k)
 		}
 	}
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
-	return tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+}
+
+// fixtureCopy is a fresh copy of the fixture Workspace, with edit applied to it.
+func fixtureCopy(t *testing.T, edit func(root string)) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
+		t.Fatal(err)
+	}
+	if edit != nil {
+		edit(root)
+	}
+	return root
 }
 
 // runKeysThen runs the program on the fixture Workspace, lets drive send keys, and
@@ -139,11 +168,11 @@ func runKeysThen(t *testing.T, drive func(*teatest.TestModel)) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
-	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(selectionWidth, 40))
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(selectionWidth, termHeight))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("rolecall")) })
 	drive(tm)
 	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})

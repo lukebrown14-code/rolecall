@@ -67,7 +67,7 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("n")
 	tm.Type("?")
 	wait("Keys")
@@ -78,7 +78,7 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	}
 
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("y")
 	wait("→ Applied")
 	got, _ = os.ReadFile(filepath.Join(folder, "meta.yml"))
@@ -152,7 +152,7 @@ func TestAppliedRecordsExactlyTheListedFilesThatExist(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("y")
 	wait("→ Applied")
 	quit(t, tm)
@@ -173,7 +173,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("y")
 	wait("→ Applied")
 	tm.Type("3")
@@ -193,7 +193,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 		tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 	}
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("y")
 	wait("→ Applied")
 	quit(t, tm)
@@ -211,7 +211,7 @@ func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Docs not built")
+	wait("Docs not Ready")
 	tm.Type("y")
 	wait("→ Applied")
 	tm.Type("u")
@@ -252,7 +252,7 @@ func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	tm.Type("ma")
 	tm.Type("q")
 	view := tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second)).View().Content
-	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not built") {
+	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not Ready") {
 		t.Fatalf("want the store error and no prompt, got:\n%s", view)
 	}
 

@@ -98,15 +98,23 @@ func (m model) moveKey(key string) model {
 	case "enter":
 		status := m.options[m.moveSel]
 		m.options = nil
-		m.moveCurrent(status)
+		m.moveTargetTo(status)
 	default:
 		for _, status := range m.options {
 			if statusLetters[status] == key {
 				m.options = nil
-				m.moveCurrent(status)
+				m.moveTargetTo(status)
 				break
 			}
 		}
 	}
 	return m
+}
+
+// moveTargetTo moves the Application the pop-up shows, not whatever row the cursor is
+// on now: a live refresh can move the cursor while the pop-up is open.
+func (m *model) moveTargetTo(status string) {
+	if a, ok := m.application(m.moveTarget); ok {
+		m.requestMove(a, status)
+	}
 }

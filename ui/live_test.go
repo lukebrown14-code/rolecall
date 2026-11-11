@@ -37,7 +37,7 @@ func newLiveHarness(t *testing.T, setup func(root string)) *liveHarness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, ui.WithWatch(20*time.Millisecond))
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, ui.WithWatch(20*time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,8 +116,8 @@ func TestLiveDroppedPDFsFlipDocsMarker(t *testing.T) {
 	out := filepath.Join(h.folder("docs-none"), "out")
 	h.write(filepath.Join(out, "Owner Resume Role.pdf"), "%PDF")
 	h.write(filepath.Join(out, "Owner Role Cover Letter.pdf"), "%PDF")
-	h.wait("● built")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "● built") {
+	h.wait("● ready")
+	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "● ready") {
 		t.Fatalf("docs-none row lacks the Ready marker:\n%s", v)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 )
 
 // openEdit selects an Application by filtering on its title, then opens the Edit form on it.
@@ -132,7 +131,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {
 		t.Fatalf("resume_only not set:\n%s", meta)
 	}
-	if plain := ansi.Strip(view); !strings.Contains(plain, "● built") || strings.Contains(plain, "○ written") {
+	if plain := ansi.Strip(view); !strings.Contains(plain, "● ready") || strings.Contains(plain, "○ written") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
 	}
 }
@@ -155,7 +154,6 @@ func TestEditMalformedShowsStoreErrorAndWritesNothing(t *testing.T) {
 	before := h.snapshot()
 	h.tm.Type("G") // the malformed row sorts last on Leads
 	h.tm.Type("e")
-	time.Sleep(100 * time.Millisecond)
 	view := h.quit()
 	if !strings.Contains(ansi.Strip(view), want) || strings.Contains(view, "Resume only") {
 		t.Fatalf("want store error %q and no form:\n%s", want, view)

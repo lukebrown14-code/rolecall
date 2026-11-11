@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 // choice is one value of a choice field and how it reads on screen.
@@ -24,15 +25,42 @@ type formField struct {
 	err         string
 }
 
-// form is the Add/Edit pop-up. Keys behave as before: enter checks the focused field
-// and moves on, enter on the last field checks them all and submits.
+// form is the Add/Edit pop-up: enter checks the focused field and moves on; enter on
+// the last field checks them all and submits.
 type form struct {
 	title  string
 	fields []formField
 	focus  int
 }
 
-const formLabelWidth = 12
+const (
+	formLabelWidth = 12
+	formChrome     = 5 // focus mark (2), required star, space, text cursor
+)
+
+// pasted is clipboard text made fit for a one-line field: line breaks become spaces
+// and surrounding blanks are dropped.
+func pasted(s string) string {
+	return strings.TrimSpace(strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ").Replace(s))
+}
+
+// dropLastGrapheme removes the last user-perceived character, so backspace never
+// leaves half an emoji or a stray combining mark.
+func dropLastGrapheme(s string) string {
+	g, last := uniseg.NewGraphemes(s), 0
+	for g.Next() {
+		last, _ = g.Positions()
+	}
+	return s[:last]
+}
+
+// paste adds clipboard text to the focused text field.
+func (f *form) paste(s string) {
+	if fld := &f.fields[f.focus]; fld.choices == nil {
+		fld.value += pasted(s)
+		fld.err = ""
+	}
+}
 
 // key applies one key press. It reports whether the form was submitted.
 func (f *form) key(k tea.KeyPressMsg) bool {
@@ -54,8 +82,9 @@ func (f *form) key(k tea.KeyPressMsg) bool {
 			f.focus = max(f.focus-1, 0)
 		}
 	case "backspace":
-		if r := []rune(fld.value); fld.choices == nil && len(r) > 0 {
-			fld.value = string(r[:len(r)-1])
+		if fld.choices == nil && fld.value != "" {
+			fld.value = dropLastGrapheme(fld.value)
+			fld.err = ""
 		}
 	case "enter":
 		if !fld.check() {
@@ -107,6 +136,7 @@ func (f *form) value(label string) string {
 // ‹ › around choices, dim italic placeholders, errors on the field's own row.
 func (m model) formBox(p pal) string {
 	f := m.form
+	avail := max(minTitle, popWidth(popForm, m.viewWidth())-popInset-formLabelWidth-formChrome)
 	rows := make([]string, len(f.fields))
 	for i, fld := range f.fields {
 		focused := i == f.focus
@@ -142,16 +172,22 @@ func (m model) formBox(p pal) string {
 			}
 			val += p.text(p.dim).Italic(true).Render(fld.placeholder)
 		default:
-			val = p.text(valC).Render(xansi.Truncate(fld.value, popForm-popInset-formLabelWidth-ellipsis, "…"))
+			// Long text shows its end, where the typing happens.
+			shown := fld.value
+			if over := xansi.StringWidth(shown) - avail; over > 0 {
+				shown = xansi.TruncateLeft(shown, over+1, "…")
+			}
+			val = p.text(valC).Render(shown)
 			if focused {
 				val += p.text(p.accent).Render("▏")
 			}
 		}
-		if fld.err != "" {
-			val += "  " + p.text(p.bad).Render("✕ "+fld.err)
-		}
 		rows[i] = mark + lipgloss.NewStyle().Foreground(labelC).Bold(focused).Width(formLabelWidth).Align(lipgloss.Right).Render(fld.label) + req + " " + val
+		if fld.err != "" {
+			// The error gets its own line under the value, so it is never cut off.
+			rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+		}
 	}
 	return popup(p, f.title, false, popForm, m.viewWidth(), strings.Join(rows, "\n"),
-		p.keys([][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}))
+		p.keys(m.overlayHints()))
 }

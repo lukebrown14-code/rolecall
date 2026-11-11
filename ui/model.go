@@ -56,6 +56,7 @@ type model struct {
 	watch                 *watcher
 	downloads             string
 	pendingDownload       *downloadState
+	md                    *mdCache
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -63,7 +64,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays}
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}}
 	for _, option := range options {
 		option(&m)
 	}
@@ -122,7 +123,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 		}
 	}
 	SortApplications(out, table)
-	if table == "Leads" || table == "Draft" {
+	if beforeApplied(table) {
 		var live, old []store.Application
 		for _, a := range out {
 			if m.expired(a) {
@@ -135,6 +136,9 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	}
 	return out
 }
+
+// beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.
+func beforeApplied(table string) bool { return table == "Leads" || table == "Draft" }
 
 func (m model) count(screen int, table string) int { return len(m.rowsOf(screen, table)) }
 func (m model) matches(a store.Application) bool {
@@ -168,6 +172,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.form != nil {
 		return m.updateAdd(msg)
 	}
+	if paste, ok := msg.(tea.PasteMsg); ok && m.filtering {
+		m.text += pasted(paste.Content)
+		m.cursor = 0
+		return m, nil
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
 		return m.updateDuplicate(k)
 	}
@@ -177,12 +186,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// The feedback line: a success clears on the next key; an error stays until esc.
 		m.toast, m.toastHint = "", ""
-		if k.String() == "esc" && m.err != nil && !m.overlayOpen() {
-			m.err = nil
+		if m.full {
+			m.full = false // any key closes the help pop-up, esc included
 			return m, nil
 		}
-		if m.full {
-			m.full = false // any key closes the help pop-up
+		if k.String() == "esc" && m.err != nil && !m.overlayOpen() {
+			m.err = nil
 			return m, nil
 		}
 		if m.pendingDownload != nil {
@@ -207,10 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.filtering = false
 			case "backspace":
-				r := []rune(m.text)
-				if len(r) > 0 {
-					m.text = string(r[:len(r)-1])
-				}
+				m.text = dropLastGrapheme(m.text)
 			default:
 				if k.Text != "" {
 					m.text += k.Text

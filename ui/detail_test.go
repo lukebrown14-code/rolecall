@@ -53,7 +53,7 @@ func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option)
 				return done(nil)
 			}
 		})}, extra...)
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, opts...)
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No content in jd.md"}},
-		{"fit", 1, []string{"Fit: —", "No content in fit.md"}},
+		{"fit", 1, []string{"Fit: not assessed", "No content in fit.md"}},
 		{"notes", 2, []string{"No content in notes.md"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -414,7 +414,7 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	ask.tm.Type("m")
 	ask.wait("Move")
 	ask.tm.Type("a")
-	ask.show("Docs not built", "Draft · ")
+	ask.show("Docs not Ready", "Draft · ")
 
 	yes := newDetailHarness(t, nil)
 	yes.open("2", 0, "docs-none")

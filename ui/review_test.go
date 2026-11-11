@@ -156,7 +156,7 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	h.tm.Type("2")
 	h.waitOutput("Draft 1")
 	h.tm.Type("ma")
-	h.waitOutput("Docs not built")
+	h.waitOutput("Docs not Ready")
 	h.tm.Type("y")
 	h.waitForLogLength(2)
 	h.tm.Type("u")
@@ -224,7 +224,7 @@ func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 		h.tm.Type("2")
 		h.waitOutput("Draft 1")
 		h.tm.Type("ma")
-		h.waitOutput("Docs not built")
+		h.waitOutput("Docs not Ready")
 		assertHidden(t, "prompt", h.finish())
 	})
 	t.Run("filter input", func(t *testing.T) {

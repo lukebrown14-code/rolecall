@@ -98,12 +98,6 @@ func (m model) current() (store.Application, bool) {
 	return rows[m.cursor], true
 }
 
-func (m *model) moveCurrent(status string) {
-	if a, ok := m.current(); ok {
-		m.requestMove(a, status)
-	}
-}
-
 func (m *model) openDetail(folder string) {
 	m.detail = &detailState{folder: folder, body: viewport.New()}
 }
@@ -126,7 +120,8 @@ const (
 	cardWidth     = 34 // the left card, from splitWidth up
 	detailHeader  = 3  // title, facts and the rule above the panes
 	minBodyHeight = 3
-	detailChrome  = 11 // top bar, gap, title, facts, rule, tabs, gap … cue, rule, keys
+	detailChrome  = 10 // top bar, gap, title, facts, rule, tabs, gap … cue, rule, keys
+	detailFrame   = 7  // the lines around the panes: top bar, gap, title, facts, rule … rule, keys
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
@@ -173,13 +168,31 @@ func (m model) syncDetail() model {
 	return m
 }
 
+// mdCache keeps one Glamour renderer per wrap width: building one is slow, and the
+// detail view re-renders on every key. Shared by copies of the model.
+type mdCache struct {
+	width int
+	r     *glamour.TermRenderer
+}
+
+func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
+	if c != nil && c.r != nil && c.width == width {
+		return c.r, nil
+	}
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width))
+	if err == nil && c != nil {
+		c.width, c.r = width, r
+	}
+	return r, err
+}
+
 // markdownBody renders one of the Markdown tabs, or its empty state.
 func (m model) markdownBody(a store.Application, tab int, name string) string {
 	var out string
 	if tab == tabFit {
 		fit := a.Fit
 		if fit == "" {
-			fit = "—"
+			fit = fitNone
 		}
 		out = "Fit: " + fit + "\n\n"
 	}
@@ -187,7 +200,7 @@ func (m model) markdownBody(a store.Application, tab int, name string) string {
 	if err != nil || strings.TrimSpace(string(b)) == "" {
 		return out + "No content in " + name
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(m.bodyWidth()))
+	r, err := m.md.renderer(m.bodyWidth())
 	if err == nil {
 		var rendered string
 		if rendered, err = r.Render(string(b)); err == nil {
@@ -285,13 +298,13 @@ func (m model) detailView(p pal) string {
 		return ""
 	}
 	w, paneW := m.viewWidth(), m.paneWidth()
-	h := max(minBodyHeight+detailHeader, m.viewHeight()-chromeLines-detailHeader+1)
+	h := max(minBodyHeight+detailHeader, m.viewHeight()-detailFrame)
 	title := "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.dim).Render(a.Company+" · ") + p.text(p.fg).Bold(true).Render(a.Title)
 	when := ""
 	switch r, days := ago(a.Closes, m.now()); {
 	case a.Malformed != nil:
 		title = "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+filepath.Join(a.Folder, "meta.yml"))
-	case a.Closes != "" && (tableOf(a) == "Leads" || tableOf(a) == "Draft"):
+	case a.Closes != "" && beforeApplied(tableOf(a)):
 		c := p.dim
 		if days == 0 {
 			c = p.bad
@@ -300,10 +313,9 @@ func (m model) detailView(p pal) string {
 		}
 		when = p.text(c).Render("closes " + r)
 	case a.AppliedDate != nil:
-		r, _ := ago(a.AppliedDate.At, m.now())
-		when = p.text(p.dim).Render("applied " + r)
+		when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
 	}
-	title = spread(xansi.Truncate(title, w-lipglossWidth(when)-ellipsis, "…"), when, w-rightMargin)
+	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
 	// The facts line: Status · Track · closes · applied, with exact dates.
 	closes, applied := a.Closes, entryDate(a.AppliedDate)
@@ -354,12 +366,12 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 	if m.detail.tab != tabDocs {
 		cue := ""
 		if b := m.detail.body; b.TotalLineCount() > b.Height() {
-			cue = fmt.Sprintf("── %d%% ──", int(b.ScrollPercent()*100)) //nolint:mnd // a percentage
+			cue = fmt.Sprintf("── %d%% ──", int(b.ScrollPercent()*percent))
 			if !b.AtBottom() {
 				cue = "↓ more  " + cue
 			}
 		}
-		return m.detail.body.View() + "\n" + strings.Repeat(" ", max(0, paneW-lipglossWidth(cue)-paneMargin)) + p.text(p.dim).Render(cue)
+		return m.detail.body.View() + "\n" + strings.Repeat(" ", max(0, paneW-xansi.StringWidth(cue)-paneMargin)) + p.text(p.dim).Render(cue)
 	}
 	var lines []string
 	group := ""
@@ -392,12 +404,9 @@ func (m model) detailCard(p pal, a store.Application) string {
 		return ""
 	}
 	var b strings.Builder
-	fit := a.Fit
-	if fit == "" {
-		fit = "—"
-	}
-	b.WriteString(p.statusChip(a.Status) + p.text(p.dim).Render("   fit ") + p.text(p.fitColor(a.Fit)).Render(fit) + "\n\n")
-	b.WriteString(p.heading("Docs") + p.text(p.dim).Render("  "+strings.TrimLeft(docsLabel(a), "●○ ")) + "\n")
+	label, c := p.docsLabel(a)
+	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
+	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
 	for _, e := range docEntries(a) {
 		if e.present {
 			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")

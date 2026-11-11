@@ -57,6 +57,10 @@ func (m *model) openForm(v *addValues, tracks []string, withResumeOnly bool) tea
 
 // updateAdd routes a message to the open Add/Edit form. Nothing is written until the form completes.
 func (m model) updateAdd(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if paste, ok := msg.(tea.PasteMsg); ok {
+		m.form.paste(paste.Content)
+		return m, nil
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil

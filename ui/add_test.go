@@ -49,7 +49,7 @@ func newAddHarness(t *testing.T) *addHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, ui.WithExternalRunner(runner))
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) }, ui.WithExternalRunner(runner))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,13 +98,11 @@ func (h *addHarness) waitForStatus(folder, status string) {
 func (h *addHarness) enter() { h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) }
 func (h *addHarness) esc()   { h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape}) }
 
-// advance accepts the focused field and lets focus move on. Huh moves focus with a command, so keys
-// typed before it lands would reach the previous field. The renderer only emits changed cells, which
-// rules out waiting on the next field's label, so this settles briefly instead.
+// advance accepts the focused field. The form moves focus as it handles the key, and
+// the program handles messages in order, so the next key reaches the next field.
 func (h *addHarness) advance() {
 	h.t.Helper()
 	h.enter()
-	time.Sleep(100 * time.Millisecond)
 }
 
 // quit ends the program and returns the final rendered screen.
@@ -233,8 +231,8 @@ func (h *addHarness) fillAdd(title, company, url, closes string) {
 func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("G") // park the cursor elsewhere so selecting the new row is observable
-	h.fillAdd("Site Reliability Engineer", "Acme", "https://example.test/sre", "2026-03-01")
-	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-01-01", "jd.md"), "Pasted JD")
+	h.fillAdd("Site Reliability Engineer", "Acme", "https://example.test/sre", "2027-03-01")
+	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01", "jd.md"), "Pasted JD")
 	view := h.quit()
 
 	apps, err := h.store.Scan()
@@ -250,10 +248,10 @@ func TestAddCreatesLeadOpensJDAndSelectsRow(t *testing.T) {
 	if created == nil {
 		t.Fatal("Application not created")
 	}
-	if created.Status != "Lead" || len(created.StatusLog) != 1 || created.Company != "Acme" || created.Track != "SWE" || created.URL != "https://example.test/sre" || created.Closes != "2026-03-01" || created.Fit != "" {
+	if created.Status != "Lead" || len(created.StatusLog) != 1 || created.Company != "Acme" || created.Track != "SWE" || created.URL != "https://example.test/sre" || created.Closes != "2027-03-01" || created.Fit != "" {
 		t.Fatalf("unexpected Application: %+v", created)
 	}
-	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-01-01")
+	wantFolder := filepath.Join(h.root, "jobs", "SWE", "acme-site-reliability-engineer-2026-10-01")
 	if created.Folder != wantFolder {
 		t.Fatalf("folder %s, want %s", created.Folder, wantFolder)
 	}
@@ -278,7 +276,6 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 	h.fillAdd("Backend Engineer", "Acme", "https://example.com/status-dismissed", "")
 	h.wait("Duplicate URL")
 	h.tm.Type("o")
-	time.Sleep(100 * time.Millisecond)
 	view := h.quit()
 	if !sameSnapshot(before, h.snapshot()) {
 		t.Fatal("opening the existing Application wrote to the Workspace")
@@ -297,8 +294,8 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 
 func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h := newAddHarness(t)
-	h.fillAdd("Quokka Wrangler", "Acme", "https://example.test/quokka", "2026-03-01")
-	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-2026-01-01")
+	h.fillAdd("Quokka Wrangler", "Acme", "https://example.test/quokka", "2027-03-01")
+	folder := filepath.Join(h.root, "jobs", "SWE", "acme-quokka-wrangler-2026-10-01")
 	h.waitForFile(filepath.Join(folder, "jd.md"), "Pasted JD")
 
 	// Filter to the new Application so each screen shows exactly one row.

@@ -46,7 +46,7 @@ const (
 // Right-hand columns, identical on every view: state · flag · Fit, Fit flush right.
 // A column empty for every row of the current view is hidden.
 const (
-	slotState = 11 // "● built", "✕ rejected", "↩ withdrawn"
+	slotState = 11 // "● ready", "not written", "✕ rejected", "↩ withdrawn"
 	slotFlag  = 12 // "⚑ quiet 11mo"
 	slotFit   = 8  // "Marginal"
 )
@@ -64,8 +64,6 @@ func (m model) viewHeight() int {
 	}
 	return m.height
 }
-
-func lipglossWidth(s string) int { return xansi.StringWidth(s) }
 
 func padRight(s string, w int) string { return s + strings.Repeat(" ", max(0, w-xansi.StringWidth(s))) }
 
@@ -147,7 +145,7 @@ func (m model) listView(p pal) string {
 	}
 	var body string
 	if len(rows) == 0 {
-		title, hint := emptyMessage(m.table, tables[m.screen][m.table])
+		title, hint := emptyMessage(tables[m.screen][m.table])
 		if m.text != "" {
 			title, hint = "No matches for “"+m.text+"”", "esc clears the search"
 		}
@@ -171,7 +169,7 @@ func (m model) listView(p pal) string {
 }
 
 // emptyMessage says how Applications reach an empty view.
-func emptyMessage(_ int, table string) (string, string) {
+func emptyMessage(table string) (string, string) {
 	switch table {
 	case "Leads":
 		return "No Leads yet", "Press a to add one, or run capture-job from your harness."
@@ -228,16 +226,16 @@ func (m model) topBar(p pal) string {
 		}
 		return out
 	}
-	minTrack := lipglossWidth(m.trackSelector(p, 0))
+	minTrack := xansi.StringWidth(m.trackSelector(p, 0))
 	out := build(0)
-	for level := shedRolecall; level <= shedNames && lipglossWidth(out)+minTrack+rightMargin+gutter > w; level++ {
+	for level := shedRolecall; level <= shedNames && xansi.StringWidth(out)+minTrack+rightMargin+gutter > w; level++ {
 		out = build(level)
 	}
 	if len(m.tracks) == 0 {
 		return out
 	}
-	track := m.trackSelector(p, w-lipglossWidth(out)-rightMargin-gutter)
-	return out + strings.Repeat(" ", max(gutter, w-lipglossWidth(out)-lipglossWidth(track)-rightMargin)) + track
+	track := m.trackSelector(p, w-xansi.StringWidth(out)-rightMargin-gutter)
+	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
 // trackSelector is a labelled field, "track  All  SWE  Platform  t", collapsing to
@@ -254,7 +252,7 @@ func (m model) trackSelector(p pal, w int) string {
 	}
 	key := p.text(p.accent).Bold(true).Render("  t")
 	full := p.text(p.dim).Render("track  ") + strings.Join(parts, "  ") + key
-	if lipglossWidth(full) <= w {
+	if xansi.StringWidth(full) <= w {
 		return full
 	}
 	name := "All"
@@ -286,19 +284,22 @@ func (m model) viewRow(p pal) string {
 				}
 			}
 			row = "   " + strings.Join(parts, f.gap)
-			if lipglossWidth(row) <= w {
+			if xansi.StringWidth(row) <= w {
 				break
 			}
 		}
 	}
-	if m.text != "" && !m.filtering {
+	if m.text != "" {
 		n := len(m.rows())
 		noun := "matches"
 		if n == 1 {
 			noun = "match"
 		}
 		chip := p.text(p.dim).Render("search ") + p.text(p.accent).Bold(true).Render(m.text) +
-			p.text(p.dim).Render(fmt.Sprintf("  %d %s  ", n, noun)) + p.keys([][2]string{{"esc", "clear"}})
+			p.text(p.dim).Render(fmt.Sprintf("  %d %s", n, noun))
+		if !m.filtering {
+			chip += "  " + p.keys([][2]string{{"esc", "clear"}})
+		}
 		row = spread(row, chip, w-rightMargin)
 	}
 	return row
@@ -323,7 +324,15 @@ func (m model) feedbackLine(p pal, rule string) string {
 		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
 	w := m.viewWidth()
-	gap := bg.Render(strings.Repeat(" ", max(1, w-lipglossWidth(left)-lipglossWidth(right))))
+	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
+	gap := bg.Render(strings.Repeat(" ", n))
+	// Keep the ┴ where the pane divider meets the line, when the message leaves it free.
+	if j := strings.IndexRune(rule, '┴'); j >= 0 {
+		col := xansi.StringWidth(rule[:j]) - xansi.StringWidth(left)
+		if col > 0 && col < n-1 {
+			gap = bg.Render(strings.Repeat(" ", col)) + bg.Foreground(p.faint).Render("┴") + bg.Render(strings.Repeat(" ", n-col-1))
+		}
+	}
 	return xansi.Truncate(left+gap+right, w, "")
 }
 
@@ -338,7 +347,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 		for i, a := range rows {
 			if d, ok := dividers[i]; ok {
 				label := fmt.Sprintf("  %s · %d ", d.label, d.n)
-				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.faint).Render(strings.Repeat("─", max(0, w-lipglossWidth(label))))}
+				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.faint).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
 				if i > 0 {
 					lines = append([]string{""}, lines...) // air above each section
 				}
@@ -401,7 +410,7 @@ func tableOf(a store.Application) string { _, t := StatusLocation(a.Status); ret
 // expired is a Lead or Draft whose close date has passed.
 func (m model) expired(a store.Application) bool {
 	t := tableOf(a)
-	return (t == "Leads" || t == "Draft") && a.Closes != "" && a.Closes < m.now().Format("2006-01-02")
+	return beforeApplied(t) && a.Closes != "" && a.Closes < m.now().Format("2006-01-02")
 }
 
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
@@ -469,13 +478,13 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	}
 	switch {
 	case t == "Draft":
-		state = docsLabel(a)
+		state, _ = basePal.docsLabel(a)
 	case a.Status == "Rejected":
 		state = "✕ rejected"
 	case a.Status == "Withdrawn":
 		state = "↩ withdrawn"
 	}
-	if t != "Dismissed" && t != "Closed" {
+	if t != "Dismissed" {
 		fit = a.Fit
 		if fit == "" {
 			fit = "—"
@@ -484,15 +493,29 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	return state, flag, fit
 }
 
-// docsLabel is the one wording for documents: built (Ready), written, or none.
-func docsLabel(a store.Application) string {
+// docsLabel is the one wording for documents, glossary terms Ready and Written, and
+// its colour.
+func (p pal) docsLabel(a store.Application) (string, color.Color) {
 	switch strings.ToLower(a.Documents) {
 	case "ready":
-		return "● built"
+		return "● ready", p.ok
 	case "written":
-		return "○ written"
+		return "○ written", p.warn
 	}
-	return "no docs"
+	return "not written", p.dim
+}
+
+// stateColor is the colour of a row's state slot.
+func (p pal) stateColor(a store.Application, dimC color.Color) color.Color {
+	switch {
+	case tableOf(a) == "Draft":
+		if _, c := p.docsLabel(a); c != p.dim {
+			return c
+		}
+	case a.Status == "Rejected":
+		return p.bad
+	}
+	return dimC
 }
 
 func (m model) columns(rows []store.Application) slotSet {
@@ -530,10 +553,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 			line.Render(bar + st(dimC).Render(xansi.Truncate(m.rel(a.Malformed.Error()), w-ellipsis, "…")))}
 	}
 	state, flag, fit := m.slotText(a)
-	stateC := map[string]color.Color{"● built": p.ok, "○ written": p.warn, "✕ rejected": p.bad}[state]
-	if stateC == nil {
-		stateC = dimC
-	}
+	stateC := p.stateColor(a, dimC)
 	fitC := p.fitColor(a.Fit)
 	if fitC == p.dim {
 		fitC = dimC
@@ -552,8 +572,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		cells = append(cells, slot(slotFit, fitC, fit))
 	}
 	right := strings.Join(cells, st(p.fg).Render("  ")) + st(p.fg).Render(strings.Repeat(" ", rowPad))
-	left := bar + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-lipglossWidth(right)-ellipsis), "…"))
-	gap := st(p.fg).Render(strings.Repeat(" ", max(1, w-lipglossWidth(left)-lipglossWidth(right))))
+	left := bar + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis), "…"))
+	gap := st(p.fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
 	return []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+meta, w, "…"))}
 }
@@ -562,7 +582,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
 	dim := st(dimC)
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
-	rel := func(e *store.StatusEntry) string { r, _ := ago(e.At, m.now()); return r }
+	rel := m.agoEntry
 	switch t := tableOf(a); t {
 	case "Leads", "Draft":
 		switch r, days := ago(a.Closes, m.now()); {
@@ -602,6 +622,16 @@ func (m model) rel(s string) string {
 	return strings.ReplaceAll(s, m.store.Root()+string(filepath.Separator), "")
 }
 
+// agoEntry is a Status entry's date relative to today, with SCHEMA's ~ for an
+// approximate date.
+func (m model) agoEntry(e *store.StatusEntry) string {
+	r, _ := ago(e.At, m.now())
+	if e.Approx {
+		r = "~" + r
+	}
+	return r
+}
+
 func entryAt(e *store.StatusEntry) string {
 	if e == nil {
 		return ""
@@ -625,12 +655,9 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		b.WriteString(p.text(p.bad).Bold(true).Render("⚠ malformed meta.yml") + "\n\n" + wrap(m.rel(a.Malformed.Error()), p.dim, errorLines))
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
-		fit := a.Fit
-		if fit == "" {
-			fit = "not assessed"
-		}
-		b.WriteString(p.statusChip(a.Status) + p.text(p.dim).Render("   fit ") + p.text(p.fitColor(a.Fit)).Render(fit) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "   " + p.text(map[string]color.Color{"● built": p.ok, "○ written": p.warn}[docsLabel(a)]).Render(docsLabel(a)) + "\n\n")
+		label, c := p.docsLabel(a)
+		b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n")
+		b.WriteString(m.fileMarks(p, a) + "   " + p.text(c).Render(label) + "\n\n")
 		b.WriteString(p.heading("Timeline") + "\n" + m.timeline(p, a, true) + "\n")
 		b.WriteString(p.heading("Fit") + "\n")
 		if t := m.docText(a, "fit.md"); t != "" {
@@ -638,7 +665,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		} else {
 			b.WriteString(p.text(p.dim).Render("No fit.md yet") + "\n")
 		}
-		if t := tableOf(a); t == "Leads" || t == "Draft" {
+		if beforeApplied(tableOf(a)) {
 			if jd := m.docText(a, "jd.md"); jd != "" {
 				b.WriteString("\n" + p.heading("JD") + "\n" + wrap(jd, p.sub, previewLines) + "\n" +
 					p.text(p.accent).Render("enter") + p.text(p.dim).Render(" full JD") + "\n")
@@ -662,8 +689,12 @@ func (m model) fileMarks(p pal, a store.Application) string {
 		}
 		return p.text(p.dim).Render("○ " + name)
 	}
-	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume, "résumé"), mark(a.HasCoverLetter, "cover"),
-		mark(len(a.PDFs) > 0, fmt.Sprintf("pdf %d", len(a.PDFs)))}, "  ")
+	pdfs := "pdf"
+	if n := len(a.PDFs); n > 0 {
+		pdfs = fmt.Sprintf("%d pdf", n)
+	}
+	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume, "resume"), mark(a.HasCoverLetter, "cover"),
+		mark(len(a.PDFs) > 0, pdfs)}, "  ")
 }
 
 // timeline is the Status log, newest last, plus the close date for Leads and Drafts.
@@ -675,14 +706,14 @@ func (m model) timeline(p pal, a store.Application, dates bool) string {
 		if i == len(a.StatusLog)-1 {
 			dot, nameC = p.text(p.accent).Render("●"), p.fg
 		}
-		r, _ := ago(e.At, m.now())
-		when := r
+		when := m.agoEntry(&e)
 		if dates {
+			r, _ := ago(e.At, m.now())
 			when = entryDate(&e) + "  " + r
 		}
 		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(p.dim).Render(when) + "\n")
 	}
-	if t := tableOf(a); a.Closes != "" && (t == "Leads" || t == "Draft") {
+	if a.Closes != "" && beforeApplied(tableOf(a)) {
 		r, days := ago(a.Closes, m.now())
 		c := p.dim
 		if days >= 0 && days <= soonDays {

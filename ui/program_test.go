@@ -20,7 +20,7 @@ func TestNavigation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 		t.Fatal(err)
 	}
 	before, _ := s.Scan()
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) })
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +65,8 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 	tm.Type("x")
 	wait("→ Dismissed")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	wait("Dismissed")
-	tm.Type("j")
-	tm.Type("m")
+	wait("dismissed today") // only the Dismissed view shows the row just dismissed
+	tm.Type("m")            // the row just dismissed sorts first: newest first
 	wait("Move")
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	wait("→ Lead")

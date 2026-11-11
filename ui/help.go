@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	xansi "github.com/charmbracelet/x/ansi"
 )
 
 // helpGroup places a key in the layout: the key line's left (actions) or right
@@ -13,8 +15,14 @@ type helpGroup int
 // The `?` pop-up's layout: key column, then column width.
 const (
 	helpKeyWidth = 9
-	helpColumn   = 27
+	helpColumn   = 23 // three fit side by side from 80 columns
+	helpColumns  = 3
+	keyLineGap   = 4 // the key line's indent plus the space kept between its halves
 )
+
+// pinnedKeys stay on a narrow key line after every other action has gone: they are
+// how a newcomer finds their way in.
+var pinnedKeys = []string{"enter", "a", "/"}
 
 const (
 	groupAction helpGroup = iota
@@ -47,15 +55,15 @@ func (m model) overlayOpen() bool {
 // offers its own keys and nothing from the view beneath it.
 func (m model) helpKeys() []helpKey {
 	if m.overlayOpen() {
-		switch {
-		case m.form != nil:
-			return []helpKey{help(groupAction, "tab", "next"), help(groupAction, "←→", "change"), help(groupAction, "enter", "save"), help(groupNav, "esc", "cancel")}
-		case len(m.options) > 0:
-			return []helpKey{help(groupAction, "letter", "move"), help(groupAction, "↑↓ enter", "pick"), help(groupNav, "esc", "cancel")}
-		case m.filtering:
-			return []helpKey{help(groupNav, "enter", "keep"), help(groupNav, "esc", "clear")}
+		var keys []helpKey
+		for _, kv := range m.overlayHints() {
+			group := groupAction
+			if strings.HasPrefix(kv[0], "esc") || strings.HasSuffix(kv[0], "esc") {
+				group = groupNav
+			}
+			keys = append(keys, help(group, kv[0], kv[1]))
 		}
-		return []helpKey{help(groupNav, "ctrl+c", "quit")}
+		return keys
 	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
@@ -98,8 +106,8 @@ func (m model) helpKeys() []helpKey {
 	if len(m.tracks) > 0 {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
-	return append(keys, help(groupMore, "esc", "clear search"), help(groupMore, "j k ↑↓", "cursor"), help(groupMore, "g G", "top / bottom"),
-		help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	return append(keys, help(groupMore, "j k ↑↓", "cursor"), help(groupMore, "g G", "top / bottom"),
+		help(groupMore, "esc", "clear search"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
 func pairs(keys []helpKey, group helpGroup) [][2]string {
@@ -112,12 +120,19 @@ func pairs(keys []helpKey, group helpGroup) [][2]string {
 	return out
 }
 
-// keyLine is the bottom line: actions on the left, dropped from the right to fit;
-// navigation pinned on the right and never cut.
+// keyLine is the bottom line: actions on the left, navigation on the right and never
+// cut. When narrow, actions drop from the right, pinnedKeys last; "? all keys" on the
+// right says where the rest went.
 func (m model) keyLine(p pal, w int) string {
 	keys := m.helpKeys()
 	actions, nav := pairs(keys, groupAction), p.keys(pairs(keys, groupNav))
-	for len(actions) > 0 && lipglossWidth(p.keys(actions))+lipglossWidth(nav)+4 > w {
+	fits := func() bool { return xansi.StringWidth(p.keys(actions))+xansi.StringWidth(nav)+keyLineGap <= w }
+	for i := len(actions) - 1; i >= 0 && !fits(); i-- {
+		if !slices.Contains(pinnedKeys, actions[i][0]) {
+			actions = slices.Delete(actions, i, i+1)
+		}
+	}
+	for len(actions) > 0 && !fits() {
 		actions = actions[:len(actions)-1]
 	}
 	return " " + spread(p.keys(actions), nav, w-gutter)
@@ -135,6 +150,6 @@ func (m model) helpBox(p pal) string {
 		return strings.TrimSuffix(b.String(), "\n")
 	}
 	cols := []string{col("Actions", groupAction), col("Navigate", groupNav), col("More", groupMore)}
-	body := joinColumns(cols, helpColumn, m.viewWidth() >= popLarge+popEdges)
+	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
 	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", "close"}}))
 }

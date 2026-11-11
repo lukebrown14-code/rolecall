@@ -20,7 +20,7 @@ const selectionWidth = 100
 // finalView runs the whole program on the fixture Workspace, sends keys (one Tab per "\t"), and returns the final screen.
 func finalView(t *testing.T, keys ...string) string {
 	t.Helper()
-	return finalViewAt(t, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), keys...)
+	return finalViewAt(t, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), keys...)
 }
 
 func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
@@ -134,9 +134,10 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 			t.Errorf("malformed row hides detail:\n%s", view)
 		}
 	})
-	t.Run("healthy row offers detail, edit, move and notes", func(t *testing.T) {
+	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
+		// At this width n notes makes way for the pinned a add and / search; ? lists it.
 		view := ansi.Strip(finalView(t))
-		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "n notes"} {
+		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)
 			}

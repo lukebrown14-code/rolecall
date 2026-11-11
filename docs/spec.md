@@ -16,7 +16,7 @@ each other directly: files are the only link.
 | Version | Theme | Scope |
 |---|---|---|
 | **v0.1** | personal, works without a harness | TUI layout and behaviour, `SCHEMA.md`, plugin port + rewrite for the schema, data migration |
-| **v0.1.1** | styling | colour palette, light/dark, status colours, layout tweaks, empty states, header, demo GIF |
+| **v0.1.1** | styling | colour palette (dark only), status colours, layout tweaks, empty states, header, demo GIF |
 | **v0.2** | harness + extras | `f`/`p` keys that hand off to the harness, URL fetch in Add, Stats screen (`4`), `b` build key |
 | **v0.3** | reading | Markdown preview of `resume.md` / `cover-letter.md` in the Docs tab |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
@@ -93,16 +93,18 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 
 | Table | Columns | Sort |
 |---|---|---|
-| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | `closes` soonest first. No date goes last. Past dates show as `past` |
+| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | `closes` soonest first. No date goes last. Past dates show as `past` (v0.1.1: `expired 4w ago`, under an **Expired** section) |
 | Dismissed | Title · Company · Track · Dismissed (date) | newest first |
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first |
 
 - **Docs:** `●` Ready · `○` Written · blank (SCHEMA → Documents state). Glyphs only in v0.1; colour comes in v0.1.1.
-- **v0.1.1** shows these as two-line rows with relative dates; see **v0.1.1 look**.
+- **v0.1.1** shows these as two-line rows with relative dates; see **v0.1.1 look**. There,
+  Docs shows on Draft only (the Applied screen's rows show Fit and the follow-up flag, and
+  Closed rows show the outcome, `✕ rejected` / `↩ withdrawn`, beside Fit).
 - **Follow-up:** `⚑` when the Status is Applied or Interviewing and the last change is more than `follow_up_days` old.
 - **Fit:** the enum word, or `—`.
 - **Malformed** `meta.yml`: the row shows `⚠` and the folder name. The detail view shows the path and why parsing failed.
-- **Approx dates:** `~` prefix.
+- **Approx dates:** `~` prefix, on exact dates (`~2026-01-01`) and relative ones (`applied ~3mo ago`).
 - Columns shrink to fit the terminal width, truncating Title first, then Company.
 
 ### Keys
@@ -149,17 +151,19 @@ appends to `status_log` (SCHEMA rules) and closes the popup. The row then moves 
 table, and the feedback line says `<Title> → Interviewing` with `u undo`.
 
 **Side effects when moving to Applied:**
-1. If the documents are not Ready, ask first: a `⚠ Docs not built` pop-up, `y` mark Applied, `n`/`Esc` cancel.
+1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, `y` mark Applied, `n`/`Esc` cancel.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
-Status (the log stays append-only) and shows a toast. It does not remove `sent/`.
+Status (the log stays append-only) and says so on the feedback line (`Undone · Title back to Applied`). It does not remove `sent/`.
 
 ### Add form (`a`)
 
 Form fields: **Title*** · **Company*** · **Track** (choice from `workspace.json`) · URL ·
-Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). `Enter` checks the field and moves on;
-on the last field it checks them all and saves. Choices change with `←` `→` (or `↑` `↓`).
+Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). Track needs no `*`: it is a choice and
+always holds a track. `Enter` checks the field and moves on; on the last field it checks them
+all and saves. Choices change with `←` `→` (or `↑` `↓`). Pasting fills the focused text field;
+a long value shows its end, and a field's error sits on its own line below it.
 
 On save:
 1. If the URL matches another Application's `url`, warn and offer to open that one instead.
@@ -228,7 +232,8 @@ context-free review. Every colour and style is in `ui/styles.go`.
   `#5EEAD4`. Colour always pairs with a word or glyph.
 - **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
   within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
-  Rejected red. Documents read `● built` (SCHEMA Ready) · `○ written` · `no docs`.
+  Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and
+  Written; GLOSSARY avoids "built").
 - **Layout, top to bottom:** screens and the track filter · the screen's views (`Tab`) · the
   list (with a preview pane from 100 columns) · the feedback line · the key line (actions
   left, navigation pinned right).
@@ -237,12 +242,16 @@ context-free review. Every colour and style is in `ui/styles.go`.
   state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
   Expired Leads and Drafts sort last under an **Expired** section.
 - **Pop-ups:** one template — title in the top border, keys in the bottom border, solid
-  fill, amber border and ⚠ for warnings, the screen behind dimmed. `?` is a pop-up; any
-  key closes it.
+  fill, amber border and ⚠ for warnings, the screen behind dimmed with two blank cells
+  either side of the box. A pop-up taller than the terminal drops middle lines and keeps
+  its bottom border. `?` is a pop-up; any key closes it, `Esc` included. The Move pop-up
+  always moves the Application it shows, even if a live refresh moved the cursor.
 - **Feedback line:** replaces the bottom rule with what just happened. Successes clear on
   the next key; errors stay until `Esc`. Paths read relative to the Workspace.
+- **Search:** while typing, and after `Enter`, the views row shows `search pl  3 matches`.
 - **Narrow terminals:** the screens row sheds detail, the preview and detail card hide
-  below 100 columns, pop-ups shrink to fit.
+  below 100 columns, pop-ups shrink to fit. The key line drops actions from the right but
+  keeps `enter`, `a add` and `/ search` to the last.
 
 ## Plugin (v0.1)
 

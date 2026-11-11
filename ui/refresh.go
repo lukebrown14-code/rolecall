@@ -21,7 +21,23 @@ func (m model) refresh(folders []string) model {
 	// If the cursor Application left this table the index stays, clamped, so the
 	// cursor lands on the nearest row.
 	m.cursor = max(0, min(m.cursor, len(m.rows())-1))
+	m.syncMove()
 	return m.syncDetail()
+}
+
+// syncMove keeps an open Move pop-up true to its Application: closed if it is gone,
+// its options rebuilt if its Status changed on disk.
+func (m *model) syncMove() {
+	if len(m.options) == 0 {
+		return
+	}
+	a, ok := m.application(m.moveTarget)
+	if !ok {
+		m.options = nil
+		return
+	}
+	m.options = MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))
+	m.moveSel = min(m.moveSel, len(m.options)-1)
 }
 
 // rescanInto brings apps in line with one changed path, rescanning each folder once.

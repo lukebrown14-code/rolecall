@@ -14,6 +14,26 @@ var likelyCount = map[string]int{"Lead": 2, "Draft": 1, "Applied": 3, "Interview
 
 const statusColumn = 14 // width of a Status name in the move pop-up
 
+// overlayHints are the keys of the open pop-up or search box, the one list behind both
+// its bottom border and the key line. nil when none is open.
+func (m model) overlayHints() [][2]string {
+	switch {
+	case m.form != nil:
+		return [][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}
+	case m.duplicate != nil:
+		return [][2]string{{"o", "open that one"}, {"s", "save anyway"}, {"esc", "cancel"}}
+	case len(m.options) > 0:
+		return [][2]string{{"letter", "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
+	case m.confirm != nil:
+		return [][2]string{{"y", "mark Applied"}, {"n esc", "cancel"}}
+	case m.pendingDownload != nil:
+		return [][2]string{{"y", "overwrite"}, {"a", "all"}, {"n", "skip"}, {"esc", "stop"}}
+	case m.filtering:
+		return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
+	}
+	return nil
+}
+
 // overlayBox is the pop-up open over the current view, or "" when none is.
 func (m model) overlayBox(p pal) string {
 	switch {
@@ -46,7 +66,7 @@ func (m model) moveBox(p pal) string {
 		}
 		hint := ""
 		if s == "Applied" && a.Documents != "Ready" {
-			hint = "⚠ docs not built"
+			hint = "⚠ docs not Ready"
 		}
 		if a.Status == "Dismissed" && i == 0 {
 			hint = "restore"
@@ -66,18 +86,18 @@ func (m model) moveBox(p pal) string {
 		b.WriteString(row + "\n")
 	}
 	return popup(p, "Move", false, popSmall, m.viewWidth(), strings.TrimSuffix(b.String(), "\n"),
-		p.keys([][2]string{{"letter", "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}))
+		p.keys(m.overlayHints()))
 }
 
 func (m model) confirmBox(p pal) string {
 	a := m.confirm.app
 	state := "not written yet"
 	if a.Documents == "Written" {
-		state = "written but not built"
+		state = "Written, but the PDFs aren't built yet, so not Ready"
 	}
 	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render("Docs for "+lipgloss.NewStyle().Bold(true).Render(a.Title)+" are "+state+".") +
 		"\n\n" + p.text(p.sub).Render("Mark it Applied anyway?")
-	return popup(p, "Docs not built", true, popSmall, m.viewWidth(), body, p.keys([][2]string{{"y", "mark Applied"}, {"n esc", "cancel"}}))
+	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.keys(m.overlayHints()))
 }
 
 func (m model) overwriteBox(p pal) string {
@@ -85,7 +105,7 @@ func (m model) overwriteBox(p pal) string {
 	body := p.text(p.fg).Bold(true).Render(d.clash()) + p.text(p.sub).Render(" is already in "+displayPath(m.downloads)+".") + "\n" +
 		p.text(p.dim).Render(fmt.Sprintf("File %d of %d", d.next+1, len(d.app.PDFs)))
 	return popup(p, "File exists", true, popSmall, m.viewWidth(), body,
-		p.keys([][2]string{{"y", "overwrite"}, {"a", "all"}, {"n", "skip"}, {"esc", "stop"}}))
+		p.keys(m.overlayHints()))
 }
 
 func (m model) duplicateBox(p pal) string {
@@ -93,5 +113,5 @@ func (m model) duplicateBox(p pal) string {
 	body := p.text(p.fg).Bold(true).Render(d.Title) + p.text(p.dim).Render(" · "+d.Company) + "\n" +
 		p.text(p.sub).Render("is already saved with this URL (") + p.statusChip(d.Status) + p.text(p.sub).Render(").")
 	return popup(p, "Duplicate URL", true, popForm, m.viewWidth(), body,
-		p.keys([][2]string{{"o", "open that one"}, {"s", "save anyway"}, {"esc", "cancel"}}))
+		p.keys(m.overlayHints()))
 }

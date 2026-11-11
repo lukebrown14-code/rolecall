@@ -46,7 +46,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	if table == "Dismissed" {
 		return append(out, entryDate(a.LastChange))
 	}
-	if table == "Leads" || table == "Draft" {
+	if beforeApplied(table) {
 		closes := a.Closes
 		if closes != "" && closes < now.Format("2006-01-02") {
 			closes = "past"
@@ -72,7 +72,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 
 func SortApplications(rows []store.Application, table string) {
 	date := func(a store.Application) string {
-		if table == "Leads" || table == "Draft" {
+		if beforeApplied(table) {
 			return a.Closes
 		}
 		if table == "Dismissed" {
@@ -97,7 +97,7 @@ func SortApplications(rows []store.Application, table string) {
 		if b == "" {
 			return true
 		}
-		if table == "Leads" || table == "Draft" {
+		if beforeApplied(table) {
 			return a < b
 		}
 		return a > b
