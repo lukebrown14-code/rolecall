@@ -17,7 +17,11 @@ import (
 // detailTab identifies a tab independently of its position in the visible list.
 type detailTab string
 
+const coverLetterFile = "cover-letter.md"
+
 const (
+	tabLetter detailTab = "Letter"
+	tabGaps   detailTab = "Gaps"
 	tabResume detailTab = "Resume"
 	tabJD     detailTab = "JD"
 	tabFit    detailTab = "Fit"
@@ -31,10 +35,16 @@ func visibleDetailTabs(a store.Application) []detailTab {
 	if a.ResumeHasText {
 		tabs = append(tabs, tabResume)
 	}
+	if a.CoverLetterHasText && !a.ResumeOnly {
+		tabs = append(tabs, tabLetter)
+	}
+	if a.GapsHasText {
+		tabs = append(tabs, tabGaps)
+	}
 	return append(tabs, tabNotes, tabDocs)
 }
 
-var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md", tabLetter: coverLetterFile, tabGaps: "gaps.md"}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
@@ -79,7 +89,7 @@ func (e docEntry) label() string {
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {"cover-letter.md", a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}
@@ -410,6 +420,9 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		if !e.present {
 			mark, nameC, name = p.text(p.dim).Render("○ "), p.dim, e.name+"  not written"
 		}
+		if e.name == coverLetterFile && a.ResumeOnly {
+			name = e.name + "  not needed · Resume only"
+		}
 		row := "  " + mark + p.text(nameC).Render(name)
 		if i == m.detail.docs {
 			row = lipgloss.NewStyle().Background(p.sel).Width(paneW - paneMargin).Render(
@@ -430,7 +443,9 @@ func (m model) detailCard(p pal, a store.Application) string {
 	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
 	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
 	for _, e := range docEntries(a) {
-		if e.present {
+		if e.name == coverLetterFile && a.ResumeOnly {
+			b.WriteString(p.text(p.dim).Render("○ "+e.name+"\n  not needed · Resume only") + "\n")
+		} else if e.present {
 			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")
 		} else {
 			b.WriteString(p.text(p.dim).Render("○ "+e.name) + "\n")

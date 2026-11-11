@@ -1,7 +1,9 @@
 package ui_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -123,5 +125,44 @@ func TestDocsEmptyLabel(t *testing.T) {
 	v := ansi.Strip(m.View().Content)
 	if !strings.Contains(v, "resume.md (empty)") {
 		t.Fatalf("missing empty label:\n%s", v)
+	}
+}
+
+func TestLetterAndGapsReaders(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	folder := filepath.Join(root, "jobs", "SWE", "docs-written")
+	for name, text := range map[string]string{"cover-letter.md": "Fictional letter text", "gaps.md": "Fictional gaps text"} {
+		if err := os.WriteFile(filepath.Join(folder, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := driveStart(t, root, fixtureClock, 80, 40)
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter")
+	v := ansi.Strip(m.View().Content)
+	if !strings.Contains(v, "[JD]  Fit   Resume   Letter   Gaps   Notes   Docs") {
+		t.Fatalf("tabs: %s", v)
+	}
+	m = driveModel(t, m, "right", "right", "right")
+	if !strings.Contains(ansi.Strip(m.View().Content), "Fictional letter text") {
+		t.Fatal("letter reader missing")
+	}
+	m = driveModel(t, m, "right")
+	if !strings.Contains(ansi.Strip(m.View().Content), "Fictional gaps text") {
+		t.Fatal("gaps reader missing")
+	}
+}
+
+func TestResumeOnlyLetterChoice(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter")
+	v := ansi.Strip(m.View().Content)
+	if !strings.Contains(v, "not needed · Resume only") || strings.Contains(v, " Letter ") {
+		t.Fatalf("Resume only card: %s", v)
+	}
+	m = driveModel(t, m, "left")
+	v = ansi.Strip(m.View().Content)
+	if strings.Count(v, "not needed · Resume only") != 2 {
+		t.Fatalf("Resume only Docs: %s", v)
 	}
 }
