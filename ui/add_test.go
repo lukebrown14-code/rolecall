@@ -305,6 +305,7 @@ func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h.tm.Type("md")
 	h.waitForStatus(folder, "Draft")
 	h.tm.Type("2ma")
+	h.tm.Type("y") // Docs not Ready. Mark Applied anyway?
 	h.waitForStatus(folder, "Applied")
 	h.tm.Type("3mi")
 	h.waitForStatus(folder, "Interviewing")
