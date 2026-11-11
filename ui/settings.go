@@ -70,12 +70,7 @@ func (m model) settingsRows(group int) []settingRow {
 			{"Blockers · " + strconv.Itoa(ws.Blockers), ""},
 		}
 	case "Documents":
-		return []settingRow{
-			{"Cover letter word cap", strconv.Itoa(ws.LetterWordCap)},
-			{"Cover letter minimum", strconv.Itoa(ws.LetterWordMin)},
-			{"Key Skills minimum", strconv.Itoa(ws.KeySkillsMin)},
-			{"Key Skills maximum", strconv.Itoa(ws.KeySkillsMax)},
-		}
+		return m.gateRows()
 	case "Tracking":
 		return m.trackingRows()
 	}
@@ -113,6 +108,7 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "j k", "move"))
 	}
 	keys = append(keys, m.trackHelpKeys()...)
+	keys = append(keys, m.gateHelpKeys()...)
 	keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "tab", "focus"))
@@ -143,6 +139,9 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil // an invalid file offers e and nothing else
 	}
 	if next, ok := m.tracksKey(k); ok {
+		return next, nil
+	}
+	if next, ok := m.gatesKey(k); ok {
 		return next, nil
 	}
 	st := *m.settings
