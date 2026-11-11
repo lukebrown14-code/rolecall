@@ -35,7 +35,7 @@ func visibleDetailTabs(a store.Application) []detailTab {
 	if a.ResumeHasText {
 		tabs = append(tabs, tabResume)
 	}
-	if a.CoverLetterHasText && !a.ResumeOnly {
+	if a.CoverLetterHasText {
 		tabs = append(tabs, tabLetter)
 	}
 	if a.GapsHasText {
@@ -86,6 +86,22 @@ func (e docEntry) label() string {
 		return e.name + " (absent)"
 	}
 	return e.name
+}
+
+const emptyDocumentStatus = "(empty)"
+
+// displayStatus keeps the inventory and card presence cues consistent.
+func (e docEntry) displayStatus(a store.Application) (string, bool) {
+	if e.name == coverLetterFile && a.ResumeOnly && !e.hasText {
+		return "not needed · Resume only", false
+	}
+	if e.markdown() && e.present && !e.hasText {
+		return emptyDocumentStatus, false
+	}
+	if !e.present {
+		return "not written", false
+	}
+	return "", true
 }
 
 func docEntries(a store.Application) []docEntry {
@@ -424,16 +440,17 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 			group = g
 			lines = append(lines, p.heading(g))
 		}
+		status, ready := e.displayStatus(a)
 		mark, nameC := p.text(p.ok).Render("✓ "), p.fg
 		name := e.name
-		if e.markdown() && e.present && !e.hasText {
+		if status != "" {
+			name += "  " + status
+		}
+		if status == emptyDocumentStatus {
 			name = e.label()
 		}
-		if !e.present {
-			mark, nameC, name = p.text(p.dim).Render("○ "), p.dim, e.name+"  not written"
-		}
-		if e.name == coverLetterFile && a.ResumeOnly {
-			name = e.name + "  not needed · Resume only"
+		if !ready {
+			mark, nameC = p.text(p.dim).Render("○ "), p.dim
 		}
 		row := "  " + mark + p.text(nameC).Render(name)
 		if i == m.detail.docs {
@@ -455,12 +472,17 @@ func (m model) detailCard(p pal, a store.Application) string {
 	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
 	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
 	for _, e := range docEntries(a) {
-		if e.name == coverLetterFile && a.ResumeOnly {
-			b.WriteString(p.text(p.dim).Render("○ "+e.name+"\n  not needed · Resume only") + "\n")
-		} else if e.present {
+		status, ready := e.displayStatus(a)
+		if ready {
 			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")
 		} else {
-			b.WriteString(p.text(p.dim).Render("○ "+e.name) + "\n")
+			name := e.name
+			if status == "not needed · Resume only" {
+				name += "\n  " + status
+			} else if status == emptyDocumentStatus {
+				name += " (empty)"
+			}
+			b.WriteString(p.text(p.dim).Render("○ "+name) + "\n")
 		}
 	}
 	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))

@@ -28,7 +28,6 @@
     "URL": "https://example.test/shared",
     "HasJD": true,
     "HasResume": true,
-    "HasResume": true,
     "Schema": 1,
     "StatusLog": [
       {
@@ -79,6 +78,8 @@
     "URL": "https://example.test/shared",
     "HasJD": true,
     "HasResume": true,
+    "HasCoverLetter": true,
+    "CoverLetterHasText": true,
     "PDFs": [
       "Owner Resume Role.pdf",
       "Owner Role Cover Letter.pdf"

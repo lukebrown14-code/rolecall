@@ -123,7 +123,7 @@ func TestDocsEmptyLabel(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40)
 	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right", "right")
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "resume.md (empty)") {
+	if strings.Count(v, "resume.md (empty)") != 2 {
 		t.Fatalf("missing empty label:\n%s", v)
 	}
 }
@@ -206,5 +206,21 @@ func TestResumeOnlyLetterChoice(t *testing.T) {
 	v = ansi.Strip(m.View().Content)
 	if strings.Count(v, "not needed · Resume only") != 2 {
 		t.Fatalf("Resume only Docs: %s", v)
+	}
+}
+
+func TestResumeOnlyWrittenLetterOpensFromDocs(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-resume-only", "cover-letter.md"), []byte("Fictional retained letter"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter", "left")
+	if v := ansi.Strip(m.View().Content); strings.Contains(v, "not needed") {
+		t.Fatalf("written letter labelled unnecessary: %s", v)
+	}
+	m = driveModel(t, m, "down", "enter")
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
+		t.Fatalf("letter did not open: %s", v)
 	}
 }
