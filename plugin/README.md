@@ -71,6 +71,25 @@ these: `python3 plugin/scripts/build.py <job_dir> --check` reads Markdown,
 
 The style rules the letter gate reads are in `plugin/styles/au.md`.
 
+## Tone layering
+
+Every document is written by layering three files, in this order:
+
+1. `plugin/writing-rules.md` — the general rules, shipped with the plugin.
+2. `plugin/styles/au.md` — the Australian style guide, also shipped here.
+3. `<workspace>/profile/writing-preferences.md` — the Owner's own preferences and facts.
+
+**Later files win**: the style guide overrides the general rules, and the Owner's preferences
+override both in tone and convention. The facts-only rule in `plugin/writing-rules.md` is
+absolute and none of the three may override it.
+
+## Workspace setup
+
+Before the first document run, the Owner's `writing-preferences.md` must sit at
+`<workspace>/profile/writing-preferences.md`. Move it there from wherever it lives today; do not
+copy it into this repository. The code repo never contains this file — it is entirely personal
+data.
+
 ## Tests
 
 ```sh
@@ -85,3 +104,35 @@ which needs none of them), so they pass on a bare Python install.
 clear reason when `python3`, `pandoc` or `typst` is missing; the CI Go job
 installs only Go and Python, so it skips there. Install the tools locally to
 exercise it.
+
+## Manual acceptance
+
+The automated tests cannot see a real Workspace, so this check is manual. It
+must be run by the Owner, against their Workspace, before the plugin replaces
+the dashboard workflow.
+
+1. Pick two Applications that already have documents built by the dashboard
+   era, ideally one resume-only and one with a cover letter.
+2. Save today's sources and PDFs somewhere outside the Workspace:
+
+   ```sh
+   mkdir -p /tmp/rolecall-before/<slug>
+   cp <workspace>/jobs/<track>/<slug>/{resume.md,cover-letter.md} /tmp/rolecall-before/<slug>/
+   cp -r <workspace>/jobs/<track>/<slug>/out /tmp/rolecall-before/<slug>/out
+   ```
+
+3. Rebuild with the plugin build, then diff the sources and the PDF text:
+
+   ```sh
+   python3 plugin/scripts/build.py <workspace>/jobs/<track>/<slug> --data <workspace>
+   diff -u /tmp/rolecall-before/<slug>/resume.md <workspace>/jobs/<track>/<slug>/resume.md
+   diff -u /tmp/rolecall-before/<slug>/cover-letter.md <workspace>/jobs/<track>/<slug>/cover-letter.md
+   for pdf in <workspace>/jobs/<track>/<slug>/out/*.pdf; do pdftotext "$pdf" - ; done
+   ```
+
+4. Expected: `build.py` passes every gate, the Markdown sources are byte-identical
+   where the dashboard wrote them and the plugin did not, and the PDF text reads
+   in the same order with the same content. Any difference must be explainable by
+   the tone-layering change alone; a gate failure or a changed fact is a defect.
+
+Record the two slugs and the result in the ticket before closing it.
