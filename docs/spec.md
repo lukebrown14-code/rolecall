@@ -440,7 +440,7 @@ Markdown preview of `resume.md` and `cover-letter.md` in the Docs tab (Glamour).
 | Area | Features |
 |---|---|
 | Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, spelling, paper size, workspace path, `git init`) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
-| Profile | Profile screen (contact and preferences form, experience in `$EDITOR`) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
+| Profile | read-only Profile screen (screen 5; editing in 1.x) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
 | Settings | Settings screen: tracks, gates, follow-up days, downloads, editor, theme, harness commands |
 | Documents | neutral default template + workspace brand override · style packs AU/UK/US · 2–3 template choices |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
@@ -458,7 +458,7 @@ agreeing in a grilling session and splitting into issues before it is built.
 | Onboarding | `rolecall init` wizard | To do. Today a missing workspace exits with a one-line message |
 | | `rolecall doctor` | To do |
 | | Plugin install guide per harness | To do |
-| Profile | Profile screen | To do |
+| Profile | Profile screen | Designed (grilled 2026-11-12, see [Profile screen](#profile-screen-v10)). To do (#49) |
 | | `import-profile` skill | To do |
 | Settings | Settings screen | To do. Settings are only in `config.toml` and `workspace.json` |
 | Documents | Neutral default template + workspace brand override | To do. `plugin/templates/brand.typ` is still the Owner's brand |
@@ -482,13 +482,35 @@ agreeing in a grilling session and splitting into issues before it is built.
 
 **Suggested order:** ship v0.3 first. Then the release blockers, so the repo can go public:
 licence, README, personal-data guard across the repo, neutral template, location filter from
-the workspace, cross-platform open, `init` and `doctor`, goreleaser. Profile and Settings
-screens, template choices, style packs, import/export and auto-commit can follow in 1.x if
+the workspace, cross-platform open, `init` and `doctor`, goreleaser. Profile editing, the Settings
+screen, template choices, style packs, import/export and auto-commit can follow in 1.x if
 needed.
 
-**To decide in the v1.0 grilling:** whether the Profile and Settings screens are required for
-1.0 or can come in 1.x; what `rolecall migrate` versions (a `schema` field in `workspace.json`?);
-which harnesses get an install guide; and Windows support in or out.
+**To decide in the v1.0 grilling:** whether the Settings screen is required for 1.0 or can come
+in 1.x; whether `rolecall init` may write the Profile's Contact table; what `rolecall migrate`
+versions (a `schema` field in `workspace.json`?); which harnesses get an install guide; and
+Windows support in or out.
+
+#### Profile screen (v1.0)
+
+Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size belong to
+Settings, and writing preferences stay prose, so the 1.x edit form covers the Contact only.
+
+- **Screen 5**, after Stats. A section list on the left, built from the `##` headings of
+  `profile/master-profile.md`, then a divider and the other Profile files (`projects.md`,
+  `writing-preferences.md`, `phrasing-bank.md`). The selected section renders as Markdown on
+  the right.
+- **Counts** beside each section: entries for `###` sections, rows for tables, bullets for
+  lists, items for comma lists, none for prose. Contact shows ✓, or ✗ with the reason in the
+  content pane when Name or Email is missing (builds would fail).
+- **Keys:** `j`/`k` section, `tab` focus, `e` opens the current file in `$EDITOR` (as on the
+  Resume tab).
+- **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
+  found` and `e` does nothing; a file with no `##` headings is one section, "Profile"; below
+  80 columns the section list hides and the header names the section.
+- **Refresh:** re-read on entering the screen, after `$EDITOR` closes, and on `r`. `profile/` is
+  not watched.
+- The Contact table is a file contract: see `SCHEMA.md`.
 
 ## Open questions
 
