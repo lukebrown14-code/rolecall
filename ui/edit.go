@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -9,10 +10,10 @@ import (
 )
 
 // openEdit starts the Edit form prefilled from an Application. A malformed Application is
-// refused with the store's own parse error.
+// refused with the store's own parse error, plus the next step.
 func (m *model) openEdit(a store.Application) tea.Cmd {
 	if a.Malformed != nil {
-		m.err = a.Malformed
+		m.err = fmt.Errorf("%w · enter to see the file", a.Malformed)
 		return nil
 	}
 	m.err = nil

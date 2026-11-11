@@ -67,7 +67,7 @@ func (m model) moveBox(p pal) string {
 	likely := likelyCount[a.Status]
 	for i, s := range m.options {
 		if i == likely {
-			b.WriteString(p.text(p.dim).Render("other ") + p.text(p.faint).Render(strings.Repeat("─", cw-len("other "))) + "\n")
+			b.WriteString(p.text(p.dim).Render("other ") + p.text(p.rule).Render(strings.Repeat("─", cw-len("other "))) + "\n")
 		}
 		hint := ""
 		if s == store.StatusApplied && a.Documents != store.DocsReady {

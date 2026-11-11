@@ -231,6 +231,11 @@ context-free review. Every colour and style is in `ui/styles.go`.
 
 - **Theme:** dark only; the view paints the terminal background `#0D1117`. Accent **Mint**
   `#5EEAD4`. Colour always pairs with a word or glyph.
+- **Active markers:** the active track, view tab and detail tab are bracketed — `[All]`,
+  `[Leads 4]`, `[JD]` — as well as coloured, so they read without colour.
+- **Accessibility:** `NO_COLOR` drops all colour but keeps bold, underline and every word
+  and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in. The `?`
+  pop-up carries a legend for `● ○ ✓ ⚠ ✕ ↩ ~ ⚑`.
 - **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
   within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
   Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and

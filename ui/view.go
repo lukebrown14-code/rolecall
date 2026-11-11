@@ -107,6 +107,23 @@ func ago(date string, now time.Time) (string, int) {
 	return s + " ago", days
 }
 
+// futureFlag marks a Status date after today: almost always a data error, so it is
+// flagged rather than shown as a normal "in 8mo" relative date.
+const futureFlag = "⚠ future date"
+
+// futureDate reports whether a Status entry's date is after today.
+func (m model) futureDate(e *store.StatusEntry) bool {
+	if e == nil {
+		return false
+	}
+	t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
+	if err != nil {
+		return false
+	}
+	today, _ := time.Parse("2006-01-02", m.now().Format("2006-01-02"))
+	return t.After(today)
+}
+
 func (m model) View() tea.View {
 	p := basePal
 	var body string
@@ -125,9 +142,14 @@ func (m model) View() tea.View {
 		}
 		body = overlay(base, box, m.viewWidth())
 	}
-	v := tea.NewView(body)
-	// Dark only: paint the terminal background so the palette reads the same on a light terminal.
-	v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	v := tea.NewView(asciiFold(body))
+	// Dark only: paint the terminal background so the palette reads the same on a light
+	// terminal. NO_COLOR drops colour but keeps bold and underline.
+	if noColor() {
+		v.Content = stripColor(v.Content)
+	} else {
+		v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+	}
 	return v
 }
 
@@ -174,7 +196,7 @@ func (m model) listView(p pal) string {
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
-			sep := p.text(p.faint).Render(strings.TrimSuffix(strings.Repeat("│\n", bodyH), "\n"))
+			sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", bodyH), "\n"))
 			body = lipgloss.JoinHorizontal(lipgloss.Top, list, sep, m.preview(p, rows[m.cursor], previewW, bodyH))
 		}
 	}
@@ -183,7 +205,7 @@ func (m model) listView(p pal) string {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
 		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
 	}
-	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.faint).Render(ruleTop) + "\n" +
+	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
 		body + "\n" + m.feedbackLine(p, ruleBot) + "\n" + keys
 }
 
@@ -257,28 +279,44 @@ func (m model) topBar(p pal) string {
 	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
-// trackSelector is a labelled field, "track  All  SWE  Platform  t", collapsing to
-// "track  All +2  t" when it doesn't fit in w.
+// trackSelector is a labelled field, "track  All  SWE  Platform  t track", collapsing
+// in steps — "track  All +2  t track", then "All +2  t track", "All  t track", "All" —
+// so the header never spills on a narrow terminal.
 func (m model) trackSelector(p pal, w int) string {
 	opts := append([]string{"All"}, m.tracks...)
 	on := p.text(p.accent).Bold(true).Underline(true)
+	// The active track is bracketed as well as underlined, so it is marked without colour.
+	mark := func(name string) string {
+		return p.text(p.accent).Render("[") + on.Render(name) + p.text(p.accent).Render("]")
+	}
 	parts := make([]string, len(opts))
 	for i, t := range opts {
 		parts[i] = p.text(p.dim).Render(t)
 		if i == m.track {
-			parts[i] = on.Render(t)
+			parts[i] = mark(t)
 		}
 	}
-	key := p.text(p.accent).Bold(true).Render("  t")
-	full := p.text(p.dim).Render("track  ") + strings.Join(parts, "  ") + key
-	if xansi.StringWidth(full) <= w {
-		return full
-	}
+	key := p.text(p.accent).Bold(true).Render("  t track")
+	label := p.text(p.dim).Render("track  ")
 	name := "All"
 	if m.track > 0 {
 		name = m.tracks[m.track-1]
 	}
-	return p.text(p.dim).Render("track  ") + on.Render(name) + p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1)) + key
+	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
+	activeName := mark(name)
+	// Longest to shortest; the last always fits any terminal the layout supports.
+	for _, cand := range []string{
+		label + strings.Join(parts, "  ") + key,
+		label + activeName + plus + key,
+		activeName + plus + key,
+		activeName + key,
+		activeName,
+	} {
+		if xansi.StringWidth(cand) <= w {
+			return cand
+		}
+	}
+	return activeName
 }
 
 // viewRow is the screen's views, cycled with Tab, plus the search in force. A screen
@@ -299,7 +337,8 @@ func (m model) viewRow(p pal) string {
 				}
 				parts[i] = p.text(p.dim).Render(label)
 				if i == m.table {
-					parts[i] = p.text(p.fg).Bold(true).Underline(true).Render(label)
+					// Bracketed as well as bold and underlined: marked without colour.
+					parts[i] = p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(label) + p.text(p.accent).Render("]")
 				}
 			}
 			row = "   " + strings.Join(parts, f.gap)
@@ -376,7 +415,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 		for i, a := range rows {
 			if d, ok := dividers[i]; ok {
 				label := fmt.Sprintf("  %s · %d ", d.label, d.n)
-				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.faint).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
+				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.rule).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
 				if i > 0 {
 					lines = append([]string{""}, lines...) // air above each section
 				}
@@ -610,8 +649,14 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 // meta is a row's second line: company, track, and the dates that matter for its table.
 func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
 	dim := st(dimC)
+	// when renders a Status date, flagging one in the future as a data error.
+	when := func(e *store.StatusEntry, prefix string) string {
+		if m.futureDate(e) {
+			return st(p.warn).Render(prefix + futureFlag)
+		}
+		return dim.Render(prefix + m.agoEntry(e))
+	}
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
-	rel := m.agoEntry
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
 		switch r, days := ago(a.Closes, m.now()); {
@@ -628,18 +673,18 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		}
 	case tableDismissed:
 		if a.LastChange != nil {
-			out = append(out, dim.Render("dismissed "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, "dismissed "))
 		}
 	case tableClosed:
 		if a.LastChange != nil {
-			out = append(out, dim.Render("closed "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, "closed "))
 		}
 	default:
 		if a.AppliedDate != nil {
-			out = append(out, dim.Render("applied "+rel(a.AppliedDate)))
+			out = append(out, when(a.AppliedDate, "applied "))
 		}
 		if a.LastChange != nil && a.LastChange.At != entryAt(a.AppliedDate) {
-			out = append(out, dim.Render(strings.ToLower(a.LastChange.Status)+" "+rel(a.LastChange)))
+			out = append(out, when(a.LastChange, strings.ToLower(a.LastChange.Status)+" "))
 		}
 	}
 	return out
@@ -706,11 +751,13 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		} else {
 			b.WriteString(p.text(p.dim).Render("No notes · ") + p.text(p.accent).Render("n") + p.text(p.dim).Render(" to add"))
 		}
+		b.WriteString("\n\n" + p.text(p.dim).Render("? all keys"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
 
-// fileMarks is the one-line document set: ✓ present, ○ missing.
+// fileMarks is the one-line document set: ✓ present, ○ missing. A source mark reflects
+// content, not just presence, so it never reads "✓ resume" beside "not written".
 func (m model) fileMarks(p pal, a store.Application) string {
 	mark := func(ok bool, name string) string {
 		if ok {
@@ -722,8 +769,14 @@ func (m model) fileMarks(p pal, a store.Application) string {
 	if n := len(a.PDFs); n > 0 {
 		pdfs = fmt.Sprintf("%d pdf", n)
 	}
-	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume, "resume"), mark(a.HasCoverLetter, "cover"),
-		mark(len(a.PDFs) > 0, pdfs)}, "  ")
+	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume && m.hasContent(a, "resume.md"), "resume"),
+		mark(a.HasCoverLetter && m.hasContent(a, "cover-letter.md"), "cover"), mark(len(a.PDFs) > 0, pdfs)}, "  ")
+}
+
+// hasContent reports whether a document holds non-whitespace text.
+func (m model) hasContent(a store.Application, name string) bool {
+	b, err := m.store.ReadDocument(a.Folder, name)
+	return err == nil && strings.TrimSpace(string(b)) != ""
 }
 
 // timeline is the Status log, newest last, plus the close date for Leads and Drafts.
@@ -735,12 +788,18 @@ func (m model) timeline(p pal, a store.Application, dates bool) string {
 		if i == len(a.StatusLog)-1 {
 			dot, nameC = p.text(p.accent).Render("●"), p.fg
 		}
-		when := m.agoEntry(&e)
+		when, whenC := m.agoEntry(&e), p.dim
+		if m.futureDate(&e) {
+			when, whenC = futureFlag, p.warn
+		}
 		if dates {
-			r, _ := ago(e.At, m.now())
+			r := when
+			if !m.futureDate(&e) {
+				r, _ = ago(e.At, m.now())
+			}
 			when = entryDate(&e) + "  " + r
 		}
-		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(p.dim).Render(when) + "\n")
+		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
 	}
 	if a.Closes != "" && beforeApplied(tableOf(a)) {
 		r, days := ago(a.Closes, m.now())
