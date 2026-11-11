@@ -153,3 +153,8 @@ filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
 no docs; `resume_only`; unknown keys; `approx` entries; an empty log; and one malformed
 `meta.yml`. The Go store tests and the Python `build.py` tests both load it. Any change to this
 file updates the fixtures in the same commit.
+
+`fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed
+tables, jd front matter, legacy keys, bulk-stamped logs and an unmappable Fit. It is used by
+`plugin/tests/test_migrate.py` and `store/migrate_integration_test.go`. It is input to the
+one-time migration only and is not scanned by the store.
