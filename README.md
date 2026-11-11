@@ -48,6 +48,15 @@ If `go.mod` is missing, check `pwd` and update the intended checkout with
 `git pull origin main`; this repository already has a module, so no initialization
 is needed.
 
+## Privacy
+
+rolecall collects nothing and has no telemetry. Your Profile, CV and job ads stay in
+your Workspace unless you ask the Harness to work with them. The Harness sends that
+content to your own AI provider; review that provider's privacy practices.
+
+Keep your Workspace git repository private. It contains your Profile, CV and
+application data.
+
 ## Checks
 
 ```sh
