@@ -42,6 +42,7 @@ type model struct {
 	options               []string
 	moveForm              *huh.Form
 	moveTarget            string
+	confirm               *pendingMove
 	undo                  []undoMove
 	toast                 string
 	err                   error
@@ -109,7 +110,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd := m.moveForm.Update(msg)
 			m.moveForm = updated.(*huh.Form)
 			if m.moveForm.State == huh.StateCompleted {
-				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.requestMove(m.rows()[m.cursor], m.moveForm.GetString("status"))
 				m.options = nil
 				m.moveForm = nil
 			}
@@ -119,6 +120,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if m.confirm != nil {
+			pending := m.confirm
+			switch k.String() {
+			case "y":
+				m.confirm = nil
+				m.move(pending.app, pending.status, false)
+			case "n", "esc":
+				m.confirm = nil
+			}
+			return m, nil
 		}
 		if m.filtering {
 			switch k.String() {
@@ -148,7 +160,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			for _, status := range m.options {
 				if statusLetters[status] == k.String() {
-					m.move(m.rows()[m.cursor], status, false)
+					m.requestMove(m.rows()[m.cursor], status)
 					m.options = nil
 					m.moveForm = nil
 					return m, nil
@@ -157,7 +169,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd := m.moveForm.Update(msg)
 			m.moveForm = updated.(*huh.Form)
 			if m.moveForm.State == huh.StateCompleted {
-				m.move(m.rows()[m.cursor], m.moveForm.GetString("status"), false)
+				m.requestMove(m.rows()[m.cursor], m.moveForm.GetString("status"))
 				m.options = nil
 				m.moveForm = nil
 			}
@@ -321,6 +333,9 @@ func (m model) View() tea.View {
 	b.WriteString("\n")
 	if len(m.options) > 0 {
 		b.WriteString(m.moveView())
+	}
+	if m.confirm != nil {
+		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")

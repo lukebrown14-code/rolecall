@@ -29,6 +29,22 @@ func MoveOptions(from, previous string) []string {
 
 type undoMove struct{ folder, status string }
 
+// pendingMove is a move to Applied awaiting the Owner's answer to the not-Ready prompt.
+type pendingMove struct {
+	app    store.Application
+	status string
+}
+
+// requestMove moves immediately, except that a non-Ready Application going to Applied
+// first asks the Owner. A malformed Application skips the prompt so the store's error shows.
+func (m *model) requestMove(a store.Application, status string) {
+	if status == "Applied" && a.Malformed == nil && a.Documents != "Ready" {
+		m.confirm = &pendingMove{a, status}
+		return
+	}
+	m.move(a, status, false)
+}
+
 func (m *model) move(a store.Application, status string, undo bool) {
 	if err := m.store.AppendStatus(a.Folder, status, m.now()); err != nil {
 		m.err = err
@@ -37,7 +53,14 @@ func (m *model) move(a store.Application, status string, undo bool) {
 	if !undo {
 		m.undo = append(m.undo, undoMove{a.Folder, a.Status})
 	}
+	var sentErr error
+	if status == "Applied" && !undo {
+		sentErr = m.store.RecordSent(a.Folder)
+	}
 	m.apps, m.err = m.store.Scan()
+	if m.err == nil {
+		m.err = sentErr
+	}
 	m.toast = fmt.Sprintf("Moved to %s · u to undo", status)
 }
 func (m model) moveView() string { return m.moveForm.View() }
