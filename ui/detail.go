@@ -192,7 +192,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.tab = (d.tab + step) % len(detailTabs)
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "u", "r", "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "?", "q", "ctrl+c":
 		return m, nil, false
 	}
 	if a.Malformed != nil {
@@ -292,12 +292,17 @@ func (m model) detailView() string {
 	if m.confirm != nil {
 		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
+	b.WriteString(m.downloadPrompt())
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
 	}
 	if m.err != nil {
 		b.WriteString(m.err.Error() + "\n")
 	}
-	b.WriteString("←/→ tabs · ↑↓ scroll · e edit · m move · n notes · u undo · Esc back")
+	b.WriteString("←/→ tabs · ↑↓ scroll · e edit · m move · n notes")
+	if len(a.PDFs) > 0 {
+		b.WriteString(" · d download")
+	}
+	b.WriteString(" · u undo · Esc back")
 	return plainStyle.Render(b.String())
 }

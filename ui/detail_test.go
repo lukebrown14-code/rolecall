@@ -29,7 +29,7 @@ type detailHarness struct {
 	runs  [][]string
 }
 
-func newDetailHarness(t *testing.T, setup func(root string)) *detailHarness {
+func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option) *detailHarness {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.CopyFS(root, os.DirFS("../fixtures/workspace")); err != nil {
@@ -43,7 +43,7 @@ func newDetailHarness(t *testing.T, setup func(root string)) *detailHarness {
 		t.Fatal(err)
 	}
 	h := &detailHarness{t: t, root: root, store: s}
-	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	opts := append([]ui.Option{
 		ui.WithEditor("myeditor"),
 		ui.WithExternalRunner(func(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
 			return func() tea.Msg {
@@ -52,7 +52,8 @@ func newDetailHarness(t *testing.T, setup func(root string)) *detailHarness {
 				h.mu.Unlock()
 				return done(nil)
 			}
-		}))
+		})}, extra...)
+	m, err := ui.New(s, func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, opts...)
 	if err != nil {
 		t.Fatal(err)
 	}
