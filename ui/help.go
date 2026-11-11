@@ -130,6 +130,13 @@ func (m model) helpKeys() []helpKey {
 			keys = append(keys, help(groupAction, "d", "download"))
 		}
 	}
+	// Handoff: f on any Application, p while it is still a Lead or Draft.
+	if onRow && m.harness != "" {
+		keys = append(keys, help(groupAction, "f", "assess fit"))
+		if usable && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+			keys = append(keys, help(groupAction, "p", "prepare docs"))
+		}
+	}
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
 	}
