@@ -48,3 +48,17 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (see **Count open blockers**, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Read a spec task graph
+
+Start with the parent, then list its children without fetching unrelated issue bodies:
+
+```sh
+gh issue view <parent> --json number,title,body
+gh api --paginate repos/{owner}/{repo}/issues/<parent>/sub_issues --jq '.[] | {number,title,state}'
+gh api --paginate repos/{owner}/{repo}/issues/<child>/dependencies/blocked_by --jq '.[] | {number,state}'
+```
+
+Fetch each relevant child body with `gh issue view`. If native sub-issues are
+unavailable, use the parent's task list or search for `Part of #<parent>` and
+`Parent` references. Keep broad discovery queries to numbers and titles.
