@@ -279,6 +279,15 @@ func (m model) statsApps() []store.Application {
 	return out
 }
 
+// statsHelpKeys is the keys Stats accepts: add and screens, track, help, rescan, quit.
+func (m model) statsHelpKeys() []helpKey {
+	keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-4", "screen")}
+	if len(m.tracks) > 0 {
+		keys = append(keys, help(groupMore, "t", "cycle track"))
+	}
+	return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+}
+
 // statsKey handles the keys Stats accepts. Tab and row keys are inert there.
 func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {

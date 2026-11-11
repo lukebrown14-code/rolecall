@@ -11,13 +11,9 @@ import (
 	"time"
 )
 
-var screens = []string{screenLeads, screenDraft, screenApplied, screenStats}
-
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
-
-var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, {}}
 
 var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
@@ -100,13 +96,13 @@ func (m model) quit() tea.Cmd {
 	}
 }
 
-// rows is the active view in display order: the cursor indexes into it. Stats has
-// no tables and no rows.
+// rows is the active view in display order: the cursor indexes into it. A screen
+// without Application tables has no rows.
 func (m model) rows() []store.Application {
-	if m.screen == statsScreen {
+	if !m.hasTables() {
 		return nil
 	}
-	return m.rowsOf(m.screen, tables[m.screen][m.table])
+	return m.rowsOf(m.screen, m.views()[m.table])
 }
 
 // rowsOf lists one view of a screen. All groups the Applied screen's tables in
@@ -122,7 +118,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table && m.matches(a) {
+		if s == screenDefs[screen].name && t == table && m.matches(a) {
 			out = append(out, a)
 		}
 	}
@@ -159,7 +155,7 @@ func (m model) totalCount(screen int, table string) int {
 	n := 0
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table {
+		if s == screenDefs[screen].name && t == table {
 			n++
 		}
 	}
@@ -239,8 +235,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return next.syncDetail(), cmd
 			}
 		}
-		if m.screen == statsScreen {
-			return m.statsKey(k)
+		if !m.hasTables() {
+			return screenDefs[m.screen].key(m, k)
 		}
 		switch k.String() {
 		case "v", "enter":
@@ -299,10 +295,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.table = 0
 			m.cursor = 0
 		case "tab":
-			m.table = (m.table + 1) % len(tables[m.screen])
+			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
 		case "shift+tab":
-			m.table = (m.table + len(tables[m.screen]) - 1) % len(tables[m.screen])
+			m.table = (m.table + len(m.views()) - 1) % len(m.views())
 			m.cursor = 0
 		case "down", "j":
 			m.cursor++
