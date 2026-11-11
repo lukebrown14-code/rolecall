@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-var screens = []string{screenLeads, screenDraft, screenApplied}
+var screens = []string{screenLeads, screenDraft, screenApplied, screenStats}
 
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
 
-var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}}
+var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, {}}
 
 var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
@@ -109,8 +109,14 @@ func (m model) quit() tea.Cmd {
 	}
 }
 
-// rows is the active view in display order: the cursor indexes into it.
-func (m model) rows() []store.Application { return m.rowsOf(m.screen, tables[m.screen][m.table]) }
+// rows is the active view in display order: the cursor indexes into it. Stats has
+// no tables and no rows.
+func (m model) rows() []store.Application {
+	if m.screen == statsScreen {
+		return nil
+	}
+	return m.rowsOf(m.screen, tables[m.screen][m.table])
+}
 
 // rowsOf lists one view of a screen. All groups the Applied screen's tables in
 // appliedGroups order; Leads and Draft put expired close dates last.
@@ -281,6 +287,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return next.syncDetail(), cmd
 			}
 		}
+		if m.screen == statsScreen {
+			return m.statsKey(k)
+		}
 		switch k.String() {
 		case "v", "enter":
 			if rows := m.rows(); len(rows) > 0 {
@@ -332,10 +341,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "1", "2", "3":
+		case "1", "2", "3", "4":
 			m.screen = int(k.String()[0] - '1')
 			m.table = 0
 			m.cursor = 0
+			m.detail = nil
 		case "tab":
 			m.table = (m.table + 1) % len(tables[m.screen])
 			m.cursor = 0
