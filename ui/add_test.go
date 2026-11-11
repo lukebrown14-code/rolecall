@@ -1,7 +1,6 @@
 package ui_test
 
 import (
-	"bytes"
 	"github.com/charmbracelet/x/ansi"
 	"io/fs"
 	"os"
@@ -10,10 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 )
@@ -22,12 +19,12 @@ type addHarness struct {
 	t      *testing.T
 	root   string
 	store  *store.Store
-	tm     *teatest.TestModel
+	tm     *driver
 	mu     sync.Mutex
 	edited []string
 }
 
-// newAddHarness runs the whole program on a temp copy of the fixture Workspace. The editor is a fake
+// newAddHarness runs the program on a temp copy of the fixture Workspace. The editor is a fake
 // runner that records the file it was asked to open and pastes a known JD into it.
 func newAddHarness(t *testing.T) *addHarness {
 	t.Helper()
@@ -49,50 +46,37 @@ func newAddHarness(t *testing.T) *addHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	m, err := ui.New(s, fixtureClock, ui.WithExternalRunner(runner))
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
+	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, ui.WithExternalRunner(runner))
 	h.wait("Leads 4")
 	return h
 }
 
-// wait blocks until every text has appeared in the output. WaitFor consumes the output it reads, so
-// texts that must be on screen together are awaited in one call.
+// wait fails unless every text is on the current screen.
 func (h *addHarness) wait(texts ...string) {
 	h.t.Helper()
-	var seen []byte
-	teatest.WaitFor(h.t, h.tm.Output(), func(b []byte) bool {
-		seen = append(seen, b...)
-		for _, text := range texts {
-			if !bytes.Contains(seen, []byte(text)) {
-				return false
-			}
+	view := h.tm.plain()
+	for _, text := range texts {
+		if !strings.Contains(view, text) {
+			h.t.Fatalf("screen lacks %q:\n%s", text, view)
 		}
-		return true
-	}, teatest.WithDuration(3*time.Second))
+	}
 }
 
-// waitForFile blocks until the fake editor has written the file, then lets the program handle the
-// editor's return before the caller goes on.
+// waitForFile fails unless the fake editor wrote the file.
 func (h *addHarness) waitForFile(path, content string) {
 	h.t.Helper()
-	teatest.WaitFor(h.t, h.tm.Output(), func([]byte) bool {
-		b, _ := os.ReadFile(path)
-		return string(b) == content
-	}, teatest.WithDuration(3*time.Second))
-	time.Sleep(100 * time.Millisecond)
+	if got := readFile(h.t, path); got != content {
+		h.t.Fatalf("editor wrote %q, want %q", got, content)
+	}
 }
 
-// waitForStatus blocks until the Application's current Status on disk is the given one. The renderer
-// emits only changed cells, so on-screen toasts are not reliable to wait on.
+// waitForStatus fails unless the Application's current Status on disk is the given one.
 func (h *addHarness) waitForStatus(folder, status string) {
 	h.t.Helper()
-	teatest.WaitFor(h.t, h.tm.Output(), func([]byte) bool {
-		a, err := h.store.Rescan(folder)
-		return err == nil && a != nil && a.Malformed == nil && a.Status == status
-	}, teatest.WithDuration(3*time.Second))
+	a, err := h.store.Rescan(folder)
+	if err != nil || a == nil || a.Malformed != nil || a.Status != status {
+		h.t.Fatalf("status of %s is %v (%v), want %s", folder, a, err, status)
+	}
 }
 
 func (h *addHarness) enter() { h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) }
@@ -105,11 +89,10 @@ func (h *addHarness) advance() {
 	h.enter()
 }
 
-// quit ends the program and returns the final rendered screen.
+// quit returns the final rendered screen.
 func (h *addHarness) quit() string {
 	h.t.Helper()
-	h.tm.Type("q")
-	return h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+	return h.tm.View()
 }
 
 // snapshot lists every path and file content under the Workspace.

@@ -9,11 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
-	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 )
@@ -23,7 +20,7 @@ import (
 type detailHarness struct {
 	t     *testing.T
 	root  string
-	tm    *teatest.TestModel
+	tm    *driver
 	store *store.Store
 	mu    sync.Mutex
 	runs  [][]string
@@ -53,27 +50,23 @@ func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option)
 				return done(nil)
 			}
 		})}, extra...)
-	m, err := ui.New(s, fixtureClock, opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.tm = teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
+	h.tm = newDriver(t, root, fixtureClock, 120, 40, opts...)
 	h.wait("Leads 4")
 	return h
 }
 
 func (h *detailHarness) wait(text string) {
 	h.t.Helper()
-	teatest.WaitFor(h.t, h.tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte(text)) },
-		teatest.WithDuration(3*time.Second))
+	if view := h.tm.plain(); !strings.Contains(view, text) {
+		h.t.Fatalf("screen lacks %q:\n%s", text, view)
+	}
 }
 
-// show quits and returns the final rendered screen, failing unless it contains each
-// wanted text once styling is stripped. The program's output stream carries only screen diffs, so the final
-// screen is the reliable thing to assert on.
+// show returns the final rendered screen, failing unless it contains each wanted text
+// once styling is stripped.
 func (h *detailHarness) show(want ...string) string {
 	h.t.Helper()
-	v := ansi.Strip(h.finalView())
+	v := h.tm.plain()
 	for _, w := range want {
 		if !strings.Contains(v, w) {
 			h.t.Fatalf("screen lacks %q:\n%s", w, v)
@@ -82,7 +75,7 @@ func (h *detailHarness) show(want ...string) string {
 	return v
 }
 
-func (h *detailHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
+func (h *detailHarness) key(code rune) { h.tm.key(code) }
 
 // open selects the named Application's row (by text filter, on the given screen and
 // table index) and opens its detail view with Enter.
@@ -99,28 +92,17 @@ func (h *detailHarness) open(screen string, tabs int, filter string) {
 
 func (h *detailHarness) finalView() string {
 	h.t.Helper()
-	h.tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}) // quits even over a prompt
-	return h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content
+	return h.tm.View()
 }
 
 func (h *detailHarness) lastRun() []string {
 	h.t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		h.mu.Lock()
-		n := len(h.runs)
-		var last []string
-		if n > 0 {
-			last = h.runs[n-1]
-		}
-		h.mu.Unlock()
-		if n > 0 {
-			return last
-		}
-		time.Sleep(10 * time.Millisecond)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.runs) == 0 {
+		h.t.Fatal("no external program was run")
 	}
-	h.t.Fatal("no external program was run")
-	return nil
+	return h.runs[len(h.runs)-1]
 }
 
 func (h *detailHarness) folder(name string) string { return filepath.Join(h.root, "jobs", "SWE", name) }

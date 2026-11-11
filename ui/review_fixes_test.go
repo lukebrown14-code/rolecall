@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/store"
@@ -26,6 +25,7 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Draft, at: 2026-10-01T01:00:00Z}", 1))
 	h.wait("Draft 3") // Empty log left Leads; the cursor now sits on another row
 	h.tm.Type("x")
+	h.wait("→ Dismissed")
 	s, err := store.Open(h.root)
 	if err != nil {
 		t.Fatal(err)
@@ -37,10 +37,8 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 		}
 		return a.Status
 	}
-	for deadline := time.Now().Add(5 * time.Second); status("empty-log") != "Dismissed"; time.Sleep(20 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatalf("Empty log not dismissed; it is %s", status("empty-log"))
-		}
+	if got := status("empty-log"); got != "Dismissed" {
+		t.Fatalf("Empty log is %s, want Dismissed", got)
 	}
 	if got := status("fern"); got != "Lead" {
 		t.Fatalf("the row under the cursor was moved instead: fern is %s", got)

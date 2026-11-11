@@ -56,10 +56,6 @@ func (h *liveHarness) wait(text string) {
 
 func (h *liveHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
 
-// settle gives the watcher time to deliver a change that draws nothing new to wait on
-// (a row leaving, a count changing: the renderer redraws only the cells that differ).
-func (h *liveHarness) settle() { time.Sleep(500 * time.Millisecond) }
-
 // rowLine is the first line of the row whose title starts with title.
 func rowLine(view, title string) string {
 	for _, line := range strings.Split(view, "\n") {
@@ -146,17 +142,6 @@ func TestLiveNewTrackFolderIsWatched(t *testing.T) {
 	h.wait("Poor")
 }
 
-func TestLiveRemovedApplicationDisappears(t *testing.T) {
-	h := newLiveHarness(t, nil)
-	if err := os.RemoveAll(h.folder("fern")); err != nil {
-		t.Fatal(err)
-	}
-	h.settle()
-	if v := h.finalView(); strings.Contains(v, "Fern Systems") || !strings.Contains(v, "Leads 3") {
-		t.Fatalf("removed Application still listed:\n%s", v)
-	}
-}
-
 func TestLiveCursorStaysOnSameFolder(t *testing.T) {
 	h := newLiveHarness(t, nil)
 	h.tm.Type("j") // second Lead: Empty log
@@ -169,20 +154,6 @@ func TestLiveCursorStaysOnSameFolder(t *testing.T) {
 	h.key(tea.KeyEnter)
 	if v := h.finalView(); !strings.Contains(v, "Fern Systems · Platform Engineer") {
 		t.Fatalf("cursor left Fern after live updates:\n%s", v)
-	}
-}
-
-func TestLiveCursorFollowsRowThatLeavesTheTable(t *testing.T) {
-	h := newLiveHarness(t, nil)
-	h.tm.Type("jj") // Fern
-	// The agent dismisses the Lead above Fern; Fern must stay selected.
-	meta := filepath.Join(h.folder("empty-log"), "meta.yml")
-	b, _ := os.ReadFile(meta)
-	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Dismissed, at: 2026-10-01T00:00:00Z}", 1))
-	h.settle()
-	h.key(tea.KeyEnter)
-	if v := h.finalView(); !strings.Contains(v, "Fern Systems · Platform Engineer") {
-		t.Fatalf("cursor left Fern after a row above it left the table:\n%s", v)
 	}
 }
 

@@ -333,7 +333,9 @@ Owner to set by hand.
 
 **Automated**
 - Go `store`: parse and patch round-trips against `fixtures/workspace/` (unknown keys and comments preserved byte for byte; malformed files refused; atomic write).
-- Go `ui`: `teatest` flows for Add → Move → Undo, and Dismiss → restore.
+- Go `ui`: `Update` driven directly (key in → model and disk state out) for Add → Move →
+  Undo and Dismiss → restore, plus a few whole-program `teatest` smoke tests; rendering
+  goldens are ANSI-stripped except one palette golden.
 - Python: `build.py` tests on the same fixtures (Lead → Draft append, no tracker writes, gates unchanged). `ruff` clean.
 - CI runs both.
 
