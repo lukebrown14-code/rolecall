@@ -132,12 +132,17 @@ func (m model) View() tea.View {
 		body = m.tooSmallView(p)
 	case m.detail != nil:
 		body = m.detailView(p)
+	case m.screen == statsScreen:
+		body = m.statsView(p)
 	default:
 		body = m.listView(p)
 	}
 	if box := m.overlayBox(p); box != "" && !m.tooSmall() {
 		base := m.listView(dimmedPal)
-		if m.detail != nil {
+		switch {
+		case m.screen == statsScreen:
+			base = m.statsView(dimmedPal)
+		case m.detail != nil:
 			base = m.detailView(dimmedPal)
 		}
 		body = overlay(base, box, m.viewWidth())
@@ -171,6 +176,9 @@ func (m model) tooSmallView(p pal) string {
 // listView is a screen: top bar, views, the list (with the preview pane when wide),
 // the feedback line and the key line.
 func (m model) listView(p pal) string {
+	if m.screen == statsScreen {
+		return m.statsView(p)
+	}
 	w, bodyH := m.viewWidth(), max(minBody, m.viewHeight()-chromeLines)
 	rows := m.rows()
 	split := w >= splitWidth && len(rows) > 0
@@ -292,14 +300,18 @@ func (m model) topBar(p pal) string {
 		for si, s := range screens {
 			n := m.screenCountLabel(si)
 			if si == m.screen {
-				out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
+				if s == screenStats {
+					out += "  " + on.Render(fmt.Sprintf(" %d %s ", si+1, s))
+				} else {
+					out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
+				}
 				continue
 			}
 			out += "  " + p.text(p.accent).Render(fmt.Sprintf(" %d", si+1))
 			if level < shedNames {
 				out += " " + p.text(p.fg).Render(s)
 			}
-			if level < shedCounts {
+			if level < shedCounts && s != screenStats {
 				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
 			}
 			out += " " // the same padding as the highlighted entry, so nothing shifts
@@ -314,7 +326,11 @@ func (m model) topBar(p pal) string {
 	if len(m.tracks) == 0 {
 		return out
 	}
-	track := m.trackSelector(p, w-xansi.StringWidth(out)-rightMargin-gutter)
+	avail := max(0, w-xansi.StringWidth(out)-rightMargin)
+	track := m.trackSelector(p, avail)
+	if xansi.StringWidth(track) > avail {
+		track = xansi.Truncate(track, avail, "…")
+	}
 	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
@@ -362,6 +378,9 @@ func (m model) trackSelector(p pal, w int) string {
 // view's name, plus the scope line on the right when a filter is on. The row is always
 // present, so the layout never jumps between screens.
 func (m model) viewRow(p pal) string {
+	if m.screen == statsScreen {
+		return ""
+	}
 	w := m.viewWidth()
 	ts := tables[m.screen]
 	row := "   " + p.text(p.dim).Render(ts[0])
