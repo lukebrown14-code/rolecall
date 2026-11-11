@@ -4,7 +4,7 @@ A terminal job tracker. Move Applications between Statuses, read them, and grab 
 documents. Your coding harness does the AI work (capture, fit, resumes, cover letters) through
 the rolecall plugin, by writing files the TUI watches.
 
-**Status:** Workspace store and count CLI implemented; interactive TUI pending. Private until v1.0.
+**Status:** Workspace store and interactive TUI (v0.1) implemented. Private until v1.0.
 
 - [Spec](docs/spec.md): roadmap and v0.1 behaviour
 - [SCHEMA.md](SCHEMA.md): the Workspace file contract
@@ -22,8 +22,7 @@ From an up-to-date checkout (with `go.mod` present):
 go run ./cmd/rolecall --dir ./fixtures/workspace
 ```
 
-The current CLI prints Application counts for each Status and exits. The
-interactive TUI is planned in issue #2. To scan your own Workspace, replace
+This opens the interactive TUI. To use your own Workspace, replace
 `./fixtures/workspace` with its path.
 
 To use a default Workspace, create `~/.config/rolecall/config.toml`:
