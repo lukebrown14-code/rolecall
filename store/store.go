@@ -24,9 +24,15 @@ type StatusEntry struct {
 	At     string
 	Approx bool
 }
-type Store struct{ root string }
+type Store struct {
+	root  string
+	files FileSystem
+}
 
-func Open(root string) (*Store, error) {
+func Open(root string) (*Store, error) { return OpenWithFileSystem(root, nil) }
+
+// OpenWithFileSystem opens a Workspace with an atomic publication filesystem.
+func OpenWithFileSystem(root string, files FileSystem) (*Store, error) {
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, err
@@ -34,7 +40,7 @@ func Open(root string) (*Store, error) {
 	if !info.IsDir() {
 		return nil, &os.PathError{Op: "open", Path: root, Err: errors.New("Workspace is not a directory")}
 	}
-	return &Store{root: root}, nil
+	return &Store{root: root, files: files}, nil
 }
 
 func (s *Store) Scan() ([]Application, error) {
