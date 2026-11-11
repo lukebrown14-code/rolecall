@@ -86,7 +86,7 @@ func (m model) current() (store.Application, bool) {
 
 func (m *model) moveCurrent(status string) {
 	if a, ok := m.current(); ok {
-		m.move(a, status, false)
+		m.requestMove(a, status)
 	}
 }
 
@@ -288,6 +288,9 @@ func (m model) detailView() string {
 	}
 	if len(m.options) > 0 {
 		b.WriteString(m.moveView())
+	}
+	if m.confirm != nil {
+		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")

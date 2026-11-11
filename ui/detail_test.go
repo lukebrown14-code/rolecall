@@ -98,7 +98,7 @@ func (h *detailHarness) open(screen string, tabs int, filter string) {
 
 func (h *detailHarness) finalView() string {
 	h.t.Helper()
-	h.tm.Type("q")
+	h.tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}) // quits even over a prompt
 	return h.tm.FinalModel(h.t, teatest.WithFinalTimeout(3*time.Second)).View().Content
 }
 
@@ -403,4 +403,20 @@ func TestDetailKeepsScrollPositionWhenEditorReturns(t *testing.T) {
 	if v := h.show("Requirement number 100"); strings.Contains(v, "Requirement number 1\n") {
 		t.Fatalf("scroll position lost after the editor returned:\n%s", v)
 	}
+}
+
+func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
+	ask := newDetailHarness(t, nil)
+	ask.open("2", 0, "docs-none")
+	ask.tm.Type("m")
+	ask.wait("Move")
+	ask.tm.Type("a")
+	ask.show("Docs not Ready. Mark Applied anyway? y/n", "Draft · ")
+
+	yes := newDetailHarness(t, nil)
+	yes.open("2", 0, "docs-none")
+	yes.tm.Type("m")
+	yes.wait("Move")
+	yes.tm.Type("ay")
+	yes.show("Applied · ", "Moved to Applied")
 }

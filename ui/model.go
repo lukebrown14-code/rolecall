@@ -42,6 +42,7 @@ type model struct {
 	options               []string
 	moveForm              *huh.Form
 	moveTarget            string
+	confirm               *pendingMove
 	undo                  []undoMove
 	toast                 string
 	err                   error
@@ -121,6 +122,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if m.confirm != nil {
+			pending := m.confirm
+			switch k.String() {
+			case "y":
+				m.confirm = nil
+				m.move(pending.app, pending.status, false)
+			case "n", "esc":
+				m.confirm = nil
+			}
+			return m, nil
 		}
 		if m.filtering {
 			switch k.String() {
@@ -333,6 +345,9 @@ func (m model) View() tea.View {
 	b.WriteString("\n")
 	if len(m.options) > 0 {
 		b.WriteString(m.moveView())
+	}
+	if m.confirm != nil {
+		b.WriteString("Docs not Ready. Mark Applied anyway? y/n\n")
 	}
 	if m.toast != "" {
 		b.WriteString(m.toast + "\n")
