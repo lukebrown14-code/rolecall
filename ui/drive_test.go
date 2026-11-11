@@ -115,3 +115,13 @@ func (d *driver) plain() string { return ansi.Strip(d.View()) }
 
 // FinalModel returns the current model, ignoring teatest's timeout options.
 func (d *driver) FinalModel(...any) tea.Model { return d.m }
+
+func TestDocsEmptyLabel(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40)
+	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right", "right")
+	v := ansi.Strip(m.View().Content)
+	if !strings.Contains(v, "resume.md (empty)") {
+		t.Fatalf("missing empty label:\n%s", v)
+	}
+}

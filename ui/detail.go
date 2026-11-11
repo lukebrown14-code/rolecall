@@ -39,6 +39,7 @@ type detailState struct {
 type docEntry struct {
 	name    string // path relative to the Application folder
 	present bool
+	hasText bool
 }
 
 func (e docEntry) markdown() bool { return strings.HasSuffix(e.name, ".md") }
@@ -57,6 +58,8 @@ func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
 func (e docEntry) label() string {
 	switch {
+	case e.markdown() && e.present && !e.hasText:
+		return e.name + " (empty)"
 	case e.markdown() && e.present:
 		return e.name + " (present)"
 	case e.markdown():
@@ -66,12 +69,12 @@ func (e docEntry) label() string {
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{"resume.md", a.HasResume}, {"cover-letter.md", a.HasCoverLetter}, {"gaps.md", a.HasGaps}}
+	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {"cover-letter.md", a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
-		entries = append(entries, docEntry{"out/" + pdf, true})
+		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}
 	if a.HasSent {
-		entries = append(entries, docEntry{"sent/", true})
+		entries = append(entries, docEntry{"sent/", true, false})
 	}
 	return entries
 }
@@ -389,6 +392,9 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		mark, nameC := p.text(p.ok).Render("✓ "), p.fg
 		name := e.name
+		if e.markdown() && e.present && !e.hasText {
+			name = e.label()
+		}
 		if !e.present {
 			mark, nameC, name = p.text(p.dim).Render("○ "), p.dim, e.name+"  not written"
 		}

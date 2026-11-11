@@ -28,6 +28,7 @@
     "URL": "https://example.test/shared",
     "HasJD": true,
     "HasResume": true,
+    "HasResume": true,
     "Schema": 1,
     "StatusLog": [
       {
@@ -43,6 +44,7 @@
     }
   },
   {
+    "ResumeHasText": true,
     "Title": "docs-partial",
     "Company": "Fictional Labs",
     "Track": "SWE",
@@ -124,6 +126,9 @@
     }
   },
   {
+    "ResumeHasText": true,
+    "CoverLetterHasText": true,
+    "GapsHasText": true,
     "Title": "docs-written",
     "Company": "Fictional Labs",
     "Track": "SWE",

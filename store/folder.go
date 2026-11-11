@@ -6,13 +6,19 @@ import (
 	"strings"
 )
 
+const resumeFile = "resume.md"
+
+const gapsFile = "gaps.md"
+
+const coverLetterFile = "cover-letter.md"
+
 func readFolder(a *Application) error {
 	flags := []struct {
 		name string
 		dest *bool
 		dir  bool
 	}{
-		{"jd.md", &a.HasJD, false}, {"notes.md", &a.HasNotes, false}, {"fit.md", &a.HasFit, false}, {"gaps.md", &a.HasGaps, false}, {"resume.md", &a.HasResume, false}, {"cover-letter.md", &a.HasCoverLetter, false}, {"sent", &a.HasSent, true},
+		{"jd.md", &a.HasJD, false}, {"notes.md", &a.HasNotes, false}, {"fit.md", &a.HasFit, false}, {gapsFile, &a.HasGaps, false}, {resumeFile, &a.HasResume, false}, {coverLetterFile, &a.HasCoverLetter, false}, {"sent", &a.HasSent, true},
 	}
 	for _, f := range flags {
 		info, err := os.Stat(filepath.Join(a.Folder, f.name))
@@ -23,6 +29,25 @@ func readFolder(a *Application) error {
 			return err
 		}
 		*f.dest = info.IsDir() == f.dir
+	}
+
+	for _, doc := range []struct {
+		name    string
+		present bool
+		text    *bool
+	}{
+		{resumeFile, a.HasResume, &a.ResumeHasText},
+		{coverLetterFile, a.HasCoverLetter, &a.CoverLetterHasText},
+		{gapsFile, a.HasGaps, &a.GapsHasText},
+	} {
+		if !doc.present {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(a.Folder, doc.name))
+		if err != nil {
+			return err
+		}
+		*doc.text = strings.TrimSpace(string(b)) != ""
 	}
 	entries, err := os.ReadDir(filepath.Join(a.Folder, "out"))
 	if err != nil && !os.IsNotExist(err) {
@@ -42,7 +67,7 @@ func readFolder(a *Application) error {
 		return nil
 	}
 	if a.HasResume {
-		b, err := os.ReadFile(filepath.Join(a.Folder, "resume.md"))
+		b, err := os.ReadFile(filepath.Join(a.Folder, resumeFile))
 		if err != nil {
 			return err
 		}
