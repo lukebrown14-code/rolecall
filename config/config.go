@@ -16,6 +16,7 @@ type Config struct {
 	Editor       string `toml:"editor"`
 	FollowUpDays int    `toml:"follow_up_days"`
 	Downloads    string `toml:"downloads"`
+	Plugin       string `toml:"plugin"`
 }
 
 // Path is where the Owner's settings file lives under home.
@@ -49,6 +50,12 @@ func Load(home, dir string) (Config, error) {
 	}
 	c.Workspace = expand(c.Workspace)
 	c.Downloads = expand(c.Downloads)
+	// plugin is configured or, failing that, taken from the environment. Nothing
+	// is auto-detected: no path is searched for.
+	if c.Plugin == "" {
+		c.Plugin = os.Getenv("ROLECALL_PLUGIN")
+	}
+	c.Plugin = expand(c.Plugin)
 	if c.Downloads == "" {
 		c.Downloads = filepath.Join(home, "Downloads")
 	}

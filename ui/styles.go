@@ -49,6 +49,9 @@ var dimmedPal = pal{fg: colorDimmed, dim: colorFaint, sub: colorDimmed, faint: c
 
 func (p pal) text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
+// spinnerStyle colours the progress spinner in the feedback line.
+func (p pal) spinnerStyle() lipgloss.Style { return lipgloss.NewStyle().Foreground(p.accent) }
+
 // heading is a dim, bold, upper-case section label.
 func (p pal) heading(s string) string { return p.text(p.dim).Bold(true).Render(strings.ToUpper(s)) }
 

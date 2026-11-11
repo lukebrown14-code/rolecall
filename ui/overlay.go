@@ -29,6 +29,8 @@ func (m model) overlayHints() [][2]string {
 		return [][2]string{{"y", "mark Applied"}, {"n esc", "cancel"}}
 	case m.pendingDownload != nil:
 		return [][2]string{{"y", "overwrite"}, {"a", "all"}, {"n", "skip"}, {"esc", "stop"}}
+	case m.buildFail != nil:
+		return [][2]string{{"esc", "close"}}
 	case m.filtering:
 		return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
 	}
@@ -48,6 +50,8 @@ func (m model) overlayBox(p pal) string {
 		return m.confirmBox(p)
 	case m.pendingDownload != nil:
 		return m.overwriteBox(p)
+	case m.buildFail != nil:
+		return m.buildFailBox(p)
 	case m.full:
 		return m.helpBox(p)
 	}
@@ -107,6 +111,12 @@ func (m model) overwriteBox(p pal) string {
 		p.text(p.dim).Render(fmt.Sprintf("File %d of %d", d.next+1, len(d.app.PDFs)))
 	return popup(p, "File exists", true, popSmall, m.viewWidth(), body,
 		p.keys(m.overlayHints()))
+}
+
+// buildFailBox shows a failed build's own output, until esc.
+func (m model) buildFailBox(p pal) string {
+	body := p.text(p.fg).Bold(true).Render(m.buildFail.title) + "\n\n" + p.text(p.sub).Render(m.buildFail.output)
+	return popup(p, "Build failed", true, popLarge, m.viewWidth(), body, p.keys(m.overlayHints()))
 }
 
 func (m model) duplicateBox(p pal) string {

@@ -325,18 +325,28 @@ func (m model) viewRow(p pal) string {
 }
 
 // feedbackLine replaces the bottom rule with what just happened, when something did.
-// Successes clear on the next key; errors stay until esc.
+// Successes clear on the next key; errors stay until esc; a build in flight shows a
+// spinner until it finishes.
 func (m model) feedbackLine(p pal, rule string) string {
 	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
-	if m.err != nil {
+	raw := false
+	switch {
+	case m.err != nil:
 		msg = m.rel(m.err.Error())
 		icon, c, hint = "✕", p.bad, "esc hide"
+	case m.building != nil && m.toast == "":
+		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
 	if msg == "" {
 		return p.text(p.faint).Render(rule)
 	}
 	bg := lipgloss.NewStyle().Background(colorPanel)
-	left := bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	var left string
+	if raw {
+		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
+	} else {
+		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
+	}
 	right := ""
 	if hint != "" {
 		k, d, _ := strings.Cut(hint, " ")

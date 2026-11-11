@@ -48,7 +48,7 @@ func (k helpKey) pair() [2]string {
 // overlayOpen reports whether a form, popup, prompt or search box owns the keyboard.
 func (m model) overlayOpen() bool {
 	return m.form != nil || m.duplicate != nil || len(m.options) > 0 ||
-		m.confirm != nil || m.pendingDownload != nil || m.filtering
+		m.confirm != nil || m.pendingDownload != nil || m.buildFail != nil || m.filtering
 }
 
 // helpKeys is the one key map behind the key line and the `?` pop-up: only the keys
@@ -92,6 +92,9 @@ func (m model) helpKeys() []helpKey {
 			keys = append(keys, help(groupAction, "x", "dismiss"))
 		}
 		keys = append(keys, help(groupAction, "n", "notes"))
+		if m.plugin != "" && buildable(a) {
+			keys = append(keys, help(groupAction, "b", "build"))
+		}
 		if len(a.PDFs) > 0 {
 			keys = append(keys, help(groupAction, "d", "download"))
 		}

@@ -74,7 +74,11 @@ _Avoid_: score, match
 
 **Written**:
 The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.
-_Avoid_: built, done
+_Avoid_: done
+
+**Build**:
+The Plugin's script that turns an Application's documents into PDFs. The verb is "build", and "Built N PDFs" reports one. It is not a synonym for Written, which is about the text alone; a build of a Lead appends Draft.
+_Avoid_: compile, render
 
 **Ready**:
 The documents can be sent: the resume PDF exists, and the cover letter PDF too unless the Application is deliberately Resume only.

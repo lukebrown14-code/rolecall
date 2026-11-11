@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/store"
@@ -57,6 +58,11 @@ type model struct {
 	downloads             string
 	pendingDownload       *downloadState
 	md                    *mdCache
+	plugin                string
+	captured              CapturedRunner
+	building              *buildState
+	buildFail             *buildFailure
+	spinner               spinner.Model
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -64,7 +70,8 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}}
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{},
+		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(basePal.spinnerStyle()))}
 	for _, option := range options {
 		option(&m)
 	}
@@ -169,12 +176,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectAfter = ""
 		}
 	}
+	if tick, ok := msg.(spinner.TickMsg); ok {
+		if m.building == nil {
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(tick)
+		return m, cmd
+	}
+	if done, ok := msg.(buildFinished); ok {
+		return m.finishBuild(done)
+	}
 	if m.form != nil {
 		return m.updateAdd(msg)
 	}
 	if paste, ok := msg.(tea.PasteMsg); ok && m.filtering {
 		m.text += pasted(paste.Content)
 		m.cursor = 0
+		return m, nil
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok && m.buildFail != nil {
+		switch k.String() {
+		case "esc":
+			m.buildFail = nil
+		case "ctrl+c":
+			return m, m.quit()
+		}
 		return m, nil
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok && m.duplicate != nil {
@@ -267,6 +294,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "a":
 			return m, m.openAdd()
+		case "b":
+			return m, m.startBuild()
 		case "e":
 			if a, ok := m.current(); ok {
 				return m, m.openEdit(a)
