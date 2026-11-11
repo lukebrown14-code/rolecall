@@ -8,11 +8,14 @@ as an Application carrying the error, never as an exception that stops the scan.
 Usage:  python3 meta.py [--data <workspace>]
 """
 
+import argparse
 import json
 import os
 import re
+import shutil
 import sys
-from datetime import datetime
+import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -133,8 +136,8 @@ class Application:
         }
 
 
-def _scalar_token(raw):
-    """Split a scalar from its exact whitespace/comment suffix."""
+def _scalar_parts(raw):
+    """Split a scalar into its token and exact whitespace/comment suffix."""
     start = len(raw) - len(raw.lstrip(" \t"))
     end = len(raw)
     if start < len(raw) and raw[start] == '"':
@@ -163,7 +166,11 @@ def _scalar_token(raw):
         end = len(raw[:end].rstrip(" \t"))
     if end < start:
         end = start
-    return raw[start:end]
+    return raw[start:end], raw[end:]
+
+
+def _scalar_token(raw):
+    return _scalar_parts(raw)[0]
 
 
 def _decode_quoted(token):
@@ -401,15 +408,282 @@ def scan(workspace):
     return applications
 
 
-def main():
-    workspace = workspace_from_cli()
-    json.dump(
-        [app.to_dict() for app in scan(workspace)],
-        sys.stdout,
-        ensure_ascii=False,
-        indent=2,
+def quote_scalar(value):
+    """Encode a scalar exactly like the Go store's quoteScalar."""
+    out = ['"']
+    for character in str(value):
+        code = ord(character)
+        if character in '"\\':
+            out.append("\\" + character)
+        elif code < 0x20 or 0x7F <= code <= 0x9F or code in (0x2028, 0x2029):
+            out.append(f"\\u{code:04X}")
+        else:
+            out.append(character)
+    out.append('"')
+    return "".join(out)
+
+
+def _parse_moment(value):
+    """An aware datetime from a datetime, YYYY-MM-DD or RFC 3339 string."""
+    if isinstance(value, datetime):
+        return value
+    text = str(value).strip()
+    if DATE.fullmatch(text):
+        return datetime.strptime(text, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    match = RFC3339.fullmatch(text)
+    if match is None:
+        raise MetaError(f"invalid timestamp {value!r}")
+    year, month, day, hour, minute, second = (
+        int(match.group(index)) for index in range(1, 7)
     )
-    print()
+    if match.group(7) == "Z":
+        zone = timezone.utc
+    else:
+        offset = timedelta(hours=int(match.group(9)), minutes=int(match.group(10)))
+        zone = timezone(-offset if match.group(8) == "-" else offset)
+    return datetime(year, month, day, hour, minute, second, tzinfo=zone)
+
+
+def _utc_stamp(value):
+    moment = _parse_moment(value)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _atomic_write(path, data, mode):
+    """Publish bytes through a same-folder temporary file, then rename."""
+    path = Path(path)
+    descriptor, name = tempfile.mkstemp(dir=str(path.parent), prefix=".meta-")
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            os.chmod(name, mode)
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    except BaseException:
+        try:
+            os.unlink(name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def _update(folder, change):
+    """Re-read, validate, apply ``change`` to the lines, validate, write."""
+    path = Path(folder) / "meta.yml"
+    data = path.read_bytes()
+    application = _read_meta(Path(folder), data)
+    if application.malformed:
+        raise MetaError(application.malformed)
+    lines = data.decode("utf-8")[:-1].split("\n")
+    lines = change(lines)
+    out = ("\n".join(lines) + "\n").encode("utf-8")
+    checked = _read_meta(Path(folder), out)
+    if checked.malformed:
+        raise MetaError(checked.malformed)
+    if out == data:
+        return
+    _atomic_write(path, out, path.stat().st_mode & 0o777)
+
+
+def patch(folder, keys):
+    """Set scalar keys, keeping every other byte and inline comment."""
+
+    def change(lines):
+        for name in sorted(keys):
+            if not KEY.fullmatch(name) or name == "status_log":
+                raise MetaError(f"invalid scalar key {name!r}")
+            value = quote_scalar(keys[name])
+            found = False
+            for index, line in enumerate(lines):
+                if line.startswith(name + ":"):
+                    _, suffix = _scalar_parts(line[len(name) + 1 :])
+                    lines[index] = name + ": " + value + suffix
+                    found = True
+                    break
+            if not found:
+                index = len(lines)
+                for position, line in enumerate(lines):
+                    if line.startswith("status_log:"):
+                        index = position
+                        break
+                lines.insert(index, name + ": " + value)
+        return lines
+
+    _update(folder, change)
+
+
+def append_status(folder, status, at):
+    """Append one Status entry, unless it repeats the current Status."""
+    if status not in STATUSES:
+        raise MetaError(f"invalid Status {status!r}")
+    stamp = _utc_stamp(at)
+
+    def change(lines):
+        current = _read_meta(Path(folder), ("\n".join(lines) + "\n").encode("utf-8"))
+        if current.malformed:
+            raise MetaError(current.malformed)
+        if current.status == status:
+            return lines
+        index = -1
+        for position, line in enumerate(lines):
+            if line.startswith("status_log:"):
+                index = position
+                break
+        if index < 0:
+            lines.append("status_log:")
+            index = len(lines) - 1
+        else:
+            lines[index] = "status_log:"
+        end = index + 1
+        while end < len(lines) and (
+            lines[end].startswith("  ")
+            or not lines[end].strip()
+            or lines[end].startswith("#")
+        ):
+            end += 1
+        lines.insert(end, f"  - {{status: {status}, at: {stamp}}}")
+        return lines
+
+    _update(folder, change)
+
+
+def create(workspace, fields, now=None):
+    """Create a Lead Application and return its folder."""
+    title = fields.get("title", "")
+    company = fields.get("company", "")
+    track = fields.get("track", "")
+    if (
+        not title.strip()
+        or not company.strip()
+        or not track
+        or track in (".", "..", "_archive")
+        or "/" in track
+        or "\\" in track
+    ):
+        raise MetaError("Title, Company and a single Track folder are required")
+    moment = now if now is not None else datetime.now(timezone.utc)
+    text = "schema: 1\n"
+    for key in ("title", "company", "track", "url", "closes", "fit"):
+        value = fields.get(key, "")
+        if value:
+            text += key + ": " + quote_scalar(value) + "\n"
+    text += "status_log:\n  - {status: Lead, at: " + _utc_stamp(moment) + "}\n"
+    checked = _read_meta("", text.encode("utf-8"))
+    if checked.malformed:
+        raise MetaError(checked.malformed)
+
+    parent = Path(workspace) / "jobs" / track
+    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    slug = re.sub(r"[^a-z0-9]+", "-", (company + "-" + title).lower()).strip("-")
+    slug += "-" + moment.strftime("%Y-%m-%d")
+    number = 1
+    while True:
+        name = slug if number == 1 else f"{slug}-{number}"
+        folder = parent / name
+        try:
+            folder.mkdir(mode=0o700)
+        except FileExistsError:
+            number += 1
+            continue
+        break
+    try:
+        os.chmod(folder, 0o700)
+        (folder / "jd.md").write_bytes(b"")
+        os.chmod(folder / "jd.md", 0o600)
+        _atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    return folder
+
+
+def find_by_url(workspace, url):
+    """Every exact URL match, regardless of Status."""
+    return [application for application in scan(workspace) if application.url == url]
+
+
+def _parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
+    commands = parser.add_subparsers(dest="command")
+
+    patch_parser = commands.add_parser("patch", help="set scalar keys")
+    patch_parser.add_argument("--folder", required=True)
+    patch_parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE")
+
+    append_parser = commands.add_parser("append-status", help="append a Status entry")
+    append_parser.add_argument("--folder", required=True)
+    append_parser.add_argument("--status", required=True)
+    append_parser.add_argument("--at", help="RFC 3339 or YYYY-MM-DD (default: now)")
+
+    create_parser = commands.add_parser("create", help="create a Lead Application")
+    create_parser.add_argument("--track", required=True)
+    create_parser.add_argument("--title", required=True)
+    create_parser.add_argument("--company", required=True)
+    create_parser.add_argument("--url", default="")
+    create_parser.add_argument("--closes", default="")
+    create_parser.add_argument("--fit", default="")
+    create_parser.add_argument("--at", help="RFC 3339 or YYYY-MM-DD (default: now)")
+
+    find_parser = commands.add_parser("find-url", help="find Applications by URL")
+    find_parser.add_argument("url")
+    return parser
+
+
+def main(argv=None):
+    args = _parser().parse_args(argv)
+    workspace = workspace_from_cli()
+    try:
+        if args.command is None:
+            json.dump(
+                [app.to_dict() for app in scan(workspace)],
+                sys.stdout,
+                ensure_ascii=False,
+                indent=2,
+            )
+            print()
+        elif args.command == "patch":
+            keys = {}
+            for setting in args.set:
+                name, separator, value = setting.partition("=")
+                if not separator:
+                    raise MetaError("--set needs KEY=VALUE")
+                keys[name] = value
+            patch(args.folder, keys)
+        elif args.command == "append-status":
+            append_status(
+                args.folder,
+                args.status,
+                args.at or datetime.now(timezone.utc),
+            )
+        elif args.command == "create":
+            folder = create(
+                workspace,
+                {
+                    "title": args.title,
+                    "company": args.company,
+                    "track": args.track,
+                    "url": args.url,
+                    "closes": args.closes,
+                    "fit": args.fit,
+                },
+                _parse_moment(args.at) if args.at else None,
+            )
+            print(folder)
+        elif args.command == "find-url":
+            json.dump(
+                [app.to_dict() for app in find_by_url(workspace, args.url)],
+                sys.stdout,
+                ensure_ascii=False,
+                indent=2,
+            )
+            print()
+    except (MetaError, ValueError, OSError) as error:
+        print(f"rolecall: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
 
 
 if __name__ == "__main__":
