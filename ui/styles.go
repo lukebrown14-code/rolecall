@@ -262,9 +262,10 @@ var asciiGlyphs = strings.NewReplacer(
 	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
 )
 
-// asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set.
-func asciiFold(s string) string {
-	if !asciiMode() {
+// asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set or force
+// (the ascii setting) is on.
+func asciiFold(s string, force bool) string {
+	if !force && !asciiMode() {
 		return s
 	}
 	return asciiGlyphs.Replace(s)
