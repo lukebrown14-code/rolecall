@@ -9,26 +9,24 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
-
-// groupTracking is the Settings group that holds the Tracks.
-const groupTracking = 2
 
 // onTrack reports whether the Tracking row under the cursor is a Track.
 func (m model) onTrack() bool {
 	st := m.settings
-	return st != nil && st.Ws.Err == nil && st.Group == groupTracking && st.Row < len(st.Ws.Tracks)
+	return st != nil && st.Ws.Err == nil && st.Group == settings.GroupTracking && st.Row < len(st.Ws.Tracks)
 }
 
 // onAddTrack reports whether the cursor is on the "+ add a Track" row.
 func (m model) onAddTrack() bool {
 	st := m.settings
-	return st != nil && st.Ws.Err == nil && st.Group == groupTracking && st.Row == len(st.Ws.Tracks)
+	return st != nil && st.Ws.Err == nil && st.Group == settings.GroupTracking && st.Row == len(st.Ws.Tracks)
 }
 
 // trackHelpKeys are the Track keys, shown while the Tracking rows have focus.
 func (m model) trackHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != groupTracking {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != settings.GroupTracking {
 		return nil
 	}
 	keys := []helpKey{help(groupAction, "a", "add")}
@@ -51,7 +49,7 @@ func (m model) settingsRowsFocused() bool {
 // other key.
 func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
-	if !m.settingsRowsFocused() || st.Group != groupTracking {
+	if !m.settingsRowsFocused() || st.Group != settings.GroupTracking {
 		return m, false
 	}
 	tracks := slices.Clone(st.Ws.Tracks)
@@ -101,7 +99,7 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 		tracks = slices.Delete(tracks, st.Row, st.Row+1)
 		if m = m.saveTracks(tracks); m.err == nil {
 			s := *m.settings
-			s.Row = m.selectableRow(groupTracking, min(s.Row, len(m.trackingRows())-1), -1)
+			s.Row = m.selectableRow(settings.GroupTracking, min(s.Row, len(m.trackingRows())-1), -1)
 			m.settings = &s
 			m = m.saved("Removed Track "+name, settingsFile, m.tracksUndo("Track "+name+" restored", st.Ws.Tracks))
 		}

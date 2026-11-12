@@ -11,8 +11,17 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// Groups are the groups in display order.
+// Groups are the groups in display order; the Group* indices match this order.
 var Groups = []string{"Search", "Documents", "Tracking", GroupMachineName}
+
+// Group indices, in display order. A handler names its group with one of these rather
+// than a bare integer, so inserting a group cannot silently move another's behaviour.
+const (
+	GroupSearch = iota
+	GroupDocuments
+	GroupTracking
+	GroupMachine
+)
 
 const GroupMachineName = "This machine"
 
