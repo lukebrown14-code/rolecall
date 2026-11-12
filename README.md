@@ -65,7 +65,7 @@ move through rows. Press `?` in rolecall for the complete help for the current s
 | Key | Action |
 | --- | --- |
 | `1` | Leads, including the Dismissed table |
-| `2` | Draft Applications |
+| `2` | Drafts |
 | `3` | Applied, Interviewing, Offer, and Closed Applications |
 | `4` | Stats |
 | `5` | Profile |

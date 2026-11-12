@@ -1,0 +1,40 @@
+ ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats  5 Profile  6 Settings                         10 live · 1 due
+
+   ◌ [Leads 4]    ⊘ Dismissed 2                                                                 t  [All]  SWE  Platform
+─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
+ ▌ ◌ Empty                                                fit —  │ Empty                                                
+ ▌   Example · SWE · —                                           │ Example · SWE                                        
+                                                                 │                                                      
+   ◌ Empty log                                            fit —  │ ◌ Lead   fit not assessed                            
+     Fictional Labs · SWE · —                                    │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
+                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
+   ◌ Platform Engineer                                    fit —  │                                                      
+     Fern Systems · Platform · —                                 │ NEXT  add the JD   enter open                        
+                                                                 │                                                      
+   ⚠ Can't read SWE/malformed                                    │ TIMELINE                                             
+     meta.yml line 4: indented lines must be status_log entri…   │ Not moved yet · m to move                            
+                                                                 │                                                      
+                                                                 │ FIT                                                  
+                                                                 │ No fit assessment yet                                
+                                                                 │                                                      
+                                                                 │ NOTES                                                
+                                                                 │ No notes yet · n to add                              
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
+ enter open · e edit · m move · x dismiss · n notes · s sort newest · a add · / search    ←→ view · 1-6 screen · ? help

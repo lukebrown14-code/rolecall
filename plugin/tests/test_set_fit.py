@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "plugin" / "scripts" / "set-fit.py"
 META = ROOT / "plugin" / "scripts" / "meta.py"
 FIXTURE = ROOT / "fixtures" / "workspace"
-PATCH = ROOT / "store" / "testdata" / "patch"
+PATCH = ROOT / "internal" / "store" / "tests" / "testdata" / "patch"
 
 VALUES = ("Strong", "Good", "Marginal", "Poor")
 

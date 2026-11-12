@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/lukebrown14-code/rolecall/config"
-	"github.com/lukebrown14-code/rolecall/store"
-	"github.com/lukebrown14-code/rolecall/ui"
+	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
 const (
