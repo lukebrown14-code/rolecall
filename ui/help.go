@@ -51,7 +51,7 @@ const (
 // The `?` pop-up's layout: key column, then column width.
 const (
 	helpKeyWidth = 9
-	helpColumn   = 26 // three fit side by side in the large pop-up
+	helpColumn   = 23 // three fit side by side from 80 columns
 	helpColumns  = 3
 	keyLineGap   = 4 // the key line's indent plus the space kept between its halves
 )
@@ -340,7 +340,7 @@ func glyphLegend(p pal, followUpDays int) string {
 		return strings.TrimRight(b.String(), " ")
 	}
 	return p.heading("Glyphs") + "\n" +
-		row("Timeline", "● current status", "○ earlier status") + "\n" +
+		row("Timeline", "● current status", "○ earlier status", "~ approximate date") + "\n" +
 		row("Docs", "✓ ready", "○ missing") + "\n" +
 		row("Flags", "⚠ needs attention", "✕ rejected", "↩ withdrawn") + "\n" +
 		row("", fmt.Sprintf("⚑ quiet: no Status change in %d+ days", followUpDays)) + "\n" +
