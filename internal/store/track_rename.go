@@ -1,12 +1,13 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -101,23 +102,106 @@ func (s *Store) RenameTrack(old, name string) (RenameResult, error) {
 	}
 	if hasRoles {
 		rolesPath := filepath.Join(s.root, "jobs", "roles.json")
-		out, err := json.Marshal(name)
+		next, err := renameRoleTracks(roles, old, name)
 		if err != nil {
 			return res, err
 		}
-		oldJSON, _ := json.Marshal(old)
-		re := regexp.MustCompile(`("track"\s*:\s*)` + regexp.QuoteMeta(string(oldJSON)))
 		info, err := os.Stat(rolesPath)
 		if err != nil {
 			return res, err
 		}
-		next := re.ReplaceAllString(string(roles), "${1}"+strings.ReplaceAll(string(out), "$", "$$"))
-		if err := s.atomicWrite(rolesPath, []byte(next), info.Mode().Perm()); err != nil {
+		if err := s.atomicWrite(rolesPath, next, info.Mode().Perm()); err != nil {
 			return res, err
 		}
 		res.Roles = true
 	}
 	return res, nil
+}
+
+// renameRoleTracks rewrites the track value of each role in jobs/roles.json, and nothing
+// else: key order, formatting and every unrelated value stay byte for byte. It walks the
+// JSON tokens, so a "track" key nested inside another value is never matched.
+func renameRoleTracks(raw []byte, old, name string) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	type frame struct {
+		object bool   // this container is an object
+		role   bool   // this object is an element of the roles array
+		roles  bool   // this array is the roles array
+		key    string // the key awaiting its value
+		hasKey bool
+	}
+	var stack []*frame
+	top := func() *frame {
+		if len(stack) == 0 {
+			return nil
+		}
+		return stack[len(stack)-1]
+	}
+	var edits [][2]int
+	prev := int64(0)
+	for {
+		tok, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		cur := dec.InputOffset()
+		switch t := tok.(type) {
+		case json.Delim:
+			switch t {
+			case '{':
+				stack = append(stack, &frame{object: true, role: top() != nil && top().roles})
+			case '[':
+				f := top()
+				isRoles := f != nil && f.object && f.hasKey && f.key == rolesKey
+				stack = append(stack, &frame{roles: isRoles})
+			case '}', ']':
+				stack = stack[:len(stack)-1]
+				if f := top(); f != nil && f.object {
+					f.hasKey = false
+				}
+			}
+		case string:
+			if f := top(); f != nil && f.object {
+				if !f.hasKey {
+					f.key, f.hasKey = t, true
+				} else {
+					if f.role && f.key == keyTrack && t == old {
+						// Skip the whitespace and the ":" between the key and the value to
+						// replace only the value's bytes.
+						span := raw[prev:cur]
+						i := 0
+						for i < len(span) && (span[i] == ' ' || span[i] == '\t' || span[i] == '\r' || span[i] == '\n' || span[i] == ':') {
+							i++
+						}
+						edits = append(edits, [2]int{int(prev) + i, int(cur)})
+					}
+					f.hasKey = false
+				}
+			}
+		default:
+			if f := top(); f != nil && f.object && f.hasKey {
+				f.hasKey = false
+			}
+		}
+		prev = cur
+	}
+	enc, err := json.Marshal(name)
+	if err != nil {
+		return nil, err
+	}
+	out := raw
+	for i := len(edits) - 1; i >= 0; i-- {
+		e := edits[i]
+		next := make([]byte, 0, len(out)-(e[1]-e[0])+len(enc))
+		next = append(next, out[:e[0]]...)
+		next = append(next, enc...)
+		next = append(next, out[e[1]:]...)
+		out = next
+	}
+	return out, nil
 }
 
 // ValidTrackName applies the Track name rules to an already trimmed name: non-empty,
@@ -171,6 +255,9 @@ func (s *Store) eachMeta(fn func(dir string, b []byte) error) error {
 	}
 	return nil
 }
+
+// rolesKey is the top-level key holding the roles array in jobs/roles.json.
+const rolesKey = "roles"
 
 // rawTrack reads the track line of a meta.yml that may not parse as a whole.
 func rawTrack(b []byte) string {

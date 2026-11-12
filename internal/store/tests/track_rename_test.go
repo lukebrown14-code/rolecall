@@ -76,6 +76,43 @@ func TestRenameTrackRewritesApplicationsArchiveTracksAndRoles(t *testing.T) {
 	}
 }
 
+// A "track" key nested inside another value — the Owner's notes, or a role's own
+// sub-object — is not a role's Track and must be left byte for byte, along with the
+// file's formatting and key order.
+func TestRenameTrackLeavesNestedTrackKeysAlone(t *testing.T) {
+	s := fixtureProfileStore(t)
+	root := s.Root()
+	const before = `{
+  "version": 1,
+  "notes": {"track": "SWE"},
+  "roles": [
+    {"id": "backend", "track": "SWE", "meta": {"track": "SWE"}}
+  ]
+}
+`
+	const want = `{
+  "version": 1,
+  "notes": {"track": "SWE"},
+  "roles": [
+    {"id": "backend", "track": "Engineering", "meta": {"track": "SWE"}}
+  ]
+}
+`
+	if err := os.WriteFile(filepath.Join(root, "jobs", "roles.json"), []byte(before), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RenameTrack("SWE", "Engineering"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "jobs", "roles.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != want {
+		t.Fatalf("roles.json =\n%s\nwant\n%s", got, want)
+	}
+}
+
 func TestRenameTrackSkipsAndNamesMalformed(t *testing.T) {
 	s := fixtureProfileStore(t)
 	res, err := s.RenameTrack("SWE", "Engineering")
