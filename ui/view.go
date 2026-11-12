@@ -144,6 +144,7 @@ func (m model) View() tea.View {
 		body = overlayIn(base, box, x0, m.viewWidth()-x0)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
+	v.MouseMode = tea.MouseModeCellMotion // clicks and the wheel; see mouse.go
 	// Dark only: paint the terminal background so the palette reads the same on a light
 	// terminal. NO_COLOR drops colour but keeps bold and underline.
 	if noColor() {
@@ -178,11 +179,7 @@ func (m model) listView(p pal) string {
 	}
 	w, bodyH := m.viewWidth(), max(minBody, m.viewHeight()-chromeLines)
 	rows := m.rows()
-	split := w >= splitWidth && len(rows) > 0
-	listW := w
-	if split {
-		listW = max(minListWidth, w*listShare/percent)
-	}
+	listW, split := m.listPane(len(rows))
 	previewW := w - listW - 1
 	ruleTop, ruleBot := strings.Repeat("─", w), strings.Repeat("─", w)
 	if split {
@@ -214,6 +211,16 @@ func (m model) listView(p pal) string {
 	// the search input or the key line, one at a time.
 	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
 		body + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
+}
+
+// listPane is the list's width and whether the preview pane sits beside it, for a view
+// of n rows. A mouse click reads the same geometry the frame is drawn with.
+func (m model) listPane(n int) (int, bool) {
+	w := m.viewWidth()
+	if w >= splitWidth && n > 0 {
+		return max(minListWidth, w*listShare/percent), true
+	}
+	return w, false
 }
 
 // statusRow is the frame's last line: what just happened (a toast or error) when there is
@@ -447,6 +454,13 @@ func (m model) scopeLine(p pal) string {
 // listBody lays out the rows with section dividers. Rows get a blank line between them
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
+	blocks, cur := m.listBlocks(p, rows, w, h)
+	return scroll(p, blocks, cur, h)
+}
+
+// listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
+// spaced when they all fit in h and dense when they do not.
+func (m model) listBlocks(p pal, rows []store.Application, w, h int) ([]block, int) {
 	show := m.columns(rows)
 	dividers := m.dividers(rows)
 	build := func(gap bool) ([]block, int, int) {
@@ -469,7 +483,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 			if _, next := dividers[i+1]; gap && i+1 < len(rows) && !next {
 				lines = append(lines, "")
 			}
-			blocks = append(blocks, block{lines: lines, row: true})
+			blocks = append(blocks, block{lines: lines, row: true, idx: i})
 			total += len(lines)
 		}
 		return blocks, cur, total
@@ -478,12 +492,13 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 	if total > h {
 		blocks, cur, _ = build(false)
 	}
-	return scroll(p, blocks, cur, h)
+	return blocks, cur
 }
 
 type block struct {
 	lines []string
 	row   bool // an Application, as opposed to a section divider
+	idx   int  // the row's index in the view, when row is set
 }
 
 type divider struct {
@@ -524,27 +539,7 @@ func (m model) expired(a store.Application) bool {
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
 // when rows are really hidden, and count rows, not dividers.
 func scroll(p pal, blocks []block, cur, h int) string {
-	fit := func(start int) int {
-		avail := h
-		if start > 0 {
-			avail--
-		}
-		used, end := 0, start
-		for end < len(blocks) && used+len(blocks[end].lines) <= avail {
-			used += len(blocks[end].lines)
-			end++
-		}
-		for end < len(blocks) && used+1 > avail && end > start {
-			end--
-			used -= len(blocks[end].lines)
-		}
-		return end
-	}
-	start, end := 0, fit(0)
-	for cur >= end && start < cur {
-		start++
-		end = fit(start)
-	}
+	start, end := scrollWindow(blocks, cur, h)
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -568,6 +563,33 @@ func scroll(p pal, blocks []block, cur, h int) string {
 		out = append(out, "")
 	}
 	return strings.Join(out[:h], "\n")
+}
+
+// scrollWindow is the blocks shown in h lines with block cur in view: [start, end). A
+// "↑ n more" line takes the first line when start is past the top.
+func scrollWindow(blocks []block, cur, h int) (start, end int) {
+	fit := func(start int) int {
+		avail := h
+		if start > 0 {
+			avail--
+		}
+		used, end := 0, start
+		for end < len(blocks) && used+len(blocks[end].lines) <= avail {
+			used += len(blocks[end].lines)
+			end++
+		}
+		for end < len(blocks) && used+1 > avail && end > start {
+			end--
+			used -= len(blocks[end].lines)
+		}
+		return end
+	}
+	start, end = 0, fit(0)
+	for cur >= end && start < cur {
+		start++
+		end = fit(start)
+	}
+	return start, end
 }
 
 // slotSet says which right-hand columns the current view shows.

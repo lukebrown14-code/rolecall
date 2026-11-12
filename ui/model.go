@@ -180,6 +180,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
 	}
+	if next, cmd, ok := m.mouse(msg); ok {
+		return next, cmd
+	}
 	if batch, ok := msg.(foldersChanged); ok {
 		return m.refresh(batch.folders), m.watch.next()
 	}
