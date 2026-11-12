@@ -141,7 +141,7 @@ func TestHelpExplainsTheGlyphs(t *testing.T) {
 func TestThemeEnvPicksTheRoles(t *testing.T) {
 	const (
 		darkPanel  = "48;2;22;27;34"    // #161B22
-		lightPanel = "48;2;246;248;250" // #F6F8FA
+		lightPanel = "48;2;232;237;241" // #E8EDF1
 	)
 	for _, tc := range []struct {
 		env, bg, panel, notPanel string

@@ -200,9 +200,6 @@ func (m model) saved(msg, file string, undo *settingsUndo) model {
 		st.Undo = undo
 		m.settings = &st
 	}
-	if undo != nil {
-		m.toastHint = "u undo"
-	}
 	return m
 }
 

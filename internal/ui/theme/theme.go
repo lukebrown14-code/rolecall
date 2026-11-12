@@ -60,10 +60,10 @@ var darkRoles = Roles{
 // lightRoles are the same Roles on white. Warn is orange rather than amber, so it never
 // reads as Offer's gold.
 var lightRoles = Roles{
-	Bg: lightBg, Panel: "#F6F8FA", Text: "#1F2328", Sub: "#424A53", Muted: "#59636E",
-	Faint: "#818B98", Rule: "#818B98", Accent: "#0F766E", OnFill: lightBg, Sel: "#EEF6F5",
-	Ok: "#1A7F37", Info: "#0969DA", Warn: "#B04400", Danger: "#CF222E", Purple: "#8250DF",
-	Gold: "#7D5F00", Lead: "#5B6F86", Draft: "#3F6D99", Dimmed: "#656D76", DimmedOnFill: lightBg,
+	Bg: lightBg, Panel: "#E8EDF1", Text: "#1F2328", Sub: "#424A53", Muted: "#59636E",
+	Faint: "#6E7985", Rule: "#6E7985", Accent: "#0F766E", OnFill: lightBg, Sel: "#E2EEEB",
+	Ok: "#14702F", Info: "#0759B8", Warn: "#9A3D00", Danger: "#B01A25", Purple: "#6F3BC8",
+	Gold: "#6E5600", Lead: "#4B6076", Draft: "#3A6490", Dimmed: "#656D76", DimmedOnFill: lightBg,
 }
 
 // Mode picks a set of Roles.

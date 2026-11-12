@@ -809,7 +809,8 @@ func (m model) columns(rows []store.Application) slotSet {
 		s.stateW = max(s.stateW, xansi.StringWidth(st))
 		s.flagW = max(s.flagW, xansi.StringWidth(f))
 		if ft != "" {
-			s.fitW = max(s.fitW, xansi.StringWidth(fitLabel+ft))
+			// Only the value is measured: the shared "fit " label sits at a fixed column.
+			s.fitW = max(s.fitW, xansi.StringWidth(ft))
 		}
 	}
 	return s
@@ -849,27 +850,45 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	slot := func(width int, c color.Color, s string) string {
 		return st(c).Width(width).Align(lipgloss.Right).Render(s)
 	}
-	// A row shows only the columns it has; a column it lacks costs it nothing, so a
-	// truncated title is never followed by blank cells.
-	var cells []string
-	if state != "" {
-		cells = append(cells, slot(show.stateW, stateC, state))
-	}
-	if flag != "" {
-		cells = append(cells, slot(show.flagW, p.Warn, flag))
-	}
-	if fit != "" {
-		// Labelled, so the column reads on its own: "fit Good", "fit —". Left-padded to
-		// the view's widest Fit, so the "fit" labels line up.
-		cell := st(dimC).Render(fitLabel) + st(fitC).Render(fit)
-		if pad := show.fitW - xansi.StringWidth(fitLabel+fit); pad > 0 {
-			cell = st(p.Fg).Render(strings.Repeat(" ", pad)) + cell
+	// Right-hand columns are aligned across the view so Fit scans as one column: a row
+	// without a value still holds that column blank. When holding the blanks would cut the
+	// title, the row drops the columns it does not use and the title keeps the room, so a
+	// truncated title is never followed by empty cells.
+	buildRight := func(compact bool) string {
+		var cells []string
+		empty := func(w int) string { return st(p.Fg).Render(strings.Repeat(" ", w)) }
+		if show.stateW > 0 {
+			switch {
+			case state != "":
+				cells = append(cells, slot(show.stateW, stateC, state))
+			case !compact:
+				cells = append(cells, empty(show.stateW))
+			}
 		}
-		cells = append(cells, cell)
+		if show.flagW > 0 {
+			switch {
+			case flag != "":
+				cells = append(cells, slot(show.flagW, p.Warn, flag))
+			case !compact:
+				cells = append(cells, empty(show.flagW))
+			}
+		}
+		if show.fitW > 0 && fit != "" {
+			// The "fit" label stays at a fixed column and the value right-aligns under it,
+			// so "fit Good" and "fit —" read as one scannable column.
+			cell := st(dimC).Render(fitLabel) +
+				st(p.Fg).Render(strings.Repeat(" ", show.fitW-xansi.StringWidth(fit))) +
+				st(fitC).Render(fit)
+			cells = append(cells, cell)
+		}
+		return strings.Join(cells, st(p.Fg).Render("  ")) + st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
-	right := strings.Join(cells, st(p.Fg).Render("  ")) + st(p.Fg).Render(strings.Repeat(" ", rowPad))
+	right := buildRight(false)
 	// The Status glyph leads the title; the second line lines up under the title.
 	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
+	if xansi.StringWidth(a.Title)+xansi.StringWidth(bar)+xansi.StringWidth(mark)+xansi.StringWidth(right)+gutter > w {
+		right = buildRight(true)
+	}
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis-statusMarkWidth), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
