@@ -11,6 +11,14 @@ The individual job seeker whose Profile and Applications live in a Workspace. An
 The Owner's private folder holding their Profile, settings and Applications. Never part of rolecall's code.
 _Avoid_: data dir, project
 
+**Settings**:
+The Owner's local preferences (Workspace location, editor, follow-up threshold, Downloads folder, Plugin, Harness), kept in a private config file outside the Workspace. The Owner reads them in the Settings view and changes them by editing that file.
+_Avoid_: preferences, options, config (for the Owner-facing idea)
+
+**Editor**:
+The program the Owner chooses to open an Application's files. Any program that takes a file works; if none is chosen, the Owner's environment default applies.
+_Avoid_: text editor, IDE
+
 **Track**:
 A kind of role the Owner is pursuing (e.g. SWE, Platform). Every Application belongs to one, and a Sweep searches each one.
 _Avoid_: category, stream, career path
