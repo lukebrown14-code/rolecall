@@ -25,12 +25,23 @@ func TestListHelpListsOnlyKeysThatRun(t *testing.T) {
 func TestKeyLineKeysAreAllDocumentedInTheHelp(t *testing.T) {
 	line := keyLineOf(runKeys(t, fixtureCopy(t, nil), 120, "1"))
 	help := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "?"))
-	for _, shown := range []string{"enter open", "m move", "a add", "/ search"} {
-		if !strings.Contains(line, shown) {
-			t.Fatalf("the key line does not show %q:\n%s", shown, line)
+	for _, action := range [][2]string{{"enter", "open"}, {"m", "move"}, {"a", "add"}, {"/", "search"}} {
+		if !strings.Contains(line, action[0]+" "+action[1]) {
+			t.Fatalf("the key line does not show %q %q:\n%s", action[0], action[1], line)
 		}
-		if !strings.Contains(help, shown) {
-			t.Fatalf("the key line shows %q but the help omits it:\n%s", shown, help)
+		if !helpRow(help, action[0], action[1]) {
+			t.Fatalf("the key line shows %q %q but the help omits it:\n%s", action[0], action[1], help)
 		}
 	}
+}
+
+// helpRow reports whether a help line holds both a key and its description (the pop-up pads
+// its key column, so the two are not adjacent).
+func helpRow(help, key, desc string) bool {
+	for _, line := range strings.Split(help, "\n") {
+		if strings.Contains(line, key) && strings.Contains(line, desc) {
+			return true
+		}
+	}
+	return false
 }
