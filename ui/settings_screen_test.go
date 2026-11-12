@@ -109,7 +109,10 @@ func TestSettingsTabAndJKMoveRowsInTheSettingsPane(t *testing.T) {
 	requireAll(t, h.tm.plain(), "SETTINGS")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	requireAll(t, v, "▸ Search", "▸ Remote")
+	requireAll(t, v, "Search", "▸ Remote")
+	if strings.Contains(v, "▸ Search") {
+		t.Fatalf("the unfocused group list kept its marker:\n%s", v)
+	}
 	if strings.Contains(v, "▸ Places") {
 		t.Fatalf("j did not move the row:\n%s", v)
 	}

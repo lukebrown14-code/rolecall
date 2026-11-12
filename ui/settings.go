@@ -243,10 +243,15 @@ func (m model) settingsBody(p pal, w, h int) string {
 	}
 	var groups []string
 	for i, name := range settingsGroups {
-		if i == m.settings.group {
-			groups = append(groups, p.text(p.accent).Bold(true).Render(profileMarker+name))
-		} else {
+		switch {
+		case i != m.settings.group:
 			groups = append(groups, "  "+p.text(p.dim).Render(name))
+		case m.settings.focus == settingsList:
+			groups = append(groups, p.text(p.accent).Bold(true).Render(profileMarker+name))
+		default:
+			// The current group, unmarked: the marker belongs to the focused pane, and the
+			// settings rows carry it while they have focus. Bold keeps the group findable.
+			groups = append(groups, "  "+p.text(p.fg).Bold(true).Render(name))
 		}
 	}
 	list := lipgloss.NewStyle().Width(settingsListWidth).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
