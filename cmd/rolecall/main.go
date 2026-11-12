@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/doctor"
+	"github.com/lukebrown14-code/rolecall/process"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
@@ -80,7 +81,7 @@ func initWorkspace(args []string) error {
 	if err := os.Chmod(root, workspaceDirMode); err != nil {
 		return err
 	}
-	for _, dir := range []string{"profile", "c" + "v", "jobs"} {
+	for _, dir := range []string{"profile", "cv", "jobs"} {
 		if err := os.Mkdir(filepath.Join(root, dir), workspaceDirMode); err != nil {
 			return err
 		}
@@ -97,11 +98,11 @@ func initWorkspace(args []string) error {
 			return err
 		}
 	}
-	if err := ui.InitGit(root); err != nil {
+	if err := process.InitGit(root); err != nil {
 		return err
 	}
 	fmt.Println("Created a private Workspace.")
-	fmt.Println("The Harness can send your Profile, resume and job text to an AI service using your credentials; review its privacy practices.")
+	fmt.Println("The Harness can send your Profile, CV/resume and job ads to an AI service using your credentials; review its privacy practices.")
 	fmt.Println("Keep this Workspace's git repository private. It contains personal data.")
 	return nil
 }
