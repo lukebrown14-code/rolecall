@@ -5,6 +5,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"fmt"
+	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/store"
 	"path/filepath"
 	"strings"
@@ -41,6 +42,8 @@ type model struct {
 	followUpDays          int
 	now                   func() time.Time
 	editor                string
+	configPath            string
+	reloadCfg             func() (config.Config, error)
 	editorSource          string // where the effective Editor came from, for Settings
 	sources               SettingSources
 	external              ExternalRunner
@@ -176,6 +179,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if batch, ok := msg.(foldersChanged); ok {
 		return m.refresh(batch.folders), m.watch.next()
+	}
+	if done, ok := msg.(configEdited); ok {
+		m.reloadConfig(done)
+		return m, nil
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)

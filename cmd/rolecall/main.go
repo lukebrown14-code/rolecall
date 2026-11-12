@@ -43,7 +43,8 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithWatch(watchDebounce))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithWatch(watchDebounce),
+		ui.WithConfigReload(config.Path(home), func() (config.Config, error) { return config.Load(home, dir) }))
 	if err != nil {
 		return err
 	}

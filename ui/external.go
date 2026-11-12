@@ -110,6 +110,34 @@ func (m model) editNotes(folder string) tea.Cmd {
 	}
 }
 
+const (
+	configDirMode  = 0o755
+	configFileMode = 0o600
+)
+
+// editConfig opens the config file in the Editor, creating it empty first if missing.
+func (m model) editConfig() tea.Cmd {
+	if m.configPath == "" {
+		return nil
+	}
+	return func() tea.Msg {
+		if err := os.MkdirAll(filepath.Dir(m.configPath), configDirMode); err != nil {
+			return configEdited{err}
+		}
+		f, err := os.OpenFile(m.configPath, os.O_CREATE|os.O_RDWR, configFileMode)
+		if err != nil {
+			return configEdited{err}
+		}
+		f.Close()
+		runner := m.external
+		if runner == nil {
+			runner = tea.ExecProcess
+		}
+		c := exec.Command("/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", m.configPath)
+		return runner(c, func(err error) tea.Msg { return configEdited{err} })()
+	}
+}
+
 // Option configures the external-program boundary.
 type Option func(*model)
 
