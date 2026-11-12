@@ -347,7 +347,9 @@ func (m model) formBox(p pal, f *form, w int) string {
 		}
 		if fld.err != "" {
 			// The error has its own line under the value, so it is never cut off.
-			row += "\n" + indent + p.text(p.bad).Render("✕ "+fld.err)
+			for _, l := range wrapWords("✕ "+fld.err, avail) {
+				row += "\n" + indent + p.text(p.bad).Render(l)
+			}
 		}
 		if fld.label == fieldURL {
 			// Fetch failures and visa/clearance signals sit under the URL; signals are
@@ -362,7 +364,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 		rows = append(rows, row)
 	}
 	if f.discarding {
-		rows = append(rows, "", p.text(p.warn).Bold(true).Render("Discard changes?")+p.text(p.sub).Render(" y discard · n keep editing"))
+		rows = append(rows, "", p.text(p.warn).Bold(true).Render("Discard changes?")+p.text(p.sub).Render(" y/n"))
 	}
 	note := ""
 	if required {

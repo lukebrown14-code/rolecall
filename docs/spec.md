@@ -177,8 +177,13 @@ Status (the log stays append-only) and says so on the feedback line (`Undone · 
 Form fields: **Title*** · **Company*** · **Track** (choice from `workspace.json`) · URL ·
 Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). Track needs no `*`: it is a choice and
 always holds a track. `Enter` checks the field and moves on; on the last field it checks them
-all and saves. Choices change with `←` `→` (or `↑` `↓`). Pasting fills the focused text field;
-a long value shows its end, and a field's error sits on its own line below it.
+all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
+which enter does. Choices change with `←` `→` (or `↑` `↓`). Pasting fills the focused text field;
+a long value shows its end, and a field's error sits on its own line below it (`✕ Title is
+required`), its `*` turning red; the `*` is otherwise muted, with `* required` in the border.
+Leaving a field checks its format (Closes). `Esc` on a form with typed changes asks `Discard
+changes? y/n` first. Every form pop-up (Add, Edit, Search area, gates, machine settings, Track
+add and rename) follows these rules.
 
 On save:
 1. If the URL matches another Application's `url`, warn and offer to open that one instead.
@@ -617,18 +622,24 @@ Laid out like Profile. Parent spec: #58; this section covers the read-only first
   - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
     harness, plugin.
 - **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; the
-  `▸` marks the focused pane only, so both panes never carry it at once; `e`
+  accent `▸` marks the focused pane, and the selected group keeps a muted `▸` while the rows
+  have focus; the cursor skips read-only rows (Workspace, Sources, Blockers), which say why
+  they are fixed. Tracking lists each Track with its Application count and a `+ add a Track`
+  row; `a` add, `r` rename, `x` remove and `J`/`K` reorder act on the selected Track. `e`
   opens `workspace.json` in the Editor, or `config.toml` while This machine is selected; `r`
-  rescans. This slice writes nothing.
+  rescans. Each save says what and where (`Saved Editor: nano · config.toml`), and `u` puts
+  the last Settings change back (not a Track rename).
 - **`,`** opens Settings from any screen, including the detail view and Stats. `Esc` returns to
   the screen, table, cursor, open detail and filter it was opened from; a Settings screen
   reached with `6` has no previous screen, so `Esc` does nothing there. In a text filter `,` is
   typed, not a key.
-- **Source:** each machine setting is followed by where it came from: `config.toml`,
-  `$VISUAL`, `$EDITOR` (Editor only), `$ROLECALL_PLUGIN` (Plugin only), `--dir` (Workspace
-  only) or `default`. Unset values show their effective default (Editor `vi`, follow-up days 14).
+- **Source:** every value is followed by where it came from: `workspace.json`, `config.toml`,
+  `from $VISUAL`, `from $EDITOR` (Editor only), `from $ROLECALL_PLUGIN` (Plugin only), `from
+  --dir` (Workspace only) or `default`. Unset values show their effective default (Editor `vi`,
+  follow-up 14 days); a value with no default reads `not set` and gives an `example:`. Values
+  carry their unit (`14 days`, `350 words`).
 - **Editor:** shows the command in effect. If the first word is not on `PATH` (quoted paths
-  honoured) the row adds `(not found on PATH)`. This never blocks launch; `rolecall doctor`
+  honoured) the row adds `⚠ not found on PATH`. This never blocks launch; `rolecall doctor`
   reports the same condition as a warning.
 - **Config reload:** `e` on This machine creates `config.toml` empty if missing, opens it in
   the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay and
