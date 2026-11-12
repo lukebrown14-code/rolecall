@@ -165,6 +165,27 @@ func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T)
 	}
 }
 
+// A workspace.json from a newer rolecall is reported, and its settings are neither shown
+// nor written: this build would drop keys it does not know.
+func TestSettingsNewerSchemaIsReportedAndWritesNothing(t *testing.T) {
+	const newer = `{"schema":2,"tracks":["SWE"],"future":{"key":true}}`
+	h := newSettingsHarness(t, 120, `{}`, func(string) {})
+	h.tm.Type("6")
+	writeWorkspaceFile(t, h.root, newer)
+	h.tm.Type("1")
+	h.tm.Type("6")
+	requireAll(t, h.tm.plain(), "schema 2", filepath.Join(h.root, "workspace.json"), "newer rolecall")
+	h.tm.Type("j")
+	h.tm.Type("tab")
+	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
+		t.Fatalf("settings shown for a newer-schema file:\n%s", h.tm.plain())
+	}
+	b, err := os.ReadFile(filepath.Join(h.root, "workspace.json"))
+	if err != nil || string(b) != newer {
+		t.Fatalf("workspace.json changed: %q, %v", b, err)
+	}
+}
+
 func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 	h := newSettingsHarness(t, 70, "", nil)
 	h.tm.Type("6")

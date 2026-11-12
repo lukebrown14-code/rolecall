@@ -41,6 +41,13 @@ func (s *Store) setWorkspaceKey(key string, value json.RawMessage) error {
 			return fmt.Errorf("%s is not valid JSON, not writing: %w", path, err)
 		}
 	}
+	// A schema this build does not know is never written over: the Owner may be on a
+	// newer rolecall, and rewriting would drop keys it added.
+	if raw, ok := values["schema"]; ok {
+		if _, err := workspaceSchemaVersion(path, raw); err != nil {
+			return err
+		}
+	}
 	if _, ok := values[key]; !ok {
 		keys = append(keys, key)
 	}

@@ -245,7 +245,11 @@ func (m model) settingsContextRow(p pal, w int) string {
 func (m model) settingsBody(p pal, w, h int) string {
 	pad := strings.Repeat(" ", inset)
 	if m.settings != nil && m.settings.Ws.Err != nil {
-		text := pad + p.Text(p.Bad).Render("workspace.json is not valid JSON") + "\n" + pad +
+		head := "workspace.json is not valid JSON"
+		if m.settings.Ws.NewerSchema {
+			head = "workspace.json is schema " + strconv.Itoa(m.settings.Ws.Schema) + ", from a newer rolecall"
+		}
+		text := pad + p.Text(p.Bad).Render(head) + "\n" + pad +
 			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(m.settings.Ws.Err.Error()) +
 			"\n\n" + pad + p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written.")
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)

@@ -18,7 +18,7 @@ const (
 // key means the default. An unreadable file sets Err and leaves the rest at defaults.
 type WorkspaceSettings struct {
 	Path          string
-	Err           error // parse error for an invalid workspace.json
+	Err           error // parse or schema error for a workspace.json this build cannot use
 	Tracks        []string
 	Places        []string
 	Remote        string
@@ -28,6 +28,10 @@ type WorkspaceSettings struct {
 	KeySkillsMax  int
 	Sources       int // entries in sources
 	Blockers      int // entries in blockers
+	// Schema is the workspace.json schema, 1 when the key is absent. NewerSchema marks a
+	// schema above 1, so the screen can say the file is from a newer rolecall.
+	Schema      int
+	NewerSchema bool
 	// Set names the gate keys workspace.json sets itself; the rest are the defaults.
 	Set map[string]bool
 }
@@ -37,6 +41,7 @@ type WorkspaceSettings struct {
 func (s *Store) Settings() (WorkspaceSettings, error) {
 	out := WorkspaceSettings{
 		Path:          filepath.Join(s.root, "workspace.json"),
+		Schema:        1,
 		LetterWordCap: DefaultLetterWordCap, LetterWordMin: DefaultLetterWordMin,
 		KeySkillsMin: DefaultKeySkillsMin, KeySkillsMax: DefaultKeySkillsMax,
 	}
@@ -48,7 +53,8 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 		return out, err
 	}
 	var raw struct {
-		Tracks     []string `json:"tracks"`
+		Schema     json.RawMessage `json:"schema"`
+		Tracks     []string        `json:"tracks"`
 		SearchArea struct {
 			Places []string `json:"places"`
 			Remote string   `json:"remote"`
@@ -63,6 +69,14 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		out.Err = err
 		return out, nil
+	}
+	// A schema this build cannot use stops the screen: it must not offer edits that would
+	// be refused, and the Owner needs to see why.
+	if version, err := workspaceSchemaVersion(out.Path, raw.Schema); err != nil {
+		out.Schema, out.Err, out.NewerSchema = version, err, version > 1
+		return out, nil
+	} else {
+		out.Schema = version
 	}
 	out.Tracks, out.Places, out.Remote = raw.Tracks, raw.SearchArea.Places, raw.SearchArea.Remote
 	out.Set = map[string]bool{}

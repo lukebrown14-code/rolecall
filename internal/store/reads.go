@@ -25,22 +25,34 @@ func (s *Store) Tracks() ([]string, error) {
 	if err = json.Unmarshal(b, &config); err != nil {
 		return nil, fmt.Errorf("%s: invalid Workspace settings", path)
 	}
-	if config.Schema != nil {
-		if bytes.Equal(config.Schema, []byte("null")) {
-			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
-		}
-		var version int
-		if err := json.Unmarshal(config.Schema, &version); err != nil {
-			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
-		}
-		if version != 1 {
-			if version > 1 {
-				return nil, fmt.Errorf("%s: Workspace schema %d is newer than this version; upgrade rolecall", path, version)
-			}
-			return nil, fmt.Errorf("%s: unsupported Workspace schema %d", path, version)
-		}
+	if _, err := workspaceSchemaVersion(path, config.Schema); err != nil {
+		return nil, err
 	}
 	return config.Tracks, nil
+}
+
+// workspaceSchemaVersion reads the schema key of workspace.json. Absent or 1 is accepted;
+// null, a non-number, or any other version is an error naming the path, so a reader or
+// writer can refuse a Workspace this build does not understand.
+func workspaceSchemaVersion(path string, raw json.RawMessage) (int, error) {
+	if raw == nil {
+		return 1, nil
+	}
+	if bytes.Equal(raw, []byte("null")) {
+		return 0, fmt.Errorf("%s: invalid Workspace schema", path)
+	}
+	var version int
+	if err := json.Unmarshal(raw, &version); err != nil {
+		return 0, fmt.Errorf("%s: invalid Workspace schema", path)
+	}
+	switch {
+	case version == 1:
+		return 1, nil
+	case version > 1:
+		return version, fmt.Errorf("%s: Workspace schema %d is newer than this version; upgrade rolecall", path, version)
+	default:
+		return version, fmt.Errorf("%s: unsupported Workspace schema %d", path, version)
+	}
 }
 
 // FindByURL returns every exact URL match, regardless of Status.
