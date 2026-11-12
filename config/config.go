@@ -52,12 +52,17 @@ func Load(home, dir string) (Config, error) {
 	}
 	c.Workspace = expand(c.Workspace)
 	c.Downloads = expand(c.Downloads)
-	// plugin is configured or, failing that, taken from the environment. Nothing
-	// is auto-detected: no path is searched for.
+	// plugin is configured, taken from the environment, or found beside the
+	// installed executable in a supported release layout.
 	if c.Plugin == "" {
 		c.Plugin = os.Getenv("ROLECALL_PLUGIN")
 	}
 	c.Plugin = expand(c.Plugin)
+	if c.Plugin == "" {
+		if executable, err := os.Executable(); err == nil {
+			c.Plugin = InstalledPluginPath(executable)
+		}
+	}
 	if c.Downloads == "" {
 		c.Downloads = filepath.Join(home, "Downloads")
 	}
@@ -65,4 +70,27 @@ func Load(home, dir string) (Config, error) {
 		return c, fmt.Errorf("no Workspace configured in %s", path)
 	}
 	return c, nil
+}
+
+// InstalledPluginPath returns the bundled Plugin location for an installed
+// binary, or an empty string when neither supported layout is present.
+func InstalledPluginPath(executable string) string {
+	resolved, err := filepath.EvalSymlinks(executable)
+	if err == nil {
+		executable = resolved
+	}
+	binDir := filepath.Dir(executable)
+	for _, candidate := range []string{
+		filepath.Join(binDir, "plugin"),
+		filepath.Join(binDir, "..", "libexec", "plugin"),
+	} {
+		info, err := os.Stat(candidate)
+		if err == nil && info.IsDir() {
+			resolved, err := filepath.Abs(candidate)
+			if err == nil {
+				return resolved
+			}
+		}
+	}
+	return ""
 }
