@@ -151,57 +151,7 @@ func (m model) contextKeys() []helpKey {
 	if !m.hasTables() {
 		return screenDefs[m.screen].help(m)
 	}
-	a, onRow := m.current()
-	// A malformed row can be inspected and fixed in the Editor; Move, undo, notes and
-	// downloads are refused there.
-	usable := !onRow || a.Malformed == nil
-	var keys []helpKey
-	if m.detail != nil {
-		if m.detail.tab == tabDocs && usable {
-			keys = append(keys, help(groupAction, "enter", "open").at(prioCore))
-		}
-		if usable {
-			keys = append(keys, help(groupAction, "e", "edit"))
-		} else {
-			keys = append(keys, help(groupAction, "e", "fix in editor").at(prioCore))
-		}
-	} else if onRow {
-		keys = append(keys, help(groupAction, "enter", "open").at(prioCore))
-		if usable {
-			keys = append(keys, help(groupAction, "e", "edit"))
-		} else {
-			keys = append(keys, help(groupAction, "e", "fix in editor").at(prioCore))
-		}
-	}
-	if onRow && usable {
-		keys = append(keys, help(groupAction, "m", "move").at(prioCore))
-	}
-	if usable && len(m.undo) > 0 {
-		keys = append(keys, help(groupAction, "u", "undo").at(prioMinor))
-	}
-	if onRow && usable {
-		if m.detail == nil && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
-			keys = append(keys, help(groupAction, "x", "dismiss").at(prioMinor))
-		}
-		notes := help(groupAction, "n", "notes")
-		if m.detail != nil {
-			notes = notes.at(prioMinor) // the reader's navigation outlasts it
-		}
-		keys = append(keys, notes)
-		if m.plugin != "" && buildable(a) {
-			keys = append(keys, help(groupAction, "b", "build").at(prioMinor))
-		}
-		if len(a.PDFs) > 0 {
-			keys = append(keys, help(groupAction, "d", "download").at(prioMinor))
-		}
-	}
-	// Handoff: f on any Application, p while it is still a Lead or Draft.
-	if onRow && m.harness != "" {
-		keys = append(keys, help(groupAction, "f", "assess fit").at(prioMinor))
-		if usable && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
-			keys = append(keys, help(groupAction, "p", "prepare docs").at(prioMinor))
-		}
-	}
+	keys := m.actionKeys()
 	if m.detail != nil {
 		vertical := "scroll"
 		if m.detail.tab == tabDocs {
@@ -211,14 +161,6 @@ func (m model) contextKeys() []helpKey {
 		return append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
 	}
-	if m.views()[m.table] == tableLeads {
-		sort := "sort newest"
-		if m.leadsNewest {
-			sort = "sort by close date"
-		}
-		keys = append(keys, help(groupAction, "s", sort).at(prioMinor))
-	}
-	keys = append(keys, help(groupAction, "a", "add").at(prioCore), help(groupAction, "/", "search").at(prioCore))
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view"))
 	}
