@@ -87,7 +87,9 @@ func TestMoveToastsAndFlashesTheRow(t *testing.T) {
 func TestErrorLineCutsTheMessageNotTheKeys(t *testing.T) {
 	for _, w := range []int{120, 80, 60} {
 		view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), w, 24, "G", "m", "d"))
-		last := view[strings.LastIndex(view, "\n")+1:]
+		// The feedback line sits above the key line, so it is the second-to-last line.
+		lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+		last := lines[len(lines)-2]
 		if !strings.HasSuffix(strings.TrimRight(last, " "), "e fix in editor  esc hide") {
 			t.Fatalf("%d: error keys cut or missing: %q", w, last)
 		}

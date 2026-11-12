@@ -42,7 +42,6 @@ const (
 	inset         = 3 // the text column: where content starts after a marker
 	rightMargin   = 1 // cells kept clear at the right edge, matching edge
 	ruleLines     = 2 // the rules above and below the body
-	statusLines   = 1 // the status row
 )
 
 // layout is one frame's size budget.
@@ -50,10 +49,17 @@ type layout struct {
 	w, h  int
 	class sizeClass
 	short bool
+	// status is the lines the status area needs: one for the key line, or two while the
+	// feedback line sits above it, so the key line is never wiped by a toast or an error.
+	status int
 }
 
 // layout is the budget for the current terminal size.
-func (m model) layout() layout { return sizeLayout(m.viewWidth(), m.viewHeight()) }
+func (m model) layout() layout {
+	l := sizeLayout(m.viewWidth(), m.viewHeight())
+	l.status = m.frameStatusLines()
+	return l
+}
 
 func sizeLayout(w, h int) layout {
 	l := layout{w: w, h: h, short: h <= shortHeight}
@@ -82,7 +88,7 @@ func (l layout) bodyTop(ctx int) int { return l.headerLines() + ctx + 1 }
 
 // bodyHeight is the lines between the two rules under ctx context lines.
 func (l layout) bodyHeight(ctx int) int {
-	return max(minBody, l.h-l.headerLines()-ctx-ruleLines-statusLines)
+	return max(minBody, l.h-l.headerLines()-ctx-ruleLines-l.status)
 }
 
 // panel is a side panel's width: share percent of the width, held between lo and hi.

@@ -221,15 +221,38 @@ func (m model) listPane(n int) (int, bool) {
 	return l.w, false
 }
 
-// statusRow is the frame's last line: what just happened (a toast or error) when there is
-// one, otherwise the line the caller prepared (the search input while typing, else the
-// key line). The rule above it is never replaced.
+// feedbackVisible reports whether the status area is showing what just happened: a toast,
+// an error or a build in flight, and not the search input, which takes the whole row.
+func (m model) feedbackVisible() bool {
+	return !m.searching() && (m.err != nil || m.toast != "" || m.building != nil)
+}
+
+// statusAreaLines is the status area's height: one row for the key line, or two while the
+// feedback line sits above it.
+const (
+	statusAreaPlain    = 1
+	statusAreaFeedback = 2
+)
+
+// frameStatusLines is the lines the status area needs: the feedback line and the key line
+// when something just happened, otherwise the key line alone.
+func (m model) frameStatusLines() int {
+	if m.feedbackVisible() {
+		return statusAreaFeedback
+	}
+	return statusAreaPlain
+}
+
+// statusRow is the frame's last rows: the feedback line over the key line when there is
+// one, so a toast or error never wipes the key hints; otherwise the line the caller
+// prepared (the search input while typing, else the key line). The rule above is never
+// replaced.
 func (m model) statusRow(p pal, w int, fallback string) string {
 	if m.searching() {
 		return fallback // the search input shows while typing, even over an error
 	}
-	if m.err != nil || m.toast != "" || m.building != nil {
-		return m.feedbackLine(p, w)
+	if m.feedbackVisible() {
+		return m.feedbackLine(p, w) + "\n" + fallback
 	}
 	return fallback
 }

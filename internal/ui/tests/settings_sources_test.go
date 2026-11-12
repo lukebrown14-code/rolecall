@@ -212,8 +212,9 @@ func TestSettingsEditKeepsOldValuesAndShowsErrorOnInvalidTOML(t *testing.T) {
 	// Neither Editor exists: its independent PATH warning must survive a good reload.
 	t.Setenv("PATH", t.TempDir())
 	statusLine := func(view string) string {
+		// The feedback line sits above the key line, so it is the second-to-last line.
 		lines := strings.Split(strings.TrimSpace(view), "\n")
-		return lines[len(lines)-1]
+		return lines[len(lines)-2]
 	}
 	n := 0
 	h := newSourcesHarness(t, 140, "editor = \"nvim\"\n", func(p string) {
