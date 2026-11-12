@@ -58,8 +58,10 @@ The script defaults to all Workspace tracks. Pass tracks explicitly when narrowi
 python3 plugin/scripts/sweep.py --track <track> --track <track>   # one --track per configured track
 ```
 
-`--all-locations` widens or drops the script's location filter; use it only when the Owner
-asks, or when a track is producing nothing and the filter is the reason.
+The script filters by the Workspace's `search_area` (`places` and `remote` in `workspace.json`,
+see SCHEMA). Without one it keeps every location and says `no Search area set: all locations
+kept`; tell the Owner, as they may want to set one. `--all-locations` bypasses the filter; use
+it only when the Owner asks, or when a track is producing nothing and the filter is the reason.
 
 Writes `jobs/sweep-candidates.md`. It has already dropped any role whose URL belongs to an
 existing Application, whatever its Status — Dismissed included — so everything listed is new.
@@ -69,7 +71,9 @@ missing from this Sweep, not absent from the market. Say so rather than reportin
 ## 3. Fill the gaps the script cannot reach
 
 Use the catalogue's `titles` to search beyond configured boards, including
-`manual_search_sources`. Cover at least one title per role family in the requested tracks,
+`manual_search_sources`. For the manual searches (Seek, LinkedIn), read `search_area` from
+`workspace.json` and search each of its `places` (add remote roles only when `remote` is not
+`no`); without a Search area, ask the Owner where to search rather than assuming. Cover at least one title per role family in the requested tracks,
 in priority order; vary aliases when results are sparse. For stretch families, assess the
 actual duties and seniority before recommending. Record families searched with no suitable
 results separately from families not searched or blocked by access.

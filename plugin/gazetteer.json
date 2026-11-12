@@ -1,0 +1,86 @@
+{
+  "countries": {
+    "Australia": {
+      "aliases": ["au", "aus", "australian"],
+      "places": ["New South Wales", "NSW", "Victoria", "VIC", "Queensland", "QLD", "Tasmania", "TAS",
+                 "Western Australia", "South Australia", "Northern Territory", "Australian Capital Territory",
+                 "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra", "Hobart", "Darwin",
+                 "Gold Coast", "Newcastle", "Wollongong", "Geelong"]
+    },
+    "New Zealand": {
+      "aliases": ["nz"],
+      "places": ["Auckland", "Wellington", "Christchurch", "Hamilton", "Dunedin", "Queenstown"]
+    },
+    "United States": {
+      "aliases": ["usa", "us", "u.s.", "u.s.a.", "america"],
+      "places": ["California", "Texas", "New York", "Washington", "Massachusetts", "Illinois", "Colorado",
+                 "San Francisco", "Seattle", "Austin", "Chicago", "Boston", "Los Angeles", "Denver",
+                 "Atlanta", "Portland", "San Diego", "Miami", "Dallas"]
+    },
+    "Canada": {
+      "aliases": [],
+      "places": ["Ontario", "British Columbia", "Quebec", "Alberta", "Toronto", "Vancouver", "Montreal",
+                 "Calgary", "Ottawa"]
+    },
+    "United Kingdom": {
+      "aliases": ["uk", "u.k.", "great britain", "britain", "england", "scotland", "wales"],
+      "places": ["London", "Manchester", "Birmingham", "Edinburgh", "Glasgow", "Bristol", "Leeds", "Cambridge"]
+    },
+    "Ireland": {
+      "aliases": [],
+      "places": ["Dublin", "Cork", "Galway", "Limerick"]
+    },
+    "Germany": {
+      "aliases": [],
+      "places": ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart"]
+    },
+    "France": {
+      "aliases": [],
+      "places": ["Paris", "Lyon", "Marseille", "Toulouse"]
+    },
+    "Spain": {
+      "aliases": [],
+      "places": ["Madrid", "Barcelona", "Valencia", "Seville"]
+    },
+    "Netherlands": {
+      "aliases": [],
+      "places": ["Amsterdam", "Rotterdam", "Utrecht", "The Hague", "Eindhoven"]
+    },
+    "Poland": {
+      "aliases": [],
+      "places": ["Warsaw", "Krakow", "Wroclaw", "Gdansk"]
+    },
+    "India": {
+      "aliases": [],
+      "places": ["Bangalore", "Bengaluru", "Mumbai", "Delhi", "Hyderabad", "Chennai", "Pune"]
+    },
+    "Singapore": {
+      "aliases": [],
+      "places": []
+    },
+    "Philippines": {
+      "aliases": [],
+      "places": ["Manila", "Cebu"]
+    },
+    "Japan": {
+      "aliases": [],
+      "places": ["Tokyo", "Osaka", "Kyoto"]
+    },
+    "Brazil": {
+      "aliases": [],
+      "places": ["Sao Paulo", "Rio de Janeiro", "Brasilia"]
+    },
+    "Mexico": {
+      "aliases": [],
+      "places": ["Mexico City", "Guadalajara", "Monterrey"]
+    }
+  },
+  "groups": {
+    "ANZ": ["Australia", "New Zealand"],
+    "APAC": ["Australia", "New Zealand", "India", "Singapore", "Philippines", "Japan"],
+    "North America": ["United States", "Canada", "Mexico"],
+    "Europe": ["United Kingdom", "Ireland", "Germany", "France", "Spain", "Netherlands", "Poland"],
+    "EMEA": ["United Kingdom", "Ireland", "Germany", "France", "Spain", "Netherlands", "Poland"],
+    "LATAM": ["Brazil", "Mexico"]
+  }
+}

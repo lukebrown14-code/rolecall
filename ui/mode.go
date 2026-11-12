@@ -46,6 +46,15 @@ func (m model) overlayHints() [][2]string {
 	return m.overlay.Keys()
 }
 
+// overlayLeft is the first column a pop-up may use: Settings keeps its Groups column and
+// the divider clear, so a pop-up never covers them.
+func (m model) overlayLeft() int {
+	if m.screen == settingsScreen && m.settingsListShown(m.viewWidth()) {
+		return settingsListWidth + profileDivider
+	}
+	return 0
+}
+
 // overlayView is the active mode's box, or "" when none is open.
 func (m model) overlayView(p pal) string {
 	if m.overlay == nil {
@@ -64,12 +73,12 @@ type formMode struct {
 }
 
 func (fm *formMode) Keys() [][2]string {
-	return [][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}
+	return [][2]string{{"tab", hintNext}, {"←→", "change"}, {"enter", hintSave}, {"esc", "cancel"}}
 }
 
 func (fm *formMode) boxed() bool { return true }
 
-func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm) }
+func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm, popForm) }
 
 // Update runs the form. Nothing is written until it completes.
 func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -318,3 +327,9 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	m.cursor = 0
 	return sm, nil
 }
+
+// Key-hint labels shared by the pop-up modes.
+const (
+	hintNext = "next"
+	hintSave = "save"
+)

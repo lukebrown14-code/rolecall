@@ -74,7 +74,10 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
+ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on
 ```
+
+Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
 
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 
@@ -478,10 +481,10 @@ Documents state rules, Build and the Plugin are unchanged.
 ### v1.0: public
 | Area | Features |
 |---|---|
-| Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, spelling, paper size, workspace path, `git init`) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
+| Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, workspace path, `git init`; spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
 | Profile | read-only Profile screen (screen 5; editing in 1.x) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
-| Settings | Settings screen: tracks, gates, follow-up days, downloads, editor, theme, harness commands |
-| Documents | neutral default template + workspace brand override · style packs AU/UK/US · 2–3 template choices |
+| Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (dark only, so no theme) |
+| Documents | neutral default template + workspace brand override · 2–3 template choices (style packs AU/UK/US move to 1.x) |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
 | Finding | per-workspace sources and locations, no the selected city default |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
@@ -521,8 +524,9 @@ opening stays but is best-effort, with no CI.
 
 #### Profile screen (v1.0)
 
-Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size are not part
-of the Profile, and writing preferences stay prose, so the 1.x edit form covers the Contact only.
+Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size are not
+settings in v1 (AU and A4 are fixed; style packs move to 1.x), and writing preferences stay
+prose, so the 1.x edit form covers the Contact only.
 
 - **Screen 5**, after Stats. A section list on the left, built from the `##` headings of
   `profile/master-profile.md`, then a divider and the other Profile files (`projects.md`,
@@ -539,6 +543,31 @@ of the Profile, and writing preferences stay prose, so the 1.x edit form covers 
 - **Refresh:** re-read on entering the screen, after `$EDITOR` closes, and on `r`. `profile/` is
   not watched.
 - The Contact table is a file contract: see `SCHEMA.md`.
+
+#### Settings screen (v1.0)
+
+Laid out like Profile. Parent spec: #58; this section covers the read-only first slice (#66).
+
+- **Screen 6**, after Profile (`6 Settings` in the header). Groups on the left (**Search ·
+  Documents · Tracking · This machine**), the selected group's settings on the right.
+- **Values shown**, each from the file that owns it:
+  - Search: Places and Remote rule (`workspace.json` → `search_area`), then `Sources · N` and
+    `Blockers · N` count rows.
+  - Documents: cover letter word cap and minimum, Key Skills minimum and maximum
+    (`workspace.json`; the Build defaults 350, 150, 8 and 12 when unset).
+  - Tracking: Tracks (`workspace.json`) and follow-up days (`config.toml`).
+  - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
+    harness, plugin.
+- **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; `e`
+  opens `workspace.json` in `$EDITOR`; `r` rescans. This slice writes nothing.
+- **Invalid `workspace.json`:** the screen shows its path and the parse error, with `e` as the
+  only action. The program still starts, with no Track filter. Nothing is written.
+- **Refresh:** both files are re-read on entering the screen, on `r`, and after `$EDITOR` closes.
+- **Narrow:** below 80 columns the group list hides and the header names the group (`Search
+  1/4`), as on Profile.
+- **Later slices:** editing Tracks (add, rename, remove, reorder), the Search area form, gates
+  and machine settings as editable rows. `workspace.json` is then written by the TUI, a
+  `SCHEMA.md` ownership change that lands with the first writing slice.
 
 ## Open questions
 

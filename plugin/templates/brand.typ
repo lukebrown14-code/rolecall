@@ -1,4 +1,4 @@
-// Shared look for the resume and cover letter ("Header Band" design).
+// Default look for the resume and cover letter ("Header Band" template).
 // Imported by both templates as /templates/brand.typ -- build.py stages the
 // templates into a temporary --root, so the absolute import resolves there.
 //

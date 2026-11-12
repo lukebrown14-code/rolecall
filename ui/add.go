@@ -100,12 +100,12 @@ func (m *model) selectFolder(folder string) {
 			continue
 		}
 		screen, table := StatusLocation(a.Status)
-		for i, s := range screens {
-			if s == screen {
+		for i, d := range screenDefs {
+			if d.name == screen {
 				m.screen = i
 			}
 		}
-		for i, t := range tables[m.screen] {
+		for i, t := range m.views() {
 			if t == table {
 				m.table = i
 			}

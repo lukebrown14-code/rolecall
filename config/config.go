@@ -18,6 +18,7 @@ type Config struct {
 	Downloads    string `toml:"downloads"`
 	Plugin       string `toml:"plugin"`
 	Harness      string `toml:"harness"`
+	ASCII        bool   `toml:"ascii"`
 }
 
 // Path is where the Owner's settings file lives under home.

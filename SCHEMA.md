@@ -12,6 +12,7 @@ Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in 
 ```
 <workspace>/
 ├─ workspace.json              # tracks, gates, sweep sources
+├─ brand.typ                   # optional document Template override (see below)
 ├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
 │  ├─ phrasing-bank.md
@@ -175,10 +176,41 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
   `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
 - **Missing section or file:** no fields, so both required fields are missing.
 
-## `workspace.json` (read by the TUI)
+## `workspace.json` (read by the TUI, which writes `tracks`, `search_area` and the gates)
 
-The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
-filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
+The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
+(`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
+`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
+most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
+write is atomic, and an invalid file is never overwritten. Missing file or key = no track
+filter and the plugin's defaults.
+Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write: it
+rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
+`meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`. Folders
+never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does not undo it. An invalid file is shown, with its parse error, on the Settings
+screen. `sources`, `blockers` and the gates are used by the plugin.
+
+`search_area` (read by the Sweep and `find-jobs`) is where roles must be:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `places` | array of strings | countries, regions, states or cities, e.g. `Australia`, `APAC`, `Sydney`. Matched ignoring case |
+| `remote` | `in-places` \| `anywhere` \| `no` | whether remote roles count. Default `in-places`: a remote role is kept when it names a Place or no known place |
+
+A missing `search_area` means no filter: the Sweep keeps every location and reports
+`no Search area set: all locations kept`. A built-in gazetteer (`plugin/gazetteer.json`) maps
+countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
+if it names a Place, dropped if it names only known places outside the Places, and kept if its
+location is empty or unknown. `--all-locations` bypasses the filter.
+
+## `brand.typ` (optional document Template override)
+
+The Plugin's default document Template is `plugin/templates/brand.typ`. To customize the
+resume and cover-letter look for a Workspace, copy that file to `<workspace>/brand.typ` and
+edit the copy. The next Build uses the Workspace file; if it is absent, the Plugin default is
+used. Keep the `#let` names imported by `resume.typ` and `cover-letter.typ` when editing, or
+Typst may fail to compile the documents.
 
 ## Fixtures
 

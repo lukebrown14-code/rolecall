@@ -31,6 +31,17 @@ var snapshotStates = []struct {
 	{"14-track-cycled", []string{"1", "t"}},
 	{"15-stats", []string{"4"}},
 	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "right", "right"}},
+	{"17-profile", []string{"5"}},
+	{"18-settings-search", []string{"6"}},
+	{"19-settings-documents", []string{"6", "j"}},
+	{"20-settings-tracking", []string{"6", "j", "j"}},
+	{"21-settings-machine", []string{"6", "j", "j", "j"}},
+	{"22-settings-search-popup", []string{"6", "tab", "enter"}},
+	{"23-settings-gate-popup", []string{"6", "j", "tab", "enter"}},
+	{"24-settings-track-add", []string{"6", "j", "j", "tab", "a"}},
+	{"25-settings-track-remove-refused", []string{"6", "j", "j", "tab", "x"}},
+	{"26-settings-track-rename", []string{"6", "j", "j", "tab", "r"}},
+	{"27-settings-machine-edit", []string{"6", "j", "j", "j", "tab", "enter"}},
 }
 
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to
