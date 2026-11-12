@@ -1,0 +1,37 @@
+{
+  "_comment": "The Application JSON contract shared by the Go store and the Python reader. Both sides assert this file: internal/store/tests and plugin/tests. A key added on one side must be added here, and the other side's test then fails until it agrees.",
+  "data": [
+    "Folder",
+    "Title",
+    "Company",
+    "Track",
+    "Status",
+    "Documents",
+    "PDFs",
+    "HasJD",
+    "HasNotes",
+    "HasFit",
+    "HasGaps",
+    "HasResume",
+    "HasCoverLetter",
+    "HasSent",
+    "Schema",
+    "URL",
+    "Closes",
+    "Fit",
+    "ResumeOnly",
+    "StatusLog",
+    "AppliedDate",
+    "LastChange"
+  ],
+  "goOnly": [
+    "JDHasText",
+    "ResumeHasText",
+    "CoverLetterHasText",
+    "GapsHasText"
+  ],
+  "scanOnly": [
+    "Malformed",
+    "Error"
+  ]
+}

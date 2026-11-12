@@ -24,12 +24,16 @@ defined in `GLOSSARY.md`.
 │  └─ writing-preferences.md
 ├─ cv/                         # the Owner's general CV (optional)
 └─ jobs/
+   ├─ roles.json               # optional role catalogue (see below)
+   ├─ sweep-candidates.md      # raw Sweep output; not an Application (see below)
    └─ <track>/
       └─ <slug>/               # one folder per Application
 ```
 
 - A folder is an Application **if and only if** it contains `meta.yml`.
-- Anything else under `jobs/` (stray files, `TRACKER.md` remnants) is ignored.
+- Any other file directly under `jobs/` that this schema does not name (stray files,
+  `TRACKER.md` remnants) is ignored. `roles.json` and `sweep-candidates.md` are named and
+  documented below.
 - `<track>` is where the folder was created. After that, the `track` key in `meta.yml` wins.
   Folders are never moved when the track changes.
 
@@ -209,6 +213,50 @@ A missing `search_area` means no filter: the Sweep keeps every location and repo
 countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
 if it names a Place, dropped if it names only known places outside the Places, and kept if its
 location is empty or unknown. `--all-locations` bypasses the filter.
+
+## `jobs/roles.json` (optional role catalogue)
+
+Read by the Sweep (`sweep.py`) and the `find-jobs` skill. It is **not** an Application and
+the TUI ignores it. Absent means the Sweep falls back to its built-in title keywords;
+invalid data stops the Sweep with the reason.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `version` | int | ✅ | `1` |
+| `roles` | list | ✅ | non-empty; one object per role (below) |
+| `additional_sources` | object | — | Platform name → list of targets, added to the shipped source plan |
+
+Each role:
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | string | ✅ | unique within the file |
+| `category` | string | ✅ | e.g. `Engineering` |
+| `track` | string | ✅ | must be one of `workspace.json` → `tracks` |
+| `evidence` | string | ✅ | the Profile facts that justify the role |
+| `gaps` | string | ✅ | what the Profile is missing for it |
+| `priority` | `primary` · `secondary` · `stretch` | — | |
+| `titles` | list of strings | ✅ | non-empty |
+| `search_terms` | list of strings | ✅ | non-empty |
+
+```json
+{
+  "version": 1,
+  "roles": [
+    {"id": "backend", "category": "Engineering", "track": "SWE",
+     "priority": "primary", "titles": ["Software Engineer"],
+     "search_terms": ["software engineer"], "evidence": "…", "gaps": "…"}
+  ]
+}
+```
+
+## `jobs/sweep-candidates.md` (Sweep output)
+
+Written, and overwritten, by `sweep.py` on each Sweep. It is a report for the Owner and
+the `find-jobs` skill, **not** an Application: the TUI ignores it and no reader parses it
+as data. It holds a summary line, source health and coverage, a `## To assess` list (one
+`### <title> — <company>` block per candidate), a `## Blocked` list, and a
+`## Not reachable by this script` note.
 
 ## `brand.typ` (optional document Template override)
 
