@@ -28,6 +28,8 @@ type WorkspaceSettings struct {
 	KeySkillsMax  int
 	Sources       int // entries in sources
 	Blockers      int // entries in blockers
+	// Set names the gate keys workspace.json sets itself; the rest are the defaults.
+	Set map[string]bool
 }
 
 // Settings reads workspace.json without writing it. Invalid JSON is reported in Err, not
@@ -63,12 +65,17 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 		return out, nil
 	}
 	out.Tracks, out.Places, out.Remote = raw.Tracks, raw.SearchArea.Places, raw.SearchArea.Remote
-	for _, g := range []struct{ dst, src *int }{
-		{&out.LetterWordCap, raw.LetterWordCap}, {&out.LetterWordMin, raw.LetterWordMin},
-		{&out.KeySkillsMin, raw.KeySkillsMin}, {&out.KeySkillsMax, raw.KeySkillsMax},
+	out.Set = map[string]bool{}
+	for _, g := range []struct {
+		key      string
+		dst, src *int
+	}{
+		{GateLetterCap, &out.LetterWordCap, raw.LetterWordCap}, {GateLetterMin, &out.LetterWordMin, raw.LetterWordMin},
+		{GateSkillsMin, &out.KeySkillsMin, raw.KeySkillsMin}, {GateSkillsMax, &out.KeySkillsMax, raw.KeySkillsMax},
 	} {
 		if g.src != nil {
 			*g.dst = *g.src
+			out.Set[g.key] = true
 		}
 	}
 	out.Sources, out.Blockers = entryCount(raw.Sources), entryCount(raw.Blockers)

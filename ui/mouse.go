@@ -26,12 +26,12 @@ func wheelKey(b tea.MouseButton) (string, bool) {
 func (m model) mouse(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
-		if key, ok := wheelKey(msg.Button); ok && !m.settingsEditing() && !m.tooSmall() {
+		if key, ok := wheelKey(msg.Button); ok && !m.tooSmall() {
 			next, cmd := m.Update(keyPress(key))
 			return next, cmd, true
 		}
 	case tea.MouseClickMsg:
-		if msg.Button != tea.MouseLeft || m.overlay != nil || m.settingsEditing() || m.tooSmall() {
+		if msg.Button != tea.MouseLeft || m.overlay != nil || m.tooSmall() {
 			return m, nil, false
 		}
 		return m.click(msg.X, msg.Y)

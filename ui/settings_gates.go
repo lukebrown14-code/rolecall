@@ -12,88 +12,101 @@ import (
 // groupDocuments is the Settings group that holds the document gates.
 const groupDocuments = 1
 
-// gateKeys are the Documents rows, in display order, as workspace.json keys.
-var gateKeys = []string{store.GateLetterCap, store.GateLetterMin, store.GateSkillsMin, store.GateSkillsMax}
+// gate is one Documents row: its workspace.json key, its label and the unit it counts.
+type gate struct{ key, label, unit string }
+
+// gates are the Documents rows in display order, worded alike: what is limited, then
+// minimum or maximum.
+var gates = []gate{
+	{store.GateLetterCap, "Cover letter maximum", "words"},
+	{store.GateLetterMin, "Cover letter minimum", "words"},
+	{store.GateSkillsMin, "Key Skills minimum", "skills"},
+	{store.GateSkillsMax, "Key Skills maximum", "skills"},
+}
+
+// gateValue is a gate's current value.
+func gateValue(ws store.WorkspaceSettings, key string) int {
+	switch key {
+	case store.GateLetterCap:
+		return ws.LetterWordCap
+	case store.GateLetterMin:
+		return ws.LetterWordMin
+	case store.GateSkillsMin:
+		return ws.KeySkillsMin
+	}
+	return ws.KeySkillsMax
+}
+
+// gateRange is the bound the other gate of the pair sets on this one: "min 150", "max 12".
+func gateRange(ws store.WorkspaceSettings, key string) string {
+	switch key {
+	case store.GateLetterCap:
+		return fmt.Sprintf("above the minimum, %d", ws.LetterWordMin)
+	case store.GateLetterMin:
+		return fmt.Sprintf("below the maximum, %d", ws.LetterWordCap)
+	case store.GateSkillsMin:
+		return fmt.Sprintf("at most the maximum, %d", ws.KeySkillsMax)
+	}
+	return fmt.Sprintf("at least the minimum, %d", ws.KeySkillsMin)
+}
 
 // gateRows lists the document gates with their current values. The template choice row is
 // not listed: there is one template, and the row appears once there is more than one.
 func (m model) gateRows() []settingRow {
 	ws := m.settings.ws
-	return []settingRow{
-		{label: "Cover letter word cap", value: strconv.Itoa(ws.LetterWordCap)},
-		{label: "Cover letter minimum", value: strconv.Itoa(ws.LetterWordMin)},
-		{label: "Key Skills minimum", value: strconv.Itoa(ws.KeySkillsMin)},
-		{label: "Key Skills maximum", value: strconv.Itoa(ws.KeySkillsMax)},
+	rows := make([]settingRow, len(gates))
+	for i, g := range gates {
+		rows[i] = settingRow{label: g.label, value: strconv.Itoa(gateValue(ws, g.key)), unit: g.unit, source: fileSource(ws.Set[g.key])}
 	}
+	return rows
 }
 
 // gateHelpKeys are the Documents keys, shown while those rows have focus.
 func (m model) gateHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupDocuments {
+	if m.settings == nil || m.settings.ws.Err != nil || !m.settingsRowsFocused() || m.settings.group != groupDocuments {
 		return nil
 	}
-	return []helpKey{help(groupAction, "enter", "edit")}
+	return []helpKey{help(groupAction, "enter", "edit").at(prioCore)}
 }
 
 // gatesKey handles enter on a Documents row by opening the value pop-up. handled is false
 // for any other key or group.
 func (m model) gatesKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
-	if st.focus != settingsRows || st.group != groupDocuments || k.String() != "enter" || st.row >= len(gateKeys) {
+	if !m.settingsRowsFocused() || st.group != groupDocuments || k.String() != "enter" || st.row >= len(gates) {
 		return m, false
 	}
-	row := m.gateRows()[st.row]
-	m.overlay = &gateEditMode{key: gateKeys[st.row], label: row.label, value: row.value}
+	m.overlay = m.gatePopup(gates[st.row])
 	return m, true
 }
 
-// gateEditMode is the pop-up that edits one gate. The value is checked on enter; a refused
-// value shows its reason and nothing is saved.
-type gateEditMode struct {
-	key, label, value string
-	err               string
-}
-
-func (gm *gateEditMode) Keys() [][2]string {
-	return [][2]string{{"enter", hintSave}, {"esc", "cancel"}}
-}
-
-func (gm *gateEditMode) boxed() bool { return true }
-
-func (gm *gateEditMode) View(m *model, p pal) string {
-	body := p.text(p.dim).Render(gm.label+"  ") + p.text(p.fg).Render(gm.value) + p.text(p.accent).Render("▏")
-	if gm.err != "" {
-		body += "\n" + p.text(p.bad).Render("✗ "+gm.err)
-	}
-	return popup(p, "Edit setting", false, popSmall, m.viewWidth(), body, p.keys(gm.Keys()))
-}
-
-func (gm *gateEditMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.PasteMsg:
-		gm.value += pasted(msg.Content)
-		gm.err = ""
-	case tea.KeyPressMsg:
-		switch {
-		case msg.String() == "esc":
-			return nil, nil
-		case msg.Code == tea.KeyBackspace:
-			gm.value = dropLastGrapheme(gm.value)
-			gm.err = ""
-		case msg.String() == "enter":
-			if err := m.store.SetGate(gm.key, gm.value); err != nil {
-				gm.err = err.Error()
-				return gm, nil
-			}
-			*m = m.loadSettings()
-			// SetGate stores a canonical integer, so name that rather than the typed text.
-			n, _ := strconv.Atoi(strings.TrimSpace(gm.value))
-			m.toast = fmt.Sprintf("Saved %s: %d", gm.label, n)
-			return nil, nil
-		default:
-			gm.value += msg.Text
-			gm.err = ""
+// gatePopup edits one gate. The bound its pair sets is shown beside the value, so the
+// range is never a surprise; a refused value shows its reason and nothing is saved.
+func (m model) gatePopup(g gate) mode {
+	ws := m.settings.ws
+	was := strconv.Itoa(gateValue(ws, g.key))
+	words := strings.Fields(g.label)
+	label := strings.ToUpper(words[len(words)-1][:1]) + words[len(words)-1][1:] // "Maximum"
+	f := newFormOf("Edit "+g.label, formField{label: label, required: true, value: was, unit: g.unit,
+		note: gateRange(ws, g.key)})
+	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
+		text := f.value(label)
+		if err := m.store.SetGate(g.key, text); err != nil {
+			return nil, err
 		}
-	}
-	return gm, nil
+		*m = m.loadSettings()
+		// SetGate stores a canonical integer, so name that rather than the typed text.
+		n, _ := strconv.Atoi(strings.TrimSpace(text))
+		*m = m.saved(fmt.Sprintf("Saved %s: %d %s", g.label, n, g.unit), settingsFile, &settingsUndo{
+			what: fmt.Sprintf("%s back to %s %s", g.label, was, g.unit),
+			restore: func(m model) model {
+				if err := m.store.SetGate(g.key, was); err != nil {
+					m.err = err
+					return m
+				}
+				return m.loadSettings()
+			},
+		})
+		return nil, nil
+	}}
 }

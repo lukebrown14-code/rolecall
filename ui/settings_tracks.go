@@ -4,41 +4,66 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/lukebrown14-code/rolecall/store"
 )
 
 // groupTracking is the Settings group that holds the Tracks.
 const groupTracking = 2
 
-// trackingRows lists one row per Track (the first labelled Tracks), then follow-up days.
+// trackingRows lists one row per Track with its Application count, a row to add one, then
+// the follow-up threshold.
 func (m model) trackingRows() []settingRow {
 	var rows []settingRow
-	for i, t := range m.settings.ws.Tracks {
-		label := ""
-		if i == 0 {
-			label = "Tracks"
-		}
-		rows = append(rows, settingRow{label: label, value: t})
+	for _, t := range m.settings.ws.Tracks {
+		rows = append(rows, settingRow{label: t, value: plural(m.settings.trackUse[t], "Application", "Applications")})
 	}
-	if len(rows) == 0 {
-		rows = append(rows, settingRow{label: "Tracks", value: "none (a to add)"})
+	if len(rows) > 0 {
+		rows[0].section = "Tracks"
 	}
-	return append(rows, settingRow{label: labelFollowUp, value: fmt.Sprint(m.followUpDays)})
+	rows = append(rows, settingRow{label: labelAddTrack, action: true})
+	if len(rows) == 1 {
+		rows[0].section = "Tracks"
+	}
+	return append(rows, settingRow{label: labelFollowUp, value: strconv.Itoa(m.followUpDays), unit: "days",
+		source: m.sources.FollowUpDays, section: "Follow-up"})
+}
+
+// onTrack reports whether the Tracking row under the cursor is a Track.
+func (m model) onTrack() bool {
+	st := m.settings
+	return st != nil && st.ws.Err == nil && st.group == groupTracking && st.row < len(st.ws.Tracks)
+}
+
+// onAddTrack reports whether the cursor is on the "+ add a Track" row.
+func (m model) onAddTrack() bool {
+	st := m.settings
+	return st != nil && st.ws.Err == nil && st.group == groupTracking && st.row == len(st.ws.Tracks)
 }
 
 // trackHelpKeys are the Track keys, shown while the Tracking rows have focus.
 func (m model) trackHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows || m.settings.group != groupTracking {
+	if m.settings == nil || m.settings.ws.Err != nil || !m.settingsRowsFocused() || m.settings.group != groupTracking {
 		return nil
 	}
 	keys := []helpKey{help(groupAction, "a", "add")}
-	if m.settings.row < len(m.settings.ws.Tracks) {
+	switch {
+	case m.onTrack():
 		keys = append(keys, help(groupAction, "r", "rename"), help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
+	case m.onAddTrack():
+		keys = []helpKey{help(groupAction, "enter", "add a Track").at(prioCore)}
 	}
 	return keys
+}
+
+// settingsRowsFocused reports whether keys act on the settings rows: the rows pane has
+// focus, or the group list is hidden.
+func (m model) settingsRowsFocused() bool {
+	return m.settings != nil && (m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth()))
 }
 
 // validTrackName applies the Track name rules: non-empty after trimming, unique ignoring
@@ -58,17 +83,27 @@ func validTrackName(name string, existing []string) error {
 	return nil
 }
 
-// tracksKey handles a, J, K and x on the Tracking rows. handled is false for any other key.
+// tracksKey handles a, J, K, x and enter on the Tracking rows. handled is false for any
+// other key.
 func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
-	if st.focus != settingsRows || st.group != groupTracking {
+	if !m.settingsRowsFocused() || st.group != groupTracking {
 		return m, false
 	}
 	tracks := slices.Clone(st.ws.Tracks)
-	on := st.row < len(tracks)
+	on := m.onTrack()
 	switch k.String() {
 	case "a":
-		m.overlay = &trackAddMode{}
+		m.overlay = m.trackAddPopup()
+	case "enter":
+		switch {
+		case m.onAddTrack():
+			m.overlay = m.trackAddPopup()
+		case on:
+			m.overlay = m.renamePopup(tracks[st.row])
+		default:
+			return m, false
+		}
 	case "J", "K":
 		to := st.row + 1
 		if k.String() == "K" {
@@ -83,28 +118,28 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 			s := *m.settings
 			s.row = to
 			m.settings = &s
-			m.toast = "Moved Track " + moved
+			m = m.saved("Moved Track "+moved, settingsFile, m.tracksUndo("Tracks back in their old order", st.ws.Tracks))
 		}
 	case "x":
 		if !on {
 			return m, true
 		}
 		name := tracks[st.row]
-		n, err := m.trackUse(name)
+		n, err := m.store.TrackUse(name)
 		if err != nil {
 			m.err = err
 			return m, true
 		}
 		if n > 0 {
-			m.overlay = &removeBlockedMode{track: name, n: n}
+			m.overlay = m.removeBlocked(name, n)
 			return m, true
 		}
 		tracks = slices.Delete(tracks, st.row, st.row+1)
 		if m = m.saveTracks(tracks); m.err == nil {
 			s := *m.settings
-			s.row = min(s.row, len(m.trackingRows())-1)
+			s.row = m.selectableRow(groupTracking, min(s.row, len(m.trackingRows())-1), -1)
 			m.settings = &s
-			m.toast = "Removed Track " + name
+			m = m.saved("Removed Track "+name, settingsFile, m.tracksUndo("Track "+name+" restored", st.ws.Tracks))
 		}
 	default:
 		return m, false
@@ -112,9 +147,10 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 	return m, true
 }
 
-// trackUse counts the Applications on a Track, archived ones included.
-func (m model) trackUse(track string) (int, error) {
-	return m.store.TrackUse(track)
+// tracksUndo puts the Track list back as it was.
+func (m model) tracksUndo(what string, was []string) *settingsUndo {
+	was = slices.Clone(was)
+	return &settingsUndo{what: what, restore: func(m model) model { return m.saveTracks(was) }}
 }
 
 // saveTracks writes the Tracks, then re-reads so the header filter and the screen follow.
@@ -128,79 +164,78 @@ func (m model) saveTracks(tracks []string) model {
 	return m.loadSettings()
 }
 
-// trackAddMode is the pop-up that asks for a new Track's name.
-type trackAddMode struct {
-	name string
-	err  string
+// trackAddPopup asks for a new Track's name.
+func (m model) trackAddPopup() mode {
+	f := newFormOf("Add a Track", formField{label: "Name", required: true, placeholder: "e.g. Data, Platform"})
+	f.submit = "add"
+	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
+		name := strings.TrimSpace(f.value("Name"))
+		if err := validTrackName(name, m.settings.ws.Tracks); err != nil {
+			return nil, err
+		}
+		was := m.settings.ws.Tracks
+		tracks := append(slices.Clone(was), name)
+		if *m = m.saveTracks(tracks); m.err != nil {
+			return nil, nil
+		}
+		s := *m.settings
+		s.row = len(tracks) - 1
+		m.settings = &s
+		*m = m.saved("Added Track "+name, settingsFile, m.tracksUndo("Track "+name+" removed", was))
+		return nil, nil
+	}}
 }
 
-func (tm *trackAddMode) Keys() [][2]string { return [][2]string{{"enter", "add"}, {"esc", "cancel"}} }
-
-func (tm *trackAddMode) boxed() bool { return true }
-
-func (tm *trackAddMode) View(m *model, p pal) string {
-	body := p.text(p.dim).Render("Name  ") + p.text(p.fg).Render(tm.name) + p.text(p.accent).Render("▏")
-	if tm.err != "" {
-		body += "\n" + p.text(p.bad).Render("✗ "+tm.err)
-	}
-	return popup(p, "Add Track", false, popSmall, m.viewWidth(), body, p.keys(tm.Keys()))
-}
-
-func (tm *trackAddMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.PasteMsg:
-		tm.name += pasted(msg.Content)
-		tm.err = ""
-	case tea.KeyPressMsg:
-		switch {
-		case msg.String() == "esc":
-			return nil, nil
-		case msg.Code == tea.KeyBackspace:
-			tm.name = dropLastGrapheme(tm.name)
-			tm.err = ""
-		case msg.String() == "enter":
-			name := strings.TrimSpace(tm.name)
-			if err := validTrackName(name, m.settings.ws.Tracks); err != nil {
-				tm.err = err.Error()
-				return tm, nil
+// trackCount is how many of a Track's Applications the Owner can see in the lists, and
+// how many of those are Dismissed. The rest of TrackUse's count is archived or malformed.
+func (m model) trackCount(track string) (listed, dismissed int) {
+	for _, a := range m.apps {
+		if a.Track == track {
+			listed++
+			if a.Status == store.StatusDismissed {
+				dismissed++
 			}
-			tracks := append(slices.Clone(m.settings.ws.Tracks), name)
-			if *m = m.saveTracks(tracks); m.err != nil {
-				return nil, nil
-			}
-			s := *m.settings
-			s.row = len(tracks) - 1
-			m.settings = &s
-			m.toast = "Added Track " + name
-			return nil, nil
-		default:
-			tm.name += msg.Text
-			tm.err = ""
 		}
 	}
-	return tm, nil
+	return listed, dismissed
+}
+
+// removeBlocked is the refusal for a Track still in use, counting what the lists do not
+// show so the number adds up.
+func (m model) removeBlocked(track string, n int) *removeBlockedMode {
+	listed, dismissed := m.trackCount(track)
+	var incl []string
+	if dismissed > 0 {
+		incl = append(incl, strconv.Itoa(dismissed)+" Dismissed")
+	}
+	if other := n - listed; other > 0 {
+		incl = append(incl, strconv.Itoa(other)+" archived")
+	}
+	return &removeBlockedMode{track: track, n: n, incl: strings.Join(incl, ", ")}
 }
 
 // removeBlockedMode refuses removing a Track that Applications still use. It is a pop-up
-// by the rows rather than a footer error, and it names the way out: rename the Track here,
-// or move the Applications still on it to another Track first.
+// by the rows rather than a footer error, and it names the way out: move the Applications
+// still on it to another Track first.
 type removeBlockedMode struct {
 	track string
 	n     int
+	incl  string // "1 Dismissed, 2 archived": the part of n the lists do not show
 }
 
-func (rb *removeBlockedMode) Keys() [][2]string {
-	return [][2]string{{"r", "rename"}, {"esc", hintClose}}
-}
+func (rb *removeBlockedMode) Keys() [][2]string { return [][2]string{{"esc", hintClose}} }
 
 func (rb *removeBlockedMode) boxed() bool { return true }
 
 func (rb *removeBlockedMode) View(m *model, p pal) string {
-	what := fmt.Sprintf("%s is used by %s.", rb.track, plural(rb.n, "Application", "Applications"))
-	next := "Rename it with r, or move its Applications to another Track first."
-	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(what) + "\n\n" +
+	what := fmt.Sprintf("%s is used by %s", rb.track, plural(rb.n, "Application", "Applications"))
+	if rb.incl != "" {
+		what += " (incl. " + rb.incl + ")"
+	}
+	next := "Move its Applications to another Track first (e on each, then Track)."
+	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(what+".") + "\n\n" +
 		p.text(p.dim).Width(popSmall-popInset).Render(next)
-	return popup(p, "Remove Track", true, popSmall, m.viewWidth(), body, p.keys(rb.Keys()))
+	return popup(p, "Can't remove Track "+rb.track, true, popSmall, m.viewWidth(), body, p.keys(rb.Keys()))
 }
 
 func (rb *removeBlockedMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -209,9 +244,6 @@ func (rb *removeBlockedMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		return rb, nil
 	}
 	switch k.String() {
-	case "r":
-		// The Track cannot be removed, but it can be renamed from here.
-		return &renameMode{old: rb.track, name: rb.track}, nil
 	case "esc", "enter":
 		return nil, nil
 	}

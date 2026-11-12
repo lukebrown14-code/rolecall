@@ -31,7 +31,7 @@ const (
 	maxFollowUpDays = 90
 )
 
-var errFollowUpDays = errors.New("Follow-up days must be a whole number from 1 to 90")
+var errFollowUpDays = errors.New("Follow-up must be a whole number of days, 1 to 90")
 
 // machineSetting is an editable config.toml row.
 type machineSetting struct {
@@ -47,14 +47,14 @@ var machineSettings = machineSettingsList()
 
 func machineSettingsList() []machineSetting {
 	rows := []machineSetting{
-		{group: groupTracking, row: 1, key: keyFollowUpDays, label: labelFollowUp},
+		{group: groupTracking, key: keyFollowUpDays, label: labelFollowUp},
 	}
 	for i, s := range []machineSetting{
-		{group: groupMachine, key: "editor", label: "Editor"},
+		{group: groupMachine, key: "editor", label: labelEditor},
 		{group: groupMachine, key: "downloads", label: labelDownloads},
 		{group: groupMachine, key: "harness", label: labelHarness},
 		{group: groupMachine, key: "plugin", label: labelPlugin},
-		{group: groupMachine, key: "ascii", label: "ASCII glyphs", toggle: true},
+		{group: groupMachine, key: "ascii", label: labelASCII, toggle: true},
 	} {
 		s.row = i + 1
 		rows = append(rows, s)
@@ -83,13 +83,14 @@ func yesNo(on bool) string {
 	return "No"
 }
 
-// settingsRowsShown is the group's rows with the row being edited showing its input.
-func (m model) settingsRowsShown(group int) []settingRow {
-	rows := m.settingsRows(group)
-	if st := m.settings; st.editing && st.group == group && st.row < len(rows) {
-		rows[st.row].value = st.input + "▏"
+// machineExample is what to type into an unset machine setting.
+func (m model) machineExample(s machineSetting) string {
+	for _, r := range m.settingsRows(s.group) {
+		if r.label == s.label {
+			return r.example
+		}
 	}
-	return rows
+	return ""
 }
 
 // settingValue is a machine setting as the Owner would type it.
@@ -109,7 +110,16 @@ func (m model) settingValue(s machineSetting) string {
 	return ""
 }
 
-// activateSetting handles Enter on a row: a text setting opens for editing, a Yes/No flips.
+// validFollowUpDays is the follow-up rule, checked as the Owner leaves the field.
+func validFollowUpDays(s string) error {
+	days, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil || days < minFollowUpDays || days > maxFollowUpDays {
+		return errFollowUpDays
+	}
+	return nil
+}
+
+// activateSetting handles Enter on a row: a text setting opens its pop-up, a Yes/No flips.
 func (m model) activateSetting() (tea.Model, tea.Cmd) {
 	st := *m.settings
 	s, ok := m.machineSettingAt(st.group, st.row)
@@ -117,51 +127,57 @@ func (m model) activateSetting() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if s.toggle {
-		return m.saveMachine(s, !m.ascii), nil
+		return m.saveMachine(s, !m.ascii, m.ascii), nil
 	}
-	st.editing, st.input = true, m.settingValue(s)
-	m.settings = &st
+	m.overlay = m.machinePopup(s)
 	return m, nil
 }
 
-// settingsEditKey runs the input of the row being edited. Nothing is written until Enter,
-// and a refused value leaves the input open so it can be fixed.
-func (m model) settingsEditKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	st := *m.settings
-	switch k.String() {
-	case "esc":
-		st.editing, st.input = false, ""
-		m.err = nil
-	case keyBackspace:
-		if r := []rune(st.input); len(r) > 0 {
-			st.input = string(r[:len(r)-1])
-		}
-	case "enter":
-		s, _ := m.machineSettingAt(st.group, st.row)
-		text := strings.TrimSpace(st.input)
-		var value any = text
-		if s.key == keyFollowUpDays {
-			days, err := strconv.Atoi(text)
-			if err != nil || days < minFollowUpDays || days > maxFollowUpDays {
-				m.err = errFollowUpDays
-				return m, nil
-			}
-			value = days
-		}
-		st.editing, st.input = false, ""
-		m.settings = &st
-		return m.saveMachine(s, value), nil
-	default:
-		st.input += k.Text
+// machinePopup edits one config.toml setting. Nothing is written until it is saved.
+func (m model) machinePopup(s machineSetting) mode {
+	was := m.settingValue(s)
+	fld := formField{label: s.label, value: was, placeholder: m.machineExample(s)}
+	if s.key == keyFollowUpDays {
+		fld.required, fld.unit, fld.note, fld.validate = true, "days", "1 to 90", validFollowUpDays
 	}
-	m.settings = &st
-	return m, nil
+	return &formPopup{form: newFormOf("Edit "+s.label, fld), width: popSmall, save: func(m *model, f *form) (mode, error) {
+		text := strings.TrimSpace(f.value(s.label))
+		var value, old any = text, was
+		if s.key == keyFollowUpDays {
+			if err := validFollowUpDays(text); err != nil {
+				return nil, err
+			}
+			value, _ = strconv.Atoi(text)
+			old, _ = strconv.Atoi(was)
+		}
+		next := m.saveMachine(s, value, old)
+		if next.err != nil {
+			return nil, next.err
+		}
+		*m = next
+		return nil, nil
+	}}
 }
 
 // saveMachine patches config.toml and re-reads it so the change shows at once: the help
 // bar, Build and fetch availability, follow-up flags, Stats and the glyphs all follow. It
-// reports what was saved on the feedback line.
-func (m model) saveMachine(s machineSetting, value any) model {
+// says what was saved, and where, on the feedback line, and u puts old back.
+func (m model) saveMachine(s machineSetting, value, old any) model {
+	if m = m.patchMachine(s, value); m.err != nil {
+		return m
+	}
+	shown := machineValue(old)
+	if shown == "" {
+		shown = "not set"
+	}
+	return m.saved(fmt.Sprintf("Saved %s: %s", s.label, machineValue(value)), configFile, &settingsUndo{
+		what:    s.label + " back to " + shown,
+		restore: func(m model) model { return m.patchMachine(s, old) },
+	})
+}
+
+// patchMachine writes one config.toml key and re-reads the file.
+func (m model) patchMachine(s machineSetting, value any) model {
 	if m.configHome == "" {
 		m.err = errors.New("no config.toml to save to")
 		return m
@@ -171,11 +187,7 @@ func (m model) saveMachine(s machineSetting, value any) model {
 		return m
 	}
 	m.err = nil
-	if m = m.loadMachine(); m.err != nil {
-		return m
-	}
-	m.toast = fmt.Sprintf("Saved %s: %s", s.label, machineValue(value))
-	return m
+	return m.loadMachine()
 }
 
 // machineValue is a saved value as the feedback line reads it.
@@ -204,7 +216,7 @@ func (m model) loadMachine() model {
 
 // machineHelpKeys is Enter on an editable config.toml row.
 func (m model) machineHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.ws.Err != nil || m.settings.focus != settingsRows {
+	if m.settings == nil || m.settings.ws.Err != nil || !m.settingsRowsFocused() {
 		return nil
 	}
 	s, ok := m.machineSettingAt(m.settings.group, m.settings.row)
@@ -212,12 +224,7 @@ func (m model) machineHelpKeys() []helpKey {
 	case !ok:
 		return nil
 	case s.toggle:
-		return []helpKey{help(groupAction, "enter", "toggle")}
+		return []helpKey{help(groupAction, "enter", "toggle").at(prioCore)}
 	}
-	return []helpKey{help(groupAction, "enter", "edit")}
-}
-
-// settingsEditing reports whether a Settings row is open for typing.
-func (m model) settingsEditing() bool {
-	return m.screen == settingsScreen && m.settings != nil && m.settings.editing
+	return []helpKey{help(groupAction, "enter", "edit").at(prioCore)}
 }
