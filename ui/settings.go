@@ -27,9 +27,6 @@ const (
 // Settings screen sizing mirrors Profile: a group list side panel, then the settings.
 const (
 	settingsSplitWidth = profileSplitWidth
-	// minSourceRoom is the least width worth giving where a value comes from; below it
-	// the source moves to its own line under the row.
-	minSourceRoom = 10
 	// maxLabelWidth caps the label column, which is otherwise as wide as the group's longest label.
 	maxLabelWidth = 24
 )
@@ -467,13 +464,26 @@ func (r settingRow) provenance() string {
 	return r.source
 }
 
+// warnSep leads a row's warning after its source.
+const warnSep = "  ⚠ "
+
+// tail is the source and warning after a row's value, as plain text, for sizing.
+func (r settingRow) tail() string {
+	t := r.provenance()
+	if r.warning != "" {
+		t += warnSep + r.warning
+	}
+	return t
+}
+
 // settingsRowsView lists the selected group's settings, one per line, in three columns:
 // label, value, and where the value comes from. The row marker shows only while the
 // settings pane has focus.
 func (m model) settingsRowsView(p pal, width, h int) string {
 	rows := m.settingsRows(m.settings.group)
-	valueW, labelW := 0, 0
+	valueW, labelW, tailW := 0, 0, 0
 	for _, r := range rows {
+		tailW = max(tailW, xansi.StringWidth(r.tail()))
 		if !r.action {
 			labelW = max(labelW, profileMarkerWidth+xansi.StringWidth(r.label)+gutter)
 		}
@@ -485,7 +495,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 	}
 	labelW = min(labelW, maxLabelWidth)
 	room := width - labelW
-	valueW = min(valueW, max(minValueRoom, room-minSourceRoom-gutter))
+	valueW = min(valueW, max(minValueRoom, room-tailW-gutter))
 	marked := m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())
 	var lines []string
 	selLine := 0
@@ -523,15 +533,15 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		value += strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value)))
 		tail := p.text(p.dim).Render(r.provenance())
 		if r.warning != "" {
-			tail += p.text(p.warn).Render("  ⚠ " + r.warning)
+			tail += p.text(p.warn).Render(warnSep + r.warning)
 		}
 		line += pad + value
-		if xansi.StringWidth(r.provenance()) > 0 {
-			if width-labelW-valueW-gutter >= minSourceRoom {
+		if r.tail() != "" {
+			// The source and any warning are never cut: without room they get their own line.
+			if width-labelW-valueW-gutter >= xansi.StringWidth(r.tail()) {
 				line += strings.Repeat(" ", gutter) + tail
 				lines = append(lines, xansi.Truncate(line, width, "…"))
 			} else {
-				// Too narrow for a third column: the source gets its own line.
 				lines = append(lines, xansi.Truncate(line, width, "…"),
 					xansi.Truncate(strings.Repeat(" ", labelW)+tail, width, "…"))
 			}

@@ -186,27 +186,35 @@ func (m model) trackAddPopup() mode {
 	}}
 }
 
-// trackCount is how many of a Track's Applications the Owner can see in the lists, and
-// how many of those are Dismissed. The rest of TrackUse's count is archived or malformed.
-func (m model) trackCount(track string) (listed, dismissed int) {
+// trackCount is how many of a Track's Applications the lists hold, and how many of those
+// are Dismissed or unreadable, the ones easy to miss when counting the lists. The rest
+// of TrackUse's count is archived.
+func (m model) trackCount(track string) (listed, dismissed, unreadable int) {
 	for _, a := range m.apps {
-		if a.Track == track {
-			listed++
-			if a.Status == store.StatusDismissed {
-				dismissed++
-			}
+		if a.Track != track {
+			continue
+		}
+		listed++
+		switch {
+		case a.Malformed != nil:
+			unreadable++
+		case a.Status == store.StatusDismissed:
+			dismissed++
 		}
 	}
-	return listed, dismissed
+	return listed, dismissed, unreadable
 }
 
 // removeBlocked is the refusal for a Track still in use, counting what the lists do not
 // show so the number adds up.
 func (m model) removeBlocked(track string, n int) *removeBlockedMode {
-	listed, dismissed := m.trackCount(track)
+	listed, dismissed, unreadable := m.trackCount(track)
 	var incl []string
 	if dismissed > 0 {
 		incl = append(incl, strconv.Itoa(dismissed)+" Dismissed")
+	}
+	if unreadable > 0 {
+		incl = append(incl, strconv.Itoa(unreadable)+" unreadable")
 	}
 	if other := n - listed; other > 0 {
 		incl = append(incl, strconv.Itoa(other)+" archived")
@@ -230,9 +238,9 @@ func (rb *removeBlockedMode) boxed() bool { return true }
 func (rb *removeBlockedMode) View(m *model, p pal) string {
 	what := fmt.Sprintf("%s is used by %s", rb.track, plural(rb.n, "Application", "Applications"))
 	if rb.incl != "" {
-		what += " (incl. " + rb.incl + ")"
+		what += ",\nincl. " + rb.incl
 	}
-	next := "Move its Applications to another Track first (e on each, then Track)."
+	next := "Move its Applications to another Track first: e on each, then change its Track."
 	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(what+".") + "\n\n" +
 		p.text(p.dim).Width(popSmall-popInset).Render(next)
 	return popup(p, "Can't remove Track "+rb.track, true, popSmall, m.viewWidth(), body, p.keys(rb.Keys()))

@@ -336,6 +336,8 @@ func TestBuildRefusedWhileFetchRuns(t *testing.T) {
 	h.key("enter")
 	h.wait("Fetching")
 	h.key("esc") // close the form while the fetch is still running
+	h.wait("Discard changes?")
+	h.key("y")
 	h.key("/Engineer")
 	h.key("enter")
 	h.key("2")

@@ -45,7 +45,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 // marker where they were, so the frame still reads while the pop-up is open.
 func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
 	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab", "a"))
-	for _, want := range []string{"Add Track", "▸ Tracks", "Tracking", "Follow-up days"} {
+	for _, want := range []string{"Add a Track", "▸ SWE", "Tracking", "Follow-up due after"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("pop-up over Settings lost %q:\n%s", want, v)
 		}

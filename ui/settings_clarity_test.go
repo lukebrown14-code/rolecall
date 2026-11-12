@@ -11,39 +11,45 @@ func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "j", "j", "tab", "x")
 		v := strings.Join(lines, "\n")
-		requireAll(t, v, "Remove Track", "SWE is used by 10 Applications", "Rename it with r", "move its Applications")
+		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 10 Applications", "incl. 1 Dismissed", "Move its Applications to another Track")
+		if strings.Contains(v, "rename") {
+			t.Errorf("%dx%d: the refusal offers rename, which does not remove anything:\n%s", size[0], size[1], v)
+		}
 		if !strings.Contains(v, "╭") {
 			t.Errorf("%dx%d: the refusal is not a pop-up:\n%s", size[0], size[1], v)
 		}
 	}
 }
 
-// The refusal names rename, so r acts on it directly instead of leaving the Owner stuck.
-func TestSettingsRefusalOffersRenameDirectly(t *testing.T) {
+// The refusal counts what the lists make easy to miss, so its number adds up: SWE's ten
+// Applications include one Dismissed and one whose meta.yml cannot be read.
+func TestSettingsRefusalCountAddsUp(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE"]}`)
 	h.tm.Type("x")
-	requireAll(t, h.tm.plain(), "⚠ Remove Track", "r rename")
-	h.tm.Type("r")
-	v := h.tm.plain()
-	if strings.Contains(v, "Remove Track") {
-		t.Fatalf("the refusal stayed open:\n%s", v)
+	requireAll(t, h.tm.plain(), "⚠ Can't remove Track SWE", "10 Applications,", "incl. 1 Dismissed, 1 unreadable.", "esc close")
+	h.tm.Type("esc")
+	if strings.Contains(h.tm.plain(), "Can't remove") {
+		t.Fatalf("esc left the refusal open:\n%s", h.tm.plain())
 	}
-	requireAll(t, v, "Rename Track", "enter review")
 }
 
-// Read-only rows wear a marker, so they are not mistaken for the editable ones beside them.
+// Read-only rows say so, and why, so they are not mistaken for the editable ones beside
+// them; the cursor passes over them, so enter never lands on one and does nothing.
 func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "tab", "j", "j")
-		if l := rowWith(lines, "Sources"); !strings.Contains(l, "(read-only)") {
+		if l := rowWith(lines, "Remote roles"); !strings.Contains(l, "▸ Remote roles") {
+			t.Errorf("%dx%d the cursor left Remote roles for a read-only row: %q", size[0], size[1], l)
+		}
+		if l := rowWith(lines, "Sources"); !strings.Contains(l, "read-only") {
 			t.Errorf("%dx%d Sources: %q", size[0], size[1], l)
 		}
-		if l := rowWith(lines, "Blockers"); !strings.Contains(l, "(read-only)") {
+		if l := rowWith(lines, "Blockers"); !strings.Contains(l, "read-only") {
 			t.Errorf("%dx%d Blockers: %q", size[0], size[1], l)
 		}
 		lines = settingsAt(t, size[0], size[1], "j", "j", "j", "tab")
-		if l := rowWith(lines, "Workspace"); !strings.Contains(l, "(read-only)") {
-			t.Errorf("%dx%d Workspace: %q", size[0], size[1], l)
+		if v := strings.Join(lines, "\n"); !strings.Contains(v, "fixed this session") {
+			t.Errorf("%dx%d Workspace lacks its reason:\n%s", size[0], size[1], v)
 		}
 	}
 }
@@ -87,7 +93,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 		h.tm.Type("tab")
 		h.tm.Type("enter")
 		h.tm.Type("enter")
-		requireAll(t, h.tm.plain(), "Saved Cover letter word cap: 300")
+		requireAll(t, h.tm.plain(), "Saved Cover letter maximum: 300 words")
 	})
 	t.Run("gate names the stored number", func(t *testing.T) {
 		h := newSettingsHarness(t, 120, `{"letterWordCap":300}`, nil)
@@ -100,7 +106,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 		}
 		h.tm.Type("0300")
 		h.tm.Type("enter")
-		requireAll(t, h.tm.plain(), "Saved Cover letter word cap: 300")
+		requireAll(t, h.tm.plain(), "Saved Cover letter maximum: 300 words")
 		requireAll(t, h.tm.plain(), "300")
 	})
 	t.Run("search area", func(t *testing.T) {
@@ -112,7 +118,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	})
 	t.Run("machine", func(t *testing.T) {
 		d, _ := machineDriver(t, 120)
-		selectRow(d, 3, 1)
+		selectRow(d, 3, 0)
 		d.Type("enter")
 		for range 3 {
 			d.Type("backspace")

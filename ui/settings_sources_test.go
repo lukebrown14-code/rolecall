@@ -79,10 +79,10 @@ func TestSettingsNamesEachMachineSettingsSource(t *testing.T) {
 		want                               []string
 	}{
 		{"config", "editor = \"code --wait\"\ndownloads = \"/srv/dl\"\nharness = \"claude {skill}\"\nplugin = \"/opt/p\"\n", "vim", "nano", "",
-			[]string{"Editor code --wait (config.toml)", "Downloads /srv/dl (config.toml)", "Harness claude {skill} (config.toml)", "Plugin /opt/p (config.toml)"}},
-		{"visual", "", "vim", "nano", "", []string{"Editor vim ($VISUAL)"}},
-		{"editor", "", "", "nano", "/env/p", []string{"Editor nano ($EDITOR)", "Plugin /env/p ($ROLECALL_PLUGIN)"}},
-		{"default", "", "", "", "", []string{"Editor vi (default)", "Downloads", "(default)", "Plugin not set"}},
+			[]string{"Editor code --wait config.toml", "Downloads /srv/dl config.toml", "Harness claude {skill} config.toml", "Plugin /opt/p config.toml"}},
+		{"visual", "", "vim", "nano", "", []string{"Editor vim from $VISUAL"}},
+		{"editor", "", "", "nano", "/env/p", []string{"Editor nano from $EDITOR", "Plugin /env/p from $ROLECALL_PLUGIN"}},
+		{"default", "", "", "", "", []string{"Editor vi default", "Downloads", "default", "Plugin not set"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newSourcesHarness(t, 140, tc.toml, nil)
@@ -106,10 +106,10 @@ func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 	h.d.Type("6")
 	h.d.Type("j")
 	h.d.Type("j")
-	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up days 7 (config.toml)") {
+	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 7 days config.toml") {
 		t.Fatalf("Follow-up source missing:\n%s", h.d.plain())
 	}
-	if v := h.machine(); !strings.Contains(v, "(--dir)") {
+	if v := h.machine(); !strings.Contains(v, "from --dir") {
 		t.Fatalf("Workspace source missing:\n%s", h.d.plain())
 	}
 }
@@ -119,7 +119,7 @@ func TestSettingsExplicitZeroFollowUpDaysIsKept(t *testing.T) {
 	h.d.Type("6")
 	h.d.Type("j")
 	h.d.Type("j")
-	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up days 0 (config.toml)") {
+	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 0 days config.toml") {
 		t.Fatalf("explicit 0 lost:\n%s", h.d.plain())
 	}
 }
@@ -142,7 +142,7 @@ func TestSettingsWarnsWhenEditorNotOnPath(t *testing.T) {
 	}
 	exe := filepath.Join(spaced, "fe")
 	t.Setenv("PATH", dir)
-	const warn = "(not found on PATH)"
+	const warn = "⚠ not found on PATH"
 	for _, tc := range []struct {
 		name, editor string
 		warn         bool
@@ -168,7 +168,7 @@ func TestSettingsWarnsWhenEditorNotOnPath(t *testing.T) {
 func TestSettingsNarrowKeepsSourceAndWarningWhole(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	h := newSourcesHarness(t, 60, "editor = \"nosuch-editor-binary --wait --new-window --some-very-long-flag\"\n", nil)
-	if v := h.machine(); !strings.Contains(v, "(config.toml) (not found on PATH)") {
+	if v := h.machine(); !strings.Contains(v, "config.toml ⚠ not found on PATH") {
 		t.Fatalf("narrow Settings cut the source or warning:\n%s", h.d.plain())
 	}
 }
@@ -201,7 +201,7 @@ func TestSettingsEditReloadsConfigOnExit(t *testing.T) {
 	h.machine()
 	h.d.Type("e")
 	v := squash(h.d.plain())
-	for _, w := range []string{"Editor hx (config.toml)", "Downloads /srv/dl (config.toml)", "(--dir)"} {
+	for _, w := range []string{"Editor hx config.toml", "Downloads /srv/dl config.toml", "from --dir"} {
 		if !strings.Contains(v, w) {
 			t.Fatalf("Settings not refreshed, lacks %q:\n%s", w, h.d.plain())
 		}
@@ -220,11 +220,11 @@ func TestSettingsEditKeepsOldValuesAndShowsErrorOnInvalidTOML(t *testing.T) {
 	})
 	h.machine()
 	h.d.Type("e")
-	if v := squash(h.d.plain()); !strings.Contains(v, "Editor nvim (config.toml)") || !strings.Contains(v, "⚠") {
+	if v := squash(h.d.plain()); !strings.Contains(v, "Editor nvim config.toml") || !strings.Contains(v, "⚠") {
 		t.Fatalf("old values and error not shown:\n%s", h.d.plain())
 	}
 	h.d.Type("e") // fixing it clears the error
-	if v := h.d.plain(); strings.Contains(v, "⚠") || !strings.Contains(squash(v), "Editor hx (config.toml)") {
+	if v := h.d.plain(); strings.Contains(v, "⚠") || !strings.Contains(squash(v), "Editor hx config.toml") {
 		t.Fatalf("error not cleared by a good reload:\n%s", v)
 	}
 }

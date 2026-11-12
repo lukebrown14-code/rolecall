@@ -75,7 +75,7 @@ func TestSettingsRenameConfirmRewritesAndReportsMalformed(t *testing.T) {
 
 func TestSettingsRenameAppliesNameRules(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Platform"]}`)
-	for name, want := range map[string]string{"platform": "already exists", "A/B": "/", "": "empty"} {
+	for name, want := range map[string]string{"platform": "already exists", "A/B": "/", "": "required"} {
 		h.tm.Type("r")
 		for range "SWE" {
 			h.tm.Type("backspace")
@@ -84,6 +84,7 @@ func TestSettingsRenameAppliesNameRules(t *testing.T) {
 		h.tm.Type("enter")
 		requireAll(t, h.tm.plain(), want)
 		h.tm.Type("esc")
+		h.tm.Type("y") // discard the typed name
 	}
 	if got := h.metaTrack("SWE/orbit"); got != "SWE" {
 		t.Fatalf("invalid rename wrote: %q", got)
