@@ -214,19 +214,20 @@ func (m model) syncDetail() model {
 // detail view re-renders on every key. Shared by copies of the model.
 type mdCache struct {
 	width int
+	theme theme
 	r     *glamour.TermRenderer
 }
 
-func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
-	if c != nil && c.r != nil && c.width == width {
+func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
+	if c != nil && c.r != nil && c.width == width && c.theme == t {
 		return c.r, nil
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width),
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle(t)), glamour.WithWordWrap(width),
 		// Glamour otherwise moves a table's links to a footnote, which empties the
 		// Contact table's Email cell; the value belongs in its row.
 		glamour.WithInlineTableLinks(true))
 	if err == nil && c != nil {
-		c.width, c.r = width, r
+		c.width, c.theme, c.r = width, t, r
 	}
 	return r, err
 }
@@ -251,7 +252,7 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 // renderMarkdown draws Markdown at a wrap width, falling back to the source when
 // Glamour cannot. The renderer is cached per width, so repeated frames are cheap.
 func (m model) renderMarkdown(text string, width int) string {
-	r, err := m.md.renderer(width)
+	r, err := m.md.renderer(width, m.theme)
 	if err == nil {
 		if rendered, err := r.Render(text); err == nil {
 			return strings.Trim(rendered, "\n")
@@ -390,7 +391,7 @@ func (m model) detailView(p pal) string {
 	if applied == "" {
 		applied = "—"
 	}
-	facts := "  " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes+" · applied "+applied)
+	facts := "  " + p.statusChip(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes+" · applied "+applied)
 	var pane string
 	if a.Malformed != nil {
 		facts = ""
@@ -421,7 +422,7 @@ func (m model) detailTabsRow(p pal, a store.Application) string {
 		tabs[i] = p.text(p.dim).Render(" " + string(t) + " ")
 		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + string(t) + "]")
+			tabs[i] = p.activeTab().Render("[" + string(t) + "]")
 		}
 	}
 	return strings.Join(tabs, " ")
@@ -480,7 +481,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	var b strings.Builder
 	label, c := p.docsLabel(a)
 	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
-	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
+	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "✓○ ")) + "\n")
 	for _, e := range docEntries(a) {
 		status, ready := e.displayStatus(a)
 		if ready {

@@ -314,7 +314,7 @@ func TestBuildReportsPDFsAndRefreshesDocs(t *testing.T) {
 	if a, err := h.store.Rescan(folder); err != nil || a.Documents != "Ready" || len(a.PDFs) != 2 {
 		t.Fatalf("after build: %+v %v", a, err)
 	}
-	if !strings.Contains(view, "● ready") {
+	if !strings.Contains(view, "✓ ready") {
 		t.Fatalf("Docs marker not refreshed:\n%s", view)
 	}
 	want := "python3 /plugin/scripts/build.py " + folder + " --data " + h.root

@@ -37,12 +37,13 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 		if i >= likely {
 			nameC = p.sub
 		}
-		row := "  " + p.text(p.accent).Bold(true).Render(statusLetters[s]) + "  " + p.text(nameC).Render(padRight(s, statusColumn)) + p.text(p.warn).Render(hint)
+		row := "  " + p.key().Render(statusLetters[s]) + "  " + p.statusMark(s) + " " + p.text(nameC).Render(padRight(s, statusColumn)) + p.text(p.warn).Render(hint)
 		if i == mv.sel {
 			sel := lipgloss.NewStyle().Background(p.sel)
 			row = sel.Width(cw).Render(p.text(p.accent).Background(p.sel).Render("▌ ") +
-				p.text(p.accent).Background(p.sel).Bold(true).Render(statusLetters[s]) +
-				p.text(p.fg).Background(p.sel).Bold(true).Render("  "+padRight(s, statusColumn)) +
+				p.key().Background(p.sel).Render(statusLetters[s]) + p.text(p.fg).Background(p.sel).Render("  ") +
+				p.text(p.statusColor(s)).Background(p.sel).Render(p.statusGlyph(s)) +
+				p.text(p.fg).Background(p.sel).Bold(true).Render(" "+padRight(s, statusColumn)) +
 				p.text(p.warn).Background(p.sel).Render(hint))
 		}
 		b.WriteString(row + "\n")
