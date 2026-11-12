@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/lukebrown14-code/rolecall/config"
 )
 
 // Setup describes the local dependencies checked by rolecall doctor.
@@ -13,6 +15,7 @@ type Setup struct {
 	Workspace string
 	Plugin    string
 	Harness   string
+	Editor    string // configured editor; empty falls back to $VISUAL, $EDITOR, vi
 }
 
 // LookupPath resolves a command on PATH. Tests can replace it without invoking
@@ -48,6 +51,7 @@ var templateFonts = []string{
 const (
 	pluginPathLabel   = "Plugin path"
 	harnessCheckLabel = "Harness command"
+	editorCheckLabel  = "Editor"
 )
 
 // CheckSetup inspects configured paths and PATH without launching processes.
@@ -100,6 +104,13 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 		} else {
 			report.Checks = append(report.Checks, CheckResult{Name: harnessCheckLabel, Found: true, Detail: path})
 		}
+	}
+
+	editor := config.CommandName(config.ResolveEditor(setup.Editor))
+	if path, err := lookup(editor); err != nil || path == "" {
+		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Detail: editor, Hint: "Install the Editor or set editor in ~/.config/rolecall/config.toml"})
+	} else {
+		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Found: true, Detail: path})
 	}
 
 	brand := filepath.Join(setup.Workspace, "brand.typ")
