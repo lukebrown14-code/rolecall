@@ -580,6 +580,9 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 			}
 		}
 	case tableLeads, tableDraft:
+		if m.leadsNewest && m.views()[m.table] == tableLeads {
+			break // newest first mixes expired Leads in with the rest
+		}
 		for i, a := range rows {
 			if m.expired(a) {
 				div[i] = divider{"Expired", len(rows) - i}

@@ -131,6 +131,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `x` | row (unsent) | Dismiss. Same as Move → Dismissed |
 | `d` | row | Download |
 | `t` / `T` | global | next / previous track filter: All → each `workspace.json` track |
+| `s` | Leads | sort by close date, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
 | `,` | global | open Settings (screen 6); `Esc` returns |

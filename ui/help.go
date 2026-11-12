@@ -211,6 +211,13 @@ func (m model) contextKeys() []helpKey {
 		return append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
 	}
+	if m.views()[m.table] == tableLeads {
+		sort := "sort newest"
+		if m.leadsNewest {
+			sort = "sort by close date"
+		}
+		keys = append(keys, help(groupAction, "s", sort).at(prioMinor))
+	}
 	keys = append(keys, help(groupAction, "a", "add").at(prioCore), help(groupAction, "/", "search").at(prioCore))
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view"))

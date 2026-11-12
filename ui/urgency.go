@@ -3,10 +3,12 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"sort"
 	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/lukebrown14-code/rolecall/store"
 )
 
 // Dates: relative while recent, a month and year once older than monthYearAfter days.
@@ -15,6 +17,23 @@ const (
 	urgentDays     = 2  // "closes in 2d ▲" turns danger at or below this
 	urgentMark     = "▲"
 )
+
+// sortNewest orders Leads by when they were added, newest first: the first Status
+// entry's date, then folder.
+func sortNewest(rows []store.Application) {
+	added := func(a store.Application) string {
+		if len(a.StatusLog) == 0 {
+			return ""
+		}
+		return a.StatusLog[0].At
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if a, b := added(rows[i]), added(rows[j]); a != b {
+			return a > b
+		}
+		return rows[i].Folder < rows[j].Folder
+	})
+}
 
 // span is a distance in days as the list words it: "4d", "3w", "2mo".
 func span(n int) string {

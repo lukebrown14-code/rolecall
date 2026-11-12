@@ -508,8 +508,8 @@ var asciiGlyphs = strings.NewReplacer(
 	"◐", "=", "★", "$", "⊘", "-",
 	// the wordmark's mark, distinct from every Status stand-in
 	"▞", "#",
-	// the documents' ready meter
-	"▰", "#", "▱", "-",
+	// the documents' ready meter and an urgent close date
+	"▰", "#", "▱", "-", "▲", "^",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
 	// the box rules Glamour draws around a Markdown table
 	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
