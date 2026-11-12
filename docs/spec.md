@@ -511,7 +511,7 @@ opening stays but is best-effort, with no CI.
 
 | # | Item | Decision |
 |---|---|---|
-| 1 | Org move | Public repo is `Archipelago-Software/rolecall`; module path `github.com/Archipelago-Software/rolecall`; tap `Archipelago-Software/homebrew-tap`. Done in the private repo before the cut |
+| 1 | Ownership | v1 stays under `lukebrown14-code`: public repo `lukebrown14-code/rolecall`; module path `github.com/lukebrown14-code/rolecall`; tap `lukebrown14-code/homebrew-tap`. The cut renames the private repo to `rolecall-archive` and creates the fresh public `rolecall`; no organization transfer. Moving to an organization is deferred past v1 |
 | 2 | Licence · CONTRIBUTING | MIT, "the rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
 | 3 | README | Rewrite for the public release, including "Make your documents yours" (the Privacy section is #77) |
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
