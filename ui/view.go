@@ -37,7 +37,7 @@ const (
 	minBody        = 4
 	shedRolecall   = 1 // topBar detail levels: drop the word "rolecall"…
 	shedCounts     = 2 // …then other screens' counts…
-	shedNames      = 3 // …then their names
+	shedNames      = 3 // …then abbreviate screen names and drop the active count
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -288,7 +288,7 @@ func (m model) screenCountLabel(si int) string {
 }
 
 // topBar: app mark and screens on the left, the track filter on the right. On narrow
-// terminals it sheds detail in steps: the "rolecall" word, other screens' counts, their names.
+// terminals it sheds the app word and counts before abbreviating screen names.
 func (m model) topBar(p pal) string {
 	w := m.viewWidth()
 	on := lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true)
@@ -300,19 +300,19 @@ func (m model) topBar(p pal) string {
 		for si, d := range screenDefs {
 			s := d.name
 			n := m.screenCountLabel(si)
+			if level >= shedNames {
+				s = []string{"Lead", "Draft", "Appl", "Stat", "Prof", "Set"}[si]
+			}
 			if si == m.screen {
-				// Only a screen with rows carries a count: Stats and Profile report.
-				if !d.hasTables {
-					out += "  " + on.Render(fmt.Sprintf(" %d %s ", si+1, s))
+				if !d.hasTables || level >= shedNames {
+					out += " " + on.Render(fmt.Sprintf("%d %s", si+1, s))
 				} else {
 					out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
 				}
 				continue
 			}
-			out += "  " + p.text(p.accent).Render(fmt.Sprintf(" %d", si+1))
-			if level < shedNames {
-				out += " " + p.text(p.fg).Render(s)
-			}
+			out += " " + p.text(p.accent).Render(fmt.Sprintf("%d", si+1))
+			out += " " + p.text(p.fg).Render(s)
 			if level < shedCounts && d.hasTables {
 				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
 			}
@@ -328,7 +328,11 @@ func (m model) topBar(p pal) string {
 	if len(m.tracks) == 0 {
 		return out
 	}
-	track := m.trackSelector(p, w-xansi.StringWidth(out)-rightMargin-gutter)
+	available := max(0, w-xansi.StringWidth(out)-rightMargin-gutter)
+	track := xansi.Truncate(m.trackSelector(p, available), available, "…")
+	if track == "" {
+		return xansi.Truncate(out, w, "")
+	}
 	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
@@ -408,6 +412,9 @@ func (m model) viewRow(p pal) string {
 		}
 	}
 	if scope := m.scopeLine(p); scope != "" {
+		if xansi.StringWidth(row)+gutter+xansi.StringWidth(scope)+rightMargin > w {
+			row = "   " + p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(ts[m.table]) + p.text(p.accent).Render("]")
+		}
 		// Keep the frame one line wide: the scope truncates to what the row leaves.
 		avail := max(0, w-rightMargin-xansi.StringWidth(row)-gutter)
 		row = spread(row, xansi.Truncate(scope, avail, "…"), w-rightMargin)
@@ -425,7 +432,7 @@ func (m model) scopeLine(p pal) string {
 	if view := m.views()[m.table]; view != label {
 		label += " › " + view
 	}
-	parts := []string{label}
+	parts := []string{}
 	if m.track > 0 {
 		parts = append(parts, "track "+m.tracks[m.track-1])
 	}
@@ -433,6 +440,7 @@ func (m model) scopeLine(p pal) string {
 		parts = append(parts, "search "+m.text)
 	}
 	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
+	parts = append(parts, label)
 	return p.text(p.dim).Render(strings.Join(parts, " · "))
 }
 
