@@ -20,8 +20,10 @@ Ask which route the Owner wants if they have not said. They can switch routes at
 
 ### From a resume or LinkedIn export
 
-The Owner copies a PDF, DOCX or LinkedIn export into the Workspace's `cv/` folder. Read each
-provided file and draft the Profile from evidence in it. Extract every Experience, including the
+When invoked with `--resume <path>`, read that source file and copy it into the Workspace's
+`cv/` folder without changing the original. Otherwise, ask the Owner to copy a PDF, DOCX or
+LinkedIn export into `cv/` and provide its path. Read each provided file and draft the Profile
+from evidence in it. Extract every Experience, including the
 employer, dates, approved titles, work and results, then draft the other facts it supports, such
 as skills, education and projects. Preserve the Owner's meaning; do not turn responsibilities
 into results or fill gaps by guessing.

@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/process"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/lukebrown14-code/rolecall/config"
 )
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
@@ -23,14 +24,7 @@ type CapturedResult = process.CapturedResult
 type CapturedRunner = process.CapturedRunner
 
 // ResolveEditor follows the Owner's configured editor preference.
-func ResolveEditor(configured string) string {
-	for _, s := range []string{configured, os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
-		if s != "" {
-			return s
-		}
-	}
-	return "vi"
-}
+func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
 
 type externalFinished struct {
 	folder string
@@ -84,6 +78,16 @@ func (m model) runCaptured(command string, args []string, done func(CapturedResu
 // and the exit status kept.
 func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
 	return process.RunCaptured(c, done)
+}
+
+// LaunchHarness runs a configured Plugin skill from the CLI. Keep process
+// creation here so all external commands use the same audited boundary.
+func LaunchHarness(template, workspace, skill, resume string) error {
+	if resume != "" {
+		skill += " --resume " + QuoteShellArgument(resume)
+	}
+	command := harnessCommand(template, skill, handoffDir(workspace))
+	return process.Command("/bin/sh", "-c", command).Run()
 }
 
 // editFile opens a file of the Application folder in the Owner's editor. The editor

@@ -66,3 +66,62 @@ func TestCheckSetupEmptyHarnessIsWarning(t *testing.T) {
 		t.Fatalf("warnings = %v, want harness hint", report.Warnings)
 	}
 }
+
+func editorWarnings(t *testing.T, editor string, found map[string]bool) []string {
+	t.Helper()
+	lookup := func(name string) (string, error) {
+		if found[name] {
+			return "/stub/" + name, nil
+		}
+		return "", errors.New("not found")
+	}
+	all := map[string]bool{"typst": true, "pandoc": true, "python3": true, "claude": true}
+	for k, v := range found {
+		all[k] = v
+	}
+	plugin := t.TempDir()
+	report := CheckSetup(Setup{Workspace: t.TempDir(), Plugin: plugin, Harness: "claude", Editor: editor}, func(n string) (string, error) {
+		if all[n] {
+			return "/stub/" + n, nil
+		}
+		return lookup(n)
+	})
+	var out []string
+	for _, w := range report.Warnings {
+		if strings.Contains(w, "Editor") {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+func TestCheckSetupMissingEditorIsWarning(t *testing.T) {
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "")
+	got := editorWarnings(t, `"/opt/my tools/nvim" -u NONE`, nil)
+	if len(got) != 1 || !strings.Contains(got[0], "/opt/my tools/nvim") {
+		t.Fatalf("Editor warnings = %v, want one naming the quoted path", got)
+	}
+}
+
+func TestCheckSetupFoundUnsetAndEnvEditorsAreClean(t *testing.T) {
+	t.Setenv("VISUAL", "")
+	t.Setenv("EDITOR", "")
+	if got := editorWarnings(t, "code --wait", map[string]bool{"code": true}); len(got) != 0 {
+		t.Errorf("found: %v", got)
+	}
+	if got := editorWarnings(t, "", map[string]bool{"vi": true}); len(got) != 0 {
+		t.Errorf("unset: %v", got)
+	}
+	t.Setenv("EDITOR", "hx")
+	if got := editorWarnings(t, "", map[string]bool{"hx": true}); len(got) != 0 {
+		t.Errorf("env: %v", got)
+	}
+	t.Setenv("VISUAL", "zed --wait")
+	if got := editorWarnings(t, "", map[string]bool{"zed": true}); len(got) != 0 {
+		t.Errorf("VISUAL: %v", got)
+	}
+	if got := editorWarnings(t, "", map[string]bool{"hx": true}); len(got) != 1 {
+		t.Errorf("VISUAL takes precedence over EDITOR, want warning: %v", got)
+	}
+}

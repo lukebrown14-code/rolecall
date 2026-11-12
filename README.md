@@ -36,7 +36,16 @@ downloads = "~/Downloads"
 
 Then run `go run ./cmd/rolecall`. `--dir` overrides the configured Workspace.
 
-To install a standalone command:
+To install with Homebrew (macOS and Linux):
+
+```sh
+brew install lukebrown14-code/tap/rolecall
+```
+
+The formula installs the rolecall Plugin with the command. rolecall finds the
+bundled Plugin automatically when neither `plugin` nor `ROLECALL_PLUGIN` is set.
+
+To build and install a standalone command:
 
 ```sh
 mkdir -p ~/.local/bin

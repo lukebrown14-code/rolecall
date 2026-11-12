@@ -7,5 +7,7 @@
   "+61 400 000 000",
   "linkedin.com/in/alexquinn",
   "(415) 555-0132",
-  "212-555-0198"
+  "212-555-0198",
+  "alex\u0040example.test",
+  "linkedin.com/in/alex"
 ]
