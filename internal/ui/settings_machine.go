@@ -24,9 +24,6 @@ const (
 	keyBackspace    = "backspace"
 )
 
-// groupMachine is the Settings group that holds the config.toml rows.
-const groupMachine = 3
-
 // Follow-up days bounds, as the issue states them.
 const (
 	minFollowUpDays = 1
@@ -47,14 +44,14 @@ var machineSettings = machineSettingsList()
 
 func machineSettingsList() []machineSetting {
 	rows := []machineSetting{
-		{group: groupTracking, key: keyFollowUpDays, label: labelFollowUp},
+		{group: settings.GroupTracking, key: keyFollowUpDays, label: labelFollowUp},
 	}
 	for i, s := range []machineSetting{
-		{group: groupMachine, key: keyEditor, label: labelEditor},
-		{group: groupMachine, key: "downloads", label: labelDownloads},
-		{group: groupMachine, key: "harness", label: labelHarness},
-		{group: groupMachine, key: "plugin", label: labelPlugin},
-		{group: groupMachine, key: "ascii", label: labelASCII, toggle: true},
+		{group: settings.GroupMachine, key: keyEditor, label: labelEditor},
+		{group: settings.GroupMachine, key: "downloads", label: labelDownloads},
+		{group: settings.GroupMachine, key: "harness", label: labelHarness},
+		{group: settings.GroupMachine, key: "plugin", label: labelPlugin},
+		{group: settings.GroupMachine, key: "ascii", label: labelASCII, toggle: true},
 	} {
 		s.row = i + 1
 		rows = append(rows, s)
@@ -65,7 +62,7 @@ func machineSettingsList() []machineSetting {
 // machineSettingAt is the editable setting on a row. Follow-up days is the last Tracking
 // row, so it moves down as Tracks are added.
 func (m model) machineSettingAt(group, row int) (machineSetting, bool) {
-	if group == groupTracking && row == len(m.trackingRows())-1 {
+	if group == settings.GroupTracking && row == len(m.trackingRows())-1 {
 		return machineSettings[0], true
 	}
 	for _, s := range machineSettings[1:] {

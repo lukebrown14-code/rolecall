@@ -9,12 +9,9 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
-// groupDocuments is the Settings group that holds the document gates.
-const groupDocuments = 1
-
 // gateHelpKeys are the Documents keys, shown while those rows have focus.
 func (m model) gateHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != groupDocuments {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != settings.GroupDocuments {
 		return nil
 	}
 	return []helpKey{help(groupAction, "enter", "edit").at(prioCore)}
@@ -24,7 +21,7 @@ func (m model) gateHelpKeys() []helpKey {
 // for any other key or group.
 func (m model) gatesKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
-	if !m.settingsRowsFocused() || st.Group != groupDocuments || k.String() != "enter" || st.Row >= len(gates) {
+	if !m.settingsRowsFocused() || st.Group != settings.GroupDocuments || k.String() != "enter" || st.Row >= len(gates) {
 		return m, false
 	}
 	m.overlay = m.gatePopup(gates[st.Row])

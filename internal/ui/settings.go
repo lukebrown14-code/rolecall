@@ -99,20 +99,38 @@ func (m model) settingsGroupFile() string {
 		return settingsFile
 	case settingsGroups[m.settings.Group] == groupMachineName:
 		return configFile
-	case m.settings.Group == groupTracking:
+	case m.settings.Group == settings.GroupTracking:
 		return settingsFile + " · " + configFile
 	}
 	return settingsFile
+}
+
+// settingsGroupHandler is one Settings group's keys: how the help describes them and how
+// the screen dispatches them. The screen reads one table, so a group cannot be dispatched
+// without also being described, and the group order is data rather than a chain of calls.
+type settingsGroupHandler struct {
+	group int
+	help  func(model) []helpKey
+	// key handles the group's row keys; nil when the group has none of its own (This
+	// machine's rows activate through Enter, like every other row).
+	key func(model, tea.KeyPressMsg) (model, bool)
+}
+
+// settingsHandlers is every group's handler, in display order.
+var settingsHandlers = []settingsGroupHandler{
+	{group: settings.GroupSearch, help: model.searchHelpKeys, key: model.searchKey},
+	{group: settings.GroupDocuments, help: model.gateHelpKeys, key: model.gatesKey},
+	{group: settings.GroupTracking, help: model.trackHelpKeys, key: model.tracksKey},
+	{group: settings.GroupMachine, help: model.machineHelpKeys},
 }
 
 // settingsHelpKeys is the keys Settings accepts. Application actions are absent, and so
 // are the global keys.
 func (m model) settingsHelpKeys() []helpKey {
 	keys := []helpKey{}
-	keys = append(keys, m.trackHelpKeys()...)
-	keys = append(keys, m.gateHelpKeys()...)
-	keys = append(keys, m.searchHelpKeys()...)
-	keys = append(keys, m.machineHelpKeys()...)
+	for _, h := range settingsHandlers {
+		keys = append(keys, h.help(m)...)
+	}
 	if m.settings != nil && m.settings.Undo != nil {
 		keys = append(keys, help(groupAction, "u", "undo").at(prioMinor))
 	}
@@ -414,7 +432,7 @@ func (m model) settingsMachine() settings.Machine {
 func (m model) settingsRows(group int) []settingRow {
 	return m.settings.Rows(group, m.settingsMachine())
 }
-func (m model) trackingRows() []settingRow { return m.settingsRows(groupTracking) }
+func (m model) trackingRows() []settingRow { return m.settingsRows(settings.GroupTracking) }
 func (m model) selectableRow(group, row, dir int) int {
 	return settings.SelectableRow(m.settingsRows(group), row, dir)
 }

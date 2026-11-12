@@ -9,10 +9,6 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
-// groupSearch is the Settings group that holds the Search area; its first two rows
-// (Places, Remote roles) open the Search area form.
-const groupSearch = 0
-
 const (
 	fieldPlaces = "Places"
 	fieldRemote = "Remote roles"
@@ -20,7 +16,7 @@ const (
 
 // searchHelpKeys is the Search area key, shown while the Search rows have focus.
 func (m model) searchHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != groupSearch || m.settings.Row > 1 {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != settings.GroupSearch || m.settings.Row > 1 {
 		return nil
 	}
 	return []helpKey{help(groupAction, "enter", "edit Search area").at(prioCore)}
@@ -29,7 +25,7 @@ func (m model) searchHelpKeys() []helpKey {
 // searchKey opens the Search area form on enter over Places or Remote roles.
 func (m model) searchKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
-	if k.String() != "enter" || !m.settingsRowsFocused() || st.Group != groupSearch || st.Row > 1 {
+	if k.String() != "enter" || !m.settingsRowsFocused() || st.Group != settings.GroupSearch || st.Row > 1 {
 		return m, false
 	}
 	m.overlay = m.searchAreaPopup()
