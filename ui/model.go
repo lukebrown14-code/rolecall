@@ -38,6 +38,7 @@ type model struct {
 	err                   error
 	width                 int
 	followUpDays          int
+	statsTop              int    // the first Stats line shown when the report is taller than the body
 	configHome            string // where config.toml lives; empty means machine settings cannot be saved
 	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
 	theme                 theme  // dark or light roles; see DetectTheme

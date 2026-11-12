@@ -283,6 +283,9 @@ func (m model) statsApps() []store.Application {
 // global keys.
 func (m model) statsHelpKeys() []helpKey {
 	keys := []helpKey{help(groupAction, "a", "add").at(prioCore)}
+	if m.statsMaxTop() > 0 {
+		keys = append(keys, help(groupNav, "↑↓", "scroll"), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
+	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
 	}
@@ -296,6 +299,15 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.openAdd()
 	case "t", "T":
 		m.cycleTrack(k.String() == "T")
+		m.statsTop = 0
+	case "j", "down":
+		m.statsTop = min(m.statsTop+1, m.statsMaxTop())
+	case "k", "up":
+		m.statsTop = max(0, min(m.statsTop, m.statsMaxTop())-1)
+	case "g":
+		m.statsTop = 0
+	case "G":
+		m.statsTop = m.statsMaxTop()
 	case "r":
 		m.rescanAll()
 	case "?":
@@ -308,8 +320,16 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// statsView is the Stats screen: no tables, no cursor, no preview pane.
+// statsView is the Stats screen: no tables, no cursor, no preview pane. A report taller
+// than the body scrolls with ↑↓, with the overflow cue where lines are hidden.
 func (m model) statsView(p pal) string {
+	l := m.layout()
+	lines := p.clipLines(m.statsLines(p), min(m.statsTop, m.statsMaxTop()), l.bodyHeight(1), strings.Repeat(" ", inset))
+	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, l.w, m.keyLine(p, l.w)))
+}
+
+// statsLines is the report as the body draws it, one entry per line.
+func (m model) statsLines(p pal) []string {
 	l := m.layout()
 	report := Stats(m.statsApps(), m.now(), m.followUpDays)
 	pad := strings.Repeat(" ", inset)
@@ -319,8 +339,12 @@ func (m model) statsView(p pal) string {
 			lines[i] = pad + line
 		}
 	}
-	lines = p.clipLines(lines, 0, l.bodyHeight(1), pad)
-	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, l.w, m.keyLine(p, l.w)))
+	return lines
+}
+
+// statsMaxTop is the furthest Stats scrolls: the last line at the bottom of the body.
+func (m model) statsMaxTop() int {
+	return max(0, len(m.statsLines(m.pal()))-m.layout().bodyHeight(1))
 }
 
 // statsBody renders the report top to bottom. The per-track table is hidden when

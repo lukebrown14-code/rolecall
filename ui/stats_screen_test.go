@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -62,5 +63,30 @@ func TestStatsLiveRefresh(t *testing.T) {
 	h.wait("Fresh")
 	if v := h.finalView(); !strings.Contains(v, "Rejected 3") || !strings.Contains(v, "Fresh") {
 		t.Fatalf("Stats did not re-render after live refresh:\n%s", v)
+	}
+}
+
+// A report taller than the body scrolls with j k, ↑↓ and the wheel, with the overflow
+// cue saying what is hidden, and the key line offers it.
+func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 80, 24)
+	m = driveModel(t, m, "4")
+	top := ansi.Strip(m.View().Content)
+	up, down := regexp.MustCompile(`↑ \d+ more`), regexp.MustCompile(`↓ \d+ more`)
+	if !down.MatchString(top) || up.MatchString(top) || !strings.Contains(top, "scroll") {
+		t.Fatalf("tall Stats lacks the overflow cue or the scroll key:\n%s", top)
+	}
+	m = driveModel(t, m, "G")
+	if view := ansi.Strip(m.View().Content); !up.MatchString(view) || down.MatchString(view) {
+		t.Fatalf("G did not scroll to the bottom:\n%s", view)
+	}
+	m = driveModel(t, m, "g")
+	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelDown})
+	if view := ansi.Strip(m.View().Content); !up.MatchString(view) {
+		t.Fatalf("the wheel did not scroll Stats:\n%s", view)
+	}
+	m = driveModel(t, m, "k")
+	if view := ansi.Strip(m.View().Content); view != top {
+		t.Fatalf("k did not scroll back to the top:\n%s", view)
 	}
 }

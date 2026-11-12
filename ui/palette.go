@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// paletteChrome is the frame and pop-up lines around the palette's list.
-const paletteChrome = 10
+// paletteChrome is the pop-up's borders and padding around its list.
+const paletteChrome = 4
 
 // paletteMode is the command palette (`:` or ctrl+k): every action the keymap registry
 // offers where it was opened, filtered as the Owner types. Enter runs the action by
@@ -118,12 +118,12 @@ func (pm *paletteMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 // View is the query in the title and the matching actions, the selected one marked.
 func (pm *paletteMode) View(m *model, p pal) string {
 	found := pm.matches()
-	limit := max(1, m.viewHeight()-paletteChrome)
+	limit := max(1, m.layout().bodyHeight(m.contextLines())-paletteChrome)
 	start := max(0, min(pm.sel-limit+1, len(found)-limit))
 	var lines []string
 	for i := start; i < min(len(found), start+limit); i++ {
 		kv := found[i].pair()
-		mark, keyC, descC := "  ", p.accent, p.fg
+		mark, keyC, descC := "  ", p.fg, p.fg
 		if i == pm.sel {
 			mark = p.text(p.accent).Render("▌ ")
 		} else {
