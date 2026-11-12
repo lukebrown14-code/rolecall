@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/store"
@@ -18,10 +20,10 @@ var gateKeys = []string{store.GateLetterCap, store.GateLetterMin, store.GateSkil
 func (m model) gateRows() []settingRow {
 	ws := m.settings.ws
 	return []settingRow{
-		{"Cover letter word cap", strconv.Itoa(ws.LetterWordCap)},
-		{"Cover letter minimum", strconv.Itoa(ws.LetterWordMin)},
-		{"Key Skills minimum", strconv.Itoa(ws.KeySkillsMin)},
-		{"Key Skills maximum", strconv.Itoa(ws.KeySkillsMax)},
+		{label: "Cover letter word cap", value: strconv.Itoa(ws.LetterWordCap)},
+		{label: "Cover letter minimum", value: strconv.Itoa(ws.LetterWordMin)},
+		{label: "Key Skills minimum", value: strconv.Itoa(ws.KeySkillsMin)},
+		{label: "Key Skills maximum", value: strconv.Itoa(ws.KeySkillsMax)},
 	}
 }
 
@@ -84,6 +86,9 @@ func (gm *gateEditMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 				return gm, nil
 			}
 			*m = m.loadSettings()
+			// SetGate stores a canonical integer, so name that rather than the typed text.
+			n, _ := strconv.Atoi(strings.TrimSpace(gm.value))
+			m.toast = fmt.Sprintf("Saved %s: %d", gm.label, n)
 			return nil, nil
 		default:
 			gm.value += msg.Text
