@@ -52,28 +52,24 @@ func TestSettingsFooterWhileEditingAMachineSetting(t *testing.T) {
 	}
 }
 
-func TestSettingsPopupsFitAndSitRightOfTheDivider(t *testing.T) {
+// Settings pop-ups size to their own hints, so no key is cut, and sit centred on the
+// full width like every other pop-up.
+func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 	for _, tc := range settingsPopups {
-		for _, size := range [][2]int{{80, 24}, {60, 16}} {
+		for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 			w := size[0]
 			lines := settingsAt(t, w, size[1], tc.keys...)
-			in, seen := false, false
+			seen := false
 			for _, l := range lines {
 				if i := strings.Index(l, "╭"); i >= 0 {
-					in, seen = true, true
-					j := strings.Index(l, "╮")
-					if got, want := ansi.StringWidth(l[i:j+len("╮")]), min(52, w-4); got != want {
-						t.Errorf("%s at %d: box is %d wide, want %d", tc.name, w, got, want)
-					}
-					if w >= 80 && ansi.StringWidth(l[:i]) <= 21 {
-						t.Errorf("%s at %d: box starts at %d, over the Groups column:\n%s", tc.name, w, ansi.StringWidth(l[:i]), strings.Join(lines, "\n"))
+					seen = true
+					boxW := ansi.StringWidth(l[i : strings.Index(l, "╮")+len("╮")])
+					if left := ansi.StringWidth(l[:i]); left != (w-boxW)/2 {
+						t.Errorf("%s at %d: box starts at %d, want centred at %d", tc.name, w, left, (w-boxW)/2)
 					}
 				}
-				if in && w >= 80 && ansi.Cut(l, 20, 21) != "│" {
-					t.Errorf("%s at %d: divider cut on %q", tc.name, w, l)
-				}
-				if strings.Contains(l, "╰") {
-					in = false
+				if strings.Contains(l, "╰") && (!strings.Contains(l, tc.want) || !strings.Contains(l, "esc cancel ")) {
+					t.Errorf("%s at %d: bottom border cuts its hints: %q", tc.name, w, l)
 				}
 			}
 			if !seen {

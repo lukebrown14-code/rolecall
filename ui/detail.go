@@ -396,22 +396,24 @@ func (m model) detailView(p pal) string {
 		if m.futureDate(a.AppliedDate) {
 			when = p.text(p.warn).Render("applied " + futureFlag)
 		} else {
-			when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
+			// The exact applied date shows once: here beside the card, on the strip's
+			// timeline track without it.
+			exact := ""
+			if m.cardShown() {
+				exact = entryDate(a.AppliedDate) + " · "
+			}
+			when = p.text(p.dim).Render("applied " + exact + m.agoEntry(a.AppliedDate))
 		}
 	}
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
-	// Beside the card, the facts line: Status · Track, and the exact close date before
-	// Applied. The applied date is on the title row and in the card's timeline, so it is
-	// not repeated here. Without the card, the strip stands in for both.
-	facts := pad + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track)
-	if beforeApplied(tableOf(a)) {
-		closes := a.Closes
-		if closes == "" {
-			closes = "—"
-		}
-		facts += p.text(p.dim).Render(" · closes " + closes)
+	// Beside the card, the facts line: Status · Track · close date. Without the card, the
+	// strip stands in for it.
+	closes := a.Closes
+	if closes == "" {
+		closes = "—"
 	}
+	facts := pad + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes)
 	ctx := []string{title, facts}
 	if !m.cardShown() {
 		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)

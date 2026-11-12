@@ -53,12 +53,22 @@ func TestPopupKeyLineShowsContextNotKeys(t *testing.T) {
 	}
 }
 
-// The header's track hint reads "t track", not a bare "t".
-func TestTrackHintReadsTrack(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1"))
-	top, _, _ := strings.Cut(view, "\n")
-	if !strings.Contains(top, "t track") {
-		t.Fatalf("header track hint is not labelled: %q", top)
+// The track filter sits on the context row, labelled once by its key: "t  [All]  SWE
+// Platform", or "t [All]▸" where the row is narrow. The tab bar carries no filter.
+func TestTrackFilterReadsItsKeyOnce(t *testing.T) {
+	for _, size := range [][3]int{{120, 36, 0}, {80, 24, 0}, {60, 16, 1}} {
+		lines := strings.Split(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), size[0], size[1], "3")), "\n")
+		ctx := lines[2-size[2]] // the short class drops the gap under the tab bar
+		want := "t  [All]  SWE  Platform"
+		if size[0] < 120 {
+			want = "t [All]▸"
+		}
+		if !strings.HasSuffix(strings.TrimRight(ctx, " "), want) || strings.Count(ctx, " t ") != 1 {
+			t.Errorf("%dx%d: context row %q, want it to end %q", size[0], size[1], ctx, want)
+		}
+		if strings.Contains(lines[0], "All") || strings.Contains(lines[0], "track") {
+			t.Errorf("%dx%d: tab bar carries the filter: %q", size[0], size[1], lines[0])
+		}
 	}
 }
 

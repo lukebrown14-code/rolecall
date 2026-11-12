@@ -175,18 +175,17 @@ func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 	}
 }
 
-// activeTrack is the underlined option of the track filter on the top line. Lip Gloss
-// underlines character by character, so the underlined runs are collected and joined.
+// activeTrack is the bracketed option of the track filter, which follows its "t" key at
+// the end of the context row.
 func activeTrack(view string) string {
-	top, _, _ := strings.Cut(view, "\n")
-	var b strings.Builder
-	for _, m := range regexp.MustCompile(`\x1b\[([0-9;]*)m([^\x1b]*)`).FindAllStringSubmatch(top, -1) {
-		for _, p := range strings.Split(m[1], ";") {
-			if p == "4" {
-				b.WriteString(m[2])
-				break
-			}
+	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+		i := strings.LastIndex(line, " t ")
+		if i < 0 {
+			continue
+		}
+		if m := regexp.MustCompile(`\[([^\]]+)\]`).FindStringSubmatch(line[i:]); m != nil {
+			return m[1]
 		}
 	}
-	return strings.TrimSpace(b.String())
+	return ""
 }

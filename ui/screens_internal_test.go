@@ -1,6 +1,11 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	xansi "github.com/charmbracelet/x/ansi"
+)
 
 // TestScreenDefsAreTheWholeDeclaration pins the one place a screen declares itself:
 // its name, the views in it, and whether it holds Application tables. A screen without
@@ -30,8 +35,9 @@ func TestScreenWithoutTablesHasNoRowsOrViewRow(t *testing.T) {
 		if rows := m.rows(); rows != nil {
 			t.Errorf("%s: %d rows, want none", d.name, len(rows))
 		}
-		if row := m.viewRow(basePal); row != "" {
-			t.Errorf("%s: view row %q, want empty", d.name, row)
+		// The context row names the screen and lists no views.
+		if row := strings.TrimSpace(xansi.Strip(m.viewRow(basePal))); row != strings.ToUpper(d.name) {
+			t.Errorf("%s: view row %q, want the screen's name alone", d.name, row)
 		}
 	}
 }

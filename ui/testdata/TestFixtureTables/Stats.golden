@@ -1,38 +1,38 @@
- ◆ rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats 5 Profile  6 Settings     track  [All]  SWE  Platform  t track
+ ◆ rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live · 1 due
 
-
+   STATS                                                                                        t  [All]  SWE  Platform
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-Funnel
-Lead          2
-Draft         2  0% drop
-Applied       7  0% drop
-Interviewing  2  71% drop
-Offer         2  0% drop
-Dismissed 2 · Rejected 2 · Withdrawn 2
+   Funnel
+   Lead          2
+   Draft         2  0% drop
+   Applied       7  0% drop
+   Interviewing  2  71% drop
+   Offer         2  0% drop
+   Dismissed 2 · Rejected 2 · Withdrawn 2
 
-Response rate
-2 of 6  ·  33%
-Applied within 14 days left out
+   Response rate
+   2 of 6  ·  33%
+   Applied within 14 days left out
 
-Applied per week
-Mon 13 Jul   ·            0
-Mon 20 Jul   ·            0
-Mon 27 Jul   ·            0
-Mon 3 Aug    ·            0
-Mon 10 Aug   ·            0
-Mon 17 Aug   ·            0
-Mon 24 Aug   ·            0
-Mon 31 Aug   ·            0
-Mon 7 Sep    ·            0
-Mon 14 Sep   ·            0
-Mon 21 Sep   ████████████ 1
-Mon 28 Sep   ·            0  this week
+   Applied per week
+   Mon 13 Jul   ·            0
+   Mon 20 Jul   ·            0
+   Mon 27 Jul   ·            0
+   Mon 3 Aug    ·            0
+   Mon 10 Aug   ·            0
+   Mon 17 Aug   ·            0
+   Mon 24 Aug   ·            0
+   Mon 31 Aug   ·            0
+   Mon 7 Sep    ·            0
+   Mon 14 Sep   ·            0
+   Mon 21 Sep   ████████████ 1
+   Mon 28 Sep   ·            0  this week
 
-By track
-Track         Applied  Responses   Rate
-SWE                 0          0      —
-Platform            0          0      —
-Unknown             6          2    33%
+   By track
+   Track         Applied  Responses   Rate
+   SWE                 0          0      —
+   Platform            0          0      —
+   Unknown             6          2    33%
 
 
 

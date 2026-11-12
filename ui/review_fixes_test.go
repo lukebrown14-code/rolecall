@@ -159,7 +159,7 @@ func TestScopeLineNamesEveryFilter(t *testing.T) {
 		}
 	}
 	track := ansi.Strip(runKeys(t, root, 120, "1", "t"))
-	if !strings.Contains(track, "track SWE") || !strings.Contains(track, "3 of 4") {
+	if !strings.Contains(track, "t  All  [SWE]  Platform") || !strings.Contains(track, "3 of 4") {
 		t.Fatalf("track scope missing:\n%s", track)
 	}
 }

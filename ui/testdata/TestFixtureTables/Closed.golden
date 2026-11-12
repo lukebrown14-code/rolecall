@@ -1,40 +1,40 @@
- ◆ rolecall  1 Leads 4  2 Draft 2    3 Applied 9  4 Stats  5 Profile  6 Settings         [All]  SWE  Platform  t track
+ ◆ rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live · 1 due
 
-   All 9    Applied 1    Interviewing 2    Offer 2    [Closed 4]
-──────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────
- ▌ Engineer #1                              ✕ rejected      Good  │ Engineer #1                                         
- ▌ Example · Unknown · closed ~9mo ago                            │ Example · Unknown                                   
-                                                                  │                                                     
-   Engineer #1                             ↩ withdrawn      Good  │ ● Rejected   fit Good                               
-   Example · Unknown · closed ~9mo ago                            │ ✓ jd  ○ resume  ○ cover  ○ pdf   not written        
-                                                                  │                                                     
-   docs-ready                               ✕ rejected         —  │ TIMELINE                                            
-   Fictional Labs · SWE · closed ~7d ago                          │ ○ Applied       ~2025-01-01  21mo ago               
-                                                                  │ ● Rejected      ~2026-01-01  9mo ago                
-   docs-resume-only                        ↩ withdrawn         —  │                                                     
-   Fictional Labs · SWE · closed ~7d ago                          │ FIT                                                 
-                                                                  │ No fit.md yet                                       
-                                                                  │                                                     
-                                                                  │ NOTES                                               
-                                                                  │ No notes · n to add                                 
-                                                                  │                                                     
-                                                                  │ ? all keys                                          
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-                                                                  │                                                     
-──────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────
+   All 9    Applied 1    Interviewing 2    Offer 2    [Closed 4]                                t  [All]  SWE  Platform
+─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
+ ▌ Engineer #1                             ✕ rejected      Good  │ Engineer #1                                          
+ ▌ Example · Unknown · closed ~9mo ago                           │ Example · Unknown                                    
+                                                                 │                                                      
+   Engineer #1                            ↩ withdrawn      Good  │ ● Rejected   fit Good                                
+   Example · Unknown · closed ~9mo ago                           │ ✓ jd  ○ resume  ○ cover  ○ pdf   not written         
+                                                                 │                                                      
+   docs-ready                              ✕ rejected         —  │ TIMELINE                                             
+   Fictional Labs · SWE · closed ~7d ago                         │ ○ Applied       ~2025-01-01  21mo ago                
+                                                                 │ ● Rejected      ~2026-01-01  9mo ago                 
+   docs-resume-only                       ↩ withdrawn         —  │                                                      
+   Fictional Labs · SWE · closed ~7d ago                         │ FIT                                                  
+                                                                 │ No fit.md yet                                        
+                                                                 │                                                      
+                                                                 │ NOTES                                                
+                                                                 │ No notes · n to add                                  
+                                                                 │                                                      
+                                                                 │ ? all keys                                           
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
  enter open · e edit · m move · n notes · a add · / search                           1-6 screen · tab view · ? all keys

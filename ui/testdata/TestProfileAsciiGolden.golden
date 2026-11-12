@@ -1,36 +1,36 @@
- * rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile 6 Settings     track  [All]  SWE  Platform  t track
+ * rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live . 1 due
 
-  SECTIONS                                                                                   profile/master-profile.md
-------------------------------------------------------------------------------------------------------------------------
-> Contact            v  |                                                                                               
-  Headlines (approv~ 2  |   Field                       | Value                                                         
-  Experience         2  |  -----------------------------+---------------------------------------------------------------
-  Key Skills keywor~ 8  |   Name                        | Alex Quinn                                                    
-  Summary               |   Email                       | alex.quinn@example.test                                       
-  Facts that are NO~ 2  |   Phone                       | +61 400 000 000                                               
-----------------------  |   Location                    | Brisbane, QLD                                                 
-  projects.md           |   LinkedIn                    |  linkedin.com/in/alexquinn                                    
-                        |   GitHub                      | github.com/alexquinn                                          
-                        |   Work rights                 | Full working rights in Australia (the subclass never appears) 
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-                        |                                                                                               
-------------------------------------------------------------------------------------------------------------------------
+   SECTIONS                                                                                   profile/master-profile.md
+-------------------------------+----------------------------------------------------------------------------------------
+ > Contact                  v  |                                                                                        
+   Headlines (approved per~ 2  |   Field               | Value                                                          
+   Experience               2  |  ---------------------+--------------------------------------------------------------- 
+   Key Skills keyword pool  8  |   Name                | Alex Quinn                                                     
+   Summary                     |   Email               | alex.quinn@example.test                                        
+   Facts that are NOT avai~ 2  |   Phone               | +61 400 000 000                                                
+   --------------------------  |   Location            | Brisbane, QLD                                                  
+   projects.md                 |   LinkedIn            |  linkedin.com/in/alexquinn                                     
+                               |   GitHub              | github.com/alexquinn                                           
+                               |   Work rights         | Full working rights in Australia (the subclass never appears)  
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+                               |                                                                                        
+-------------------------------+----------------------------------------------------------------------------------------
  j k section . e edit file                                                          tab focus . 1-6 screen . ? all keys

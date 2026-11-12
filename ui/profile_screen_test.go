@@ -541,7 +541,7 @@ func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
 // Below the minimum size the too-small notice replaces Profile, as on every screen.
 func TestProfileTooSmallShowsTheNotice(t *testing.T) {
 	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 49, 11, "5"))
-	if !strings.Contains(view, "Terminal too small") {
+	if !strings.Contains(view, "rolecall needs") || !strings.Contains(view, "now 49×11 · resize to continue") {
 		t.Fatalf("no too-small notice:\n%s", view)
 	}
 }

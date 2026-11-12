@@ -115,7 +115,7 @@ func TestDownloadIsHiddenAndInertWithoutPDFs(t *testing.T) {
 	h3, downloads3 := newDownloadHarness(t, nil)
 	h3.open("1", 0, "Fern")
 	h3.tm.Type("d")
-	h3.show("Fern Systems · Platform Engineer")
+	h3.show("Platform Engineer · Fern Systems")
 	if _, err := os.Stat(downloads3); err == nil || len(h3.runs) != 0 {
 		t.Fatalf("d acted in the detail view with no PDFs: %v %q", err, h3.runs)
 	}

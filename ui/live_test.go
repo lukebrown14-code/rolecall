@@ -152,7 +152,7 @@ func TestLiveCursorStaysOnSameFolder(t *testing.T) {
 	h.addMetaKey(h.folder("empty"), "fit: Good")
 	h.wait("Good")
 	h.key(tea.KeyEnter)
-	if v := h.finalView(); !strings.Contains(v, "Fern Systems · Platform Engineer") {
+	if v := h.finalView(); !strings.Contains(v, "Platform Engineer · Fern Systems") {
 		t.Fatalf("cursor left Fern after live updates:\n%s", v)
 	}
 }

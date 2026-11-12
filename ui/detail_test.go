@@ -110,13 +110,13 @@ func (h *detailHarness) folder(name string) string { return filepath.Join(h.root
 func TestDetailHeaderWithMissingAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("1", 0, "Fern")
-	h.show("Fern Systems · Platform Engineer", "Lead · Platform · closes — · applied —")
+	h.show("Platform Engineer · Fern Systems", "Lead · Platform · closes —")
 }
 
 func TestDetailHeaderApproximateAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 2, "Engineer #1")
-	h.show("Example · Engineer #1", "Interviewing · Unknown · closes — · applied ~2025-01-01")
+	h.show("Engineer #1 · Example", "Interviewing · Unknown · closes —", "applied ~2025-01-01 · ~21mo ago")
 }
 
 func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
@@ -126,7 +126,7 @@ func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
 		os.WriteFile(meta, bytes.Replace(b, []byte("track: SWE\n"), []byte("track: SWE\ncloses: 2026-12-01\n"), 1), 0o600)
 	})
 	h.open("3", 1, "Orbit")
-	h.show("Applied · SWE · closes 2026-12-01 · applied 2026-09-25")
+	h.show("Applied · SWE · closes 2026-12-01", "applied 2026-09-25 · 6d ago")
 }
 
 func TestDetailJDRendersMarkdown(t *testing.T) {
@@ -303,7 +303,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes — · applied —", "→ Draft")
+	h.show("Draft · Platform · closes —", "→ Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -313,7 +313,7 @@ func TestDetailUndoRestoresHeader(t *testing.T) {
 	h.wait("Move")
 	h.tm.Type("d")
 	h.tm.Type("u")
-	h.show("Lead · Platform · closes — · applied —")
+	h.show("Lead · Platform · closes —")
 	apps, _ := h.store.Scan()
 	for _, a := range apps {
 		if a.Title == "Platform Engineer" && (a.Status != "Lead" || len(a.StatusLog) != 3) {
