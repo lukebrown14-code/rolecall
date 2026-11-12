@@ -1,8 +1,8 @@
 # rolecall plugin
 
 The skills and scripts a coding harness loads to work a rolecall Workspace:
-capturing jobs, assessing Fit, preparing documents, sweeping sources and
-keeping the Profile's project facts current.
+creating the Profile, capturing jobs, assessing Fit, preparing documents,
+sweeping Sources and keeping the Profile's project facts current.
 
 ## Registering the local marketplace (Claude Code)
 

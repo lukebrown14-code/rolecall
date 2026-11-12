@@ -150,8 +150,28 @@ func TestCLIDoctorDirWarnsButExitsSuccessfully(t *testing.T) {
 	cmd := exec.Command(binary, "doctor", "--dir", workspace)
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
-	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) {
+	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) || !strings.Contains(string(out), "Template in use: Header Band (default)") || !strings.Contains(string(out), "Make your documents yours") {
 		t.Fatalf("doctor output = %q, err = %v", out, err)
+	}
+	for _, check := range []string{"typst", "pandoc", "Python 3", "Plugin path", "Template fonts", "Harness command"} {
+		if !strings.Contains(string(out), "WARNING: "+check) && !strings.Contains(string(out), "OK: "+check) {
+			t.Errorf("doctor output missing %s result: %q", check, out)
+		}
+	}
+}
+
+func TestCLIDoctorRejectsWorkspaceThatCannotBeOpened(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspaceFile := filepath.Join(home, "not-a-workspace")
+	if err := os.WriteFile(workspaceFile, []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary, "doctor", "--dir", workspaceFile)
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "open Workspace") {
+		t.Fatalf("doctor output = %q, err = %v; want Workspace open failure", out, err)
 	}
 }
 

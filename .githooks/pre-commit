@@ -1,3 +1,4 @@
 #!/bin/sh
-python3 scripts/check-personal-data.py . || exit $?
+set -e
+python3 scripts/check-personal-data.py .
 exec scripts/check-go.sh

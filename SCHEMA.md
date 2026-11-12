@@ -5,7 +5,11 @@ The contract between every writer of a rolecall workspace: the TUI (Go), the plu
 writer disagrees with this file, the writer is wrong. Both codebases test against the shared
 fixtures in `fixtures/`.
 
-Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in `GLOSSARY.md`.
+Schema version: **1**. A missing `schema` in `workspace.json` or `meta.yml` means 1 for
+pre-schema files. Readers refuse a newer schema and tell the Owner to upgrade rolecall;
+they must not interpret files written for a format they do not know. `meta.yml` is shown
+as a warning row with the upgrade detail. Terms (Application, Status, Lead, Fit…) are
+defined in `GLOSSARY.md`.
 
 ## Workspace layout
 
@@ -178,7 +182,7 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 
 ## `workspace.json` (read by the TUI, which writes `tracks`, `search_area` and the gates)
 
-The TUI reads `tracks` (array of strings, display order) and shows `search_area`, the gates
+The TUI reads `schema` and `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
 `blockers` on the Settings screen. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
 pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
@@ -189,7 +193,9 @@ Renaming a Track (`r` on the Settings screen, after a confirm) is the one Worksp
 rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
 `meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`. Folders
 never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does not undo it. An invalid file is shown, with its parse error, on the Settings
-screen. `sources`, `blockers` and the gates are used by the plugin.
+screen. `sources`, `blockers` and the gates are used by the plugin. Missing schema means 1;
+a newer schema stops startup with an instruction to upgrade rolecall. Missing file or `tracks`
+key means no track filter and the plugin's defaults.
 
 `search_area` (read by the Sweep and `find-jobs`) is where roles must be:
 

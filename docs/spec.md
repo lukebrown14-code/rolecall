@@ -39,7 +39,7 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 ├─ config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
-│  ├─ skills/  capture-job, find-jobs, assess-fit, prepare-documents
+│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents
 │  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py
 │  ├─ templates/ resume.typ, cover-letter.typ, brand.typ, fonts/
 │  ├─ styles/au.md
@@ -308,6 +308,7 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 | Skill | Writes |
 |---|---|
 | `capture-job` | new folder: `meta.yml` (`title`, `company`, `track`, `url`, `closes` if stated, first `Lead` entry) + `jd.md` |
+| `create-profile` | creates or updates the Owner's Profile from a resume or guided questions, then gets Owner approval |
 | `find-jobs` | runs `sweep.py`, triages, creates a Lead folder per role worth a look (as capture-job, `jd.md` may be a stub with the URL) |
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
@@ -482,11 +483,11 @@ Documents state rules, Build and the Plugin are unchanged.
 | Area | Features |
 |---|---|
 | Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, workspace path, `git init`; spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
-| Profile | read-only Profile screen (screen 5; editing in 1.x) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
+| Profile | read-only Profile screen (screen 5; editing in 1.x) · `create-profile` skill (resume, LinkedIn export or guided questions → approved Profile) |
 | Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (dark only, so no theme) |
 | Documents | neutral default template + workspace brand override · 2–3 template choices (style packs AU/UK/US move to 1.x) |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
-| Finding | per-workspace sources and locations, no the selected city default |
+| Finding | per-workspace sources and locations, no default city |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
