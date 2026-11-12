@@ -188,3 +188,28 @@ func TestStatsEmptyResponseIsDash(t *testing.T) {
 		t.Fatalf("response = %+v, want no denominator", got.Response)
 	}
 }
+
+// A rung counts every Application that ever reached it, so it can rise: Applications
+// that started later in the pipeline are counted as skipping the rung before, and the
+// conversion counts only those that reached both.
+func TestStatsFunnelThroughAndSkipped(t *testing.T) {
+	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.Local)
+	old := now.AddDate(0, 0, -40)
+	apps := []store.Application{
+		statsApp("drafted", "SWE", at(store.StatusDraft, old), at(store.StatusApplied, old)),
+		statsApp("straight", "SWE", at(store.StatusApplied, old)),
+		statsApp("again", "SWE", at(store.StatusApplied, old), at(store.StatusInterviewing, old)),
+		statsApp("stuck", "SWE", at(store.StatusDraft, old)),
+	}
+	got := ui.Stats(apps, now, 14)
+	applied, interviewing := got.Funnel[2], got.Funnel[3]
+	if applied.Count != 3 || applied.Through != 1 || applied.Skipped != 2 || !applied.ConversionOK || applied.Conversion != 50 {
+		t.Errorf("Applied = %+v, want 3 with 1 from Draft (50%%) and 2 skipped", applied)
+	}
+	if interviewing.Count != 1 || interviewing.Through != 1 || interviewing.Skipped != 0 || interviewing.Conversion != 33 {
+		t.Errorf("Interviewing = %+v, want 1 of 3 Applied (33%%)", interviewing)
+	}
+	if lead, draft := got.Funnel[0], got.Funnel[1]; lead.ConversionOK || draft.ConversionOK || draft.Skipped != 2 {
+		t.Errorf("Lead = %+v, Draft = %+v: want no conversion from an empty rung and 2 skipped Lead", lead, draft)
+	}
+}

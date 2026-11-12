@@ -471,13 +471,21 @@ Answers "how is my search going?". No tables: `Tab` and row keys do nothing. The
 filter applies. Top to bottom:
 
 1. **Funnel**: Applications that **ever reached** each Status (from `status_log`, `approx`
-   entries included): Lead → Draft → Applied → Interviewing → Offer, with drop-off
-   percentages. Dismissed, Rejected and Withdrawn as side counts.
+   entries included): Lead → Draft → Applied → Interviewing → Offer, one bar per Status in
+   its glyph and colour. A rung can be higher than the one before, so there is no drop-off:
+   each rung says what share of the previous rung reached it (`29% of Applied`) and how
+   many reached it without the previous one (`5 skipped Draft`). Rejected, Withdrawn and
+   Dismissed on a muted `closed` line.
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
-   leaving out Applications whose Applied date is within `follow_up_days`.
-3. **Applied per week**: last 12 weeks, Monday-start, local time, by Applied date. Unicode
-   block bars with counts.
-4. **By track**: track × Applied · Responses · Rate. Hidden when the filter is on one track.
+   leaving out Applications whose Applied date is within `follow_up_days`, with a meter.
+   A line says how many were left out as too early to judge.
+3. **Applied per week**: last 12 weeks, Monday-start, local time, by Applied date. One
+   sparkline with the week range, this week's count and the 12-week average.
+4. **By track**: track × Applied (as the funnel counts it) · Judged (the Response
+   denominator) · Responses · Rate. Hidden when the filter is on one track.
+
+With no Applications, Stats says `No Applications yet · a to add a Lead`. The fixtures fit
+80×24 without scrolling.
 
 #### v0.2 is done when the Owner can
 

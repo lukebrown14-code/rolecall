@@ -1,6 +1,8 @@
 package ui_test
 
 import (
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -89,5 +91,45 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 	m = driveModel(t, m, "k")
 	if view := ansi.Strip(m.View().Content); view != top {
 		t.Fatalf("k did not scroll back to the top:\n%s", view)
+	}
+}
+
+// The funnel never calls a rise or a flat count a drop: each rung says what share of the
+// one before reached it and how many skipped it. Everything fits 80x24 with no cue.
+func TestStatsFunnelExplainsEachRung(t *testing.T) {
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
+	for _, want := range []string{
+		"Applications that ever reached each Status",
+		"50% of Draft · 6 skipped Draft",
+		"14% of Applied · 1 skipped Applied",
+		"closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2",
+		"2 of 6",
+		"Not counted: 1 Application applied less than 14 days ago (too early to judge)",
+		"13 Jul → 28 Sep",
+		"0 this week · 12-week avg 0.1",
+		"Unknown               6       6          2   33%",
+	} {
+		if !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(strings.Fields(want), " ")) {
+			t.Errorf("Stats lacks %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "drop") || strings.Contains(view, "more") {
+		t.Fatalf("Stats shows a drop-off or does not fit 80x24:\n%s", view)
+	}
+}
+
+func TestStatsEmptyWorkspace(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		jobs := filepath.Join(root, "jobs")
+		if err := os.RemoveAll(jobs); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(jobs, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	})
+	view := ansi.Strip(runKeys(t, root, 120, "4"))
+	if !strings.Contains(view, "No Applications yet · a to add a Lead") || strings.Contains(view, "FUNNEL") {
+		t.Fatalf("empty Stats lacks its empty state:\n%s", view)
 	}
 }
