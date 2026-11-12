@@ -13,6 +13,14 @@ import (
 // settingsFile is the one file the Settings screen opens with e.
 const settingsFile = "workspace.json"
 
+// Row labels the layout and value truncation key on. Downloads and Plugin are shared with
+// the machine rows so they stay in step.
+const (
+	labelWorkspace = "Workspace"
+	labelDownloads = "Downloads"
+	labelPlugin    = "Plugin"
+)
+
 // The two panes tab moves between.
 const (
 	settingsList = iota
@@ -30,8 +38,14 @@ const (
 // settingsGroups are the groups in display order.
 var settingsGroups = []string{"Search", "Documents", "Tracking", "This machine"}
 
-// settingRow is one line in a group: a label and what it currently holds.
-type settingRow struct{ label, value string }
+// settingRow is one line in a group: a label and what it currently holds. placeholder is
+// an example to type while the value is unset, and readOnly marks a row Settings shows
+// but never edits in place (Workspace, Sources, Blockers), so the two read apart.
+type settingRow struct {
+	label, value string
+	placeholder  string
+	readOnly     bool
+}
 
 // settingsState is the loaded workspace.json and where the Owner is. It is replaced, never
 // mutated in place, so copies of the model stay independent.
@@ -72,10 +86,10 @@ func (m model) settingsRows(group int) []settingRow {
 	switch settingsGroups[group] {
 	case "Search":
 		return []settingRow{
-			{"Places", orNone(strings.Join(ws.Places, ", "))},
-			{"Remote", remoteLabel(ws.Remote)},
-			{"Sources · " + strconv.Itoa(ws.Sources), ""},
-			{"Blockers · " + strconv.Itoa(ws.Blockers), ""},
+			{label: "Places", value: strings.Join(ws.Places, ", "), placeholder: "Australia, APAC"},
+			{label: "Remote", value: remoteLabel(ws.Remote)},
+			{label: "Sources · " + strconv.Itoa(ws.Sources), readOnly: true},
+			{label: "Blockers · " + strconv.Itoa(ws.Blockers), readOnly: true},
 		}
 	case "Documents":
 		return m.gateRows()
@@ -83,20 +97,13 @@ func (m model) settingsRows(group int) []settingRow {
 		return m.trackingRows()
 	}
 	return []settingRow{
-		{"Workspace", m.store.Root()},
-		{"Editor", orNone(m.editor)},
-		{"Downloads", orNone(m.downloads)},
-		{"Harness", orNone(m.harness)},
-		{"Plugin", orNone(m.plugin)},
-		{"ASCII glyphs", yesNo(m.ascii)},
+		{label: labelWorkspace, value: m.store.Root(), readOnly: true},
+		{label: "Editor", value: m.editor, placeholder: "nvim, code --wait"},
+		{label: labelDownloads, value: m.downloads, placeholder: "~/Downloads"},
+		{label: "Harness", value: m.harness, placeholder: `claude "/{skill} {dir}"`},
+		{label: labelPlugin, value: m.plugin, placeholder: "path to rolecall/plugin"},
+		{label: "ASCII glyphs", value: yesNo(m.ascii)},
 	}
-}
-
-func orNone(s string) string {
-	if s == "" {
-		return "not set"
-	}
-	return s
 }
 
 // remoteLabel is search_area.remote as the Owner reads it; missing means the default.
@@ -268,10 +275,20 @@ func (m model) settingsRowsView(p pal, width int) string {
 		if (m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())) && i == m.settings.row {
 			mark, label = profileMarker, p.text(p.accent).Bold(true).Render(r.label)
 		}
+		tag := ""
+		if r.readOnly {
+			tag = "  " + p.text(p.dim).Render("(read-only)")
+		}
+		pad := strings.Repeat(" ", max(1, settingsLabelWidth-profileMarkerWidth-xansi.StringWidth(r.label)))
+		room := width - settingsLabelWidth - xansi.StringWidth(tag)
 		line := mark + label
-		if r.value != "" {
-			pad := strings.Repeat(" ", max(1, settingsLabelWidth-profileMarkerWidth-xansi.StringWidth(r.label)))
-			line += pad + p.text(p.fg).Render(fitValue(r, width-settingsLabelWidth))
+		switch {
+		case r.value != "":
+			line += pad + p.text(p.fg).Render(fitValue(r, room)) + tag
+		case r.placeholder != "":
+			line += pad + p.text(p.dim).Render("not set ("+r.placeholder+")") + tag
+		default:
+			line += pad + tag
 		}
 		lines = append(lines, xansi.Truncate(line, width, "…"))
 	}
@@ -285,7 +302,7 @@ func fitValue(r settingRow, room int) string {
 		return r.value
 	}
 	switch r.label {
-	case "Workspace", "Downloads", "Plugin":
+	case labelWorkspace, labelDownloads, labelPlugin:
 		return "…" + xansi.TruncateLeft(r.value, xansi.StringWidth(r.value)-room+1, "")
 	}
 	return xansi.Truncate(r.value, room, "…")

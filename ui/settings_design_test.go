@@ -27,7 +27,7 @@ var settingsPopups = []struct {
 	{"search area", []string{"tab", "enter"}, "enter save"},
 	{"gate", []string{"j", "tab", "enter"}, "enter save"},
 	{"add track", []string{"j", "j", "tab", "a"}, "enter add"},
-	{"rename track", []string{"j", "j", "tab", "r"}, "enter next"},
+	{"rename track", []string{"j", "j", "tab", "r"}, "enter review"},
 }
 
 func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {

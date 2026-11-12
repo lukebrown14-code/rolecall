@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // groupTracking is the Settings group that holds the Tracks.
@@ -20,12 +21,12 @@ func (m model) trackingRows() []settingRow {
 		if i == 0 {
 			label = "Tracks"
 		}
-		rows = append(rows, settingRow{label, t})
+		rows = append(rows, settingRow{label: label, value: t})
 	}
 	if len(rows) == 0 {
-		rows = append(rows, settingRow{"Tracks", "none (a to add)"})
+		rows = append(rows, settingRow{label: "Tracks", value: "none (a to add)"})
 	}
-	return append(rows, settingRow{"Follow-up days", fmt.Sprint(m.followUpDays)})
+	return append(rows, settingRow{label: "Follow-up days", value: fmt.Sprint(m.followUpDays)})
 }
 
 // trackHelpKeys are the Track keys, shown while the Tracking rows have focus.
@@ -76,27 +77,26 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 		if !on || to < 0 || to >= len(tracks) {
 			return m, true
 		}
+		moved := tracks[st.row]
 		tracks[st.row], tracks[to] = tracks[to], tracks[st.row]
 		if m = m.saveTracks(tracks); m.err == nil {
 			s := *m.settings
 			s.row = to
 			m.settings = &s
+			m.toast = "Moved Track " + moved
 		}
 	case "x":
 		if !on {
 			return m, true
 		}
-		n, err := m.trackUse(tracks[st.row])
+		name := tracks[st.row]
+		n, err := m.trackUse(name)
 		if err != nil {
 			m.err = err
 			return m, true
 		}
 		if n > 0 {
-			noun := "Applications"
-			if n == 1 {
-				noun = "Application"
-			}
-			m.err = fmt.Errorf("%s is used by %d %s", tracks[st.row], n, noun)
+			m.overlay = &removeBlockedMode{track: name, n: n}
 			return m, true
 		}
 		tracks = slices.Delete(tracks, st.row, st.row+1)
@@ -104,6 +104,7 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 			s := *m.settings
 			s.row = min(s.row, len(m.trackingRows())-1)
 			m.settings = &s
+			m.toast = "Removed Track " + name
 		}
 	default:
 		return m, false
@@ -170,6 +171,7 @@ func (tm *trackAddMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 			s := *m.settings
 			s.row = len(tracks) - 1
 			m.settings = &s
+			m.toast = "Added Track " + name
 			return nil, nil
 		default:
 			tm.name += msg.Text
@@ -177,4 +179,41 @@ func (tm *trackAddMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		}
 	}
 	return tm, nil
+}
+
+// removeBlockedMode refuses removing a Track that Applications still use. It is a pop-up
+// by the rows rather than a footer error, and it names the way out: rename the Track here,
+// or move the Applications still on it to another Track first.
+type removeBlockedMode struct {
+	track string
+	n     int
+}
+
+func (rb *removeBlockedMode) Keys() [][2]string {
+	return [][2]string{{"r", "rename"}, {"esc", hintClose}}
+}
+
+func (rb *removeBlockedMode) boxed() bool { return true }
+
+func (rb *removeBlockedMode) View(m *model, p pal) string {
+	what := fmt.Sprintf("%s is used by %s.", rb.track, plural(rb.n, "Application", "Applications"))
+	next := "Rename it with r, or move its Applications to another Track first."
+	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(what) + "\n\n" +
+		p.text(p.dim).Width(popSmall-popInset).Render(next)
+	return popup(p, "Remove Track", true, popSmall, m.viewWidth(), body, p.keys(rb.Keys()))
+}
+
+func (rb *removeBlockedMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
+	k, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return rb, nil
+	}
+	switch k.String() {
+	case "r":
+		// The Track cannot be removed, but it can be renamed from here.
+		return &renameMode{old: rb.track, name: rb.track}, nil
+	case "esc", "enter":
+		return nil, nil
+	}
+	return rb, nil
 }

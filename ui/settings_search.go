@@ -100,5 +100,6 @@ func (sm *searchAreaMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	}
 	m.err = nil
 	*m = m.loadSettings()
+	m.toast = "Saved Search area"
 	return nil, nil
 }
