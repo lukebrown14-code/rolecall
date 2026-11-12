@@ -15,6 +15,9 @@ var likelyCount = map[string]int{store.StatusLead: 2, store.StatusDraft: 1, stor
 
 const statusColumn = 14 // width of a Status name in the move pop-up
 
+// otherStatuses heads the Move pop-up's second group, after the likely next steps.
+const otherStatuses = "Other statuses"
+
 func (m model) moveBox(p pal, mv *moveMode) string {
 	a := mv.app
 	cw := popSmall - popInset
@@ -24,11 +27,12 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 	likely := likelyCount[a.Status]
 	for i, s := range mv.options {
 		if i == likely {
-			b.WriteString(p.text(p.dim).Render("other ") + p.text(p.rule).Render(strings.Repeat("─", cw-len("other "))) + "\n")
+			b.WriteString(p.text(p.dim).Render(otherStatuses+" ") + p.text(p.rule).Render(strings.Repeat("─", cw-len(otherStatuses)-1)) + "\n")
 		}
 		hint := ""
 		if s == store.StatusApplied && a.Documents != store.DocsReady {
-			hint = "⚠ docs not Ready"
+			// Allowed, but not silently: the move asks first (requestMove).
+			hint = "⚠ not Ready, asks first"
 		}
 		if a.Status == store.StatusDismissed && i == 0 {
 			hint = "restore"
@@ -40,7 +44,7 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 		row := "  " + p.key().Render(statusLetters[s]) + "  " + p.statusMark(s) + " " + p.text(nameC).Render(padRight(s, statusColumn)) + p.text(p.warn).Render(hint)
 		if i == mv.sel {
 			sel := lipgloss.NewStyle().Background(p.sel)
-			row = sel.Width(cw).Render(p.text(p.accent).Background(p.sel).Render("▌ ") +
+			row = sel.Width(cw + gutter).Render(p.text(p.accent).Background(p.sel).Render("▌ ") +
 				p.key().Background(p.sel).Render(statusLetters[s]) + p.text(p.fg).Background(p.sel).Render("  ") +
 				p.text(p.statusColor(s)).Background(p.sel).Render(p.statusGlyph(s)) +
 				p.text(p.fg).Background(p.sel).Bold(true).Render(" "+padRight(s, statusColumn)) +

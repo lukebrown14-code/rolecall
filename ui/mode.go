@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 )
@@ -100,8 +102,18 @@ type moveMode struct {
 	sel     int
 }
 
+// Keys name the first letters on offer, so the letter keys read as keys: "d/a/x… move".
 func (mv *moveMode) Keys() [][2]string {
-	return [][2]string{{"letter", "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
+	const shown = 3
+	var letters []string
+	for _, s := range mv.options[:min(shown, len(mv.options))] {
+		letters = append(letters, statusLetters[s])
+	}
+	label := strings.Join(letters, "/")
+	if len(mv.options) > shown {
+		label += "…"
+	}
+	return [][2]string{{label, "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
 }
 
 func (mv *moveMode) boxed() bool { return true }
