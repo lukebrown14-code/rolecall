@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -187,7 +188,10 @@ func buildRolecall(t *testing.T) string {
 func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	binary := buildRolecall(t)
 	workspace := filepath.Join(t.TempDir(), "private")
-	out, err := exec.Command(binary, "init", workspace).CombinedOutput()
+	home := t.TempDir()
+	cmd := exec.Command(binary, "init", "--workspace", workspace, "--name", "Alex Quinn", "--email", "alex@example.test", "--phone", "+61 400", "--location", "Melbourne", "--linkedin", "linkedin.com/in/alex", "--tracks", "SWE, Platform", "--search-places", "Australia, Melbourne", "--search-remote", "anywhere", "--profile", "later")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("init failed: %s %v", out, err)
 	}
@@ -229,6 +233,31 @@ func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	if apps, err := s.Scan(); err != nil || len(apps) != 0 {
 		t.Errorf("scan initialized Workspace = %v, %v; want no Applications", apps, err)
 	}
+	profile, err := s.Profile()
+	if err != nil || profile.Contact["Name"] != "Alex Quinn" || profile.Contact["Email"] != "alex@example.test" || len(profile.Missing) != 0 {
+		t.Errorf("initialized Contact = %+v, %v; want required fields read by Store.Profile", profile, err)
+	}
+	contact, err := os.ReadFile(filepath.Join(workspace, "profile/master-profile.md"))
+	if err != nil || !strings.Contains(string(contact), "| Email | alex@example.test |") || !strings.Contains(string(contact), "| LinkedIn | linkedin.com/in/alex |") {
+		t.Errorf("Contact table = %q, %v", contact, err)
+	}
+	settings, err := os.ReadFile(filepath.Join(workspace, "workspace.json"))
+	var decoded struct {
+		Tracks     []string `json:"tracks"`
+		SearchArea struct {
+			Places []string `json:"places"`
+			Remote string   `json:"remote"`
+		} `json:"search_area"`
+	}
+	if err == nil {
+		err = json.Unmarshal(settings, &decoded)
+	}
+	if err != nil || strings.Join(decoded.Tracks, ",") != "SWE,Platform" || strings.Join(decoded.SearchArea.Places, ",") != "Australia,Melbourne" || decoded.SearchArea.Remote != "anywhere" {
+		t.Errorf("workspace settings = %q (%+v), %v", settings, decoded, err)
+	}
+	if config, err := os.ReadFile(filepath.Join(home, ".config/rolecall/config.toml")); err != nil || !strings.Contains(string(config), "workspace = \""+workspace+"\"") {
+		t.Errorf("machine config = %q, %v", config, err)
+	}
 }
 
 func TestCLIInitRefusesNonEmptyDirectory(t *testing.T) {
@@ -241,11 +270,31 @@ func TestCLIInitRefusesNonEmptyDirectory(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("keep"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(binary, "init", workspace).CombinedOutput()
+	out, err := exec.Command(binary, "init", "--workspace", workspace, "--name", "Alex Quinn", "--email", "alex@example.test", "--profile", "later").CombinedOutput()
 	if err == nil || !strings.Contains(strings.ToLower(string(out)), "not empty") {
 		t.Fatalf("init output = %q, error = %v; want clear non-empty refusal", out, err)
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatalf("existing file was changed or removed: %v", err)
+	}
+}
+
+func TestCLIInitAccessiblePromptsWorkWithoutTTY(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspace := filepath.Join(t.TempDir(), "accessible workspace")
+	cmd := exec.Command(binary, "init", "--accessible")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	cmd.Stdin = strings.NewReader(strings.Join([]string{
+		"Alex Quinn", "alex@example.test", "", "Melbourne", "linkedin.com/in/alex",
+		"SWE,Platform", "Australia", "2", workspace, "3",
+	}, "\n") + "\n")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("accessible init failed: %s %v", out, err)
+	}
+	settings, err := os.ReadFile(filepath.Join(workspace, "workspace.json"))
+	if err != nil || !strings.Contains(string(settings), `"remote": "in-places"`) {
+		t.Fatalf("accessible settings = %q, %v", settings, err)
 	}
 }

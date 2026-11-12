@@ -4,8 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"errors"
 	"fmt"
+	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/process"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -23,14 +23,7 @@ type CapturedResult = process.CapturedResult
 type CapturedRunner = process.CapturedRunner
 
 // ResolveEditor follows the Owner's configured editor preference.
-func ResolveEditor(configured string) string {
-	for _, s := range []string{configured, os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
-		if s != "" {
-			return s
-		}
-	}
-	return "vi"
-}
+func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
 
 type externalFinished struct {
 	folder string
@@ -84,6 +77,15 @@ func (m model) runCaptured(command string, args []string, done func(CapturedResu
 // and the exit status kept.
 func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
 	return process.RunCaptured(c, done)
+}
+
+// LaunchHarness runs a configured Plugin skill from the CLI.
+func LaunchHarness(template, workspace, skill, resume string) error {
+	if resume != "" {
+		skill += " --resume " + QuoteShellArgument(resume)
+	}
+	command := harnessCommand(template, skill, handoffDir(workspace))
+	return process.RunShell(command)
 }
 
 // editFile opens a file of the Application folder in the Owner's editor. The editor

@@ -22,6 +22,8 @@ type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 func Command(name string, args ...string) *exec.Cmd { return exec.Command(name, args...) }
 
+func RunShell(command string) error { return Command("/bin/sh", "-c", command).Run() }
+
 func Exec(c *exec.Cmd, done tea.ExecCallback) tea.Cmd { return tea.ExecProcess(c, done) }
 
 func RunCaptured(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
