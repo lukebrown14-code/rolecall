@@ -53,6 +53,19 @@ var snapshotStates = []struct {
 	{"35-command-palette", []string{"1", ":", "mo"}, nil},
 	{"36-search-chip-detail", []string{"3", "/docs-written", "enter", "enter"}, nil},
 	{"37-error-fix-hint", []string{"G", "enter", "m", "d"}, nil},
+	{"41-offer-celebration", []string{"3", "tab", "m", "o"}, nil},
+	{"42-detail-next-draft", []string{"2", "enter"}, nil},
+	{"43-leads-sorted-newest", []string{"1", "s"}, nil},
+}
+
+// editedSnapshotStates start from an edited copy of the fixture: the first-run screen
+// needs a Workspace with no Applications.
+var editedSnapshotStates = []struct {
+	name string
+	edit func(root string)
+	keys []string
+}{
+	{"44-first-run", func(root string) { _ = os.RemoveAll(filepath.Join(root, "jobs")) }, []string{"1"}},
 }
 
 // sizedSnapshotStates are states that only exist at one size, written at that size
@@ -84,12 +97,16 @@ func TestSnapshots(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	write := func(name string, w, h int, env map[string]string, keys []string) {
+	write := func(name string, w, h int, env map[string]string, keys []string, edit ...func(string)) {
 		t.Run(name, func(t *testing.T) {
 			for k, v := range env {
 				t.Setenv(k, v)
 			}
-			view := runKeysSized(t, fixtureCopy(t, nil), w, h, keys...)
+			var change func(string)
+			if len(edit) > 0 {
+				change = edit[0]
+			}
+			view := runKeysSized(t, fixtureCopy(t, change), w, h, keys...)
 			base := filepath.Join(dir, fmt.Sprintf("%s-%dx%d", name, w, h))
 			for ext, body := range map[string]string{".txt": ansi.Strip(view), ".ansi": view} {
 				if err := os.WriteFile(base+ext, []byte(body), 0o600); err != nil {
@@ -103,5 +120,8 @@ func TestSnapshots(t *testing.T) {
 	}
 	for _, s := range sizedSnapshotStates {
 		write(s.name, s.w, s.h, nil, s.keys)
+	}
+	for _, s := range editedSnapshotStates {
+		write(s.name, w, h, nil, s.keys, s.edit)
 	}
 }

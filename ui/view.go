@@ -172,14 +172,17 @@ func (m model) listView(p pal) string {
 	}
 	previewW := w - listW - 1
 	var body string
-	if len(rows) == 0 {
+	switch {
+	case len(m.apps) == 0:
+		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.welcome(p))
+	case len(rows) == 0:
 		title, hint := emptyMessage(m.views()[m.table])
 		if m.text != "" {
 			title, hint = "No matches for “"+m.text+"”", "esc clears the search"
 		}
 		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
 			lipgloss.JoinVertical(lipgloss.Center, p.text(p.fg).Bold(true).Render(title), "", p.text(p.dim).Render(hint)))
-	} else {
+	default:
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
@@ -222,6 +225,18 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 		return m.feedbackLine(p, w)
 	}
 	return fallback
+}
+
+// welcome is the first-run screen, for a Workspace with no Applications at all: the
+// first three moves instead of empty panes.
+func (m model) welcome(p pal) string {
+	title := p.text(p.accent).Bold(true).Render(wordmark+" rolecall") + p.text(p.dim).Render(" · no Applications yet")
+	step := func(k, desc string) string {
+		return p.key().Render(padRight(k, gutter+1)) + p.text(p.fg).Render(desc)
+	}
+	steps := lipgloss.JoinVertical(lipgloss.Left, step("a", "add your first Lead"),
+		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
+	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
 // emptyMessage says how Applications reach an empty view.

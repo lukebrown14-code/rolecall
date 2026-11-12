@@ -121,6 +121,8 @@ func (m model) feedbackLine(p pal, w int) string {
 		}
 	case m.building != nil && m.toast == "":
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
+	case strings.HasPrefix(m.toast, offerPrefix):
+		icon, c = p.statusGlyph(store.StatusOffer), p.statusColor(store.StatusOffer)
 	}
 	if msg == "" {
 		return ""

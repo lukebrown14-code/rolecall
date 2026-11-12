@@ -69,6 +69,9 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 	if status == store.StatusDismissed {
 		m.toast = "Dismissed · " + appName(a.Title)
 	}
+	if status == store.StatusOffer {
+		m.toast = m.offerToast(a)
+	}
 	m.toastHint = "u undo"
 	return m.startFlash(a.Folder)
 }
