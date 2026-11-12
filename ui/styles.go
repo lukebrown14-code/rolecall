@@ -25,7 +25,7 @@ var (
 	colorDim    = lipgloss.Color("#8B949E") // floor for any text (≥ 4.5:1 on colorBg)
 	colorSub    = lipgloss.Color("#C9D1D9") // secondary text on the selection bar
 	colorFaint  = lipgloss.Color("#30363D") // faint separators between labels, never text
-	colorRule   = lipgloss.Color("#484F58") // rules and pane dividers, one step up from faint
+	colorRule   = lipgloss.Color("#5A616A") // rules and pane dividers, ≥ 3:1 on colorBg
 	colorPanel  = lipgloss.Color("#161B22") // pop-up fill and the feedback line
 	colorAccent = lipgloss.Color(accentHex)
 	colorOnFill = lipgloss.Color("#0D1117") // text on an accent fill
@@ -35,7 +35,7 @@ var (
 	colorWarn   = lipgloss.Color("#D29922") // closes within a week, quiet follow-up, written docs
 	colorBad    = lipgloss.Color("#F85149") // closes today, rejected, errors
 	colorLilac  = lipgloss.Color("#B4A7FF") // Interviewing
-	colorDimmed = lipgloss.Color("#3D444D") // everything behind a pop-up; dim text there drops to colorFaint
+	colorDimmed = lipgloss.Color("#768390") // everything behind a pop-up; stays ≥ 4.5:1, so values and markers still read
 )
 
 // pal is the set of colours one frame is drawn with; behind a pop-up the whole frame
@@ -47,7 +47,7 @@ type pal struct {
 var basePal = pal{fg: colorFg, dim: colorDim, sub: colorSub, faint: colorFaint, rule: colorRule, accent: colorAccent, onFill: colorOnFill,
 	sel: colorSelect, ok: colorOK, info: colorInfo, warn: colorWarn, bad: colorBad, lilac: colorLilac}
 
-var dimmedPal = pal{fg: colorDimmed, dim: colorFaint, sub: colorDimmed, faint: colorFaint, rule: colorFaint, accent: colorDimmed, onFill: colorDim,
+var dimmedPal = pal{fg: colorDimmed, dim: colorDimmed, sub: colorDimmed, faint: colorFaint, rule: colorRule, accent: colorDimmed, onFill: colorDim,
 	sel: colorPanel, ok: colorDimmed, info: colorDimmed, warn: colorDimmed, bad: colorDimmed, lilac: colorDimmed}
 
 func (p pal) text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
@@ -217,8 +217,23 @@ func markdownStyle() ansi.StyleConfig {
 func noColor() bool { return os.Getenv("NO_COLOR") != "" }
 
 // asciiMode reports whether glyphs should fall back to ASCII stand-ins, for terminals and
-// fonts where ◆ ▌ ⚑ and friends render badly. Set ROLECALL_ASCII=1.
-func asciiMode() bool { return os.Getenv("ROLECALL_ASCII") == "1" }
+// fonts where ◆ ▌ ⚑ and friends render badly. ROLECALL_ASCII=1 forces it on; otherwise it
+// turns on by itself when the locale cannot draw UTF-8.
+func asciiMode() bool { return os.Getenv("ROLECALL_ASCII") == "1" || !utf8Capable() }
+
+// utf8Capable reports whether the environment's locale can draw UTF-8. POSIX gives LC_ALL
+// priority over LC_CTYPE over LANG; the first one set decides. Nothing set is treated as
+// capable, so a bare environment keeps the glyphs.
+func utf8Capable() bool {
+	for _, key := range []string{"LC_ALL", "LC_CTYPE", "LANG"} {
+		v := os.Getenv(key)
+		if v == "" {
+			continue
+		}
+		return strings.Contains(strings.ReplaceAll(strings.ToLower(v), "-", ""), "utf8")
+	}
+	return true
+}
 
 // sgr matches one SGR escape sequence.
 var sgr = regexp.MustCompile("\x1b\\[([0-9;]*)m")
