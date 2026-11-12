@@ -4,6 +4,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestDownloadCopiesEveryPDFAndRevealsFolder(t *testing.T) {
 	h.open("3", 4, "docs-ready")
 	h.tm.Type("d")
 	run := h.lastRun()
-	if len(run) != 3 || run[0] != "open" || run[1] != "-R" || run[2] != downloads {
+	if strings.Join(run, "\x00") != strings.Join(expectedOpen(downloads, true), "\x00") {
 		t.Fatalf("reveal run: %q", run)
 	}
 	for _, name := range []string{"Owner Resume Role.pdf", "Owner Role Cover Letter.pdf"} {
@@ -141,7 +142,7 @@ func TestDownloadWorksFromDetailViewDocsTab(t *testing.T) {
 	h.key(tea.KeyRight)
 	h.key(tea.KeyRight) // Docs tab
 	h.tm.Type("d")
-	if run := h.lastRun(); len(run) != 3 || run[2] != downloads {
+	if run := h.lastRun(); strings.Join(run, "\x00") != strings.Join(expectedOpen(downloads, true), "\x00") {
 		t.Fatalf("reveal run: %q", run)
 	}
 	h.show("Docs", "Saved 2 PDFs → ")
@@ -162,5 +163,20 @@ func TestDownloadPromptEscCancelsWithoutReveal(t *testing.T) {
 	}
 	if got := readFile(t, filepath.Join(downloads, "Owner Resume Role.pdf")); got != "older Owner Resume Role.pdf" {
 		t.Fatalf("overwritten: %q", got)
+	}
+}
+
+// expectedOpen describes the desktop launcher contract without running a viewer.
+func expectedOpen(path string, reveal bool) []string {
+	switch runtime.GOOS {
+	case "darwin":
+		if reveal {
+			return []string{"open", "-R", path}
+		}
+		return []string{"open", path}
+	case "windows":
+		return []string{"rundll32.exe", "url.dll,FileProtocolHandler", path}
+	default:
+		return []string{"xdg-open", path}
 	}
 }

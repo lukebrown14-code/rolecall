@@ -175,9 +175,12 @@ def test_matches_explain_all_families_and_choose_specific_phrase(monkeypatch, ca
 # ---------------------------------------------------------------- whole sweep
 
 
-def sweep_workspace(tmp_path, catalogue=None, tracks=("Analyst",)):
+def sweep_workspace(tmp_path, catalogue=None, tracks=("Analyst",), search_area=None):
     workspace = tmp_path / "workspace"
-    write_workspace(workspace, {"tracks": list(tracks)})
+    config = {"tracks": list(tracks)}
+    if search_area is not None:
+        config["search_area"] = search_area
+    write_workspace(workspace, config)
     if catalogue is not None:
         write_catalogue(workspace, catalogue)
     return workspace
@@ -201,7 +204,9 @@ def test_sweep_explains_candidates_and_accounts_for_each_family_outcome(
     tmp_path, monkeypatch, catalogue, partial
 ):
     catalogue["roles"].append({**catalogue["roles"][0], "id": "excluded", "track": "AI"})
-    workspace = sweep_workspace(tmp_path, catalogue, tracks=("SWE", "Analyst", "AI"))
+    workspace = sweep_workspace(
+        tmp_path, catalogue, tracks=("SWE", "Analyst", "AI"), search_area=AU
+    )
 
     def job(slug, location="Brisbane, Australia", content=""):
         return dict(
@@ -326,53 +331,156 @@ def test_scan_favourable_only_short_terms():
     assert sw.scan("Contract Recruitment | Permanent Recruitment", blockers, favourable) == []
 
 
-# -------------------------------------------------------------- location_ok
+# --------------------------------------------------------- Search area filter
+
+AU = {"places": ["Australia"], "remote": "in-places"}
+
+
+def area(*places, remote="in-places"):
+    return {"places": list(places), "remote": remote}
 
 
 @pytest.mark.parametrize(
-    "loc",
+    "loc, search_area",
     [
-        "Brisbane, Australia",
-        "Brisbane, Queensland, Australia",
-        "Remote - Australia",
-        "Remote (AU)",
-        "Australia",
-        "Hybrid",
-        "Remote",
-        "",
-        None,
-        "Sydney, Australia",
-        "Remote, APAC",
+        ("Brisbane, QLD", AU),  # country covers its city and state
+        ("Sydney, NSW", AU),
+        ("Brisbane, Australia or Singapore", AU),  # one Place is enough
+        ("Sydney", area("sydney")),  # direct match, any case
+        ("Remote, APAC", area("APAC")),  # group named in Places
+        ("Wellington", area("APAC")),  # group covers a country's city
+        ("Brisbane", area("Brisbane", "Singapore")),
+        ("", AU),  # empty location is kept
+        (None, AU),
+        ("Atlantis", AU),  # unknown place is kept
+        ("Hybrid", AU),
     ],
 )
-def test_location_accepted(loc):
-    assert sw.location_ok(loc)
+def test_search_area_keeps_roles_in_places(loc, search_area):
+    assert sw.location_ok(loc, search_area)
 
 
 @pytest.mark.parametrize(
-    "loc",
+    "loc, search_area",
     [
-        "Remote - US",
-        "Remote, United States",
-        "London, UK",
-        "Victoria, BC, Canada",
-        "Remote - Europe",
-        "Singapore",
-        "San Francisco",
-        "Sydney",
-        "Remote - EMEA",
+        ("London, UK", AU),
+        ("London", AU),
+        ("Singapore", AU),
+        ("Victoria, BC, Canada", AU),  # an explicit country decides over a shared name
+        ("Brisbane", area("Sydney")),  # a known city outside the Places
+        ("Australia", area("Sydney")),  # a wider place is not covered by a narrower Place
+        ("Paris", area("APAC")),
     ],
 )
-def test_location_rejected(loc):
-    assert not sw.location_ok(loc)
+def test_search_area_drops_known_places_outside(loc, search_area):
+    assert not sw.location_ok(loc, search_area)
 
 
-def test_location_reject_overridden_by_au_place():
-    assert sw.location_ok("Brisbane, Australia or Singapore")
+def test_country_name_is_matched_as_a_whole_word():
+    assert sw.location_ok("Fusion Centre", AU)  # "us" inside a word is not the US
+    assert not sw.location_ok("Remote - US", AU)
 
 
-def test_location_us_not_matched_inside_words():
-    assert sw.location_ok("Remote, Australia")
+@pytest.mark.parametrize(
+    "loc, remote, expected",
+    [
+        ("Remote", "anywhere", True),
+        ("Remote - US", "anywhere", True),
+        ("Remote - US", "in-places", False),
+        ("Remote", "in-places", True),  # names no known place
+        ("Remote - Australia", "in-places", True),
+        ("Remote, APAC", "in-places", True),
+        ("Remote - Australia", "no", False),
+        ("Remote", "no", False),
+        ("Brisbane, Australia", "no", True),  # not a remote role
+        ("Brisbane, Australia", "anywhere", True),
+    ],
+)
+def test_remote_rules(loc, remote, expected):
+    assert sw.location_ok(loc, area("Australia", remote=remote)) is expected
+
+
+def test_remote_defaults_to_in_places():
+    assert sw.location_ok("Remote", {"places": ["Australia"]})
+    assert not sw.location_ok("Remote - US", {"places": ["Australia"]})
+
+
+@pytest.mark.parametrize("search_area", [None, "Australia", ["Australia"]])
+def test_no_search_area_keeps_everything(search_area):
+    assert sw.location_ok("London", search_area)
+
+
+def sweep_one(monkeypatch, workspace, location, *args):
+    def collector(target):
+        return [
+            dict(
+                title="Implementation Consultant",
+                company="Acme",
+                location=location,
+                url="https://example.com/role",
+                content="",
+                type_hint="",
+                closes="",
+                source="lever:fixture",
+            )
+        ]
+
+    return run_sweep(monkeypatch, workspace, collector, *args)
+
+
+def test_sweep_filters_by_workspace_search_area(tmp_path, monkeypatch, catalogue, capsys):
+    workspace = sweep_workspace(tmp_path, catalogue, search_area=AU)
+    output = sweep_one(monkeypatch, workspace, "London")
+    assert "Implementation Consultant — Acme" not in output
+    assert "1 wrong location" in capsys.readouterr().out
+    workspace = sweep_workspace(tmp_path / "b", catalogue, search_area=AU)
+    output = sweep_one(monkeypatch, workspace, "Brisbane, QLD")
+    assert "Implementation Consultant — Acme" in output
+
+
+def test_sweep_without_search_area_keeps_all_and_says_so(
+    tmp_path, monkeypatch, catalogue, capsys
+):
+    workspace = sweep_workspace(tmp_path, catalogue)
+    output = sweep_one(monkeypatch, workspace, "London")
+    assert "Implementation Consultant — Acme" in output
+    assert "no Search area set: all locations kept" in capsys.readouterr().out
+    assert "no Search area set: all locations kept" in output
+
+
+@pytest.mark.parametrize("search_area", [{}, {"places": []}, {"remote": "anywhere"}, {"places": [" "]}])
+def test_search_area_without_places_keeps_all_and_says_so(
+    tmp_path, monkeypatch, catalogue, capsys, search_area
+):
+    workspace = sweep_workspace(tmp_path, catalogue, search_area=search_area)
+    output = sweep_one(monkeypatch, workspace, "London")
+    assert "Implementation Consultant — Acme" in output
+    assert "no Search area set: all locations kept" in capsys.readouterr().out
+    assert "no Search area set: all locations kept" in output
+
+
+def test_sweep_with_search_area_does_not_report_none(tmp_path, monkeypatch, catalogue, capsys):
+    workspace = sweep_workspace(tmp_path, catalogue, search_area=AU)
+    output = sweep_one(monkeypatch, workspace, "Brisbane, QLD")
+    assert "no Search area set" not in capsys.readouterr().out + output
+
+
+def test_all_locations_bypasses_search_area(tmp_path, monkeypatch, catalogue):
+    workspace = sweep_workspace(tmp_path, catalogue, search_area=AU)
+    output = sweep_one(monkeypatch, workspace, "London", "--all-locations")
+    assert "Implementation Consultant — Acme" in output
+
+
+def test_fixture_workspace_has_search_area_and_track_references():
+    assert sw.config(FIXTURE)["search_area"] == {"places": ["Australia"], "remote": "in-places"}
+    catalogue = sw.load_role_catalogue(FIXTURE)
+    assert {role["track"] for role in catalogue["roles"]} == {"SWE", "Platform"}
+
+
+def test_gazetteer_is_neutral_data():
+    gazetteer = json.loads((ROOT / "plugin" / "gazetteer.json").read_text())
+    assert {"countries", "groups"} <= gazetteer.keys()
+    assert "Australia" in gazetteer["countries"]
 
 
 # ------------------------------------------------------------------- dedupe

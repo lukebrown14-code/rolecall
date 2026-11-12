@@ -17,7 +17,7 @@ func TestStatsScreenTabAndRowKeysAreInert(t *testing.T) {
 }
 
 func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "t"))
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 140, "4", "t"))
 	if !strings.Contains(view, "Platform") {
 		t.Fatalf("track filter did not show Platform:\n%s", view)
 	}
@@ -28,7 +28,7 @@ func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
 
 func TestStatsHelpBarOnlyListsValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "?"))
-	for _, want := range []string{"add", "rescan", "quit", "cycle track", "1-4", "screen"} {
+	for _, want := range []string{"add", "rescan", "quit", "cycle track", "1-6", "screen"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}

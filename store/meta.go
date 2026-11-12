@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -35,7 +36,7 @@ func readApplication(dir string, b []byte) Application {
 				return fail(n+1, fmt.Errorf("invalid status_log entry or unexpected nesting"))
 			}
 			if !validStatus(m[1]) {
-				return fail(n+1, fmt.Errorf("unknown Status %q", m[1]))
+				return fail(n+1, fmt.Errorf("unknown Status"))
 			}
 			if _, err := time.Parse(time.RFC3339, m[2]); err != nil {
 				if _, err = time.Parse("2006-01-02", m[2]); err != nil {
@@ -72,7 +73,11 @@ func readApplication(dir string, b []byte) Application {
 		}
 		switch k {
 		case "schema":
-			if v != "1" {
+			version, err := strconv.Atoi(v)
+			if err == nil && version > 1 {
+				return fail(n+1, fmt.Errorf("schema %d is newer than this version; upgrade rolecall", version))
+			}
+			if err != nil || version != 1 {
 				return fail(n+1, fmt.Errorf("unsupported schema"))
 			}
 		case keyTitle:

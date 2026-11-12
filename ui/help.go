@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -51,8 +52,8 @@ func (k helpKey) pair() [2]string {
 // viewContext names where the Owner is, for the key line while a pop-up holds the
 // keyboard: the screen, its view when it has more than one, and the Application under it.
 func (m model) viewContext() string {
-	label := screens[m.screen]
-	if ts := tables[m.screen]; len(ts) > 1 && ts[m.table] != label {
+	label := screenDefs[m.screen].name
+	if ts := m.views(); len(ts) > 1 && ts[m.table] != label {
 		label += " · " + ts[m.table]
 	}
 	if a, ok := m.current(); ok {
@@ -76,19 +77,23 @@ func (m model) helpKeys() []helpKey {
 		}
 		return keys
 	}
-	if m.screen == statsScreen {
-		keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-4", "screen")}
-		if len(m.tracks) > 0 {
-			keys = append(keys, help(groupMore, "t", "cycle track"))
-		}
-		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	// A screen without Application tables owns its keys, and so its help.
+	if !m.hasTables() {
+		return screenDefs[m.screen].help(m)
 	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
 	usable := !onRow || a.Malformed == nil
 	var keys []helpKey
 	if m.detail != nil {
-		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", "scroll"))
+		vertical := "scroll"
+		if m.detail.tab == tabDocs {
+			vertical = "select"
+		}
+		keys = append(keys, help(groupAction, "←→", "tab"), help(groupAction, "↑↓", vertical))
+		if m.detail.tab == tabDocs {
+			keys = append(keys, help(groupAction, "enter", "open document tab / PDF"))
+		}
 		if usable {
 			keys = append(keys, help(groupAction, "e", "edit file"))
 		}
@@ -126,8 +131,8 @@ func (m model) helpKeys() []helpKey {
 	if m.detail != nil {
 		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "q", "quit"))
 	}
-	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
-	if len(tables[m.screen]) > 1 {
+	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-6", "screen"))
+	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "tab", "view"))
 	}
 	keys = append(keys, help(groupNav, "?", "all keys"))
@@ -152,6 +157,10 @@ func pairs(keys []helpKey, group helpGroup) [][2]string {
 // cut. When narrow, actions drop from the right, pinnedKeys last; "? all keys" on the
 // right says where the rest went.
 func (m model) keyLine(p pal, w int) string {
+	if m.boxOpen() && m.screen == settingsScreen {
+		// Settings pop-ups name their keys in the footer as well as on their border.
+		return " " + xansi.Truncate(p.keys(m.overlayHints()), max(0, w-gutter), "…")
+	}
 	if m.boxOpen() {
 		// The pop-up's bottom border already lists its keys; the key line gives context.
 		return " " + p.text(p.dim).Render(xansi.Truncate(m.viewContext(), max(0, w-gutter), "…"))
@@ -184,8 +193,19 @@ func (m model) helpBox(p pal) string {
 	nav := append(pairs(keys, groupNav), pairs(keys, groupCursor)...)
 	cols := []string{col("Actions", pairs(keys, groupAction)), col("Navigate", nav), col("More", pairs(keys, groupMore))}
 	legend := p.heading("Glyphs") + "\n" +
-		p.text(p.dim).Render("● ready · ○ written · ✓ present · ⚠ warning") + "\n" +
-		p.text(p.dim).Render("✕ rejected or error · ↩ withdrawn · ~ approx · ⚑ follow-up due")
+		p.text(p.dim).Render("Status: ● ready · ○ written") + "\n" +
+		p.text(p.dim).Render("Docs: ○ not written · ✓ present") + "\n" + p.text(p.dim).Render("⚠ warning · ✕ rejected or error") + "\n" + p.text(p.dim).Render("↩ withdrawn · ~ approx · ⚑ follow-up due")
 	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn) + "\n\n" + legend
-	return popup(p, "Keys", false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"any key", hintClose}}))
+	lines := strings.Split(body, "\n")
+	const helpChrome = 10 // frame, popup borders, headings and paging controls
+	size := max(1, m.viewHeight()-helpChrome)
+	pages := (len(lines) + size - 1) / size
+	hm, _ := m.overlay.(*helpMode)
+	page := 0
+	if hm != nil {
+		hm.page = min(hm.page, pages-1)
+		page = hm.page
+	}
+	body = strings.Join(lines[page*size:min(len(lines), (page+1)*size)], "\n")
+	return popup(p, fmt.Sprintf("Keys %d/%d", page+1, pages), false, popLarge, m.viewWidth(), body, p.keys([][2]string{{"↑↓", "page"}, {"esc", "close"}}))
 }

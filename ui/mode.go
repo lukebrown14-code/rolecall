@@ -22,7 +22,7 @@ type mode interface {
 }
 
 // overlayOpen reports whether a mode that hides the view's keys owns the keyboard. The
-// help pop-up is excluded: its border says "any key close", so it lists the view's keys.
+// help pop-up is excluded: it lists paging controls, so it lists the view's keys.
 func (m model) overlayOpen() bool { return m.overlay != nil && !m.helpOpen() }
 
 func (m model) helpOpen() bool {
@@ -46,6 +46,15 @@ func (m model) overlayHints() [][2]string {
 	return m.overlay.Keys()
 }
 
+// overlayLeft is the first column a pop-up may use: Settings keeps its Groups column and
+// the divider clear, so a pop-up never covers them.
+func (m model) overlayLeft() int {
+	if m.screen == settingsScreen && m.settingsListShown(m.viewWidth()) {
+		return settingsListWidth + profileDivider
+	}
+	return 0
+}
+
 // overlayView is the active mode's box, or "" when none is open.
 func (m model) overlayView(p pal) string {
 	if m.overlay == nil {
@@ -64,12 +73,12 @@ type formMode struct {
 }
 
 func (fm *formMode) Keys() [][2]string {
-	return [][2]string{{"tab", "next"}, {"←→", "change"}, {"enter", "save"}, {"esc", "cancel"}}
+	return [][2]string{{"tab", hintNext}, {"←→", "change"}, {"enter", hintSave}, {"esc", "cancel"}}
 }
 
 func (fm *formMode) boxed() bool { return true }
 
-func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm) }
+func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm, popForm) }
 
 // Update runs the form. Nothing is written until it completes.
 func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -258,18 +267,25 @@ func (bf *buildFailMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return bf, nil
 }
 
-// helpMode is the `?` pop-up: any key closes it, esc included.
-type helpMode struct{}
+// helpMode pages the help; other keys close it.
+type helpMode struct{ page int }
 
-func (hm *helpMode) Keys() [][2]string { return [][2]string{{"any key", hintClose}} }
+func (hm *helpMode) Keys() [][2]string { return [][2]string{{"↑↓", "page"}, {"esc", hintClose}} }
 
 func (hm *helpMode) boxed() bool { return false }
 
 func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
 
 func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	if _, ok := msg.(tea.KeyPressMsg); ok {
-		return nil, nil
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		switch k.String() {
+		case "down", "j", "pgdown":
+			hm.page++
+		case "up", "k", "pgup":
+			hm.page = max(0, hm.page-1)
+		default:
+			return nil, nil
+		}
 	}
 	return hm, nil
 }
@@ -311,3 +327,9 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	m.cursor = 0
 	return sm, nil
 }
+
+// Key-hint labels shared by the pop-up modes.
+const (
+	hintNext = "next"
+	hintSave = "save"
+)

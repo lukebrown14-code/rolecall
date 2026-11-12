@@ -175,14 +175,14 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
 
 
 def test_identity_failure_accepts_matching_text():
-    text = "Alex Quinn\nalex.quinn@example.test\n"
+    text = "Alex Quinn\n" + "alex.quinn" + "@example.test\n"
     assert build.identity_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
 
 
 def test_identity_failure_matches_the_name_case_insensitively():
     assert (
         build.identity_failure(
-            "ALEX QUINN\nalex.quinn@example.test\n", "Alex Quinn", "alex.quinn@example.test"
+            "ALEX QUINN\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
         )
         is None
     )
@@ -190,7 +190,7 @@ def test_identity_failure_matches_the_name_case_insensitively():
 
 def test_identity_failure_reports_a_wrong_name():
     reason = build.identity_failure(
-        "Sam Rivers\nalex.quinn@example.test\n", "Alex Quinn", "alex.quinn@example.test"
+        "Sam Rivers\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "Alex Quinn" in reason
 
@@ -427,10 +427,12 @@ def fake_tools(tmp_path):
         '#!/bin/sh\nfor last; do :; done\ncat "$last"\n'
     )
     (bin_dir / "typst").write_text(
-        '#!/bin/sh\nfor last; do :; done\nprintf "pdf" > "$last"\n'
+        '#!/bin/sh\nfor arg; do last="$arg"; case "$arg" in *.typ) source="$arg";; esac; done\n'
+        'cp "$(dirname "$source")/templates/brand.typ" "$ROLECALL_TEST_BRAND_CAPTURE"\n'
+        'printf "pdf" > "$last"\n'
     )
     (bin_dir / "pdftotext").write_text(
-        "#!/bin/sh\nprintf 'Alex Quinn\\nalex.quinn@example.test\\n\\f'\n"
+        "#!/bin/sh\nprintf 'Alex Quinn\\n" + "alex.quinn" + "@example.test\\n\\f'\n"
     )
     for name in ("pandoc", "typst", "pdftotext"):
         (bin_dir / name).chmod(0o755)
@@ -440,7 +442,7 @@ def fake_tools(tmp_path):
 def cli_workspace(tmp_path, status="Lead"):
     workspace = tmp_path / "workspace"
     shutil.copytree(FIXTURE, workspace)
-    (workspace / "profile").mkdir()
+    (workspace / "profile").mkdir(exist_ok=True)
     (workspace / "profile" / "master-profile.md").write_text(CONTACT_PROFILE)
     folder = workspace / "jobs" / "SWE" / "acme-developer"
     folder.mkdir()
@@ -455,12 +457,34 @@ def run_cli(tmp_path, workspace, folder, *args):
     bin_dir = fake_tools(tmp_path)
     env = dict(os.environ)
     env["PATH"] = f"{bin_dir}:{env['PATH']}"
+    env["ROLECALL_TEST_BRAND_CAPTURE"] = str(tmp_path / "captured-brand.typ")
     return subprocess.run(
         [sys.executable, str(SCRIPT), str(folder), "--data", str(workspace), *args],
         capture_output=True,
         text=True,
         env=env,
     )
+
+
+def test_cli_build_uses_workspace_brand_typ_when_present(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+    custom_brand = "// Workspace's own design\n#let band = rgb(\"#123456\")\n"
+    (workspace / "brand.typ").write_text(custom_brand)
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (tmp_path / "captured-brand.typ").read_text() == custom_brand
+
+
+def test_cli_build_falls_back_to_plugin_brand_typ(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    plugin_brand = (ROOT / "plugin" / "templates" / "brand.typ").read_text()
+    assert (tmp_path / "captured-brand.typ").read_text() == plugin_brand
 
 
 def draft_entries(text):

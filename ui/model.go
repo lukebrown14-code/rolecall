@@ -5,20 +5,15 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"fmt"
-	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/store"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-var screens = []string{screenLeads, screenDraft, screenApplied, screenStats}
-
 // allView is the Applied screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
-
-var tables = [][]string{{tableLeads, tableDismissed}, {tableDraft}, {allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, {}}
 
 var appliedGroups = []string{tableApplied, tableInterviewing, tableOffer, tableClosed}
 
@@ -40,11 +35,12 @@ type model struct {
 	err                   error
 	width                 int
 	followUpDays          int
+	configHome            string // where config.toml lives; empty means machine settings cannot be saved
+	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
 	now                   func() time.Time
 	editor                string
-	configPath            string
-	reloadCfg             func() (config.Config, error)
-	editorSource          string // where the effective Editor came from, for Settings
+	back                  *settingsBack // where Esc returns from Settings opened with a comma
+	editorSource          string        // where the effective Editor came from, for Settings
 	sources               SettingSources
 	external              ExternalRunner
 	detail                *detailState
@@ -59,6 +55,8 @@ type model struct {
 	capturedRun           bool // a build or fetch is in flight; only one captured run at a time
 	building              *buildState
 	spinner               spinner.Model
+	profile               *profileState
+	settings              *settingsState
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -82,6 +80,8 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
+		// An invalid workspace.json stops startup with a sanitised error. Once running,
+		// Settings shows a file that breaks later and offers e.
 		m.tracks, e = s.Tracks()
 	}
 	if e != nil {
@@ -105,13 +105,13 @@ func (m model) quit() tea.Cmd {
 	}
 }
 
-// rows is the active view in display order: the cursor indexes into it. Stats has
-// no tables and no rows.
+// rows is the active view in display order: the cursor indexes into it. A screen
+// without Application tables has no rows.
 func (m model) rows() []store.Application {
-	if m.screen == statsScreen {
+	if !m.hasTables() {
 		return nil
 	}
-	return m.rowsOf(m.screen, tables[m.screen][m.table])
+	return m.rowsOf(m.screen, m.views()[m.table])
 }
 
 // rowsOf lists one view of a screen. All groups the Applied screen's tables in
@@ -127,7 +127,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table && m.matches(a) {
+		if s == screenDefs[screen].name && t == table && m.matches(a) {
 			out = append(out, a)
 		}
 	}
@@ -164,7 +164,7 @@ func (m model) totalCount(screen int, table string) int {
 	n := 0
 	for _, a := range m.apps {
 		s, t := StatusLocation(a.Status)
-		if s == screens[screen] && t == table {
+		if s == screenDefs[screen].name && t == table {
 			n++
 		}
 	}
@@ -179,10 +179,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if batch, ok := msg.(foldersChanged); ok {
 		return m.refresh(batch.folders), m.watch.next()
-	}
-	if done, ok := msg.(configEdited); ok {
-		m.reloadConfig(done)
-		return m, nil
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
@@ -200,6 +196,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if done.folder == m.selectAfter {
 			m.selectFolder(done.folder)
 			m.selectAfter = ""
+		}
+		// A Profile edit suspends from screen 5 and finishes with the Workspace root as
+		// its folder; profile/ is not watched, so reread it here. An Application edit
+		// still rescans its own folder above.
+		if m.screen == profileScreen || done.folder == m.store.Root() {
+			m = m.loadProfile()
+		}
+		if m.screen == settingsScreen {
+			m.rescanAll() // workspace.json holds the Tracks the header filters by
+			m = m.loadSettings()
 		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
@@ -239,22 +245,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
+		if m.settingsEditing() {
+			return m.settingsEditKey(k) // typing owns every key, digits and esc included
+		}
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil
 		}
-		if k.String() == "," {
+		if k.String() == "," && m.screen != settingsScreen {
 			// Settings opens from anywhere, over the detail view and Stats too.
-			m.overlay = &settingsMode{}
-			return m, nil
+			return m.openSettings(), nil
 		}
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {
 				return next.syncDetail(), cmd
 			}
 		}
-		if m.screen == statsScreen {
-			return m.statsKey(k)
+		if next, ok := m.screenKey(k); ok {
+			return next, nil
+		}
+		if !m.hasTables() {
+			return screenDefs[m.screen].key(m, k)
 		}
 		switch k.String() {
 		case "v", "enter":
@@ -308,15 +319,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "1", "2", "3", "4":
-			m.screen = int(k.String()[0] - '1')
-			m.table = 0
-			m.cursor = 0
 		case "tab":
-			m.table = (m.table + 1) % len(tables[m.screen])
+			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
 		case "shift+tab":
-			m.table = (m.table + len(tables[m.screen]) - 1) % len(tables[m.screen])
+			m.table = (m.table + len(m.views()) - 1) % len(m.views())
 			m.cursor = 0
 		case "down", "j":
 			m.cursor++
@@ -341,6 +348,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m = m.syncDetail()
+	m = m.syncProfile()
 	n := len(m.rows())
 	if m.cursor >= n {
 		m.cursor = n - 1

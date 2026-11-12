@@ -18,7 +18,7 @@ each other directly: files are the only link.
 | **v0.1** | personal, works without a harness | TUI layout and behaviour, `SCHEMA.md`, plugin port + rewrite for the schema, data migration |
 | **v0.1.1** | styling | colour palette (dark only), status colours, layout tweaks, empty states, header, demo GIF |
 | **v0.2** | harness + extras | `f`/`p` keys that hand off to the harness, URL fetch in Add, Stats screen (`4`), `b` build key |
-| **v0.3** | reading | Markdown preview of `resume.md` / `cover-letter.md` in the Docs tab |
+| **v0.3** | reading | Markdown reader tabs for Resume, Letter and Gaps |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Non-goals for v0.1
@@ -39,7 +39,7 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 ├─ config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
-│  ├─ skills/  capture-job, find-jobs, assess-fit, prepare-documents
+│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents
 │  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py
 │  ├─ templates/ resume.typ, cover-letter.typ, brand.typ, fonts/
 │  ├─ styles/au.md
@@ -74,7 +74,10 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
+ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on
 ```
+
+Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
 
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 
@@ -126,27 +129,12 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `t` | global | cycle the track filter: All → each `workspace.json` track |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
-| `,` | global | Settings overlay |
+| `,` | global | open Settings (screen 6); `Esc` returns |
 | `?` | global | full help |
 | `q` / `Ctrl-C` | global | quit |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `b`: see [v0.2](#v02-harness-and-extras).
 - The bottom help bar shows only the keys valid for the current row (e.g. `d` hidden when nothing is built).
-
-### Settings (`,`)
-
-A read-only overlay, opened from any screen. `Esc` closes it and restores the screen, table,
-cursor and filter. It lists each effective setting with its source (`config.toml`, `$VISUAL`,
-`$EDITOR`, `$ROLECALL_PLUGIN`, `--dir` or `default`), Editor first:
-
-```
-Editor: nvim (config.toml)
-Workspace · Follow-up days · Downloads · Plugin · Harness
-```
-
-- If the first word of the Editor command is not on `PATH`, the Editor line adds `(not found on PATH)`. This never blocks launch. `rolecall doctor` reports the same as a warning.
-- `e` opens `config.toml` in the Editor (created empty if missing). When the Editor exits, the config reloads. On a TOML error the old values stay and the feedback line shows the error. The Workspace is fixed for the session.
-- The view's help line lists example Editor values: `nvim`, `code --wait`, `zed --wait`, `hx`, `subl --wait`.
 
 ### Move popup (`m`)
 
@@ -321,6 +309,7 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 | Skill | Writes |
 |---|---|
 | `capture-job` | new folder: `meta.yml` (`title`, `company`, `track`, `url`, `closes` if stated, first `Lead` entry) + `jd.md` |
+| `create-profile` | creates or updates the Owner's Profile from a resume or guided questions, then gets Owner approval |
 | `find-jobs` | runs `sweep.py`, triages, creates a Lead folder per role worth a look (as capture-job, `jd.md` may be a stub with the URL) |
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
@@ -450,61 +439,154 @@ success/failure, fetch success/failure); Stats numbers as pure functions over th
 (funnel, Response rate exclusion window, week bucketing across a Monday boundary).
 
 ### v0.3: reading
-Markdown preview of `resume.md` and `cover-letter.md` in the Docs tab (Glamour).
+The detail view opens on JD and shows these tabs in order:
+
+| Tab | Source | Visibility |
+|---|---|---|
+| JD | `jd.md` | Always |
+| Fit | `fit.md` | Always |
+| Resume | `resume.md` | Has non-whitespace text |
+| Letter | `cover-letter.md` | Has non-whitespace text |
+| Gaps | `gaps.md` | Has non-whitespace text |
+| Notes | `notes.md` | Always |
+| Docs | Document inventory | Always |
+
+Reader tabs render the Markdown source as written, using the JD tab's Glamour
+renderer, reading width and scroll keys. `e` opens the reader's file in `$EDITOR`.
+The current tab is tracked by identity. Left/right wraps through visible tabs.
+Live refresh keeps the current tab and scroll offset when text changes; newly
+written documents add tabs without moving the reader. If the current reader's
+file is deleted or emptied, move to Docs with `<file> is gone`. Moving to an
+Application without the current tab falls back to JD.
+
+Docs keeps the source files, PDFs and `sent/` inventory. Enter on a written
+Markdown document opens its reader tab; on an absent or empty document it says
+it hasn't been written yet. `e` still opens the Markdown file in `$EDITOR`, and
+Enter on a PDF opens the system viewer. Empty files are labelled `(empty)`.
+For a Resume only Application without letter text, the card and Docs show
+`not needed · Resume only` for the cover letter, and no Letter tab appears.
+Reader scroll/edit hints match JD; help explains Enter in Docs.
+
+Acceptance:
+
+1. A Draft with all three written documents shows JD · Fit · Resume · Letter · Gaps · Notes · Docs; Resume scrolls and `e` edits it.
+2. A Lead without documents shows JD · Fit · Notes · Docs.
+3. A resume written through `p` adds its tab on return without moving the current tab.
+4. Enter on `resume.md` in Docs opens Resume; empty and absent documents show `(empty)` and `not written` where appropriate.
+5. Resume only Applications show no Letter tab and show `not needed · Resume only` in the card and Docs.
+6. Tabs fit at 80 columns and readers work with `harness` and `plugin` unset.
+7. `scripts/check-go.sh` and `go test -race -count=3 ./ui` pass.
+
+These are readers; preview continues to mean the side pane beside the tables.
+Documents state rules, Build and the Plugin are unchanged.
 
 ### v1.0: public
 | Area | Features |
 |---|---|
-| Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, spelling, paper size, workspace path, `git init`) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
-| Profile | Profile screen (contact and preferences form, experience in `$EDITOR`) · `import-profile` skill (CV PDF/DOCX/LinkedIn export → profile) |
-| Settings | Settings screen: tracks, gates, follow-up days, downloads, editor, theme, harness commands |
-| Documents | neutral default template + workspace brand override · style packs AU/UK/US · 2–3 template choices |
+| Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, workspace path, `git init`; spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
+| Profile | read-only Profile screen (screen 5; editing in 1.x) · `create-profile` skill (resume, LinkedIn export or guided questions → approved Profile) |
+| Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (dark only, so no theme) |
+| Documents | neutral default template + workspace brand override · 2–3 template choices (style packs AU/UK/US move to 1.x) |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
-| Finding | per-workspace sources and locations, no Melbourne default |
+| Finding | per-workspace sources and locations, no default city |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
-#### What v1.0 still needs (as of 2026-11-12)
+#### What v1.0 still needs (agreed 2026-11-12)
 
-v0.1, v0.1.1 and v0.2 are merged to `main` (PR #41). Still scope only: each area needs
-agreeing in a grilling session and splitting into issues before it is built.
+Agreed in the v1.0 grilling session of 2026-11-12. Every item below is ticketed, and the
+public-repo cut (#82) is blocked by all of them.
 
-| Area | Item | State |
+**In 1.0:** privacy and the public-repo cut (ADR-0005, #73), the Profile screen (#49), the
+Settings screen (#58, including the Search area filter in the Sweep), the `create-profile`
+skill, and the release blockers in the table.
+
+**Moved to 1.x:** UK/US style packs and spelling, template choices, CSV import/export,
+auto-commit on Status change, `rolecall migrate`, and #59–#61.
+
+**Platforms:** macOS and Linux are supported; Windows through WSL. Native Windows file
+opening stays but is best-effort, with no CI.
+
+| # | Item | Decision |
 |---|---|---|
-| Onboarding | `rolecall init` wizard | To do. Today a missing workspace exits with a one-line message |
-| | `rolecall doctor` | To do |
-| | Plugin install guide per harness | To do |
-| Profile | Profile screen | To do |
-| | `import-profile` skill | To do |
-| Settings | Settings screen | To do. Settings are only in `config.toml` and `workspace.json` |
-| Documents | Neutral default template + workspace brand override | To do. `plugin/templates/brand.typ` is still the Owner's brand |
-| | Style packs AU/UK/US | Partial. Only `plugin/styles/au.md` exists |
-| | 2–3 template choices | To do |
-| Data | `rolecall migrate` (schema versions) | To do. `migrate.py` is the one-time dashboard migration only |
-| | CSV/spreadsheet import · CSV/JSON export | To do |
-| | Optional auto-commit on Status change | To do |
-| Finding | Per-workspace sources and locations | Partial. `find-jobs` reads `sources` from `workspace.json`, but `sweep.py` hard-codes an Australia location filter (`LOCATION_OK` / `LOCATION_REJECT`) |
-| Platform | Linux/Windows file opening | To do. `ui/detail.go` and `ui/download.go` call macOS `open` |
-| | `NO_COLOR`, glyph fallbacks, non-colour active markers | Done (#32, `ROLECALL_ASCII`) |
-| | Colour-blind-safe markers | Partial. Every colour pairs with a word or glyph; the palette itself is not checked for colour blindness |
-| | Small terminals | Partial. Below 50×12 shows a `too small` notice; no compact layout |
-| Release | goreleaser + Homebrew tap | To do |
-| | README | Partial. Still says v0.1 and private |
-| | Demo GIF | To do (VHS, carried over from v0.1.1) |
-| | Fictional example workspace | Partial. `fixtures/workspace` is fictional but built for tests, not as a showcase |
-| | MIT licence · CONTRIBUTING | To do |
-| | Personal-data CI guard | Partial. `plugin/tests/test_personal_data.py` covers `plugin/` only; extend to Go, docs and fixtures |
-| | No telemetry | Done (none exists); state it in the README |
+| 1 | Org move | Public repo is `Archipelago-Software/rolecall`; module path `github.com/Archipelago-Software/rolecall`; tap `Archipelago-Software/homebrew-tap`. Done in the private repo before the cut |
+| 2 | Licence · CONTRIBUTING | MIT, "the rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
+| 3 | README | Rewrite for the public release, including "Make your documents yours" (the Privacy section is #77) |
+| 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
+| 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
+| 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
+| 7 | `init` wizard | Huh v2 prompts with matching flags: Contact (Name and Email required), Tracks, Search area (optional), Workspace path. Ends with "Create your Profile now?": from resume, answer questions, or later. Builds on #80 |
+| 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
+| 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
+| 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |
+| 11 | Codebase review | Full review of the codebase against `CODING_STANDARDS.md` and the ADRs once all code work has merged |
+| 12 | Design review | Full design review of the TUI, `init` and the documents once all UI work has merged |
+| 13 | Showcase workspace | One fictional Owner, about 10 Applications across every Status, with built PDFs. `fixtures/workspace` stays test-only |
+| 14 | Demo GIF | Recorded with VHS from the showcase workspace |
 
-**Suggested order:** ship v0.3 first. Then the release blockers, so the repo can go public:
-licence, README, personal-data guard across the repo, neutral template, location filter from
-the workspace, cross-platform open, `init` and `doctor`, goreleaser. Profile and Settings
-screens, template choices, style packs, import/export and auto-commit can follow in 1.x if
-needed.
+#### Profile screen (v1.0)
 
-**To decide in the v1.0 grilling:** whether the Profile and Settings screens are required for
-1.0 or can come in 1.x; what `rolecall migrate` versions (a `schema` field in `workspace.json`?);
-which harnesses get an install guide; and Windows support in or out.
+Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size are not
+settings in v1 (AU and A4 are fixed; style packs move to 1.x), and writing preferences stay
+prose, so the 1.x edit form covers the Contact only.
+
+- **Screen 5**, after Stats. A section list on the left, built from the `##` headings of
+  `profile/master-profile.md`, then a divider and the other Profile files (`projects.md`,
+  `writing-preferences.md`, `phrasing-bank.md`). The selected section renders as Markdown on
+  the right.
+- **Counts** beside each section: entries for `###` sections, rows for tables, bullets for
+  lists, items for comma lists, none for prose. Contact shows ✓, or ✗ with the reason in the
+  content pane when Name or Email is missing (builds would fail).
+- **Keys:** `j`/`k` section, `tab` focus, `e` opens the current file in `$EDITOR` (as on the
+  Resume tab).
+- **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
+  found` and `e` does nothing; a file with no `##` headings is one section, "Profile"; below
+  80 columns the section list hides and the header names the section.
+- **Refresh:** re-read on entering the screen, after `$EDITOR` closes, and on `r`. `profile/` is
+  not watched.
+- The Contact table is a file contract: see `SCHEMA.md`.
+
+#### Settings screen (v1.0)
+
+Laid out like Profile. Parent spec: #58; this section covers the read-only first slice (#66).
+
+- **Screen 6**, after Profile (`6 Settings` in the header). Groups on the left (**Search ·
+  Documents · Tracking · This machine**), the selected group's settings on the right.
+- **Values shown**, each from the file that owns it:
+  - Search: Places and Remote rule (`workspace.json` → `search_area`), then `Sources · N` and
+    `Blockers · N` count rows.
+  - Documents: cover letter word cap and minimum, Key Skills minimum and maximum
+    (`workspace.json`; the Build defaults 350, 150, 8 and 12 when unset).
+  - Tracking: Tracks (`workspace.json`) and follow-up days (`config.toml`).
+  - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
+    harness, plugin.
+- **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; `e`
+  opens `workspace.json` in the Editor, or `config.toml` while This machine is selected; `r`
+  rescans. This slice writes nothing.
+- **`,`** opens Settings from any screen, including the detail view and Stats. `Esc` returns to
+  the screen, table, cursor, open detail and filter it was opened from; a Settings screen
+  reached with `6` has no previous screen, so `Esc` does nothing there. In a text filter `,` is
+  typed, not a key.
+- **Source:** each machine setting is followed by where it came from: `config.toml`,
+  `$VISUAL`, `$EDITOR` (Editor only), `$ROLECALL_PLUGIN` (Plugin only), `--dir` (Workspace
+  only) or `default`. Unset values show their effective default (Editor `vi`, follow-up days 14).
+- **Editor:** shows the command in effect. If the first word is not on `PATH` (quoted paths
+  honoured) the row adds `(not found on PATH)`. This never blocks launch; `rolecall doctor`
+  reports the same condition as a warning.
+- **Config reload:** `e` on This machine creates `config.toml` empty if missing, opens it in
+  the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay and
+  the feedback line shows the error. The Workspace is fixed for the session.
+- **Editor examples:** This machine lists `nvim`, `code --wait`, `zed --wait`, `hx`,
+  `subl --wait`. GUI Editors need their wait flag, or rolecall rescans before editing finishes.
+- An explicit `follow_up_days = 0` is honoured; only an absent key means the default 14.
+- **Invalid `workspace.json`:** the screen shows its path and the parse error, with `e` as the
+  only action. The program still starts, with no Track filter. Nothing is written.
+- **Refresh:** both files are re-read on entering the screen, on `r`, and after `$EDITOR` closes.
+- **Narrow:** below 80 columns the group list hides and the header names the group (`Search
+  1/4`), as on Profile.
+- **Later slices:** editing Tracks (add, rename, remove, reorder), the Search area form, gates
+  and machine settings as editable rows. `workspace.json` is then written by the TUI, a
+  `SCHEMA.md` ownership change that lands with the first writing slice.
 
 ## Open questions
 

@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/lukebrown14-code/rolecall/config"
@@ -37,11 +39,10 @@ func ResolveEditor(configured string) string {
 	return "vi"
 }
 
-// EditorOnPath reports whether the executable of an Editor command can be found: the
+// editorOnPath reports whether the executable of an Editor command can be found: the
 // first word, with surrounding quotes honored, looked up on PATH (or used directly
-// when it contains a slash). Flags and later arguments are not checked. It is shared
-// with `rolecall doctor`.
-func EditorOnPath(command string) bool {
+// when it contains a slash). Flags and later arguments are not checked.
+func editorOnPath(command string) bool {
 	exe := firstWord(command)
 	if exe == "" {
 		return false
@@ -148,6 +149,15 @@ func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd 
 	}
 }
 
+// InitGit creates a local repository for a newly initialized Workspace.
+func InitGit(root string) error {
+	cmd := exec.Command("git", "init", "--quiet", root)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
 // editFile opens a file of the Application folder in the Owner's editor. The editor
 // preference may include flags or quoted executable paths, so the filename is passed
 // as a shell positional argument and Application paths remain literal.
@@ -164,23 +174,18 @@ func (m model) editNotes(folder string) tea.Cmd {
 	}
 }
 
-const ()
-
-// editConfig opens the config file in the Editor, creating it empty first if missing.
+// editConfig opens config.toml in the Editor, creating it empty first if missing. The
+// Settings screen reloads when the Editor exits.
 func (m model) editConfig() tea.Cmd {
-	if m.configPath == "" {
+	if m.configHome == "" {
 		return nil
 	}
+	path, root := config.Path(m.configHome), m.store.Root()
 	return func() tea.Msg {
-		if err := config.Ensure(m.configPath); err != nil {
-			return configEdited{err}
+		if err := config.Ensure(path); err != nil {
+			return externalFinished{root, err}
 		}
-		runner := m.external
-		if runner == nil {
-			runner = tea.ExecProcess
-		}
-		c := exec.Command("/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", m.configPath)
-		return runner(c, func(err error) tea.Msg { return configEdited{err} })()
+		return m.runExternal(root, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", path)()
 	}
 }
 
@@ -219,3 +224,23 @@ func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays 
 // WithWatch turns on live refresh: the Workspace's job folders are watched and
 // changes are rescanned after a quiet window of the given length.
 func WithWatch(window time.Duration) Option { return func(m *model) { m.watchWindow = window } }
+
+// openPath opens a document or reveals the downloads folder with the desktop launcher.
+func (m model) openPath(folder, path string, reveal bool) tea.Cmd {
+	command, args := desktopCommand(runtime.GOOS, path, reveal)
+	return m.runExternal(folder, command, args...)
+}
+
+func desktopCommand(platform, path string, reveal bool) (string, []string) {
+	switch platform {
+	case "darwin":
+		if reveal {
+			return "open", []string{"-R", path}
+		}
+		return "open", []string{path}
+	case "windows":
+		return "rundll32.exe", []string{"url.dll,FileProtocolHandler", path}
+	default:
+		return "xdg-open", []string{path}
+	}
+}

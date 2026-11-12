@@ -11,7 +11,7 @@ import (
 // state still reads. Checked across the list, the detail view and the pop-ups.
 func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}} {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"5"}} {
 		view := runKeys(t, fixtureCopy(t, nil), 120, keys...)
 		for _, seq := range []string{"38;2;", "48;2;"} {
 			if strings.Contains(view, seq) {
@@ -29,13 +29,20 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
 	}
+	// Profile keeps its pane label, selection marker and Contact mark without colour.
+	profile := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	for _, want := range []string{"SECTIONS", "▸ Contact", "✓"} {
+		if !strings.Contains(profile, want) {
+			t.Fatalf("without colour, %q is not readable on Profile:\n%s", want, profile)
+		}
+	}
 }
 
 // ROLECALL_ASCII replaces every drawn glyph with an ASCII stand-in, at the same width, so
 // the frame is unchanged. Every state leaves only ASCII.
 func TestAsciiGlyphsFallBack(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "e"}} {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "e"}, {"5"}} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
 		for _, r := range view {
 			if r > 127 {
@@ -58,6 +65,18 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 	}
 	if !strings.Contains(stats, "Funnel") {
 		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
+	}
+
+	// Profile's marker, Contact's ✓ and the list divider fall back to ASCII too.
+	profile := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	if !strings.Contains(profile, "> Contact") {
+		t.Fatalf("ASCII fallback lost Profile's selection marker:\n%s", profile)
+	}
+	if row := requireProfileListRow(t, profile, "Contact"); !strings.HasSuffix(row, "v") {
+		t.Fatalf("ASCII fallback lost Contact's mark: row %q:\n%s", row, profile)
+	}
+	if !hasProfileDivider(profile) {
+		t.Fatalf("ASCII fallback lost the list divider:\n%s", profile)
 	}
 }
 

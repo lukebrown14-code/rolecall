@@ -11,11 +11,19 @@ The individual job seeker whose Profile and Applications live in a Workspace. An
 The Owner's private folder holding their Profile, settings and Applications. Never part of rolecall's code.
 _Avoid_: data dir, project
 
+**Track**:
+A kind of role the Owner is pursuing (e.g. SWE, Platform). Every Application belongs to one, and a Sweep searches each one.
+_Avoid_: category, stream, career path
+
 ### Profile
 
 **Profile**:
 The locked fact set every document is written from: career facts plus the rules for using them. Nothing goes in a document that is not in the Profile.
 _Avoid_: personal details, master profile (for the whole set), CV
+
+**Contact**:
+The Owner's name and how to reach them, printed on every document. Part of the Profile.
+_Avoid_: personal details, identity
 
 **Experience**:
 One employment entry in the Profile: employer, dates, approved titles, bullets.
@@ -32,8 +40,12 @@ A single company's board on a Platform, configured per Workspace (e.g. greenhous
 _Avoid_: board (alone), feed
 
 **Sweep**:
-A mechanical run of all Sources: fetch, filter by track and location, dedupe. Judges nothing; its output is candidates the Harness triages into Leads.
+A mechanical run of all Sources: fetch, filter by Track and Search area, dedupe. Judges nothing; its output is candidates the Harness triages into Leads.
 _Avoid_: search, scan
+
+**Search area**:
+The places a role must be in, and whether remote roles count, for a Sweep to keep it. Not the Owner's own location, which is part of their Contact.
+_Avoid_: location (alone), region
 
 ### Applying
 
@@ -79,6 +91,10 @@ _Avoid_: CV
 **Written**:
 The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.
 _Avoid_: done
+
+**Template**:
+The design every document is built with. The Plugin ships a default; a Workspace can override it with its own.
+_Avoid_: brand, theme
 
 **Build**:
 The Plugin's script that turns an Application's documents into PDFs. The verb is "build", and "Built N PDFs" reports one. It is not a synonym for Written, which is about the text alone; a build of a Lead appends Draft.

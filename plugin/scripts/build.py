@@ -516,6 +516,9 @@ def build(md_path, template_name, out_pdf, substitutions):
             Path(tmp) / "templates",
             ignore=shutil.ignore_patterns("fonts"),
         )
+        workspace_brand = Path(DATA) / "brand.typ"
+        if workspace_brand.is_file():
+            shutil.copy2(workspace_brand, Path(tmp) / "templates" / "brand.typ")
         src = Path(tmp) / f".{out_pdf.stem}.typ"
         src.write_text(doc)
         r = subprocess.run(

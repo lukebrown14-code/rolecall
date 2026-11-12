@@ -1,4 +1,4 @@
-// Cover letter template -- "Header Band" design, shared with the resume
+// Default cover letter template -- "Header Band", shared with the resume
 // through brand.typ so the pair reads as one set of documents.
 // Fed by scripts/build.py: pandoc converts cover-letter.md to Typst markup,
 // injected at the body marker below. build.py lifts the letter's first

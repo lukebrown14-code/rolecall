@@ -5,14 +5,19 @@ The contract between every writer of a rolecall workspace: the TUI (Go), the plu
 writer disagrees with this file, the writer is wrong. Both codebases test against the shared
 fixtures in `fixtures/`.
 
-Schema version: **1**. Terms (Application, Status, Lead, Fit…) are defined in `GLOSSARY.md`.
+Schema version: **1**. A missing `schema` in `workspace.json` or `meta.yml` means 1 for
+pre-schema files. Readers refuse a newer schema and tell the Owner to upgrade rolecall;
+they must not interpret files written for a format they do not know. `meta.yml` is shown
+as a warning row with the upgrade detail. Terms (Application, Status, Lead, Fit…) are
+defined in `GLOSSARY.md`.
 
 ## Workspace layout
 
 ```
 <workspace>/
 ├─ workspace.json              # tracks, gates, sweep sources
-├─ profile/                    # Owner facts: read by the agent, never by the TUI
+├─ brand.typ                   # optional document Template override (see below)
+├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
 │  ├─ phrasing-bank.md
 │  ├─ projects.md
@@ -142,16 +147,83 @@ patch it without reformatting.
 6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
    and its path. Writers refuse to touch it.
 
-## `workspace.json` (read by the TUI)
+## Profile
 
-The TUI reads only `tracks` (array of strings, display order). Missing file or key = no track
-filter. The other keys (gates, `sources`, `blockers`) belong to the plugin.
+`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and never
+writes it. The Profile files are free Markdown, apart from the Contact table below.
+
+### Contact table
+
+The Contact is the `## Contact` section of `profile/master-profile.md`: a two-column table of
+`| Field | Value |` rows. The section ends at the next `## ` heading or the end of the file.
+
+```markdown
+## Contact
+
+| Field | Value |
+| :-- | :-- |
+| Name | Alex Quinn |
+| Email | alex.quinn@example.test |
+| Phone | +61 400 000 000 |
+| Location | Brisbane, QLD |
+| LinkedIn | linkedin.com/in/alexquinn |
+| GitHub | github.com/alexquinn |
+| Work rights | Full working rights in Australia *(subclass never printed)* |
+```
+
+- **Required:** `Name` and `Email`. A Profile missing either fails the build, and the Profile
+  screen marks Contact with ✗ and says why.
+- **Known fields:** `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
+  kept and shown, and the build ignores them.
+- **Header and divider rows** (`Field`, and rows of only `:`, `-` and spaces) are skipped.
+- **Cell values:** a trailing italic note `*(…)*` is a note to the human and is dropped.
+  `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
+- **Missing section or file:** no fields, so both required fields are missing.
+
+## `workspace.json` (read by the TUI, which writes `tracks`, `search_area` and the gates)
+
+The TUI reads `schema` and `tracks` (array of strings, display order) and shows `search_area`, the gates
+(`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
+`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
+most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
+write is atomic, and an invalid file is never overwritten. Missing file or key = no track
+filter and the plugin's defaults.
+Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write: it
+rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
+`meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`. Folders
+never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does not undo it. An invalid file is shown, with its parse error, on the Settings
+screen. `sources`, `blockers` and the gates are used by the plugin. Missing schema means 1;
+a newer schema stops startup with an instruction to upgrade rolecall. Missing file or `tracks`
+key means no track filter and the plugin's defaults.
+
+`search_area` (read by the Sweep and `find-jobs`) is where roles must be:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `places` | array of strings | countries, regions, states or cities, e.g. `Australia`, `APAC`, `Sydney`. Matched ignoring case |
+| `remote` | `in-places` \| `anywhere` \| `no` | whether remote roles count. Default `in-places`: a remote role is kept when it names a Place or no known place |
+
+A missing `search_area` means no filter: the Sweep keeps every location and reports
+`no Search area set: all locations kept`. A built-in gazetteer (`plugin/gazetteer.json`) maps
+countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
+if it names a Place, dropped if it names only known places outside the Places, and kept if its
+location is empty or unknown. `--all-locations` bypasses the filter.
+
+## `brand.typ` (optional document Template override)
+
+The Plugin's default document Template is `plugin/templates/brand.typ`. To customize the
+resume and cover-letter look for a Workspace, copy that file to `<workspace>/brand.typ` and
+edit the copy. The next Build uses the Workspace file; if it is absent, the Plugin default is
+used. Keep the `#let` names imported by `resume.typ` and `cover-letter.typ` when editing, or
+Typst may fail to compile the documents.
 
 ## Fixtures
 
 `fixtures/workspace/` holds a fictional workspace that covers: every Status; Ready, Written and
-no docs; `resume_only`; unknown keys; `approx` entries; an empty log; and one malformed
-`meta.yml`. The Go store tests and the Python `build.py` tests both load it. Any change to this
+no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malformed
+`meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py` tests
+both load it. Any change to this
 file updates the fixtures in the same commit.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed

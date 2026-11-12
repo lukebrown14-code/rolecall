@@ -132,22 +132,18 @@ func (m model) View() tea.View {
 		body = m.tooSmallView(p)
 	case m.detail != nil:
 		body = m.detailView(p)
-	case m.screen == statsScreen:
-		body = m.statsView(p)
 	default:
 		body = m.listView(p)
 	}
 	if box := m.overlayView(p); box != "" && !m.tooSmall() {
 		base := m.listView(dimmedPal)
-		switch {
-		case m.screen == statsScreen:
-			base = m.statsView(dimmedPal)
-		case m.detail != nil:
+		if m.detail != nil {
 			base = m.detailView(dimmedPal)
 		}
-		body = overlay(base, box, m.viewWidth())
+		x0 := m.overlayLeft()
+		body = overlayIn(base, box, x0, m.viewWidth()-x0)
 	}
-	v := tea.NewView(asciiFold(body))
+	v := tea.NewView(asciiFold(body, m.ascii))
 	// Dark only: paint the terminal background so the palette reads the same on a light
 	// terminal. NO_COLOR drops colour but keeps bold and underline.
 	if noColor() {
@@ -173,11 +169,12 @@ func (m model) tooSmallView(p pal) string {
 	return strings.Join(lines[:min(len(lines), m.height)], "\n")
 }
 
-// listView is a screen: top bar, views, the list (with the preview pane when wide),
-// the feedback line and the key line.
+// listView is a screen: a screen without Application tables draws its own view;
+// otherwise top bar, views, the list (with the preview pane when wide), the feedback
+// line and the key line.
 func (m model) listView(p pal) string {
-	if m.screen == statsScreen {
-		return m.statsView(p)
+	if !m.hasTables() {
+		return screenDefs[m.screen].render(m, p)
 	}
 	w, bodyH := m.viewWidth(), max(minBody, m.viewHeight()-chromeLines)
 	rows := m.rows()
@@ -194,7 +191,7 @@ func (m model) listView(p pal) string {
 	}
 	var body string
 	if len(rows) == 0 {
-		title, hint := emptyMessage(tables[m.screen][m.table])
+		title, hint := emptyMessage(m.views()[m.table])
 		if m.text != "" {
 			title, hint = "No matches for “"+m.text+"”", "esc clears the search"
 		}
@@ -255,7 +252,7 @@ func emptyMessage(table string) (string, string) {
 
 func (m model) screenCount(si int) int {
 	n := 0
-	for _, t := range tables[si] {
+	for _, t := range screenDefs[si].tables {
 		if t != allView && t != tableDismissed {
 			n += m.count(si, t)
 		}
@@ -279,7 +276,7 @@ func (m model) countLabel(screen int, table string) string {
 // screenCountLabel is a screen's count over its views, filtered the same way.
 func (m model) screenCountLabel(si int) string {
 	total := 0
-	for _, t := range tables[si] {
+	for _, t := range screenDefs[si].tables {
 		if t != allView && t != tableDismissed {
 			total += m.totalCount(si, t)
 		}
@@ -300,10 +297,12 @@ func (m model) topBar(p pal) string {
 		if level >= shedRolecall {
 			out = p.text(p.accent).Bold(true).Render(" ◆ ")
 		}
-		for si, s := range screens {
+		for si, d := range screenDefs {
+			s := d.name
 			n := m.screenCountLabel(si)
 			if si == m.screen {
-				if s == screenStats {
+				// Only a screen with rows carries a count: Stats and Profile report.
+				if !d.hasTables {
 					out += "  " + on.Render(fmt.Sprintf(" %d %s ", si+1, s))
 				} else {
 					out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
@@ -314,7 +313,7 @@ func (m model) topBar(p pal) string {
 			if level < shedNames {
 				out += " " + p.text(p.fg).Render(s)
 			}
-			if level < shedCounts && s != screenStats {
+			if level < shedCounts && d.hasTables {
 				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
 			}
 			out += " " // the same padding as the highlighted entry, so nothing shifts
@@ -358,9 +357,11 @@ func (m model) trackSelector(p pal, w int) string {
 	}
 	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
 	activeName := mark(name)
-	// Longest to shortest; the last always fits any terminal the layout supports.
+	// Longest to shortest; the last always fits any terminal the layout supports. The
+	// label goes before any track name, so a filtered count elsewhere never hides them.
 	for _, cand := range []string{
 		label + strings.Join(parts, "  ") + key,
+		strings.Join(parts, "  ") + key,
 		label + activeName + plus + key,
 		activeName + plus + key,
 		activeName + key,
@@ -377,11 +378,11 @@ func (m model) trackSelector(p pal, w int) string {
 // view's name, plus the scope line on the right when a filter is on. The row is always
 // present, so the layout never jumps between screens.
 func (m model) viewRow(p pal) string {
-	if m.screen == statsScreen {
+	if !m.hasTables() {
 		return ""
 	}
 	w := m.viewWidth()
-	ts := tables[m.screen]
+	ts := m.views()
 	row := "   " + p.text(p.dim).Render(ts[0])
 	if len(ts) > 1 {
 		for _, f := range []struct {
@@ -420,8 +421,8 @@ func (m model) scopeLine(p pal) string {
 	if m.track == 0 && m.text == "" {
 		return ""
 	}
-	label := screens[m.screen]
-	if view := tables[m.screen][m.table]; view != label {
+	label := screenDefs[m.screen].name
+	if view := m.views()[m.table]; view != label {
 		label += " › " + view
 	}
 	parts := []string{label}
@@ -431,7 +432,7 @@ func (m model) scopeLine(p pal) string {
 	if m.text != "" {
 		parts = append(parts, "search "+m.text)
 	}
-	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, tables[m.screen][m.table])))
+	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
 	return p.text(p.dim).Render(strings.Join(parts, " · "))
 }
 
@@ -444,7 +445,7 @@ func (m model) feedbackLine(p pal, w int) string {
 	switch {
 	case m.err != nil:
 		msg = m.rel(m.err.Error())
-		icon, c, hint = "✕", p.bad, "esc hide"
+		icon, c, hint = "✕", p.bad, "enter inspect · esc hide"
 	case m.building != nil && m.toast == "":
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
 	}
@@ -463,6 +464,7 @@ func (m model) feedbackLine(p pal, w int) string {
 		k, d, _ := strings.Cut(hint, " ")
 		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
+	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-1), "…")
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
 	gap := bg.Render(strings.Repeat(" ", n))
 	return xansi.Truncate(left+gap+right, w, "")
@@ -519,7 +521,7 @@ type divider struct {
 // screen's All view, and Expired at the end of Leads and Draft.
 func (m model) dividers(rows []store.Application) map[int]divider {
 	div := map[int]divider{}
-	switch tables[m.screen][m.table] {
+	switch m.views()[m.table] {
 	case allView:
 		for i, a := range rows {
 			if _, t := StatusLocation(a.Status); i == 0 || t != tableOf(rows[i-1]) {

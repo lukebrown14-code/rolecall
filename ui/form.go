@@ -170,9 +170,9 @@ func (f *form) value(label string) string {
 
 // formBox draws the form: right-aligned labels in a column, * on required fields,
 // ‹ › around choices, dim italic placeholders, errors on the field's own row.
-func (m model) formBox(p pal, fm *formMode) string {
+func (m model) formBox(p pal, fm *formMode, width int) string {
 	f := fm.form
-	avail := max(minTitle, popWidth(popForm, m.viewWidth())-popInset-formLabelWidth-formChrome)
+	avail := max(minTitle, popWidth(width, m.viewWidth())-popInset-formLabelWidth-formChrome)
 	rows := make([]string, len(f.fields))
 	for i, fld := range f.fields {
 		focused := i == f.focus
@@ -223,7 +223,11 @@ func (m model) formBox(p pal, fm *formMode) string {
 		rows[i] = mark + lipgloss.NewStyle().Foreground(labelC).Bold(focused).Width(formLabelWidth).Align(lipgloss.Right).Render(fld.label) + req + " " + val
 		if fld.err != "" {
 			// The error gets its own line under the value, so it is never cut off.
-			rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+			if fld.value == "" {
+				rows[i] = mark + p.text(p.bad).Render(fld.label+": "+fld.err)
+			} else {
+				rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+			}
 		}
 		if fld.label == fieldURL {
 			// Fetch failures and visa/clearance signals sit under the URL; signals are
@@ -237,6 +241,6 @@ func (m model) formBox(p pal, fm *formMode) string {
 			}
 		}
 	}
-	return popup(p, f.title, false, popForm, m.viewWidth(), strings.Join(rows, "\n"),
+	return popup(p, f.title, false, width, m.viewWidth(), strings.Join(rows, "\n"),
 		p.keys(fm.Keys()))
 }

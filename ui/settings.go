@@ -5,120 +5,392 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/lukebrown14-code/rolecall/config"
+	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// settingsMode is the `,` overlay: the effective settings, read-only. It is an
-// overlay, not a screen, so closing it leaves the screen, table, cursor and filter as
-// they were.
-type settingsMode struct{}
+// settingsFile is the one file the Settings screen opens with e.
+const settingsFile = "workspace.json"
 
-func (sm *settingsMode) Keys() [][2]string {
-	return [][2]string{{"e", "edit config"}, {"esc", hintClose}}
+// The two panes tab moves between.
+const (
+	settingsList = iota
+	settingsRows
+	settingsPanes
+)
+
+// Settings screen sizing mirrors Profile: a fixed list column, then the settings.
+const (
+	settingsSplitWidth = profileSplitWidth
+	settingsListWidth  = 20
+	settingsLabelWidth = 24
+)
+
+// settingsGroups are the groups in display order.
+var settingsGroups = []string{"Search", "Documents", "Tracking", groupMachineName}
+
+const groupMachineName = "This machine"
+
+// Labels of the machine settings, which carry a source.
+const (
+	labelEditor    = "Editor"
+	labelWorkspace = "Workspace"
+	labelDownloads = "Downloads"
+	labelPlugin    = "Plugin"
+)
+
+// editorExamples is the help line for the Editor setting: values for editor in config.toml.
+// GUI Editors need their wait flag, or rolecall rescans before editing finishes.
+const editorExamples = "Editor examples: nvim, code --wait, zed --wait, hx, subl --wait"
+
+// settingsBack is where Esc returns to after `,` opened Settings.
+type settingsBack struct {
+	screen, table, cursor int
+	detail                *detailState
 }
 
-// editorExamples is the help line's list of Editor values for config.toml.
-const editorExamples = "Editor examples (editor in config.toml):\n  nvim, code --wait, zed --wait, hx, subl --wait"
-
-func (sm *settingsMode) boxed() bool { return true }
-
-func (sm *settingsMode) View(m *model, p pal) string { return m.settingsBox(p, sm) }
-
-func (sm *settingsMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case "esc":
-			return nil, nil
-		case "e":
-			return sm, m.editConfig()
-		}
-	}
-	return sm, nil
+// openSettings switches to Settings from wherever the Owner is, remembering the screen,
+// table, cursor and open detail so Esc can restore them. The filter lives on the model and
+// is untouched.
+func (m model) openSettings() model {
+	m.back = &settingsBack{m.screen, m.table, m.cursor, m.detail}
+	m.screen, m.table, m.cursor, m.detail = settingsScreen, 0, 0, nil
+	return m.loadSettings()
 }
 
-// configEdited reports the Editor exiting on the config file.
-type configEdited struct{ err error }
+// closeSettings is Esc after openSettings.
+func (m model) closeSettings() model {
+	b := m.back
+	m.back = nil
+	m.screen, m.table, m.cursor, m.detail = b.screen, b.table, b.cursor, b.detail
+	return m
+}
 
-// reloadConfig applies the edited config: new values on success, the old ones kept and
-// the error on the feedback line otherwise.
-func (m *model) reloadConfig(done configEdited) {
-	if done.err != nil {
-		m.err = done.err
-		return
+// sourceParts is what follows a setting's value: where it came from and, for the Editor,
+// a warning when its executable is not on PATH. Neither is ever cut to fit.
+func (m model) sourceParts(r settingRow) []string {
+	if r.value == "" || r.value == "not set" {
+		return nil
 	}
-	if m.reloadCfg == nil {
-		return
+	src := ""
+	switch r.label {
+	case labelEditor:
+		src = m.editorSource
+	case labelWorkspace:
+		src = m.sources.Workspace
+	case "Follow-up days":
+		src = m.sources.FollowUpDays
+	case labelDownloads:
+		src = m.sources.Downloads
+	case labelPlugin:
+		src = m.sources.Plugin
+	case "Harness":
+		src = m.sources.Harness
 	}
-	c, err := m.reloadCfg()
+	var parts []string
+	if src != "" {
+		parts = append(parts, "("+src+")")
+	}
+	if r.label == labelEditor && !editorOnPath(r.value) {
+		parts = append(parts, "(not found on PATH)")
+	}
+	return parts
+}
+
+// minValueRoom is the least width worth giving a value; below it the source and warning
+// move to their own line under the row instead of squeezing the value out.
+const minValueRoom = 12
+
+// settingRow is one line in a group: a label and what it currently holds.
+type settingRow struct{ label, value string }
+
+// settingsState is the loaded workspace.json and where the Owner is. It is replaced, never
+// mutated in place, so copies of the model stay independent.
+type settingsState struct {
+	ws    store.WorkspaceSettings
+	group int
+	row   int
+	focus int // settingsList or settingsRows
+
+	editing bool   // a text setting is open for editing
+	input   string // what the Owner has typed so far
+}
+
+// loadSettings re-reads workspace.json and config.toml. It runs on entering the screen, on r and after
+// the editor closes; the group, row and focus are kept.
+func (m model) loadSettings() model {
+	ws, err := m.store.Settings()
 	if err != nil {
 		m.err = err
-		return
+		return m
 	}
-	m.err = nil
-	m.editor, m.editorSource = c.Editor, c.EditorSource
-	m.followUpDays, m.downloads, m.plugin, m.harness = c.FollowUpDays, c.Downloads, c.Plugin, c.Harness
-	// The Workspace is fixed for the session (the store is already open), so its source stays.
-	m.sources = SettingSources{Workspace: m.sources.Workspace, FollowUpDays: c.FollowUpDaysSource,
-		Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}
-}
-
-// WithConfigReload names the config file Settings edits and how to reload it.
-func WithConfigReload(path string, reload func() (config.Config, error)) Option {
-	return func(m *model) { m.configPath, m.reloadCfg = path, reload }
-}
-
-// editorLine is the Editor setting: the effective command and where it came from.
-func (m model) editorLine() string {
-	editor := ResolveEditor(m.editor)
-	line := editor
-	if m.editorSource != "" {
-		line += " (" + m.editorSource + ")"
-	}
-	if !EditorOnPath(editor) {
-		line += "\n(not found on PATH)"
-	}
-	return line
-}
-
-const minSettingsWrap = 20
-
-func withSource(value, source string) string {
-	if source == "" {
-		return value
-	}
-	return value + " (" + source + ")"
-}
-
-func orNotSet(v string) string {
-	if v == "" {
-		return "not set"
-	}
-	return v
-}
-
-func (m model) settingsBox(p pal, sm *settingsMode) string {
-	rows := [][2]string{{"Editor", m.editorLine()},
-		{"Workspace", withSource(displayPath(m.store.Root()), m.sources.Workspace)},
-		{"Follow-up days", withSource(strconv.Itoa(m.followUpDays), m.sources.FollowUpDays)},
-		{"Downloads", withSource(displayPath(m.downloads), m.sources.Downloads)},
-		{"Plugin", withSource(orNotSet(displayPath(m.plugin)), m.sources.Plugin)},
-		{"Harness", withSource(orNotSet(m.harness), m.sources.Harness)}}
-	// Long values wrap, indented under their label, so none is cut on a narrow terminal.
-	avail := max(minSettingsWrap, popWidth(popForm, m.viewWidth())-popEdges-gutter)
-	var b strings.Builder
-	for _, r := range rows {
-		label := r[0] + ": "
-		wrapped := strings.Split(xansi.Hardwrap(r[1], max(1, avail-len(label)), true), "\n")
-		for i, l := range wrapped {
-			if i == 0 {
-				b.WriteString(p.text(p.sub).Render(label))
-			} else {
-				b.WriteString(strings.Repeat(" ", len(label)))
-			}
-			b.WriteString(p.text(p.fg).Bold(true).Render(l) + "\n")
+	if m.configHome != "" {
+		if m = m.loadMachine(); m.err != nil {
+			return m
 		}
 	}
-	b.WriteString("\n" + p.text(p.dim).Render(xansi.Hardwrap(editorExamples, max(1, avail), true)))
-	return popup(p, "Settings", false, popForm, m.viewWidth(), strings.TrimSuffix(b.String(), "\n"), p.keys(sm.Keys()))
+	st := settingsState{ws: ws}
+	if m.settings != nil {
+		st.group, st.row, st.focus = m.settings.group, m.settings.row, m.settings.focus
+	}
+	m.settings = &st
+	return m
+}
+
+// rows are the settings of the selected group, each with its current value.
+func (m model) settingsRows(group int) []settingRow {
+	ws := m.settings.ws
+	switch settingsGroups[group] {
+	case "Search":
+		return []settingRow{
+			{"Places", orNone(strings.Join(ws.Places, ", "))},
+			{"Remote", remoteLabel(ws.Remote)},
+			{"Sources · " + strconv.Itoa(ws.Sources), ""},
+			{"Blockers · " + strconv.Itoa(ws.Blockers), ""},
+		}
+	case "Documents":
+		return m.gateRows()
+	case "Tracking":
+		return m.trackingRows()
+	}
+	return []settingRow{
+		{labelWorkspace, m.store.Root()},
+		{labelEditor, ResolveEditor(m.editor)},
+		{labelDownloads, orNone(m.downloads)},
+		{"Harness", orNone(m.harness)},
+		{labelPlugin, orNone(m.plugin)},
+		{"ASCII glyphs", yesNo(m.ascii)},
+	}
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "not set"
+	}
+	return s
+}
+
+// remoteLabel is search_area.remote as the Owner reads it; missing means the default.
+func remoteLabel(remote string) string {
+	switch remote {
+	case store.RemoteAnywhere, store.RemoteNo:
+		return remote
+	}
+	return "in my places"
+}
+
+func (m model) settingsListShown(w int) bool { return w >= settingsSplitWidth }
+
+// settingsHelpKeys is the keys Settings accepts. Application actions are absent.
+func (m model) settingsHelpKeys() []helpKey {
+	if m.settings != nil && m.settings.editing {
+		return []helpKey{help(groupAction, "enter", hintSave), help(groupNav, "esc", "cancel")}
+	}
+	keys := []helpKey{}
+	if m.settings != nil && m.settings.ws.Err == nil {
+		keys = append(keys, help(groupAction, "j k", "move"))
+	}
+	keys = append(keys, m.trackHelpKeys()...)
+	keys = append(keys, m.gateHelpKeys()...)
+	keys = append(keys, m.searchHelpKeys()...)
+	keys = append(keys, m.machineHelpKeys()...)
+	file := settingsFile
+	if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName && m.configHome != "" {
+		file = "config.toml"
+	}
+	keys = append(keys, help(groupAction, "e", "edit "+file))
+	if m.settings != nil && m.settings.ws.Err == nil {
+		keys = append(keys, help(groupNav, "tab", "focus"))
+	}
+	keys = append(keys, help(groupNav, "1-6", "screen"), help(groupNav, "?", "all keys"))
+	if m.err != nil {
+		keys = append(keys, help(groupNav, "esc", "clear error"))
+	} else if m.back != nil {
+		keys = append(keys, help(groupNav, "esc", "back"))
+	}
+	return append(keys, help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+}
+
+// settingsKey handles the keys Settings accepts. It never writes: e hands workspace.json
+// to the Owner's editor and the screen re-reads when it exits.
+func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.settings != nil && m.settings.editing {
+		return m.settingsEditKey(k)
+	}
+	if next, ok := m.renameKey(k); ok {
+		return next, nil
+	}
+	switch k.String() {
+	case "r":
+		m.rescanAll()
+		return m.loadSettings(), nil
+	case "?":
+		m.overlay = &helpMode{}
+		return m, nil
+	case "q":
+		return m, m.quit()
+	case "e":
+		// On This machine e opens config.toml (Editor and the rest); elsewhere workspace.json.
+		if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName && m.configHome != "" {
+			return m, m.editConfig()
+		}
+		return m, m.editFile(m.store.Root(), settingsFile)
+	case "esc":
+		if m.back != nil {
+			return m.closeSettings(), nil
+		}
+	}
+	if m.settings == nil || m.settings.ws.Err != nil {
+		return m, nil // an invalid file offers e and nothing else
+	}
+	if next, ok := m.tracksKey(k); ok {
+		return next, nil
+	}
+	if next, ok := m.gatesKey(k); ok {
+		return next, nil
+	}
+	if next, ok := m.searchKey(k); ok {
+		return next, nil
+	}
+	st := *m.settings
+	switch k.String() {
+	case "enter":
+		if st.focus == settingsRows {
+			return m.activateSetting()
+		}
+	case "tab", "shift+tab":
+		st.focus = (st.focus + 1) % settingsPanes
+	case "down", "j":
+		st = m.moveSetting(st, 1)
+	case "up", "k":
+		st = m.moveSetting(st, -1)
+	}
+	m.settings = &st
+	return m, nil
+}
+
+// moveSetting moves the group while the list has focus, the row otherwise.
+func (m model) moveSetting(st settingsState, delta int) settingsState {
+	if st.focus == settingsList {
+		st.group = min(max(st.group+delta, 0), len(settingsGroups)-1)
+		st.row = 0
+		return st
+	}
+	m.settings = &st
+	st.row = min(max(st.row+delta, 0), len(m.settingsRows(st.group))-1)
+	return st
+}
+
+// settingsView is the Settings screen in the same frame Profile uses.
+func (m model) settingsView(p pal) string {
+	w, h := m.viewWidth(), m.profileBodyHeight()
+	rule := p.text(p.rule).Render(strings.Repeat("─", w))
+	return m.topBar(p) + "\n\n" + m.settingsContextRow(p, w) + "\n" + rule + "\n" +
+		m.settingsBody(p, w, h) + "\n" + rule + "\n" + m.statusRow(p, w, m.keyLine(p, w))
+}
+
+// settingsContextRow names the focused pane, or the group and its position when the group
+// list is hidden; the file path is on the right.
+func (m model) settingsContextRow(p pal, w int) string {
+	left := "  " + p.heading("SETTINGS")
+	switch {
+	case m.settings == nil || m.settings.ws.Err != nil:
+	case !m.settingsListShown(w):
+		left = "  " + p.text(p.fg).Bold(true).Render(settingsGroups[m.settings.group]) +
+			p.text(p.dim).Render(" "+strconv.Itoa(m.settings.group+1)+"/"+strconv.Itoa(len(settingsGroups)))
+	case m.settings.focus == settingsList:
+		left = "  " + p.heading("GROUPS")
+	}
+	left = xansi.Truncate(left, max(0, w-rightMargin-gutter), "…")
+	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
+	return spread(left, p.text(p.dim).Render(xansi.Truncate(settingsFile, avail, "…")), w-rightMargin)
+}
+
+// settingsBody is the group list beside the settings, or the invalid-file notice.
+func (m model) settingsBody(p pal, w, h int) string {
+	if m.settings != nil && m.settings.ws.Err != nil {
+		text := "  " + p.text(p.bad).Render("workspace.json is not valid JSON") + "\n  " +
+			p.text(p.fg).Render(m.settings.ws.Path) + "\n  " + p.text(p.fg).Render(m.settings.ws.Err.Error()) +
+			"\n\n  " + p.text(p.dim).Render("Press e to fix it in your editor. Nothing is written.")
+		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
+	}
+	if m.settings == nil {
+		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "")
+	}
+	paneW := w
+	if m.settingsListShown(w) {
+		paneW = w - settingsListWidth - profileDivider
+	}
+	pane := lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(profileGutter).
+		Render(m.settingsRowsView(p, paneW-profileGutter))
+	if !m.settingsListShown(w) {
+		return pane
+	}
+	var groups []string
+	for i, name := range settingsGroups {
+		if i == m.settings.group {
+			groups = append(groups, p.text(p.accent).Bold(true).Render(profileMarker+name))
+		} else {
+			groups = append(groups, "  "+p.text(p.dim).Render(name))
+		}
+	}
+	list := lipgloss.NewStyle().Width(settingsListWidth).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
+	sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, sep, pane)
+}
+
+// settingsRowsView lists the selected group's settings, one per line. The row marker shows
+// only while the settings pane has focus.
+func (m model) settingsRowsView(p pal, width int) string {
+	var lines []string
+	for i, r := range m.settingsRowsShown(m.settings.group) {
+		var extra []string
+		mark, label := "  ", p.text(p.dim).Render(r.label)
+		if (m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())) && i == m.settings.row {
+			mark, label = profileMarker, p.text(p.accent).Bold(true).Render(r.label)
+		}
+		line := mark + label
+		if r.value != "" {
+			pad := strings.Repeat(" ", max(1, settingsLabelWidth-profileMarkerWidth-xansi.StringWidth(r.label)))
+			var parts []string
+			if !(m.settings.editing && i == m.settings.row) {
+				parts = m.sourceParts(r)
+			}
+			tail := ""
+			if len(parts) > 0 {
+				tail = " " + strings.Join(parts, " ")
+			}
+			if room := width - settingsLabelWidth - xansi.StringWidth(tail); room >= minValueRoom || len(parts) == 0 {
+				line += pad + p.text(p.fg).Render(fitValue(r, room)) + p.text(p.dim).Render(tail)
+			} else {
+				line += pad + p.text(p.fg).Render(fitValue(r, width-settingsLabelWidth))
+				extra = parts
+			}
+		}
+		lines = append(lines, xansi.Truncate(line, width, "…"))
+		for _, part := range extra {
+			lines = append(lines, xansi.Truncate(strings.Repeat(" ", settingsLabelWidth)+p.text(p.dim).Render(part), width, "…"))
+		}
+	}
+	if settingsGroups[m.settings.group] == groupMachineName {
+		lines = append(lines, "")
+		for _, l := range strings.Split(xansi.Hardwrap(editorExamples, max(1, width), true), "\n") {
+			lines = append(lines, p.text(p.dim).Render(l))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// fitValue cuts a value that does not fit. A path keeps its end, where the folder names
+// that tell Workspaces apart are; other values keep their start.
+func fitValue(r settingRow, room int) string {
+	if xansi.StringWidth(r.value) <= room || room < 2 {
+		return r.value
+	}
+	switch r.label {
+	case labelWorkspace, labelDownloads, labelPlugin:
+		return "…" + xansi.TruncateLeft(r.value, xansi.StringWidth(r.value)-room+1, "")
+	}
+	return xansi.Truncate(r.value, room, "…")
 }

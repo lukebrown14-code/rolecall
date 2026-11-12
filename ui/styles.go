@@ -177,7 +177,11 @@ func popup(p pal, title string, warn bool, w, termWidth int, body, hints string)
 // overlay draws box centred over base, with popClear blank cells either side so the
 // dimmed text behind never butts against the border. A box taller than the screen
 // loses middle lines and keeps its bottom border, where the key hints are.
-func overlay(base, box string, width int) string {
+func overlay(base, box string, width int) string { return overlayIn(base, box, 0, width) }
+
+// overlayIn is overlay centred in the columns from x0 to x0+width, for a screen whose
+// left column the box must not cover.
+func overlayIn(base, box string, x0, width int) string {
 	const half = 2
 	h := lipgloss.Height(base)
 	lines := strings.Split(box, "\n")
@@ -189,7 +193,7 @@ func overlay(base, box string, width int) string {
 		lines[i] = pad + l + pad
 	}
 	box = strings.Join(lines, "\n")
-	x := max(0, (width-lipgloss.Width(box))/half)
+	x := x0 + max(0, (width-lipgloss.Width(box))/half)
 	y := max(0, (h-len(lines))/half)
 	return lipgloss.NewCompositor(lipgloss.NewLayer(base), lipgloss.NewLayer(box).X(x).Y(y).Z(1)).Render()
 }
@@ -249,18 +253,23 @@ func stripColor(s string) string {
 
 // asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "*", "▌", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
-	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "◌", "o", "█", "#",
+	"◆", "*", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
+	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "✗", "x", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
+	// the box rules Glamour draws around a Markdown table
+	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
+	// Glamour pads table cells with a non-breaking space
+	"\u00a0", " ",
 	// the progress spinner's Braille frames
 	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
 	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
 )
 
-// asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set.
-func asciiFold(s string) string {
-	if !asciiMode() {
+// asciiFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set or force
+// (the ascii setting) is on.
+func asciiFold(s string, force bool) string {
+	if !force && !asciiMode() {
 		return s
 	}
 	return asciiGlyphs.Replace(s)

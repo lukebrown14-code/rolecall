@@ -1,4 +1,4 @@
-// Resume template -- "Header Band" design. Colours, fonts and the band live in
+// Default resume template -- "Header Band". Colours, fonts and the band live in
 // brand.typ, shared with the cover letter.
 // Fed by scripts/build.py: pandoc converts resume.md to Typst markup, which is
 // injected at the body marker near the foot of this file. build.py also swaps

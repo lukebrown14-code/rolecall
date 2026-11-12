@@ -46,7 +46,8 @@ then `vi`. Example values:
 - `subl --wait`
 
 GUI editors need their wait flag so rolecall rescans only after editing finishes. Press `,` in
-the TUI to see the Editor in effect and where it came from.
+the TUI to open Settings, which shows the Editor in effect and where it came from
+(`Esc` returns); `e` on This machine edits `config.toml` and reloads it when the Editor exits.
 
 To install a standalone command:
 
@@ -59,6 +60,15 @@ Add `~/.local/bin` to your shell's PATH, then run `rolecall`.
 If `go.mod` is missing, check `pwd` and update the intended checkout with
 `git pull origin main`; this repository already has a module, so no initialization
 is needed.
+
+## Privacy
+
+rolecall collects nothing and has no telemetry. Your Profile, CV and job ads stay in
+your Workspace unless you ask the Harness to work with them. The Harness sends that
+content to your own AI provider; review that provider's privacy practices.
+
+Keep your Workspace git repository private. It contains your Profile, CV and
+application data.
 
 ## Checks
 

@@ -18,6 +18,7 @@ type Config struct {
 	Downloads    string `toml:"downloads"`
 	Plugin       string `toml:"plugin"`
 	Harness      string `toml:"harness"`
+	ASCII        bool   `toml:"ascii"`
 
 	// EditorSource names where the effective Editor came from: one of the Source*
 	// constants. Editor itself stays the configured value (empty when unset), so the
@@ -58,11 +59,6 @@ func editorSource(configured string) string {
 // Path is where the Owner's settings file lives under home.
 func Path(home string) string { return filepath.Join(home, ".config/rolecall/config.toml") }
 
-const (
-	dirMode  = 0o755
-	fileMode = 0o600
-)
-
 // Ensure creates an empty config file (and its directory) at path if it is missing.
 func Ensure(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
@@ -87,7 +83,7 @@ func Load(home, dir string) (Config, error) {
 		return c, err
 	}
 	if err := toml.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("%s: %w", path, err)
+		return c, fmt.Errorf("%s: invalid TOML", path)
 	}
 	// A pointer tells an explicit follow_up_days = 0 from an absent key.
 	var present struct {
