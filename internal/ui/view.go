@@ -40,14 +40,10 @@ const (
 	monthsUntil    = 60 // …and from weeks to months here
 )
 
-// Right-hand columns, identical on every view: state · flag · Fit, Fit flush right.
-// A column empty for every row of the current view is hidden.
-const (
-	slotState = 11 // "✓ ready", "○ 2/4 ready", "rejected", "withdrawn"
-	slotFlag  = 12 // "⚑ quiet 11mo"
-	slotFit   = 12 // "fit Marginal"
-	fitLabel  = "fit "
-)
+// Right-hand columns, the same on every view: state · flag · Fit, Fit flush right. Each
+// column is only as wide as its widest value in the view, and a row that has nothing in
+// a column drops it, so a truncated title is never followed by blank cells.
+const fitLabel = "fit "
 
 func (m model) viewWidth() int {
 	if m.width == 0 {
@@ -764,8 +760,9 @@ func scrollWindow(blocks []block, cur, h int) (start, end int) {
 	return start, end
 }
 
-// slotSet says which right-hand columns the current view shows.
-type slotSet struct{ state, flag, fit bool }
+// slotSet is the width of each right-hand column, measured from the values the current
+// view actually shows. A width of zero means no row has that column.
+type slotSet struct{ stateW, flagW, fitW int }
 
 // slotText is an Application's right-hand column text: state (docs on Draft, outcome
 // on Closed), follow-up flag and Fit.
@@ -809,7 +806,11 @@ func (m model) columns(rows []store.Application) slotSet {
 	var s slotSet
 	for _, a := range rows {
 		st, f, ft := m.slotText(a)
-		s.state, s.flag, s.fit = s.state || st != "", s.flag || f != "", s.fit || ft != ""
+		s.stateW = max(s.stateW, xansi.StringWidth(st))
+		s.flagW = max(s.flagW, xansi.StringWidth(f))
+		if ft != "" {
+			s.fitW = max(s.fitW, xansi.StringWidth(fitLabel+ft))
+		}
 	}
 	return s
 }
@@ -848,20 +849,23 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	slot := func(width int, c color.Color, s string) string {
 		return st(c).Width(width).Align(lipgloss.Right).Render(s)
 	}
+	// A row shows only the columns it has; a column it lacks costs it nothing, so a
+	// truncated title is never followed by blank cells.
 	var cells []string
-	if show.state {
-		cells = append(cells, slot(slotState, stateC, state))
+	if state != "" {
+		cells = append(cells, slot(show.stateW, stateC, state))
 	}
-	if show.flag {
-		cells = append(cells, slot(slotFlag, p.Warn, flag))
+	if flag != "" {
+		cells = append(cells, slot(show.flagW, p.Warn, flag))
 	}
-	if show.fit {
-		// Labelled, so the column reads on its own: "fit Good", "fit —".
-		label := st(dimC).Render(fitLabel)
-		if fit == "" {
-			label = ""
+	if fit != "" {
+		// Labelled, so the column reads on its own: "fit Good", "fit —". Left-padded to
+		// the view's widest Fit, so the "fit" labels line up.
+		cell := st(dimC).Render(fitLabel) + st(fitC).Render(fit)
+		if pad := show.fitW - xansi.StringWidth(fitLabel+fit); pad > 0 {
+			cell = st(p.Fg).Render(strings.Repeat(" ", pad)) + cell
 		}
-		cells = append(cells, st(p.Fg).Render(strings.Repeat(" ", max(0, slotFit-xansi.StringWidth(fitLabel+fit))))+label+st(fitC).Render(fit))
+		cells = append(cells, cell)
 	}
 	right := strings.Join(cells, st(p.Fg).Render("  ")) + st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	// The Status glyph leads the title; the second line lines up under the title.

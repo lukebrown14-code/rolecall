@@ -126,7 +126,7 @@ func TestWordmarkIsNotAStatusGlyph(t *testing.T) {
 		t.Fatalf("wordmark: %q", strings.SplitN(v, "\n", 2)[0])
 	}
 	t.Setenv("ROLECALL_ASCII", "1")
-	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, " # rolecall") {
+	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, " R rolecall") {
 		t.Fatalf("ASCII wordmark: %q", strings.SplitN(v, "\n", 2)[0])
 	}
 }
