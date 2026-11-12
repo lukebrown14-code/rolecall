@@ -5,12 +5,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/lukebrown14-code/rolecall/config"
 )
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
@@ -28,14 +29,7 @@ type CapturedResult struct {
 type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 // ResolveEditor follows the Owner's configured editor preference.
-func ResolveEditor(configured string) string {
-	for _, s := range []string{configured, os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
-		if s != "" {
-			return s
-		}
-	}
-	return "vi"
-}
+func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
 
 type externalFinished struct {
 	folder string

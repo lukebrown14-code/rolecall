@@ -130,7 +130,7 @@ func runDoctor(dir string) error {
 		}
 	}
 
-	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness}, nil)
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
 	for _, check := range report.Checks {
 		if check.Found {
 			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
