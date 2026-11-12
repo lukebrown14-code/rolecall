@@ -187,14 +187,13 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if k.String() == "u" && m.settings.Undo != nil {
 		return m.undoSetting(), nil
 	}
-	if next, ok := m.tracksKey(k); ok {
-		return next, nil
-	}
-	if next, ok := m.gatesKey(k); ok {
-		return next, nil
-	}
-	if next, ok := m.searchKey(k); ok {
-		return next, nil
+	for _, h := range settingsHandlers {
+		if h.key == nil {
+			continue
+		}
+		if next, ok := h.key(m, k); ok {
+			return next, nil
+		}
 	}
 	st := *m.settings
 	switch k.String() {
