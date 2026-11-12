@@ -65,14 +65,26 @@ func TestStatsFunnelOverFixtures(t *testing.T) {
 	if len(got.Tracks) != 3 || got.Tracks[0].Track != "SWE" || got.Tracks[1].Track != "Platform" || got.Tracks[2].Track != "Unknown" {
 		t.Fatalf("tracks = %+v, want SWE, Platform, Unknown", got.Tracks)
 	}
-	if got.Tracks[0].Applied != 0 || got.Tracks[0].OK {
-		t.Errorf("SWE = %+v, want no applied", got.Tracks[0])
+	// SWE's one Applied (orbit, 25 Sep) is too new to judge: it counts as Applied, as
+	// in the funnel, but not toward its Response rate.
+	if got.Tracks[0].Applied != 1 || got.Tracks[0].Judged != 0 || got.Tracks[0].OK {
+		t.Errorf("SWE = %+v, want 1 applied, none judged", got.Tracks[0])
 	}
 	if got.Tracks[1].Applied != 0 || got.Tracks[1].OK {
 		t.Errorf("Platform = %+v, want no applied", got.Tracks[1])
 	}
-	if got.Tracks[2].Applied != 6 || got.Tracks[2].Responses != 2 || got.Tracks[2].Rate != 33 {
+	if got.Tracks[2].Applied != 6 || got.Tracks[2].Judged != 6 || got.Tracks[2].Responses != 2 || got.Tracks[2].Rate != 33 {
 		t.Errorf("Unknown = %+v, want 6/2 at 33%%", got.Tracks[2])
+	}
+	applied := 0
+	for _, tr := range got.Tracks {
+		applied += tr.Applied
+	}
+	if applied != got.Funnel[2].Count {
+		t.Errorf("tracks sum to %d Applied, funnel says %d", applied, got.Funnel[2].Count)
+	}
+	if got.Response.TooNew != 1 {
+		t.Errorf("too new = %d, want 1 (orbit)", got.Response.TooNew)
 	}
 }
 

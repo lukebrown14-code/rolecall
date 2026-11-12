@@ -280,8 +280,13 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 // never sits alone above it.
 func TestOverflowCueIsOneStyle(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	for _, keys := range [][]string{{"3"}, {"4"}} {
-		lines := strings.Split(ansi.Strip(runKeysSized(t, root, 80, 24, keys...)), "\n")
+	// Stats fits 80x24, so it overflows only on a smaller terminal.
+	for _, c := range []struct {
+		keys []string
+		w, h int
+	}{{[]string{"3"}, 80, 24}, {[]string{"4"}, 60, 16}} {
+		keys := c.keys
+		lines := strings.Split(ansi.Strip(runKeysSized(t, root, c.w, c.h, keys...)), "\n")
 		cue := lines[len(lines)-3]
 		if !strings.HasPrefix(cue, "   ↓ ") || !strings.HasSuffix(strings.TrimRight(cue, " "), " more") {
 			t.Errorf("keys %q: cue %q, want \"   ↓ N more\" on the body's last line", keys, cue)

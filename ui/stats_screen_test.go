@@ -22,7 +22,7 @@ func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
 	if !strings.Contains(view, "Platform") {
 		t.Fatalf("track filter did not show Platform:\n%s", view)
 	}
-	if strings.Contains(view, "By track") {
+	if strings.Contains(view, "BY TRACK") {
 		t.Fatalf("per-track table still shown when filtered:\n%s", view)
 	}
 }
@@ -67,9 +67,10 @@ func TestStatsLiveRefresh(t *testing.T) {
 }
 
 // A report taller than the body scrolls with j k, ↑↓ and the wheel, with the overflow
-// cue saying what is hidden, and the key line offers it.
+// cue saying what is hidden, and the key line offers it. The fixtures fit 80x24, so
+// this runs smaller.
 func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
-	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 80, 24)
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 60, 16)
 	m = driveModel(t, m, "4")
 	top := ansi.Strip(m.View().Content)
 	up, down := regexp.MustCompile(`↑ \d+ more`), regexp.MustCompile(`↓ \d+ more`)

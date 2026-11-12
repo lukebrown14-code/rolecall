@@ -78,7 +78,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 			t.Fatalf("glyph %q survived ROLECALL_ASCII on Stats:\n%s", g, stats)
 		}
 	}
-	if !strings.Contains(stats, "Funnel") {
+	if !strings.Contains(stats, "FUNNEL") || !strings.Contains(stats, "[####--------]") || !strings.Contains(stats, "__________#_") {
 		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
 	}
 

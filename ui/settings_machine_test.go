@@ -138,7 +138,7 @@ func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 		t.Fatalf("config.toml:\n%s", b)
 	}
 	d.Type("4")
-	requireAll(t, d.plain(), "Applied within 30 days left out")
+	requireAll(t, d.plain(), "applied less than 30 days ago")
 }
 
 func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
