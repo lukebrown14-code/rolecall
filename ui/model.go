@@ -42,6 +42,7 @@ type model struct {
 	now                   func() time.Time
 	editor                string
 	editorSource          string // where the effective Editor came from, for Settings
+	sources               SettingSources
 	external              ExternalRunner
 	detail                *detailState
 	height                int

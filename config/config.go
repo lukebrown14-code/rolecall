@@ -23,6 +23,13 @@ type Config struct {
 	// constants. Editor itself stays the configured value (empty when unset), so the
 	// ui keeps resolving the fallbacks the same way it always has.
 	EditorSource string `toml:"-"`
+
+	// The same for the other settings: one of the Source* constants (or SourceFlag).
+	WorkspaceSource    string `toml:"-"`
+	FollowUpDaysSource string `toml:"-"`
+	DownloadsSource    string `toml:"-"`
+	PluginSource       string `toml:"-"`
+	HarnessSource      string `toml:"-"`
 }
 
 // Where an effective value came from, as the Settings view names it.
@@ -31,6 +38,8 @@ const (
 	SourceVisual  = "$VISUAL"
 	SourceEditor  = "$EDITOR"
 	SourceDefault = "default"
+	SourceFlag    = "--dir"
+	SourcePlugin  = "$ROLECALL_PLUGIN"
 )
 
 // editorSource follows the Editor resolution order: config, $VISUAL, $EDITOR, vi.
@@ -54,7 +63,7 @@ const defaultFollowUpDays = 14
 
 // Load reads settings under home; dir overrides the configured Workspace.
 func Load(home, dir string) (Config, error) {
-	c := Config{FollowUpDays: defaultFollowUpDays}
+	var c Config
 	path := Path(home)
 	b, err := os.ReadFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -63,8 +72,21 @@ func Load(home, dir string) (Config, error) {
 	if err := toml.Unmarshal(b, &c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
 	}
+	set := func(configured bool) string {
+		if configured {
+			return SourceConfig
+		}
+		return SourceDefault
+	}
+	c.FollowUpDaysSource = set(c.FollowUpDays != 0)
+	if c.FollowUpDays == 0 {
+		c.FollowUpDays = defaultFollowUpDays
+	}
+	c.DownloadsSource = set(c.Downloads != "")
+	c.HarnessSource = set(c.Harness != "")
+	c.WorkspaceSource = set(c.Workspace != "")
 	if dir != "" {
-		c.Workspace = dir
+		c.Workspace, c.WorkspaceSource = dir, SourceFlag
 	}
 	expand := func(s string) string {
 		if s == "~" {
@@ -80,8 +102,11 @@ func Load(home, dir string) (Config, error) {
 	c.Downloads = expand(c.Downloads)
 	// plugin is configured or, failing that, taken from the environment. Nothing
 	// is auto-detected: no path is searched for.
+	c.PluginSource = set(c.Plugin != "")
 	if c.Plugin == "" {
-		c.Plugin = os.Getenv("ROLECALL_PLUGIN")
+		if c.Plugin = os.Getenv("ROLECALL_PLUGIN"); c.Plugin != "" {
+			c.PluginSource = SourcePlugin
+		}
 	}
 	c.Plugin = expand(c.Plugin)
 	if c.Downloads == "" {
