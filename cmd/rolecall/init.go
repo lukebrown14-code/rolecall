@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,17 +11,16 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/charmbracelet/x/term"
 	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
 const (
-	profileResume                = "resume"
-	profileQuestions             = "questions"
-	profileLater                 = "later"
-	configDirMode    os.FileMode = 0o700
-	configFileMode   os.FileMode = 0o600
+	profileResume    = "resume"
+	profileQuestions = "questions"
+	profileLater     = "later"
 )
 
 type contactDetails struct {
@@ -83,6 +81,11 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if (wasSet(fs, "name") && strings.TrimSpace(o.contact.Name) == "") || (wasSet(fs, "email") && strings.TrimSpace(o.contact.Email) == "") {
 		return errors.New("Name and Email are required")
 	}
+	// A huh form on a stdin that is not a terminal never reads a key: it would hang
+	// forever. Refuse with a way forward instead of asking a question nobody can answer.
+	if f, ok := in.(*os.File); ok && !term.IsTerminal(f.Fd()) && !o.accessible && promptsNeeded(fs, o) {
+		return errors.New("rolecall init needs a terminal for its prompts; pass the fields as flags or run with --accessible")
+	}
 	// Huh makes a new Scanner for each accessible prompt. Limit each read to
 	// one line so a scanner cannot consume answers meant for later prompts.
 	if err := promptMissing(&o, fs, &promptLineReader{reader: bufio.NewReader(in)}, out); err != nil {
@@ -115,7 +118,9 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if err := initWorkspaceFiles(root, o.contact, o.tracks, o.search); err != nil {
 		return err
 	}
-	if err := writeWorkspaceConfig(config.Path(home), root); err != nil {
+	// One Settings writer: the same config.Patch the Settings screen uses, so the
+	// workspace key lands in the right place and no other setting is disturbed.
+	if err := config.Patch(config.Path(home), "workspace", root); err != nil {
 		return err
 	}
 	fmt.Fprintln(out, "Created a private Workspace.")
@@ -233,60 +238,22 @@ func validateRemote(s string) error {
 	return fmt.Errorf("invalid Search area remote rule %q: use in-places, anywhere, or no", s)
 }
 
-func writeWorkspaceConfig(path, workspace string) error {
-	if err := os.MkdirAll(filepath.Dir(path), configDirMode); err != nil {
-		return err
-	}
-	b, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	lines := strings.Split(strings.TrimSuffix(string(b), "\n"), "\n")
-	replaced := false
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		key, _, hasValue := strings.Cut(trimmed, "=")
-		if hasValue && strings.TrimSpace(key) == "workspace" {
-			lines[i] = "workspace = " + strconvQuote(workspace) + trailingTOMLComment(line)
-			replaced = true
-			break
+// promptsNeeded reports whether the wizard still has a question to ask: a field left
+// unset, a Profile choice, or a resume path.
+func promptsNeeded(fs *flag.FlagSet, o initOptions) bool {
+	for _, name := range []string{"name", "email", "phone", "location", "linkedin", "tracks", "search-places", "search-remote"} {
+		if !wasSet(fs, name) {
+			return true
 		}
 	}
-	if !replaced {
-		if len(lines) == 1 && lines[0] == "" {
-			lines = nil
-		}
-		lines = append(lines, "workspace = "+strconvQuote(workspace))
+	if !wasSet(fs, "workspace") && fs.NArg() == 0 {
+		return true
 	}
-	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), configFileMode); err != nil {
-		return err
+	if o.profile == "" {
+		return true
 	}
-	return os.Chmod(path, configFileMode)
+	return o.profile == profileResume && o.resume == ""
 }
-
-func trailingTOMLComment(line string) string {
-	quoted, escaped := false, false
-	for i, r := range line {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if quoted && r == '\\' {
-			escaped = true
-			continue
-		}
-		if r == '"' {
-			quoted = !quoted
-			continue
-		}
-		if r == '#' && !quoted {
-			return " " + strings.TrimSpace(line[i:])
-		}
-	}
-	return ""
-}
-
-func strconvQuote(s string) string { b, _ := json.Marshal(s); return string(b) }
 
 func finishProfile(o initOptions, root, home string, out io.Writer, launcher profileLauncher) error {
 	if o.profile == profileLater {

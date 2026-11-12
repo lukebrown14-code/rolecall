@@ -31,29 +31,53 @@ func TestInitRequiresNameAndEmail(t *testing.T) {
 	}
 }
 
-func TestWriteWorkspaceConfigKeepsOtherSettingsAndComment(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.toml")
-	before := "workspace = '~/old' # existing workspace\neditor = 'vim' # keep editor\n"
-	if err := os.WriteFile(path, []byte(before), 0640); err != nil {
-		t.Fatal(err)
-	}
-	if err := writeWorkspaceConfig(path, "/tmp/new workspace"); err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(path)
+// A huh form on a stdin that is not a terminal never reads a key: it hangs forever.
+// init must refuse with a way forward instead.
+func TestInitRefusesPromptsWithoutATerminal(t *testing.T) {
+	devNull, err := os.Open(os.DevNull)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "workspace = \"/tmp/new workspace\" # existing workspace\neditor = 'vim' # keep editor\n"
-	if string(got) != want {
-		t.Fatalf("config = %q, want %q", got, want)
+	defer devNull.Close()
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	err = initWizard([]string{"--workspace", workspace, "--profile", "later"}, devNull, io.Discard, io.Discard, nil)
+	if err == nil || !strings.Contains(err.Error(), "needs a terminal") {
+		t.Fatalf("init error = %v, want a clear non-terminal refusal", err)
 	}
-	info, err := os.Stat(path)
+}
+
+// init writes the workspace setting through the same patcher the Settings screen uses,
+// so a config with a table keeps the key above it instead of appending it inside.
+func TestInitWritesWorkspaceSettingBeforeTables(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cfg := filepath.Join(home, ".config", "rolecall", "config.toml")
+	if err := os.MkdirAll(filepath.Dir(cfg), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cfg, []byte("[harness]\ncommand = \"x\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	workspace := filepath.Join(t.TempDir(), "workspace")
+	args := []string{
+		"--workspace", workspace, "--name", "Alex", "--email", "alex@example.test",
+		"--phone", "", "--location", "", "--linkedin", "",
+		"--tracks", "", "--search-places", "", "--search-remote", "",
+		"--profile", "later",
+	}
+	if err := initWizard(args, strings.NewReader(""), io.Discard, io.Discard, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Fatalf("config permissions = %04o, want 0600", info.Mode().Perm())
+	key, table := strings.Index(string(got), "workspace = "), strings.Index(string(got), "[harness]")
+	if key < 0 || table < 0 || key > table {
+		t.Fatalf("workspace key not written above the table:\n%s", got)
+	}
+	if !strings.Contains(string(got), "workspace = \""+workspace+"\"") {
+		t.Fatalf("workspace value missing:\n%s", got)
 	}
 }
 
