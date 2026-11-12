@@ -46,15 +46,41 @@ func span(n int) string {
 	return fmt.Sprintf("%dmo", n/daysPerMonth)
 }
 
+// parseDay reads the day of a status or close date: a YYYY-MM-DD value, or the date part
+// of an RFC 3339 timestamp. It is the one place a date is turned into a day.
+func parseDay(date string) (time.Time, bool) {
+	t, err := time.Parse("2006-01-02", strings.Split(date, "T")[0])
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// day is now's date at midnight, so day differences ignore the time of day.
+func day(now time.Time) time.Time {
+	t, _ := time.Parse("2006-01-02", now.Format("2006-01-02"))
+	return t
+}
+
 // daysFrom is the whole days from today to date (negative in the past), and whether
 // date could be read.
 func daysFrom(date string, now time.Time) (time.Time, int, bool) {
-	t, err := time.Parse("2006-01-02", strings.Split(date, "T")[0])
-	if err != nil {
+	t, ok := parseDay(date)
+	if !ok {
 		return time.Time{}, 0, false
 	}
-	today, _ := time.Parse("2006-01-02", now.Format("2006-01-02"))
-	return t, int(t.Sub(today).Hours() / hoursPerDay), true
+	return t, int(t.Sub(day(now)).Hours() / hoursPerDay), true
+}
+
+// followUpDue reports whether a sent Application's last change is older than the
+// follow-up period: the whole-day rule the row's ⚑ flag and the Stats screen share, so
+// the flag and the reasoning can never disagree. The time of day never matters.
+func followUpDue(a store.Application, now time.Time, days int) bool {
+	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || a.LastChange == nil {
+		return false
+	}
+	t, ok := parseDay(a.LastChange.At)
+	return ok && !day(now).Before(t.AddDate(0, 0, days))
 }
 
 // shortDate is "3 Sep", with the year when it is not this year's.

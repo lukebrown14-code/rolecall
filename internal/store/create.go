@@ -14,8 +14,11 @@ type CreateFields struct{ Title, Company, Track, URL, Closes, Fit string }
 
 // Create creates a Lead using the supplied clock value and returns its folder.
 func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err error) {
-	if strings.TrimSpace(fields.Title) == "" || strings.TrimSpace(fields.Company) == "" || fields.Track == "" || fields.Track == "." || fields.Track == ".." || fields.Track == "_archive" || strings.ContainsAny(fields.Track, "/\\") {
-		return "", fmt.Errorf("Title, Company and a single Track folder are required")
+	if strings.TrimSpace(fields.Title) == "" || strings.TrimSpace(fields.Company) == "" {
+		return "", fmt.Errorf("Title and Company are required")
+	}
+	if err := ValidTrackName(fields.Track, nil); err != nil {
+		return "", err
 	}
 	text := "schema: 1\n"
 	for _, pair := range [][2]string{{keyTitle, fields.Title}, {keyCompany, fields.Company}, {keyTrack, fields.Track}, {"url", fields.URL}, {"closes", fields.Closes}, {"fit", fields.Fit}} {

@@ -10,6 +10,15 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
+func TestCreateRefusesReservedTrackNames(t *testing.T) {
+	s := fixtureProfileStore(t)
+	for _, track := range []string{"", ".", "..", "_archive", "a/b", `a\b`} {
+		if _, err := s.Create(store.CreateFields{Title: "T", Company: "C", Track: track}, time.Now()); err == nil {
+			t.Fatalf("Create accepted Track %q", track)
+		}
+	}
+}
+
 func TestCreateApplication(t *testing.T) {
 	root := t.TempDir()
 	if err := os.CopyFS(root, os.DirFS("../../../fixtures/workspace")); err != nil {

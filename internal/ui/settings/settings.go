@@ -113,23 +113,6 @@ func RemoteLabel(remote string) string {
 	return RemoteLabels[store.RemoteInPlaces]
 }
 
-// ValidTrackName applies the Track name rules: non-empty after trimming, unique ignoring
-// case, no slash (it becomes a folder name).
-func ValidTrackName(name string, existing []string) error {
-	switch {
-	case name == "":
-		return errors.New("Track name is empty")
-	case strings.Contains(name, "/"):
-		return errors.New("Track name cannot contain /")
-	}
-	for _, t := range existing {
-		if strings.EqualFold(t, name) {
-			return fmt.Errorf("Track %s already exists", t)
-		}
-	}
-	return nil
-}
-
 // SplitPlaces turns the Places answer into its list, dropping blanks.
 func SplitPlaces(s string) ([]string, error) {
 	var places []string

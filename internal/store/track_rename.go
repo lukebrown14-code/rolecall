@@ -222,13 +222,17 @@ func renameRoleTracks(raw []byte, old, name string) ([]byte, error) {
 }
 
 // ValidTrackName applies the Track name rules to an already trimmed name: non-empty,
-// unique ignoring case among existing, no slash (it becomes a folder name).
+// unique ignoring case among existing, and a safe folder name (no slash or backslash,
+// and not one of the reserved names `.`, `..`, `_archive`). The Add form, RenameTrack and
+// Create all use it, so they cannot disagree about what a Track may be called.
 func ValidTrackName(name string, existing []string) error {
 	switch {
 	case name == "":
 		return errors.New("Track name is empty")
-	case strings.Contains(name, "/"):
+	case strings.ContainsAny(name, `/\`):
 		return errors.New("Track name cannot contain /")
+	case name == "." || name == ".." || name == "_archive":
+		return fmt.Errorf("Track name cannot be %s", name)
 	}
 	for _, t := range existing {
 		if strings.EqualFold(t, name) {

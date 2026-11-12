@@ -112,12 +112,8 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 	if e == nil {
 		return false
 	}
-	t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
-	if err != nil {
-		return false
-	}
-	today, _ := time.Parse("2006-01-02", m.now().Format("2006-01-02"))
-	return t.After(today)
+	t, ok := parseDay(e.At)
+	return ok && t.After(day(m.now()))
 }
 
 func (m model) View() tea.View {
@@ -691,8 +687,11 @@ func tableOf(a store.Application) string { _, t := StatusLocation(a.Status); ret
 
 // expired is a Lead or Draft whose close date has passed.
 func (m model) expired(a store.Application) bool {
-	t := tableOf(a)
-	return beforeApplied(t) && a.Closes != "" && a.Closes < m.now().Format("2006-01-02")
+	if !beforeApplied(tableOf(a)) {
+		return false
+	}
+	t, ok := parseDay(a.Closes)
+	return ok && t.Before(day(m.now()))
 }
 
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
@@ -772,7 +771,7 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 		return "", "", ""
 	}
 	t := tableOf(a)
-	if cols := ApplicationColumns(a, t, m.now(), m.followUpDays); (t == tableApplied || t == tableInterviewing) && cols[len(cols)-1] == followUpFlag && a.LastChange != nil {
+	if followUpDue(a, m.now(), m.followUpDays) && a.LastChange != nil {
 		flag = followUpFlag + " quiet " + m.quiet(a.LastChange)
 	}
 	switch {

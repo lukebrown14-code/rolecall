@@ -160,7 +160,7 @@ func TestRenameTrackWithoutRolesFile(t *testing.T) {
 
 func TestRenameTrackRefusesBadNamesAndInvalidFilesBeforeWriting(t *testing.T) {
 	s := fixtureProfileStore(t)
-	for _, name := range []string{"", "  ", "a/b", "platform"} {
+	for _, name := range []string{"", "  ", "a/b", "platform", ".", "..", "_archive", `a\b`} {
 		if _, err := s.RenameTrack("SWE", name); err == nil {
 			t.Fatalf("%q accepted", name)
 		}
