@@ -59,6 +59,7 @@ func TestEditPatchesOnlyChangedKeyAndKeepsConcurrentWrites(t *testing.T) {
 	}
 	h.tm.Type(" Two")
 	h.saveForm(7)
+	h.wait("Saved · Engineer #1 Two")
 	h.quit()
 
 	want := strings.Replace(strings.Replace(before, "fit: Good", "fit: Poor", 1),

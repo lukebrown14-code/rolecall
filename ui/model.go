@@ -32,6 +32,9 @@ type model struct {
 	undo                  []undoMove
 	toast                 string // feedback line: what just happened (cleared on the next key)
 	toastHint             string // key hint shown with it, e.g. "u undo"
+	flash                 string // folder of the row just moved, lit until flashID's tick
+	flashID               int
+	tick                  Ticker
 	err                   error
 	width                 int
 	followUpDays          int
@@ -244,6 +247,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		return m, cmd
 	}
+	if done, ok := msg.(flashDone); ok {
+		if done.id == m.flashID {
+			m.flash = ""
+		}
+		return m, nil
+	}
+	var flash tea.Cmd // a move lights its row until this fires
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if m.settingsEditing() {
 			return m.settingsEditKey(k) // typing owns every key, digits and esc included
@@ -284,14 +294,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "x":
 			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
-				m.move(a, store.StatusDismissed, false)
+				flash = m.move(a, store.StatusDismissed, false)
 			}
 		case "u":
 			if len(m.undo) > 0 {
 				last := m.undo[len(m.undo)-1]
 				for _, a := range m.apps {
 					if a.Folder == last.folder {
-						m.move(a, last.status, true)
+						flash = m.move(a, last.status, true)
 						if m.err == nil {
 							m.undo = m.undo[:len(m.undo)-1]
 						}
@@ -359,7 +369,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.cursor < 0 {
 		m.cursor = 0
 	}
-	return m, nil
+	return m, flash
 }
 
 // cycleTrack moves the track filter to the next track, or the previous one: All, then

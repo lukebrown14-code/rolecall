@@ -83,6 +83,17 @@ func (m model) editAt(pe *store.ParseError) tea.Cmd {
 	return m.editFileAt(filepath.Dir(pe.Path), filepath.Base(pe.Path), pe.Line)
 }
 
+// flashRow lights a row that just moved: the accent fill the active screen tab uses,
+// with the toast saying in words what happened.
+func (p pal) flashRow(lines []string, w int) []string {
+	lit := lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Width(w).MaxWidth(w)
+	out := make([]string, len(lines))
+	for i, l := range lines {
+		out[i] = lit.Render(xansi.Strip(l))
+	}
+	return out
+}
+
 // hintPairs splits a toast hint, "u undo · esc hide", into key and description pairs.
 func hintPairs(hint string) [][2]string {
 	var out [][2]string

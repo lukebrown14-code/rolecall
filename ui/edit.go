@@ -52,12 +52,16 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 		}
 	}
 	if len(changed) == 0 {
+		m.toast = "Nothing changed · " + a.Title
 		return nil
 	}
 	if err := m.store.Patch(a.Folder, changed); err != nil {
 		m.err = err
 		return nil
 	}
-	m.reload(a.Folder)
+	if m.reload(a.Folder) {
+		m.toast = "Saved · " + now["title"]
+		return m.startFlash(a.Folder)
+	}
 	return nil
 }

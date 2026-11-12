@@ -683,7 +683,11 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	left := bar + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis), "…"))
 	gap := st(p.fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
-	return []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+meta, w, "…"))}
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+meta, w, "…"))}
+	if m.flash != "" && a.Folder == m.flash {
+		lines = p.flashRow(lines, w)
+	}
+	return lines
 }
 
 // meta is a row's second line: company, track, and the dates that matter for its table.

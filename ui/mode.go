@@ -174,8 +174,7 @@ func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	}
 	switch k.String() {
 	case "y":
-		m.move(cm.app, cm.status, false)
-		return nil, nil
+		return nil, m.move(cm.app, cm.status, false)
 	case "n", "esc":
 		return nil, nil
 	}

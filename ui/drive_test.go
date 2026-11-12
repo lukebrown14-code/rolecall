@@ -26,6 +26,9 @@ func fakeExternal(t *testing.T) ui.ExternalRunner {
 	}
 }
 
+// heldTick is a ui.Ticker that never fires, so nothing waits on a timer.
+func heldTick(time.Duration, func(time.Time) tea.Msg) tea.Cmd { return nil }
+
 // driveStart opens the Workspace, builds a model with the fake external runner and the
 // given clock, and sends the initial size.
 func driveStart(t *testing.T, root string, now func() time.Time, w, h int, opts ...ui.Option) tea.Model {
@@ -34,7 +37,8 @@ func driveStart(t *testing.T, root string, now func() time.Time, w, h int, opts 
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts = append([]ui.Option{ui.WithExternalRunner(fakeExternal(t))}, opts...)
+	// The row flash never ends on its own here: a test fires it with its own WithTicker.
+	opts = append([]ui.Option{ui.WithExternalRunner(fakeExternal(t)), ui.WithTicker(heldTick)}, opts...)
 	m, err := ui.New(s, now, opts...)
 	if err != nil {
 		t.Fatal(err)

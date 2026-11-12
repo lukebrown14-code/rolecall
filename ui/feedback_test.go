@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -47,6 +48,38 @@ func TestMalformedRowOpensTheFailingLineInTheEditor(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(path); string(after) != string(before) {
 		t.Fatal("e wrote to the malformed meta.yml")
+	}
+}
+
+// A move says what happened with an undo hint and lights the moved row until its tick
+// fires; the tick is driven by hand, so nothing sleeps.
+func TestMoveToastsAndFlashesTheRow(t *testing.T) {
+	var fire []func(time.Time) tea.Msg
+	var waits []time.Duration
+	ticker := func(d time.Duration, fn func(time.Time) tea.Msg) tea.Cmd {
+		waits, fire = append(waits, d), append(fire, fn)
+		return nil
+	}
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36, ui.WithTicker(ticker))
+	m = driveModel(t, m, "3", "m", "i") // the All view keeps the row in sight
+	lit := m.View().Content
+	if plain := ansi.Strip(lit); !strings.Contains(plain, "Moved to Interviewing · ") || !strings.Contains(plain, "u undo") {
+		t.Fatalf("move lacks its toast and undo hint:\n%s", plain)
+	}
+	if len(fire) != 1 || waits[0] < 300*time.Millisecond || waits[0] > time.Second {
+		t.Fatalf("want one flash tick of about 600ms, got %v", waits)
+	}
+	m = runMsg(t, m, fire[0](time.Now()))
+	out := m.View().Content
+	if out == lit {
+		t.Fatal("the flash did not end on its tick")
+	}
+	if ansi.Strip(out) != ansi.Strip(lit) {
+		t.Fatal("the flash changed text, not only colour")
+	}
+	m = driveModel(t, m, "u")
+	if plain := ansi.Strip(m.View().Content); !strings.Contains(plain, "Undone · ") {
+		t.Fatalf("undo lacks its toast:\n%s", plain)
 	}
 }
 

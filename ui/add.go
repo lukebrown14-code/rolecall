@@ -81,6 +81,7 @@ func (m *model) createLead(fields store.CreateFields, jd string) tea.Cmd {
 	if !m.reload("") {
 		return nil
 	}
+	m.toast = "Added Lead · " + fields.Title
 	if jd != "" {
 		if err := m.store.WriteDocument(folder, "jd.md", []byte(jd)); err != nil {
 			m.err = err
