@@ -183,9 +183,13 @@ changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)
 
-Header: `Company · Title`, then `Status · Track · closes <date> · applied <date>`.
+Header: `Title · Company` (as the list reads) with `applied <date> · <ago>` or `closes in
+<n>d` on the right, then `Status · Track · closes <date>`. The applied date shows once.
 Tabs (`←` `→`): **JD** · **Fit** · **Notes** · **Docs** (Fit beside JD: they are read together).
-From 100 columns the preview's card (status, documents, timeline, link) stays on the left.
+In the wide size class the preview's card (status, documents, timeline, link) stays on the
+left. Below it the card folds into a two-line strip under the title: the timeline as a track
+(`○ Lead 24 Sep ─ ● Applied 25 Sep ─ ◌ Interviewing ─ ◌ Offer`), then documents · Fit ·
+close date · Track, each shedding detail to fit rather than wrapping.
 
 | Tab | Shows | `e` |
 |---|---|---|
@@ -246,14 +250,26 @@ context-free review. Every colour and style is in `ui/styles.go`.
   within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
   Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and
   Written; GLOSSARY avoids "built").
-- **Layout, top to bottom (one fixed frame):** header (screens and the track filter) ·
-  context row (the screen's views, and the scope line when a filter is on) · top rule ·
-  body (with a preview pane from 100 columns) · bottom rule · status row. The rules and
-  the `┬`/`┴` joins are always drawn; the status row holds a toast, an error, the search
-  input or the key line, one at a time (actions left, navigation pinned right).
-- **Scope line:** whenever a track or text filter is on, the context row names it once —
-  `<Screen> › <View> · track SWE · search pl · 3 of 4` — and the header and tab counts read
-  `3/4` rather than a filtered number that looks like a total.
+- **Size classes (`ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
+  ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
+  detail card, Profile sections, Settings groups) are a share of the width between a
+  minimum and a maximum. Content starts at column 3 (markers and the selection bar at
+  column 1) and the last column stays clear.
+- **Layout, top to bottom (one fixed frame):** tab bar (screens; at wide sizes a pulse,
+  `10 live · 1 due · 1 closes ≤2d`) · a blank line (dropped when short) · context row (the
+  screen's views; on the right the scope and the track filter) · top rule · body (with a
+  preview pane when wide) · bottom rule · status row. The rules and the `┬`/`┴` joins are
+  always drawn; the status row holds a toast, an error, the search input or the key line,
+  one at a time (actions left, navigation pinned right).
+- **Tab bar:** every tab has the same padding, active or not, so nothing shifts between
+  screens. As it narrows it drops other screens' counts, the word "rolecall" (kept down to
+  80 columns), then other screens' names (their digits stay); the active screen keeps its
+  name and count.
+- **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
+  Stats), read once by its key: `t  [All]  SWE  Platform`, or `t [All]▸` when narrow.
+- **Scope line:** whenever a track or text filter is on, the context row says what it
+  hides — `search pl · 3 of 4` — and the tab and view counts read `3/4` rather than a
+  filtered number that looks like a total.
 - **Feedback:** a toast (successes clear on the next key) or an error (stays until `Esc`)
   shows on the status row; it never replaces the bottom rule. Paths read relative to the
   Workspace.
@@ -264,14 +280,19 @@ context-free review. Every colour and style is in `ui/styles.go`.
   state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
   Expired Leads and Drafts sort last under an **Expired** section.
 - **Pop-ups:** one template — title in the top border, keys in the bottom border, solid
-  fill, amber border and ⚠ for warnings, the screen behind dimmed with two blank cells
-  either side of the box. A pop-up taller than the terminal drops middle lines and keeps
-  its bottom border. `?` is a pop-up; any key closes it, `Esc` included. The Move pop-up
-  always moves the Application it shows, even if a live refresh moved the cursor.
-- **Narrow terminals:** the screens row sheds detail, the preview and detail card hide
-  below 100 columns, pop-ups shrink to fit. The key line drops actions from the right but
-  keeps `enter`, `a add` and `/ search` to the last. Below 50×12 a "Terminal too small"
-  notice replaces the layout.
+  fill, amber border and ⚠ for warnings. A pop-up is at least as wide as its key hints, so
+  no key is cut, and is centred on the full width between the rules: it never covers the
+  tab bar, context row or status row. The rows it covers are blank either side; the rest
+  of the screen is dimmed. A pop-up taller than the body scrolls inside its border, keeping
+  the selection in view. `?` is a pop-up; any key closes it, `Esc` included. The Move
+  pop-up always moves the Application it shows, even if a live refresh moved the cursor.
+- **Overflow:** one cue everywhere — `↓ 3 more` / `↑ 3 more` at the text column — on lists,
+  Stats, Profile, Settings, readers and pop-ups. A section heading never sits alone above
+  it. Text wraps only at spaces.
+- **Narrow terminals:** the tab bar sheds detail, the preview and detail card fold away
+  below the wide class, pop-ups shrink to fit. The key line drops actions from the right but
+  keeps `enter`, `a add` and `/ search` to the last. Below 56×14 a centred notice — `rolecall
+  needs 56×14 · now 48×12 · resize to continue` — replaces the layout.
 
 ## Plugin (v0.1)
 
