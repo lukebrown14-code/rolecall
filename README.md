@@ -1,96 +1,121 @@
 # rolecall
 
-A terminal job tracker. Move Applications between Statuses, read them, and grab their
-documents. Your coding harness does the AI work (capture, fit, resumes, cover letters) through
-the rolecall plugin, by writing files the TUI watches.
+rolecall is a local, terminal job tracker. Move Applications through your job search, read their
+details, and open their documents from one place. Your coding Harness can help capture roles,
+assess fit, and prepare documents through the rolecall Plugin.
 
-**Status:** Workspace store and interactive TUI (v0.1) implemented. Private until v1.0.
+## Install
 
-- [Spec](docs/spec.md): roadmap and v0.1 behaviour
-- [SCHEMA.md](SCHEMA.md): the Workspace file contract
-- [GLOSSARY.md](GLOSSARY.md): terms
-- [docs/adr/](docs/adr/): decisions
-
-## Run locally
-
-Install Go on macOS with `brew install go`, or use the installer at
-https://go.dev/dl/. The required Go version is declared in `go.mod`.
-
-From an up-to-date checkout (with `go.mod` present):
-
-```sh
-go run ./cmd/rolecall --dir ./fixtures/workspace
-```
-
-This opens the interactive TUI. To use your own Workspace, replace
-`./fixtures/workspace` with its path.
-
-To use a default Workspace, create `~/.config/rolecall/config.toml`:
-
-```toml
-workspace = "~/path/to/workspace"
-editor = "vi"
-follow_up_days = 14
-downloads = "~/Downloads"
-```
-
-Then run `go run ./cmd/rolecall`. `--dir` overrides the configured Workspace.
-
-`editor` is the command that opens files. If empty, rolecall uses `$VISUAL`, then `$EDITOR`,
-then `vi`. Example values:
-
-- `nvim`
-- `code --wait`
-- `zed --wait`
-- `hx`
-- `subl --wait`
-
-GUI editors need their wait flag so rolecall rescans only after editing finishes. Press `,` in
-the TUI to open Settings, which shows the Editor in effect and where it came from
-(`Esc` returns); `e` on This machine edits `config.toml` and reloads it when the Editor exits.
-
-To install with Homebrew (macOS and Linux):
+### Homebrew (macOS and Linux)
 
 ```sh
 brew install lukebrown14-code/homebrew-tap/rolecall
 ```
 
-The formula installs the rolecall Plugin with the command. rolecall finds the
-bundled Plugin automatically when neither `plugin` nor `ROLECALL_PLUGIN` is set.
+### Go
 
-Connect rolecall to your Harness:
-
-- [Claude Code](docs/harnesses/claude-code.md)
-- [Codex, Gemini CLI and opencode](docs/harnesses/other-harnesses.md)
-
-To build and install a standalone command:
+Install the Go version declared in [`go.mod`](go.mod), then run:
 
 ```sh
-mkdir -p ~/.local/bin
-go build -o ~/.local/bin/rolecall ./cmd/rolecall
+go install github.com/lukebrown14-code/rolecall/cmd/rolecall@latest
 ```
 
-Add `~/.local/bin` to your shell's PATH, then run `rolecall`.
-If `go.mod` is missing, check `pwd` and update the intended checkout with
-`git pull origin main`; this repository already has a module, so no initialization
-is needed.
+Make sure `$(go env GOPATH)/bin` is on your `PATH`.
+
+The Go command installs the executable. To use the Harness Plugin with this install, clone the
+repository and set `plugin` in `~/.config/rolecall/config.toml` to the clone's `plugin` folder;
+the Homebrew package includes the Plugin automatically.
+
+## Get started
+
+Create a Workspace with the setup wizard, then launch rolecall:
+
+```sh
+rolecall init
+rolecall
+```
+
+The wizard asks where to create the Workspace and helps set up your Profile. To check local
+dependencies or diagnose a setup, run `rolecall doctor`.
+
+To try the interface with the fictional example Workspace from a source checkout, run:
+
+```sh
+go run ./cmd/rolecall --dir ./fixtures/workspace
+```
+
+## Editor
+
+The `editor` setting opens files. If it is unset, rolecall uses `$VISUAL`, then `$EDITOR`, then
+`vi`. GUI editors need a wait flag so rolecall resumes after editing finishes. For example:
+
+```toml
+editor = "code --wait"
+```
+
+Press `,` in the TUI to open Settings and see which Editor is in effect. Select **This machine**
+and press `e` to edit `config.toml`; rolecall reloads it when your editor exits. Press `Esc` to
+return.
+
+## Screens and keys
+
+The number keys switch screens. `Tab` and `Shift-Tab` move between tables or views; `j`/`k`
+move through rows. Press `?` in rolecall for the complete help for the current screen.
+
+| Key | Action |
+| --- | --- |
+| `1` | Leads, including the Dismissed table |
+| `2` | Draft Applications |
+| `3` | Applied, Interviewing, Offer, and Closed Applications |
+| `4` | Stats |
+| `5` | Profile |
+| `6` | Settings |
+| `a` | Add an Application |
+| `v` / `Enter` | Open the selected Application's details |
+| `m` | Move the selected Application to another Status |
+| `e` | Edit a row, or open the current document in your editor |
+| `f` / `p` | Ask the Harness to assess fit or prepare documents |
+| `b` | Build PDFs for the selected Application |
+| `/` | Filter the current table by title or company |
+| `t` | Change the Track filter |
+| `?` | Show screen and key help |
+| `q` | Quit |
+
+## Connect your Harness
+
+The Harness is your coding assistant (for example, Claude Code, Codex, Gemini CLI, or
+opencode). rolecall installs the Plugin with the command; configure your Harness to use the
+Plugin's skills and set the `harness` command in your local `config.toml` to enable the `f`
+and `p` handoffs.
+
+- [Set up Claude Code](docs/harnesses/claude-code.md)
+- [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
+
+## Make your documents yours
+
+The default resume and cover-letter layouts use Typst. To customize the header, copy
+`plugin/templates/brand.typ` into the root of your Workspace as `brand.typ` and edit it there.
+The Workspace copy overrides the bundled default and stays with your data when rolecall is
+updated. See the comments in the template for the available fields.
 
 ## Privacy
 
-rolecall collects nothing and has no telemetry. Your Profile, CV and job ads stay in
-your Workspace unless you ask the Harness to work with them. The Harness sends that
-content to your own AI provider; review that provider's privacy practices.
+rolecall collects no data and has no telemetry, server, account, sync, or crash reporter.
+Your Profile, Applications, and documents stay in your local Workspace. Keep that Workspace
+private, including any git repository you create for it.
 
-Keep your Workspace git repository private. It contains your Profile, CV and
-application data.
+When you ask your Harness to work on your Profile, CV, or job text, the Harness sends that
+content to the AI provider you configured. Review that provider's privacy practices. See
+[ADR-0005](docs/adr/0005-owner-data-never-leaves-the-workspace.md) for the privacy decisions.
 
-## Checks
+## Supported platforms
 
-```sh
-python3 scripts/check-skills.py
-go vet ./...
-go test -race ./...
-```
+macOS and Linux are supported. On Windows, use WSL. Native Windows file opening is best-effort.
 
-The skill check validates explicit Skill-tool dependencies in repository skills.
-Run it after installing or updating skills; CI also runs it on every push.
+## Project links
+
+- [Source code and releases](https://github.com/lukebrown14-code/rolecall)
+- [Report a bug or request a feature](https://github.com/lukebrown14-code/rolecall/issues)
+- [Workspace file contract](SCHEMA.md)
+- [Contributing](CONTRIBUTING.md)
+- [MIT licence](LICENSE)
