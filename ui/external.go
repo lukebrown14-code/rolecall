@@ -184,6 +184,13 @@ func WithEditor(editor string) Option { return func(m *model) { m.editor = edito
 // for the Settings view.
 func WithEditorSource(source string) Option { return func(m *model) { m.editorSource = source } }
 
+// SettingSources records where each of the other effective settings came from, for the
+// Settings view. An empty source is left unnamed.
+type SettingSources struct{ Workspace, FollowUpDays, Downloads, Plugin, Harness string }
+
+// WithSettingSources names where each effective setting came from.
+func WithSettingSources(s SettingSources) Option { return func(m *model) { m.sources = s } }
+
 // WithFollowUpDays sets the configured follow-up period.
 func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays = days } }
 
