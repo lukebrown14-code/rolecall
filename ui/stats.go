@@ -285,7 +285,7 @@ func (m model) statsHelpKeys() []helpKey {
 	if len(m.tracks) > 0 {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
-	return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	return append(keys, help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
 // statsKey handles the keys Stats accepts. Tab and row keys are inert there.

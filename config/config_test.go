@@ -219,3 +219,36 @@ func TestTOMLLiteralAndComments(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadHonoursExplicitZeroFollowUpDays(t *testing.T) {
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Dir(config.Path(home)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config.Path(home), []byte("follow_up_days = 0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := config.Load(home, "/ws")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.FollowUpDays != 0 || c.FollowUpDaysSource != config.SourceConfig {
+		t.Fatalf("got %d (%s), want 0 (config.toml)", c.FollowUpDays, c.FollowUpDaysSource)
+	}
+}
+
+func TestEnsureCreatesMissingFileAndKeepsExisting(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a/b/config.toml")
+	if err := config.Ensure(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte("x = 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.Ensure(p); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != "x = 1\n" {
+		t.Fatalf("existing file changed: %q", b)
+	}
+}

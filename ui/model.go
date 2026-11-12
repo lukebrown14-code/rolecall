@@ -39,6 +39,9 @@ type model struct {
 	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
 	now                   func() time.Time
 	editor                string
+	back                  *settingsBack // where Esc returns from Settings opened with a comma
+	editorSource          string        // where the effective Editor came from, for Settings
+	sources               SettingSources
 	external              ExternalRunner
 	detail                *detailState
 	height                int
@@ -248,6 +251,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil
+		}
+		if k.String() == "," && m.screen != settingsScreen {
+			// Settings opens from anywhere, over the detail view and Stats too.
+			return m.openSettings(), nil
 		}
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {

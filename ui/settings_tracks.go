@@ -26,7 +26,7 @@ func (m model) trackingRows() []settingRow {
 	if len(rows) == 0 {
 		rows = append(rows, settingRow{label: "Tracks", value: "none (a to add)"})
 	}
-	return append(rows, settingRow{label: "Follow-up days", value: fmt.Sprint(m.followUpDays)})
+	return append(rows, settingRow{label: labelFollowUp, value: fmt.Sprint(m.followUpDays)})
 }
 
 // trackHelpKeys are the Track keys, shown while the Tracking rows have focus.

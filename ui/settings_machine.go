@@ -47,12 +47,12 @@ var machineSettings = machineSettingsList()
 
 func machineSettingsList() []machineSetting {
 	rows := []machineSetting{
-		{group: groupTracking, row: 1, key: keyFollowUpDays, label: "Follow-up days"},
+		{group: groupTracking, row: 1, key: keyFollowUpDays, label: labelFollowUp},
 	}
 	for i, s := range []machineSetting{
 		{group: groupMachine, key: "editor", label: "Editor"},
 		{group: groupMachine, key: "downloads", label: labelDownloads},
-		{group: groupMachine, key: "harness", label: "Harness"},
+		{group: groupMachine, key: "harness", label: labelHarness},
 		{group: groupMachine, key: "plugin", label: labelPlugin},
 		{group: groupMachine, key: "ascii", label: "ASCII glyphs", toggle: true},
 	} {
@@ -195,6 +195,10 @@ func (m model) loadMachine() model {
 	}
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
 	m.followUpDays, m.ascii = c.FollowUpDays, c.ASCII
+	m.editorSource = c.EditorSource
+	// The Workspace is fixed for the session (the store is open), so its source stays.
+	m.sources = SettingSources{Workspace: m.sources.Workspace, FollowUpDays: c.FollowUpDaysSource,
+		Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}
 	return m
 }
 

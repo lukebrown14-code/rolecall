@@ -129,6 +129,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `t` | global | cycle the track filter: All → each `workspace.json` track |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
+| `,` | global | open Settings (screen 6); `Esc` returns |
 | `?` | global | full help |
 | `q` / `Ctrl-C` | global | quit |
 
@@ -563,7 +564,24 @@ Laid out like Profile. Parent spec: #58; this section covers the read-only first
     harness, plugin.
 - **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; the
   `▸` marks the focused pane only, so both panes never carry it at once; `e`
-  opens `workspace.json` in `$EDITOR`; `r` rescans. This slice writes nothing.
+  opens `workspace.json` in the Editor, or `config.toml` while This machine is selected; `r`
+  rescans. This slice writes nothing.
+- **`,`** opens Settings from any screen, including the detail view and Stats. `Esc` returns to
+  the screen, table, cursor, open detail and filter it was opened from; a Settings screen
+  reached with `6` has no previous screen, so `Esc` does nothing there. In a text filter `,` is
+  typed, not a key.
+- **Source:** each machine setting is followed by where it came from: `config.toml`,
+  `$VISUAL`, `$EDITOR` (Editor only), `$ROLECALL_PLUGIN` (Plugin only), `--dir` (Workspace
+  only) or `default`. Unset values show their effective default (Editor `vi`, follow-up days 14).
+- **Editor:** shows the command in effect. If the first word is not on `PATH` (quoted paths
+  honoured) the row adds `(not found on PATH)`. This never blocks launch; `rolecall doctor`
+  reports the same condition as a warning.
+- **Config reload:** `e` on This machine creates `config.toml` empty if missing, opens it in
+  the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay and
+  the feedback line shows the error. The Workspace is fixed for the session.
+- **Editor examples:** This machine lists `nvim`, `code --wait`, `zed --wait`, `hx`,
+  `subl --wait`. GUI Editors need their wait flag, or rolecall rescans before editing finishes.
+- An explicit `follow_up_days = 0` is honoured; only an absent key means the default 14.
 - **Invalid `workspace.json`:** the screen shows its path and the parse error, with `e` as the
   only action. The program still starts, with no Track filter. Nothing is written.
 - **Refresh:** both files are re-read on entering the screen, on `r`, and after `$EDITOR` closes.

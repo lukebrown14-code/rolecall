@@ -73,6 +73,7 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 		return m, false
 	}
 	m.screen, m.table, m.cursor = int(key[0]-'1'), 0, 0
+	m.back = nil
 	// Switching screens leaves any open detail behind, so its keys cannot shadow the
 	// new screen's.
 	m.detail = nil

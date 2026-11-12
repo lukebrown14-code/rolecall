@@ -25,6 +25,57 @@ type CapturedRunner = process.CapturedRunner
 // ResolveEditor follows the Owner's configured editor preference.
 func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
 
+// editorOnPath reports whether the executable of an Editor command can be found: the
+// first word, with surrounding quotes honored, looked up on PATH (or used directly
+// when it contains a slash). Flags and later arguments are not checked.
+func editorOnPath(command string) bool {
+	exe := firstWord(command)
+	if exe == "" {
+		return false
+	}
+	_, err := exec.LookPath(exe)
+	return err == nil
+}
+
+// firstWord returns the first shell word of command, unquoting '...' and "..." and
+// treating a backslash as escaping the next character outside single quotes.
+func firstWord(command string) string {
+	var w []rune
+	var quote rune
+	started := false
+	rs := []rune(command)
+	for i := 0; i < len(rs); i++ {
+		c := rs[i]
+		switch {
+		case quote == '\'':
+			if c == '\'' {
+				quote = 0
+			} else {
+				w = append(w, c)
+			}
+		case c == '\\' && i+1 < len(rs):
+			i++
+			w = append(w, rs[i])
+		case quote == '"':
+			if c == '"' {
+				quote = 0
+			} else {
+				w = append(w, c)
+			}
+		case c == '\'' || c == '"':
+			quote, started = c, true
+		case c == ' ' || c == '\t':
+			if started || len(w) > 0 {
+				return string(w)
+			}
+		default:
+			w = append(w, c)
+			started = true
+		}
+	}
+	return string(w)
+}
+
 type externalFinished struct {
 	folder string
 	err    error
@@ -104,6 +155,21 @@ func (m model) editNotes(folder string) tea.Cmd {
 	}
 }
 
+// editConfig opens config.toml in the Editor, creating it empty first if missing. The
+// Settings screen reloads when the Editor exits.
+func (m model) editConfig() tea.Cmd {
+	if m.configHome == "" {
+		return nil
+	}
+	path, root := config.Path(m.configHome), m.store.Root()
+	return func() tea.Msg {
+		if err := config.Ensure(path); err != nil {
+			return externalFinished{root, err}
+		}
+		return m.runExternal(root, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", path)()
+	}
+}
+
 // Option configures the external-program boundary.
 type Option func(*model)
 
@@ -121,6 +187,17 @@ func WithHarness(template string) Option { return func(m *model) { m.harness = t
 
 // WithEditor sets the configured editor command.
 func WithEditor(editor string) Option { return func(m *model) { m.editor = editor } }
+
+// WithEditorSource names where the effective Editor came from (config.EditorSource),
+// for the Settings view.
+func WithEditorSource(source string) Option { return func(m *model) { m.editorSource = source } }
+
+// SettingSources records where each of the other effective settings came from, for the
+// Settings view. An empty source is left unnamed.
+type SettingSources struct{ Workspace, FollowUpDays, Downloads, Plugin, Harness string }
+
+// WithSettingSources names where each effective setting came from.
+func WithSettingSources(s SettingSources) Option { return func(m *model) { m.sources = s } }
 
 // WithFollowUpDays sets the configured follow-up period.
 func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays = days } }
