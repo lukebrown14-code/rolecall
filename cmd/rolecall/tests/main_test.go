@@ -279,6 +279,29 @@ func TestCLIInitRefusesNonEmptyDirectory(t *testing.T) {
 	}
 }
 
+// `rolecall --version` reports the build version injected with ldflags.
+func TestCLIVersionFlagReportsBuildVersion(t *testing.T) {
+	binary := filepath.Join(t.TempDir(), "rolecall")
+	if out, err := exec.Command("go", "build", "-ldflags", "-X main.version=v9.9.9", "-o", binary, "..").CombinedOutput(); err != nil {
+		t.Fatalf("build: %s %v", out, err)
+	}
+	out, err := exec.Command(binary, "--version").CombinedOutput()
+	if err != nil || string(out) != "rolecall v9.9.9\n" {
+		t.Fatalf("--version output = %q, err = %v; want \"rolecall v9.9.9\\n\"", out, err)
+	}
+}
+
+// A development build still reports a version, without a Workspace.
+func TestCLIVersionFlagDefaultsWithoutInjectingLdflags(t *testing.T) {
+	binary := buildRolecall(t)
+	cmd := exec.Command(binary, "--version")
+	cmd.Env = append(os.Environ(), "HOME="+t.TempDir())
+	out, err := cmd.CombinedOutput()
+	if err != nil || string(out) != "rolecall dev\n" {
+		t.Fatalf("--version output = %q, err = %v; want \"rolecall dev\\n\"", out, err)
+	}
+}
+
 func TestCLIInitAccessiblePromptsWorkWithoutTTY(t *testing.T) {
 	binary := buildRolecall(t)
 	home := t.TempDir()

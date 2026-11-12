@@ -40,10 +40,11 @@ type model struct {
 	err                   error
 	width                 int
 	followUpDays          int
-	statsTop              int    // the first Stats line shown when the report is taller than the body
-	configHome            string // where config.toml lives; empty means machine settings cannot be saved
-	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
-	theme                 theme  // dark or light roles; see DetectTheme
+	statsTop              int         // the first Stats line shown when the report is taller than the body
+	stats                 *statsCache // the Stats report for the current interaction; see statsReport
+	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
+	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	theme                 theme       // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
 	back                  *settingsBack // where Esc returns from Settings opened with a comma
@@ -75,7 +76,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		now = time.Now
 	}
 	th, _ := themeFromEnv()
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}, theme: th,
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}, stats: &statsCache{}, theme: th,
 		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot))}
 	for _, option := range options {
 		option(&m)
@@ -190,6 +191,9 @@ func (m model) matches(a store.Application) bool {
 	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// The Stats report is built at most once per interaction; this drops the previous
+	// interaction's copy so the next access to Stats rebuilds it.
+	m.resetStats()
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
 	}
