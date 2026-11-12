@@ -44,6 +44,18 @@ var snapshotStates = []struct {
 	{"27-settings-machine-edit", []string{"6", "j", "j", "j", "tab", "enter"}},
 }
 
+// sizedSnapshotStates are states that only exist at one size, written at that size
+// whatever $ROLECALL_SNAP_SIZE says: the too-small notice and the detail view's strip.
+var sizedSnapshotStates = []struct {
+	name string
+	w, h int
+	keys []string
+}{
+	{"28-too-small", 48, 12, []string{"1"}},
+	{"29-detail-strip", 80, 24, []string{"3", "enter"}},
+	{"30-detail-strip-lead", 60, 16, []string{"1", "j", "enter"}},
+}
+
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to
 // $ROLECALL_SNAP_DIR, at $ROLECALL_SNAP_SIZE (default 120x36). Run it with
 // scripts/snap.sh; it skips in a normal test run.
@@ -61,13 +73,19 @@ func TestSnapshots(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range snapshotStates {
-		view := runKeysSized(t, fixtureCopy(t, nil), w, h, s.keys...)
-		base := filepath.Join(dir, fmt.Sprintf("%s-%dx%d", s.name, w, h))
+	write := func(name string, w, h int, keys []string) {
+		view := runKeysSized(t, fixtureCopy(t, nil), w, h, keys...)
+		base := filepath.Join(dir, fmt.Sprintf("%s-%dx%d", name, w, h))
 		for ext, body := range map[string]string{".txt": ansi.Strip(view), ".ansi": view} {
 			if err := os.WriteFile(base+ext, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}
+	}
+	for _, s := range snapshotStates {
+		write(s.name, w, h, s.keys)
+	}
+	for _, s := range sizedSnapshotStates {
+		write(s.name, s.w, s.h, s.keys)
 	}
 }

@@ -439,9 +439,9 @@ func TestResumeReaderScrollAndRefresh(t *testing.T) {
 	h.open("3", 0, "docs-written")
 	h.key(tea.KeyRight)
 	h.key(tea.KeyRight)
-	h.show("Resume start", "↓ more")
+	h.show("Resume start", "↓ ")
 	h.tm.Type("G")
-	h.show("Resume end")
+	h.show("Resume end", "↑ ")
 	if err := os.WriteFile(filepath.Join(h.folder("docs-written"), "resume.md"), []byte("# New start\n\n"+strings.Repeat("Updated fictional experience.\n\n", 50)+"Updated end\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}

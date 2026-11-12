@@ -428,7 +428,12 @@ func (m model) detailView(p pal) string {
 		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
 		pane = p.text(p.fg).Render(path) + "\n\n" + p.text(p.bad).Render(msg)
 	} else {
-		pane = m.detailTabsRow(p, a) + "\n\n" + m.detailContent(p, a, paneW)
+		// The tab names sit one cell in from their brackets; the content lines up with them.
+		content := strings.Split(m.detailContent(p, a, paneW), "\n")
+		for i, l := range content {
+			content[i] = " " + l
+		}
+		pane = m.detailTabsRow(p, a) + "\n\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split := pane, 0
@@ -554,14 +559,17 @@ func (m model) detailTabsRow(p pal, a store.Application) string {
 // document list grouped Source / Built / Sent.
 func (m model) detailContent(p pal, a store.Application, paneW int) string {
 	if m.detail.tab != tabDocs {
+		// The shared overflow cue, on the line under the text: what is below while there is
+		// more, then what is above once at the end.
 		cue := ""
 		if b := m.detail.body; b.TotalLineCount() > b.Height() {
-			cue = fmt.Sprintf("── %d%% ──", int(b.ScrollPercent()*percent))
-			if !b.AtBottom() {
-				cue = "↓ more  " + cue
+			if below := b.TotalLineCount() - b.YOffset() - b.Height(); below > 0 {
+				cue = p.moreCue(false, below)
+			} else {
+				cue = p.moreCue(true, b.YOffset())
 			}
 		}
-		return m.detail.body.View() + "\n" + strings.Repeat(" ", max(0, paneW-xansi.StringWidth(cue)-paneMargin)) + p.text(p.dim).Render(cue)
+		return m.detail.body.View() + "\n" + cue
 	}
 	var lines []string
 	group := ""
