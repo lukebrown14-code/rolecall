@@ -161,17 +161,17 @@ func (m model) rowAt(x, y int) (int, bool) {
 		return 0, false
 	}
 	h := m.layout().bodyHeight(1)
-	blocks, cur := m.listBlocks(m.pal(), rows, listW-gutter, h)
+	blocks, cur := m.listBlocks(rows, h)
 	start, end := scrollWindow(blocks, cur, h)
 	line := 0
 	if start > 0 {
 		line = 1 // "↑ n more"
 	}
 	for _, b := range blocks[start:end] {
-		if y < line+len(b.lines) {
+		if y < line+b.height {
 			return b.idx, b.row
 		}
-		line += len(b.lines)
+		line += b.height
 	}
 	return 0, false
 }
