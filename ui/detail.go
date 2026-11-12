@@ -685,11 +685,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	}
 	b.WriteString(p.heading("Docs") + "\n" + p.docsMeter(a) + "\n")
 	for _, c := range docChips(a) {
-		if c.ready {
-			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(c.name) + "\n")
-		} else {
-			b.WriteString(p.text(p.dim).Render("○ "+c.name) + "\n")
-		}
+		b.WriteString(m.chipText(p, a, c) + "\n")
 	}
 	if a.ResumeOnly && !a.CoverLetterHasText {
 		b.WriteString(p.text(p.dim).Render("  "+docCoverLetter+"\n  "+resumeOnlyNote) + "\n")

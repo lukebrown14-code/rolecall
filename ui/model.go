@@ -62,7 +62,9 @@ type model struct {
 	spinner               spinner.Model
 	profile               *profileState
 	settings              *settingsState
-	leadsNewest           bool // Leads sorted newest first instead of by close date; s toggles
+	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
+	writing               map[string]int // documents written just now (writingKey) and their mark's generation
+	writingGen            int
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -193,7 +195,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, cmd
 	}
 	if batch, ok := msg.(foldersChanged); ok {
-		return m.refresh(batch.folders), m.watch.next()
+		m = m.refresh(batch.folders)
+		return m, tea.Batch(m.watch.next(), m.markWriting(batch.written))
+	}
+	if done, ok := msg.(writingDone); ok {
+		m.endWriting(done)
+		return m, nil
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
@@ -224,7 +231,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if tick, ok := msg.(spinner.TickMsg); ok {
-		if m.building == nil && !m.fetching() {
+		if m.building == nil && !m.fetching() && len(m.writing) == 0 {
 			return m, nil
 		}
 		var cmd tea.Cmd

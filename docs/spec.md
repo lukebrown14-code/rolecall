@@ -305,7 +305,16 @@ context-free review. Every colour and style is in `ui/styles.go`.
   Software Engineer   u undo`), and a moved row is lit for 600 ms so the eye can follow it.
   A toast (successes clear on the next key) or an error (stays until `Esc`)
   shows on the status row; it never replaces the bottom rule. Paths read relative to the
-  Workspace.
+  Workspace. A move to Offer celebrates once, in gold: `★ OFFER · Orbit Labs ★  12
+  applied · 41 days · first offer`; a rejection stays quiet.
+- **Agent writing:** when the file watcher sees a document's file written (`jd.md`,
+  `resume.md`, `cover-letter.md`, a PDF in `out/`), its chip reads `⠹ Resume writing…`
+  for 4 s after the last write, beside the `1 of 4 ready` meter. That is all the TUI can
+  honestly see of a Harness working in another terminal; a Handoff run hands the terminal
+  over, so nothing is drawn during it.
+- **First run:** a Workspace with no Applications shows a centred welcome instead of
+  empty panes: `▞ rolecall · no Applications yet`, then `a` add your first Lead, `6` pick
+  an Editor, `?` see every key. The wordmark's `▞` (ASCII `#`) is no Status's glyph.
 - **Search:** while a text filter is on, a chip (`/pl ×`) shows on every screen, beside the detail title too;
   `Esc` clears it. While typing, the search input is on the status row; after `Enter` the scope
   line shows the chip and the count.

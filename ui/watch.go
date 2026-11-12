@@ -19,8 +19,12 @@ const defaultDebounce = 200 * time.Millisecond
 // archiveDir is the track-level folder the watcher never looks into.
 const archiveDir = "_archive"
 
-// foldersChanged carries the Application folders touched since the last batch.
-type foldersChanged struct{ folders []string }
+// foldersChanged carries the Application folders touched since the last batch, and the
+// documents written in them (writingKey paths), for the live writing marks.
+type foldersChanged struct {
+	folders []string
+	written []string
+}
 
 // debouncer groups changed folders into windows. The first change opens a window
 // and everything changed before it closes is delivered as one batch, each folder
@@ -74,6 +78,7 @@ type watcher struct {
 	deb     *debouncer
 	mu      sync.Mutex
 	dirs    map[string]bool // directories currently watched
+	written []string        // documents written since the last batch, as writingKey paths
 }
 
 func startWatcher(jobs string, window time.Duration) (*watcher, error) {
@@ -112,7 +117,11 @@ func (w *watcher) next() tea.Cmd {
 	return func() tea.Msg {
 		select {
 		case b := <-w.batches:
-			return foldersChanged{b}
+			w.mu.Lock()
+			written := w.written
+			w.written = nil
+			w.mu.Unlock()
+			return foldersChanged{b, written}
 		case <-w.done:
 			return nil
 		}
@@ -239,7 +248,13 @@ func (w *watcher) handle(ev fsnotify.Event) {
 		if !created {
 			w.forget(ev.Name)
 		}
-		w.deb.add(filepath.Join(w.jobs, p[0], p[1]))
+		folder := filepath.Join(w.jobs, p[0], p[1])
+		if f := chipFile(p[depthApplication:]); f != "" && (ev.Has(fsnotify.Write) || created) {
+			w.mu.Lock()
+			w.written = append(w.written, writingKey(folder, f))
+			w.mu.Unlock()
+		}
+		w.deb.add(folder)
 	}
 }
 

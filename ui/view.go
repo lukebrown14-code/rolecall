@@ -908,11 +908,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 func (m model) fileMarks(p pal, a store.Application) string {
 	parts := make([]string, 0, len(docChips(a)))
 	for _, c := range docChips(a) {
-		if c.ready {
-			parts = append(parts, p.text(p.ok).Render("✓")+p.text(p.fg).Render(" "+c.name))
-		} else {
-			parts = append(parts, p.text(p.dim).Render("○ "+c.name))
-		}
+		parts = append(parts, m.chipText(p, a, c))
 	}
 	return strings.Join(parts, "  ")
 }
