@@ -144,6 +144,7 @@ func (m model) loadProfile() model {
 	}
 	st.selected = min(max(st.selected, 0), max(st.entries()-1, 0))
 	m.profile = st
+	m.gen++ // the Profile was reread; drop the rendered bodies
 	return m.syncProfile()
 }
 
@@ -224,39 +225,42 @@ func (m model) profileContentWidth(w int) int {
 // warning above it when a required field is missing. Glamour tables can run wider than
 // the wrap width, so every line is cut to the pane rather than spilling over the frame.
 func (m model) profileMarkdown(st profileState) string {
-	var body string
-	if file, ok := st.file(); ok {
-		body = file.Body
-	} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
-		body = st.profile.Sections[st.selected].Body
-	}
-	warning := contactWarning(st.profile.Missing)
-	if body == "" && warning == "" {
-		return ""
-	}
-	width := m.profileContentWidth(m.viewWidth())
-	var lines []string
-	if warning != "" {
-		lines = append(lines, warning)
-	}
-	if body != "" {
+	key := "profile\x00" + st.entryName() + "\x00" + st.path()
+	return m.md.body(m.gen, m.profileContentWidth(m.viewWidth()), key, func() string {
+		var body string
+		if file, ok := st.file(); ok {
+			body = file.Body
+		} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
+			body = st.profile.Sections[st.selected].Body
+		}
+		warning := contactWarning(st.profile.Missing)
+		if body == "" && warning == "" {
+			return ""
+		}
+		width := m.profileContentWidth(m.viewWidth())
+		var lines []string
 		if warning != "" {
-			lines = append(lines, "")
+			lines = append(lines, warning)
 		}
-		rendered, ok := m.fieldTable(body, width)
-		if !ok {
-			rendered = strings.Split(m.renderMarkdown(body, width), "\n")
+		if body != "" {
+			if warning != "" {
+				lines = append(lines, "")
+			}
+			rendered, ok := m.fieldTable(body, width)
+			if !ok {
+				rendered = strings.Split(m.renderMarkdown(body, width), "\n")
+			}
+			// The first line of text sits level with the first section in the list.
+			for len(rendered) > 0 && strings.TrimSpace(xansi.Strip(rendered[0])) == "" {
+				rendered = rendered[1:]
+			}
+			lines = append(lines, rendered...)
 		}
-		// The first line of text sits level with the first section in the list.
-		for len(rendered) > 0 && strings.TrimSpace(xansi.Strip(rendered[0])) == "" {
-			rendered = rendered[1:]
+		for i, line := range lines {
+			lines[i] = xansi.Truncate(line, width, "…")
 		}
-		lines = append(lines, rendered...)
-	}
-	for i, line := range lines {
-		lines[i] = xansi.Truncate(line, width, "…")
-	}
-	return strings.Join(lines, "\n")
+		return strings.Join(lines, "\n")
+	})
 }
 
 // fieldTable draws a section that is only a two-column Markdown table, like Contact, as

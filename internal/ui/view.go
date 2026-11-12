@@ -1082,15 +1082,19 @@ func (m model) fitEmpty(p pal, a store.Application) string {
 // docText is a document's text with Markdown headings and list markers dropped, for
 // short previews. Missing files read as "".
 func (m model) docText(a store.Application, name string) string {
-	b, err := m.store.ReadDocument(a.Folder, name)
-	if err != nil {
-		return ""
-	}
-	var keep []string
-	for _, l := range strings.Split(string(b), "\n") {
-		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") && !strings.HasPrefix(l, "---") {
-			keep = append(keep, strings.TrimLeft(l, "-* "))
+	// docText is width-independent, so it shares the render cache at width 0; the body
+	// key is the Document, so the three preview Documents do not evict one another.
+	return m.md.body(m.gen, 0, a.Folder+"\x00"+name, func() string {
+		b, err := m.store.ReadDocument(a.Folder, name)
+		if err != nil {
+			return ""
 		}
-	}
-	return strings.Join(keep, " ")
+		var keep []string
+		for _, l := range strings.Split(string(b), "\n") {
+			if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") && !strings.HasPrefix(l, "---") {
+				keep = append(keep, strings.TrimLeft(l, "-* "))
+			}
+		}
+		return strings.Join(keep, " ")
+	})
 }
