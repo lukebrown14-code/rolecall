@@ -267,6 +267,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = nil
 			return m, m.editAt(pe)
 		}
+		if k.String() == ":" || k.String() == "ctrl+k" {
+			// The command palette lists what the keys underneath it would do.
+			m.overlay = m.openPalette()
+			return m, nil
+		}
 		if k.String() == "," && m.screen != settingsScreen {
 			// Settings opens from anywhere, over the detail view and Stats too.
 			return m.openSettings(), nil

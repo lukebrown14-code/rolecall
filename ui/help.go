@@ -87,7 +87,7 @@ func (k helpKey) at(prio int) helpKey {
 // key. Labels naming several keys or a range are not runnable.
 func pressable(k string) string {
 	switch k {
-	case "enter", "esc", "tab", "shift+tab", "space", keyBackspace:
+	case "enter", "esc", "tab", "shift+tab", keyBackspace:
 		return k
 	}
 	if utf8.RuneCountInString(k) == 1 && k != "←" && k != "→" && k != "↑" && k != "↓" {
@@ -237,7 +237,7 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 	if m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, ",", "settings"))
 	}
-	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, ":", "commands").at(prioScreen),
+	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, ":", "commands").at(prioScreen), help(groupGlobal, "ctrl+k", "commands"),
 		help(groupGlobal, "?", "help").at(prioPinned), help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {
