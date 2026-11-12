@@ -1,6 +1,8 @@
 package ui_test
 
 import (
+	"fmt"
+	"image/color"
 	"strings"
 	"testing"
 
@@ -110,6 +112,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 			t.Setenv("LC_ALL", "")
 			t.Setenv("LC_CTYPE", "")
 			t.Setenv("LANG", tc.lang)
+			t.Setenv("TERM", "xterm-256color") // TERM=linux would turn ASCII on regardless
 			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab"))
 			got := false
 			for _, r := range view {
@@ -129,5 +132,99 @@ func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
 	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "follow-up due") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
+	}
+}
+
+// ROLECALL_THEME=light draws the light roles: a white frame, and pop-ups filled with the
+// light panel rather than a dark box on a light screen. dark and the default keep the
+// dark frame.
+func TestThemeEnvPicksTheRoles(t *testing.T) {
+	const (
+		darkPanel  = "48;2;22;27;34"    // #161B22
+		lightPanel = "48;2;246;248;250" // #F6F8FA
+	)
+	for _, tc := range []struct {
+		env, bg, panel, notPanel string
+	}{
+		{"light", "#ffffff", lightPanel, darkPanel},
+		{"dark", "#0d1117", darkPanel, lightPanel},
+		{"", "#0d1117", darkPanel, lightPanel},
+	} {
+		t.Run("theme="+tc.env, func(t *testing.T) {
+			t.Setenv("ROLECALL_THEME", tc.env)
+			t.Setenv("COLORFGBG", "")
+			v := driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, termHeight), "1", "m").View()
+			if got := hexOf(v.BackgroundColor); got != tc.bg {
+				t.Fatalf("background %s, want %s", got, tc.bg)
+			}
+			if !strings.Contains(v.Content, tc.panel) || strings.Contains(v.Content, tc.notPanel) {
+				t.Fatalf("pop-up fill: want %q and no %q:\n%q", tc.panel, tc.notPanel, v.Content)
+			}
+		})
+	}
+}
+
+// COLORFGBG with a light background (7 or 15) picks the light theme when nothing says
+// otherwise; an explicit ROLECALL_THEME wins.
+func TestColorFGBGGuessesTheTheme(t *testing.T) {
+	for _, tc := range []struct{ env, fgbg, bg string }{
+		{"", "0;15", "#ffffff"}, {"auto", "0;7", "#ffffff"}, {"", "15;0", "#0d1117"}, {"dark", "0;15", "#0d1117"},
+	} {
+		t.Setenv("ROLECALL_THEME", tc.env)
+		t.Setenv("COLORFGBG", tc.fgbg)
+		v := driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, termHeight), "1").View()
+		if got := hexOf(v.BackgroundColor); got != tc.bg {
+			t.Fatalf("ROLECALL_THEME=%q COLORFGBG=%q: background %s, want %s", tc.env, tc.fgbg, got, tc.bg)
+		}
+	}
+}
+
+func hexOf(c color.Color) string {
+	if c == nil {
+		return "none"
+	}
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+}
+
+// The Linux console's font lacks most glyphs, so TERM=linux turns ASCII on by itself.
+func TestAsciiOnTheLinuxConsole(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	t.Setenv("TERM", "linux")
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	for _, r := range view {
+		if r > 127 {
+			t.Fatalf("non-ASCII glyph %q survived TERM=linux:\n%s", r, view)
+		}
+	}
+}
+
+// Each Status keeps its own glyph in ASCII, so the list still tells them apart.
+func TestAsciiKeepsStatusesApart(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "1")
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", "x docs-ready", "< docs-resume-only"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("ASCII lost %q:\n%s", want, view)
+		}
+	}
+}
+
+// Every Status shows its glyph wherever the Status shows: the view row, group headers,
+// rows, the preview, the timeline and the Move pop-up.
+func TestStatusGlyphsShowEverywhere(t *testing.T) {
+	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
+		"● Applied   fit", "◌ Lead", "★ docs-partial", "✕ docs-ready", "↩ docs-resume-only", "◆ Interviewing 2"} {
+		if !strings.Contains(list, want) {
+			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
+		}
+	}
+	move := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
+	for _, want := range []string{"now ◌ Lead", "◐ Draft", "⊘ Dismissed"} {
+		if !strings.Contains(move, want) {
+			t.Fatalf("Move pop-up lacks %q:\n%s", want, move)
+		}
 	}
 }

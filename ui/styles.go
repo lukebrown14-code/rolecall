@@ -208,6 +208,13 @@ func (p pal) paneRule(focused bool) lipgloss.Style {
 	return p.text(p.rule)
 }
 
+// focusRule is a rule w wide over two panes split after left cells, with the focused
+// pane's part in the accent, so focus shows without reading the context row.
+func (p pal) focusRule(w, left int, focusLeft bool) string {
+	left = min(max(0, left), w)
+	return p.paneRule(focusLeft).Render(strings.Repeat("─", left)) + p.paneRule(!focusLeft).Render(strings.Repeat("─", w-left))
+}
+
 // spinnerStyle colours the progress spinner: it shows work, not focus.
 func (p pal) spinnerStyle() lipgloss.Style { return lipgloss.NewStyle().Foreground(p.info) }
 

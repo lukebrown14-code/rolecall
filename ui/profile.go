@@ -339,7 +339,11 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) profileView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
 	rule := p.text(p.rule).Render(strings.Repeat("─", w))
-	return m.topBar(p) + "\n\n" + m.profileContextRow(p, w) + "\n" + rule + "\n" +
+	top := rule
+	if m.profileLoaded() && m.profileListShown(w) {
+		top = p.focusRule(w, profileListWidth, m.profile.focus != profileContent)
+	}
+	return m.topBar(p) + "\n\n" + m.profileContextRow(p, w) + "\n" + top + "\n" +
 		m.profileBody(p, w, h) + "\n" + rule + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 

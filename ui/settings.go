@@ -287,7 +287,11 @@ func (m model) moveSetting(st settingsState, delta int) settingsState {
 func (m model) settingsView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
 	rule := p.text(p.rule).Render(strings.Repeat("─", w))
-	return m.topBar(p) + "\n\n" + m.settingsContextRow(p, w) + "\n" + rule + "\n" +
+	top := rule
+	if m.settings != nil && m.settings.ws.Err == nil && m.settingsListShown(w) {
+		top = p.focusRule(w, settingsListWidth, m.settings.focus == settingsList)
+	}
+	return m.topBar(p) + "\n\n" + m.settingsContextRow(p, w) + "\n" + top + "\n" +
 		m.settingsBody(p, w, h) + "\n" + rule + "\n" + m.statusRow(p, w, m.keyLine(p, w))
 }
 
