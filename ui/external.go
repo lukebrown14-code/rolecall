@@ -1,32 +1,26 @@
 package ui
 
 import (
-	"bytes"
 	tea "charm.land/bubbletea/v2"
 	"errors"
 	"fmt"
+	"github.com/lukebrown14-code/rolecall/config"
+	"github.com/lukebrown14-code/rolecall/process"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
-
-	"github.com/lukebrown14-code/rolecall/config"
 )
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
-type ExternalRunner func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+type ExternalRunner = process.ExternalRunner
 
 // CapturedResult is a captured run's outcome: what it printed and how it ended.
-type CapturedResult struct {
-	Stdout string
-	Stderr string
-	Err    error
-}
+type CapturedResult = process.CapturedResult
 
 // CapturedRunner substitutes the background run in tests: it starts a command
 // without suspending the TUI and reports its output through done.
-type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
+type CapturedRunner = process.CapturedRunner
 
 // ResolveEditor follows the Owner's configured editor preference.
 func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
@@ -91,9 +85,9 @@ type externalFinished struct {
 func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
 	runner := m.external
 	if runner == nil {
-		runner = tea.ExecProcess
+		runner = process.Exec
 	}
-	return runner(exec.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
+	return runner(process.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
 }
 
 // handoffError turns a nonzero Harness exit into the feedback line the Owner reads;
@@ -112,9 +106,9 @@ func handoffError(err error) error {
 func (m model) runHandoff(folder, command string) tea.Cmd {
 	runner := m.external
 	if runner == nil {
-		runner = tea.ExecProcess
+		runner = process.Exec
 	}
-	return runner(exec.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
+	return runner(process.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
 		return externalFinished{folder, handoffError(err)}
 	})
 }
@@ -127,37 +121,22 @@ func (m model) runCaptured(command string, args []string, done func(CapturedResu
 	if runner == nil {
 		runner = runCapturedProcess
 	}
-	return runner(exec.Command(command, args...), done)
+	return runner(process.Command(command, args...), done)
 }
 
 // runCapturedProcess is the default captured runner: no suspend, stdout, stderr
 // and the exit status kept.
 func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
-	return func() tea.Msg {
-		var stdout, stderr bytes.Buffer
-		c.Stdout, c.Stderr = &stdout, &stderr
-		err := c.Run()
-		return done(CapturedResult{Stdout: stdout.String(), Stderr: stderr.String(), Err: err})
-	}
+	return process.RunCaptured(c, done)
 }
 
-// InitGit creates a local repository for a newly initialized Workspace.
-func InitGit(root string) error {
-	cmd := exec.Command("git", "init", "--quiet", root)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
-}
-
-// LaunchHarness runs a configured Plugin skill from the CLI. Keep process
-// creation here so all external commands use the same audited boundary.
+// LaunchHarness runs a configured Plugin skill from the CLI.
 func LaunchHarness(template, workspace, skill, resume string) error {
 	if resume != "" {
 		skill += " --resume " + QuoteShellArgument(resume)
 	}
 	command := harnessCommand(template, skill, handoffDir(workspace))
-	return exec.Command("/bin/sh", "-c", command).Run()
+	return process.RunShell(command)
 }
 
 // editFile opens a file of the Application folder in the Owner's editor. The editor

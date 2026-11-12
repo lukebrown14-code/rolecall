@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/doctor"
+	"github.com/lukebrown14-code/rolecall/process"
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
@@ -61,7 +62,7 @@ func initWorkspaceFiles(root string, contact contactDetails, tracks []string, se
 	if err := store.InitializeWorkspace(root, contact.fields(), tracks, search); err != nil {
 		return err
 	}
-	if err := ui.InitGit(root); err != nil {
+	if err := process.InitGit(root); err != nil {
 		return err
 	}
 	return nil

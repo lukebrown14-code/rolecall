@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -21,6 +22,9 @@ const (
 	keyBackspace    = "backspace"
 )
 
+// groupMachine is the Settings group that holds the config.toml rows.
+const groupMachine = 3
+
 // Follow-up days bounds, as the issue states them.
 const (
 	minFollowUpDays = 1
@@ -33,17 +37,29 @@ var errFollowUpDays = errors.New("Follow-up days must be a whole number from 1 t
 type machineSetting struct {
 	group, row int
 	key        string // config.toml key
+	label      string // how the row reads in Settings, for the save message
 	toggle     bool   // Yes/No, flipped by Enter
 }
 
-// machineSettings are the editable rows. Workspace is shown but absent: it is never written.
-var machineSettings = []machineSetting{
-	{2, 1, keyFollowUpDays, false},
-	{3, 1, "editor", false},
-	{3, 2, "downloads", false},
-	{3, 3, "harness", false},
-	{3, 4, "plugin", false},
-	{3, 5, "ascii", true},
+// machineSettings are the editable rows. Workspace is shown but absent: it is never
+// written, so the machine rows start at row one. The rows are numbered from their order.
+var machineSettings = machineSettingsList()
+
+func machineSettingsList() []machineSetting {
+	rows := []machineSetting{
+		{group: groupTracking, row: 1, key: keyFollowUpDays, label: labelFollowUp},
+	}
+	for i, s := range []machineSetting{
+		{group: groupMachine, key: "editor", label: "Editor"},
+		{group: groupMachine, key: "downloads", label: labelDownloads},
+		{group: groupMachine, key: "harness", label: labelHarness},
+		{group: groupMachine, key: "plugin", label: labelPlugin},
+		{group: groupMachine, key: "ascii", label: "ASCII glyphs", toggle: true},
+	} {
+		s.row = i + 1
+		rows = append(rows, s)
+	}
+	return rows
 }
 
 // machineSettingAt is the editable setting on a row. Follow-up days is the last Tracking
@@ -143,7 +159,8 @@ func (m model) settingsEditKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // saveMachine patches config.toml and re-reads it so the change shows at once: the help
-// bar, Build and fetch availability, follow-up flags, Stats and the glyphs all follow.
+// bar, Build and fetch availability, follow-up flags, Stats and the glyphs all follow. It
+// reports what was saved on the feedback line.
 func (m model) saveMachine(s machineSetting, value any) model {
 	if m.configHome == "" {
 		m.err = errors.New("no config.toml to save to")
@@ -154,7 +171,19 @@ func (m model) saveMachine(s machineSetting, value any) model {
 		return m
 	}
 	m.err = nil
-	return m.loadMachine()
+	if m = m.loadMachine(); m.err != nil {
+		return m
+	}
+	m.toast = fmt.Sprintf("Saved %s: %s", s.label, machineValue(value))
+	return m
+}
+
+// machineValue is a saved value as the feedback line reads it.
+func machineValue(value any) string {
+	if on, ok := value.(bool); ok {
+		return yesNo(on)
+	}
+	return fmt.Sprint(value)
 }
 
 // loadMachine re-reads config.toml into the model.

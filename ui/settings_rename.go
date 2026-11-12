@@ -49,7 +49,7 @@ func (rm *renameMode) Keys() [][2]string {
 	case renameReport:
 		return [][2]string{{"esc", "close"}}
 	}
-	return [][2]string{{"enter", hintNext}, {"esc", "cancel"}}
+	return [][2]string{{"enter", hintReview}, {"esc", "cancel"}}
 }
 
 func plural(n int, one, many string) string {

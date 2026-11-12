@@ -330,6 +330,7 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 
 // Key-hint labels shared by the pop-up modes.
 const (
-	hintNext = "next"
-	hintSave = "save"
+	hintNext   = "next"
+	hintSave   = "save"
+	hintReview = "review"
 )
