@@ -19,6 +19,10 @@ const watchDebounce = 200 * time.Millisecond
 
 const usageErrorExitCode = 2
 
+// version is the build version, overridden at release time with
+// -ldflags "-X main.version=...". Development builds report the placeholder.
+var version = "dev"
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		if err := initWorkspace(os.Args[2:]); err != nil {
@@ -40,8 +44,13 @@ func main() {
 		}
 		return
 	}
+	showVersion := flag.Bool("version", false, "Print the version and exit")
 	dir := flag.String("dir", "", "Workspace path")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("rolecall %s\n", version)
+		return
+	}
 	if err := run(*dir); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

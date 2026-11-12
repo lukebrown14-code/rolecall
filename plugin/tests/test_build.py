@@ -174,38 +174,38 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
     assert "status: Draft" in (job / "meta.yml").read_text()
 
 
-# --- identity gate -------------------------------------------------------------
+# --- contact gate -------------------------------------------------------------
 
 
-def test_identity_failure_accepts_matching_text():
+def test_contact_failure_accepts_matching_text():
     text = "Alex Quinn\n" + "alex.quinn" + "@example.test\n"
-    assert build.identity_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
+    assert build.contact_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
 
 
-def test_identity_failure_matches_the_name_case_insensitively():
+def test_contact_failure_matches_the_name_case_insensitively():
     assert (
-        build.identity_failure(
+        build.contact_failure(
             "ALEX QUINN\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
         )
         is None
     )
 
 
-def test_identity_failure_reports_a_wrong_name():
-    reason = build.identity_failure(
+def test_contact_failure_reports_a_wrong_name():
+    reason = build.contact_failure(
         "Sam Rivers\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "Alex Quinn" in reason
 
 
-def test_identity_failure_reports_a_missing_email():
-    reason = build.identity_failure(
+def test_contact_failure_reports_a_missing_email():
+    reason = build.contact_failure(
         "Alex Quinn\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "alex.quinn@example.test" in reason
 
 
-def test_build_fails_and_names_the_missing_identity_field(tmp_path, monkeypatch):
+def test_build_fails_and_names_the_missing_contact_field(tmp_path, monkeypatch):
     monkeypatch.setattr(build, "need", lambda *args: None)
     (tmp_path / "profile").mkdir()
     (tmp_path / "profile" / "master-profile.md").write_text(

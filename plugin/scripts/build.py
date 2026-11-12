@@ -27,7 +27,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import identity as owner_identity_module  # noqa: E402
+import contact as owner_contact_module  # noqa: E402
 import meta as meta_module  # noqa: E402
 from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
@@ -71,7 +71,7 @@ class Profile:
 
     ``master`` carries the Contact table, headline table, Experience facts and
     the Key Skills pool; ``projects`` the manual-project metrics. Reading once
-    keeps the identity gate, the headline and the fact gates on the same text.
+    keeps the contact gate, the headline and the fact gates on the same text.
     """
 
     master: str = ""
@@ -82,9 +82,9 @@ class Profile:
         directory = Path(data) / "profile"
         return cls(_read(directory / "master-profile.md"), _read(directory / "projects.md"))
 
-    def identity(self):
-        """The Owner's identity from the Contact table in ``master``."""
-        return owner_identity_module.Identity(owner_identity_module.parse_contact(self.master))
+    def contact(self):
+        """The Owner's Contact from the Contact table in ``master``."""
+        return owner_contact_module.Contact(owner_contact_module.parse_contact(self.master))
 
 
 def titlecase(s):
@@ -548,8 +548,8 @@ def build(md_text, md_name, template_name, out_pdf, substitutions):
     return out_pdf
 
 
-def identity_failure(text, name, email):
-    """Why a built PDF's extracted text fails the Profile identity check, or None.
+def contact_failure(text, name, email):
+    """Why a built PDF's extracted text fails the Profile contact check, or None.
 
     The document must carry the Owner's own name and email, so a stale template
     that still prints someone else's is caught before the PDF is sent.
@@ -561,20 +561,20 @@ def identity_failure(text, name, email):
     return None
 
 
-def ats_check(pdf, md_name, ident):
+def ats_check(pdf, md_name, contact):
     """Confirm the PDF yields clean, ordered text for an ATS parser, and carries
-    the Owner's identity from the Profile. A mismatch fails the build."""
+    the Owner's Contact from the Profile. A mismatch fails the build."""
     if not shutil.which("pdftotext"):
         return None
     r = subprocess.run(
         ["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True
     )
     text = r.stdout
-    reason = identity_failure(text, ident.name, ident.email)
+    reason = contact_failure(text, contact.name, contact.email)
     if reason:
         sys.exit(
-            f"\n  {md_name} fails the identity gate: {reason}."
-            "\n  The document must carry the Profile's identity -- check the workspace templates."
+            f"\n  {md_name} fails the contact gate: {reason}."
+            "\n  The document must carry the Profile's Contact -- check the workspace templates."
         )
     pages = max(1, text.count("\f"))
     return f"ok, {len(text.split()):,} words, {pages} page(s)", pages
@@ -655,11 +655,11 @@ def main(argv=None):
     # hard gate: it would otherwise build documents that identify nobody. The
     # Profile is read once here and passed into the headline and every gate.
     profile = Profile.read(DATA)
-    ident = profile.identity()
-    missing = ident.missing()
+    contact = profile.contact()
+    missing = contact.missing()
     if missing:
         sys.exit(
-            "\n  identity gate: profile/master-profile.md has no "
+            "\n  contact gate: profile/master-profile.md has no "
             + ", ".join(missing)
             + " in its ## Contact table.\n  Add the field(s) and build again."
         )
@@ -686,9 +686,9 @@ def main(argv=None):
     documents = {name: _read(d / name) for name in ("resume.md", "cover-letter.md")}
 
     subs = {
-        "NAME": ident.name,
-        "CONTACT": ident.contact_line(),
-        "CONTACT2": ident.work_rights,
+        "NAME": contact.name,
+        "CONTACT": contact.contact_line(),
+        "CONTACT2": contact.work_rights,
         "DATELINE": date.today().strftime("%d %B %Y"),
         "HEADLINE": headline_for(profile.master, application.track),
     }
@@ -696,8 +696,8 @@ def main(argv=None):
     check_letter_present(application, documents["cover-letter.md"])
 
     candidates = [
-        ("resume.md", "resume.typ", f"{ident.name} Resume {label}.pdf"),
-        ("cover-letter.md", "cover-letter.typ", f"{ident.name} {label} Cover Letter.pdf"),
+        ("resume.md", "resume.typ", f"{contact.name} Resume {label}.pdf"),
+        ("cover-letter.md", "cover-letter.typ", f"{contact.name} {label} Cover Letter.pdf"),
     ]
     jobs = []
     for job in candidates:
@@ -721,7 +721,7 @@ def main(argv=None):
         for md_name, template, pdf_name in jobs:
             pdf = build(documents[md_name], md_name, template, staging / pdf_name, dict(subs))
             print(f"  built {pdf.name}")
-            result = ats_check(pdf, md_name, ident)
+            result = ats_check(pdf, md_name, contact)
             if result:
                 message, pages = result
                 print(f"        ATS: {message}")

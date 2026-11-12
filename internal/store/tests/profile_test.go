@@ -51,7 +51,7 @@ func profileWithContactRows(t *testing.T, rows ...string) store.Profile {
 }
 
 // TestProfileContactMatchesSharedExpectations keeps the Go reader and
-// identity.py parsing the fixture Profile the same way.
+// contact.py parsing the fixture Profile the same way.
 func TestProfileContactMatchesSharedExpectations(t *testing.T) {
 	s := fixtureProfileStore(t)
 	got, err := s.Profile()

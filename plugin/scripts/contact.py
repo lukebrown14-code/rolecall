@@ -1,12 +1,12 @@
-"""The Owner's identity, read from the Profile's `## Contact` table.
+"""The Owner's Contact, read from the Profile's `## Contact` table.
 
-The Profile (`profile/master-profile.md`) is the one source of truth for who
-the Owner is: nothing in the build, the filenames or the PDF checks may hardcode
-a name, email or link. This module parses the Contact table's `| Field | Value |`
-rows.
+The Profile (`profile/master-profile.md`) is the one source of truth for how to
+reach the Owner: nothing in the build, the filenames or the PDF checks may
+hardcode a name, email or link. This module parses the Contact table's
+`| Field | Value |` rows.
 
 Required fields are Name and Email. A Profile missing either fails the build,
-naming the field (see build.py's identity gate).
+naming the field (see build.py's contact gate).
 """
 
 import re
@@ -42,7 +42,7 @@ def parse_contact(text):
     return fields
 
 
-class Identity:
+class Contact:
     def __init__(self, fields):
         self.fields = fields
 
@@ -62,7 +62,7 @@ class Identity:
         return self.get("Work rights")
 
     def missing(self):
-        """Required identity fields with no value, in REQUIRED order."""
+        """Required Contact fields with no value, in REQUIRED order."""
         return [f for f in REQUIRED if not self.get(f)]
 
     def contact_line(self, github=True):
@@ -74,10 +74,10 @@ class Identity:
 
 
 def read(data_dir):
-    """The Identity in <data_dir>/profile/master-profile.md (empty fields if absent).
+    """The Contact in <data_dir>/profile/master-profile.md (empty fields if absent).
 
     Reads the file at call time: the Workspace changes per --data run, so the
     path must not be captured at import.
     """
     f = Path(data_dir) / "profile" / PROFILE_FILE
-    return Identity(parse_contact(f.read_text() if f.exists() else ""))
+    return Contact(parse_contact(f.read_text() if f.exists() else ""))

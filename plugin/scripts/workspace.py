@@ -1,8 +1,8 @@
 """Resolve the Workspace for every plugin script.
 
 Order: the ``--data`` option, then ``ROLECALL_WORKSPACE``. There is no
-repository-root or dashboard-era fallback: a script that cannot find a real
-directory stops with a clear message instead of guessing.
+repository-root fallback: a script that cannot find a real directory stops with
+a clear message instead of guessing.
 
 Every script resolves through these functions, so a script behaves the same
 whether it is run from a shell or called in process with its own ``argv``.

@@ -76,6 +76,37 @@ func (m model) statsView(p pal) string {
 	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, l.w, m.keyLine(p, l.w)))
 }
 
+// buildStatsReport builds the Stats value; a var so a test can count the builds.
+var buildStatsReport = reporting.Build
+
+// statsCache holds the report built for one interaction, so every Stats sub-view and
+// scroll key reuses it rather than rescanning the Applications.
+type statsCache struct {
+	report reporting.StatsReport
+	built  bool
+}
+
+// statsReport is the report for the current interaction, built on first use and reused
+// until Update resets it (see resetStats).
+func (m model) statsReport() reporting.StatsReport {
+	if m.stats == nil {
+		return buildStatsReport(m.statsApps(), m.now(), m.followUpDays)
+	}
+	if !m.stats.built {
+		m.stats.report = buildStatsReport(m.statsApps(), m.now(), m.followUpDays)
+		m.stats.built = true
+	}
+	return m.stats.report
+}
+
+// resetStats drops the cached report so the next interaction builds it once against the
+// Workspace as it then stands.
+func (m *model) resetStats() {
+	if m.stats != nil {
+		m.stats.built = false
+	}
+}
+
 // statsLines is the report as the body draws it, one entry per line, set at the text
 // column.
 func (m model) statsLines(p pal) []string {
@@ -85,8 +116,7 @@ func (m model) statsLines(p pal) []string {
 	if len(apps) == 0 {
 		lines = []string{p.Text(p.Dim).Render("No Applications yet · ") + p.Key().Render("a") + p.Text(p.Dim).Render(" to add a Lead")}
 	} else {
-		report := reporting.Build(apps, m.now(), m.followUpDays)
-		lines = m.statsBody(p, report, l.w-inset-rightMargin, l.bodyHeight(1))
+		lines = m.statsBody(p, m.statsReport(), l.w-inset-rightMargin, l.bodyHeight(1))
 	}
 	pad := strings.Repeat(" ", inset)
 	for i, line := range lines {

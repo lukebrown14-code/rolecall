@@ -98,7 +98,7 @@ this is what the Owner prepares an answer for, not a place to hide a weakness.
 
 ## 7. Resume only — only when the Owner says so
 
-`resume_only` is an explicit choice, never an inference. An empty or absent `cover-letter.md` is
+`resume_only` is an explicit choice, never an inference. A missing `cover-letter.md` is
 an incomplete application, not evidence that this one is resume only. Set it **only when the
 Owner chooses it in this session** (ADR-0004); never infer it from an empty letter, from the ad,
 or from a previous Application.
