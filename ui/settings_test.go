@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,6 +86,62 @@ func TestSettingsKeyIsInFullHelp(t *testing.T) {
 		if v := plainView(driveModel(t, m, keys...)); !strings.Contains(v, ", ") || !strings.Contains(v, "settings") {
 			t.Fatalf("keys %q: help does not list , settings:\n%s", keys, v)
 		}
+	}
+}
+
+// fakeEditorDir returns a PATH directory holding an executable named name, and a
+// second directory whose name contains a space, holding the same.
+func fakeEditorDir(t *testing.T, name string) (pathDir, spacedExe string) {
+	t.Helper()
+	pathDir = t.TempDir()
+	// A short base keeps the whole Editor line inside the popup.
+	short, err := os.MkdirTemp("/tmp", "r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(short) })
+	spaced := filepath.Join(short, "a b")
+	if err := os.MkdirAll(spaced, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []string{pathDir, spaced} {
+		if err := os.WriteFile(filepath.Join(d, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return pathDir, filepath.Join(spaced, name)
+}
+
+func TestSettingsWarnsWhenEditorNotOnPath(t *testing.T) {
+	pathDir, spacedExe := fakeEditorDir(t, "fe")
+	t.Setenv("PATH", pathDir)
+	const warn = "(not found on PATH)"
+	for _, tc := range []struct {
+		name, editor string
+		warn         bool
+	}{
+		{"missing", "nosuch", true},
+		{"found", "fe", false},
+		{"found with flags", "fe -w -x", false},
+		{"missing with flags", "nosuch -w", true},
+		{"quoted path found", `"` + spacedExe + `" -w`, false},
+		{"single quoted path found", `'` + spacedExe + `'`, false},
+		{"quoted path missing", `"/no such/x"`, true},
+		{"flag names a missing program", "fe nosuch", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := fixtureCopy(t, nil)
+			toml := fmt.Sprintf("editor = %q\n", tc.editor)
+			m := driveStart(t, root, fixtureClock, 200, 40, settingsOpts(t, root, toml)...)
+			v := plainView(driveModel(t, m, ","))
+			if got := strings.Contains(v, warn); got != tc.warn {
+				t.Fatalf("warning shown = %v, want %v:\n%s", got, tc.warn, v)
+			}
+			// Never blocks: Settings still opens and closes.
+			if v := plainView(driveModel(t, m, ",", "esc")); strings.Contains(v, "Settings") {
+				t.Fatalf("Settings did not close:\n%s", v)
+			}
+		})
 	}
 }
 
