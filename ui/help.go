@@ -81,7 +81,7 @@ func (m model) helpKeys() []helpKey {
 		if len(m.tracks) > 0 {
 			keys = append(keys, help(groupMore, "t", "cycle track"))
 		}
-		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+		return append(keys, help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 	}
 	a, onRow := m.current()
 	// A malformed row can only be inspected: Edit, Move, undo, notes and downloads are refused there.
@@ -124,7 +124,7 @@ func (m model) helpKeys() []helpKey {
 		}
 	}
 	if m.detail != nil {
-		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, "q", "quit"))
+		return append(keys, help(groupNav, "esc", "back"), help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "q", "quit"))
 	}
 	keys = append(keys, help(groupAction, "a", "add"), help(groupAction, "/", "search"), help(groupNav, "1-4", "screen"))
 	if len(tables[m.screen]) > 1 {
@@ -135,7 +135,7 @@ func (m model) helpKeys() []helpKey {
 		keys = append(keys, help(groupMore, "t", "cycle track"))
 	}
 	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"),
-		help(groupMore, "esc", "clear search"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+		help(groupMore, "esc", "clear search"), help(groupMore, ",", "settings"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
 }
 
 func pairs(keys []helpKey, group helpGroup) [][2]string {

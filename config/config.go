@@ -18,6 +18,32 @@ type Config struct {
 	Downloads    string `toml:"downloads"`
 	Plugin       string `toml:"plugin"`
 	Harness      string `toml:"harness"`
+
+	// EditorSource names where the effective Editor came from: one of the Source*
+	// constants. Editor itself stays the configured value (empty when unset), so the
+	// ui keeps resolving the fallbacks the same way it always has.
+	EditorSource string `toml:"-"`
+}
+
+// Where an effective value came from, as the Settings view names it.
+const (
+	SourceConfig  = "config.toml"
+	SourceVisual  = "$VISUAL"
+	SourceEditor  = "$EDITOR"
+	SourceDefault = "default"
+)
+
+// editorSource follows the Editor resolution order: config, $VISUAL, $EDITOR, vi.
+func editorSource(configured string) string {
+	switch {
+	case configured != "":
+		return SourceConfig
+	case os.Getenv("VISUAL") != "":
+		return SourceVisual
+	case os.Getenv("EDITOR") != "":
+		return SourceEditor
+	}
+	return SourceDefault
 }
 
 // Path is where the Owner's settings file lives under home.
@@ -49,6 +75,7 @@ func Load(home, dir string) (Config, error) {
 		}
 		return s
 	}
+	c.EditorSource = editorSource(c.Editor)
 	c.Workspace = expand(c.Workspace)
 	c.Downloads = expand(c.Downloads)
 	// plugin is configured or, failing that, taken from the environment. Nothing

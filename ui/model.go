@@ -41,6 +41,7 @@ type model struct {
 	followUpDays          int
 	now                   func() time.Time
 	editor                string
+	editorSource          string // where the effective Editor came from, for Settings
 	external              ExternalRunner
 	detail                *detailState
 	height                int
@@ -232,6 +233,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
+			return m, nil
+		}
+		if k.String() == "," {
+			// Settings opens from anywhere, over the detail view and Stats too.
+			m.overlay = &settingsMode{}
 			return m, nil
 		}
 		if m.detail != nil {

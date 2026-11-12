@@ -128,6 +128,10 @@ func WithHarness(template string) Option { return func(m *model) { m.harness = t
 // WithEditor sets the configured editor command.
 func WithEditor(editor string) Option { return func(m *model) { m.editor = editor } }
 
+// WithEditorSource names where the effective Editor came from (config.EditorSource),
+// for the Settings view.
+func WithEditorSource(source string) Option { return func(m *model) { m.editorSource = source } }
+
 // WithFollowUpDays sets the configured follow-up period.
 func WithFollowUpDays(days int) Option { return func(m *model) { m.followUpDays = days } }
 
