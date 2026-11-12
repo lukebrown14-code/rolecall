@@ -126,11 +126,27 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `t` | global | cycle the track filter: All → each `workspace.json` track |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
+| `,` | global | Settings overlay |
 | `?` | global | full help |
 | `q` / `Ctrl-C` | global | quit |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `b`: see [v0.2](#v02-harness-and-extras).
 - The bottom help bar shows only the keys valid for the current row (e.g. `d` hidden when nothing is built).
+
+### Settings (`,`)
+
+A read-only overlay, opened from any screen. `Esc` closes it and restores the screen, table,
+cursor and filter. It lists each effective setting with its source (`config.toml`, `$VISUAL`,
+`$EDITOR`, `$ROLECALL_PLUGIN`, `--dir` or `default`), Editor first:
+
+```
+Editor: nvim (config.toml)
+Workspace · Follow-up days · Downloads · Plugin · Harness
+```
+
+- If the first word of the Editor command is not on `PATH`, the Editor line adds `(not found on PATH)`. This never blocks launch. `rolecall doctor` reports the same as a warning.
+- `e` opens `config.toml` in the Editor (created empty if missing). When the Editor exits, the config reloads. On a TOML error the old values stay and the feedback line shows the error. The Workspace is fixed for the session.
+- The view's help line lists example Editor values: `nvim`, `code --wait`, `zed --wait`, `hx`, `subl --wait`.
 
 ### Move popup (`m`)
 

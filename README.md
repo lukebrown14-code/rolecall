@@ -36,6 +36,18 @@ downloads = "~/Downloads"
 
 Then run `go run ./cmd/rolecall`. `--dir` overrides the configured Workspace.
 
+`editor` is the command that opens files. If empty, rolecall uses `$VISUAL`, then `$EDITOR`,
+then `vi`. Example values:
+
+- `nvim`
+- `code --wait`
+- `zed --wait`
+- `hx`
+- `subl --wait`
+
+GUI editors need their wait flag so rolecall rescans only after editing finishes. Press `,` in
+the TUI to see the Editor in effect and where it came from.
+
 To install a standalone command:
 
 ```sh
