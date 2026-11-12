@@ -50,6 +50,8 @@ do not add those terms to repository files.
 
 - [ ] Read every file under `docs/`, including all ADRs.
 - [ ] Read `README.md` and check its privacy statements and setup instructions.
+- [ ] Read `.github/ISSUE_TEMPLATE/bug_report.md` and confirm it warns reporters not to paste
+  `meta.yml`, a CV, or the Profile, and asks them to reproduce with the example Workspace.
 - [ ] Read every file under `fixtures/`, including the example Workspace and generated-document
   fixtures. Confirm names and personal facts are fictional and no real Owner data remains.
 - [ ] Resolve any concern and rerun the scanner after edits.
