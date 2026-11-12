@@ -83,8 +83,8 @@ func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
 		writeMasterProfile(t, root, string(b)+"\n## Volunteer\n\nCommunity mentoring.\n")
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "5"))
-	// The list column cuts long headings, so each is matched by its start.
-	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts that are", "Volunteer"}
+	// The list shows short names (no "(…)" aside, the template's long headings shortened).
+	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts NOT available", "Volunteer"}
 	last := -1
 	for _, heading := range headings {
 		i := strings.Index(view, heading)
@@ -195,7 +195,7 @@ func TestProfileSectionRowsShowCounts(t *testing.T) {
 		{"Headlines", "2"},
 		{"Experience", "2"},
 		{"Key Skills", "8"},
-		{"Facts that are", "2"},
+		{"Facts NOT available", "2"},
 	} {
 		row := requireProfileListRow(t, view, tc.section)
 		if !strings.HasSuffix(row, tc.count) {
@@ -335,7 +335,7 @@ func hasProfileDivider(view string) bool {
 			continue
 		}
 		left := strings.TrimSpace(line[:i])
-		if len(left) >= 2 && strings.Trim(left, "─-") == "" {
+		if left = strings.TrimPrefix(left, "files"); len(left) >= 2 && strings.Trim(strings.TrimSpace(left), "─-") == "" {
 			return true
 		}
 	}
@@ -352,7 +352,7 @@ func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
 	if !hasProfileDivider(view) {
 		t.Fatalf("no divider above the other Profile files:\n%s", view)
 	}
-	last := strings.Index(view, "Facts that are")
+	last := strings.Index(view, "Facts NOT available")
 	projects := strings.Index(view, "projects.md")
 	if last < 0 || projects < 0 || projects < last {
 		t.Fatalf("projects.md not below the sections:\n%s", view)

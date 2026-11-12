@@ -243,12 +243,65 @@ func (m model) profileMarkdown(st profileState) string {
 		if warning != "" {
 			lines = append(lines, "")
 		}
-		lines = append(lines, strings.Split(m.renderMarkdown(body, width), "\n")...)
+		rendered, ok := m.fieldTable(body, width)
+		if !ok {
+			rendered = strings.Split(m.renderMarkdown(body, width), "\n")
+		}
+		// The first line of text sits level with the first section in the list.
+		for len(rendered) > 0 && strings.TrimSpace(xansi.Strip(rendered[0])) == "" {
+			rendered = rendered[1:]
+		}
+		lines = append(lines, rendered...)
 	}
 	for i, line := range lines {
 		lines[i] = xansi.Truncate(line, width, "…")
 	}
 	return strings.Join(lines, "\n")
+}
+
+// fieldTable draws a section that is only a two-column Markdown table, like Contact, as
+// label and value columns, the label column as wide as its longest label. Glamour would
+// share the width out evenly instead, leaving short labels in a wide column. ok is false
+// for any other body, which renders as Markdown.
+func (m model) fieldTable(body string, width int) (lines []string, ok bool) {
+	var rows [][2]string
+	for i, l := range strings.Split(strings.TrimSpace(body), "\n") {
+		cells := strings.Split(strings.Trim(strings.TrimSpace(l), "|"), "|")
+		if !strings.HasPrefix(strings.TrimSpace(l), "|") || len(cells) != 2 {
+			return nil, false
+		}
+		if i < tableHead {
+			continue // the header and its separator
+		}
+		rows = append(rows, [2]string{plainInline(cells[0]), plainInline(cells[1])})
+	}
+	if len(rows) == 0 {
+		return nil, false
+	}
+	labelW := 0
+	for _, r := range rows {
+		labelW = max(labelW, xansi.StringWidth(r[0]))
+	}
+	labelW += gutter
+	p := m.pal()
+	for _, r := range rows {
+		label := p.text(p.dim).Render(r[0] + strings.Repeat(" ", labelW-xansi.StringWidth(r[0])))
+		for i, part := range wrapWords(r[1], max(1, width-labelW)) {
+			if i > 0 {
+				label = strings.Repeat(" ", labelW)
+			}
+			lines = append(lines, label+p.text(p.fg).Render(part))
+		}
+	}
+	return lines, true
+}
+
+// tableHead is a Markdown table's header row and its separator.
+const tableHead = 2
+
+// plainInline drops a table cell's inline Markdown marks: bold, italic and code.
+func plainInline(s string) string {
+	return strings.TrimSpace(strings.NewReplacer("**", "", "`", "", "*", "").Replace(s))
 }
 
 // contactWarning names the required Contact fields that are missing, so the Owner can fix
@@ -430,15 +483,40 @@ func (m model) profileSectionList(p pal, h int) string {
 	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {
 		suffix, colour := m.profileSectionSuffix(p, section)
-		rows = append(rows, profileListRow(p, listW, section.Heading, suffix, colour, i == st.selected))
+		rows = append(rows, profileListRow(p, listW, shortHeading(section.Heading), suffix, colour, i == st.selected, false))
 	}
 	if len(st.profile.Files) > 0 {
-		rows = append(rows, strings.Repeat(" ", inset)+p.text(p.rule).Render(strings.Repeat("─", listW-inset-gutter)))
+		// The other files are files, not sections: a labelled rule, then their names in italic.
+		label := p.text(p.dim).Render(otherFiles + " ")
+		rows = append(rows, strings.Repeat(" ", inset)+label+
+			p.text(p.rule).Render(strings.Repeat("─", max(0, listW-inset-gutter-xansi.StringWidth(otherFiles)-1))))
 	}
 	for i, file := range st.profile.Files {
-		rows = append(rows, profileListRow(p, listW, file.Name, "", p.dim, st.sectionCount()+i == st.selected))
+		rows = append(rows, profileListRow(p, listW, file.Name, "", p.dim, st.sectionCount()+i == st.selected, true))
 	}
 	return strings.Join(p.clipLines(rows, st.row()-h/bothSides, h, strings.Repeat(" ", inset)), "\n")
+}
+
+// otherFiles labels the rule between the sections and the other Profile files.
+const otherFiles = "files"
+
+// shortHeadings are the list names of the template's long headings; the content pane and
+// the narrow context row keep the heading as written.
+var shortHeadings = map[string]string{
+	"Key Skills keyword pool":      "Key Skills",
+	"Facts that are NOT available": "Facts NOT available",
+}
+
+// shortHeading is a section's name in the list: without a trailing "(…)" aside, and
+// shortened where the template's heading is long, so the list never cuts a name.
+func shortHeading(h string) string {
+	if i := strings.LastIndex(h, " ("); i > 0 && strings.HasSuffix(h, ")") {
+		h = h[:i]
+	}
+	if s, ok := shortHeadings[h]; ok {
+		return s
+	}
+	return h
 }
 
 // profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ✗ in
@@ -459,16 +537,16 @@ func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string
 // profileListRow is one entry in the list column: the marker and name on the left, the
 // count right-aligned in the column. The name is cut to leave room for the suffix, and a
 // section with no count leaves the column blank.
-func profileListRow(p pal, listW int, name, suffix string, colour color.Color, selected bool) string {
+func profileListRow(p pal, listW int, name, suffix string, colour color.Color, selected, file bool) string {
 	width := listW - gutter // two blank cells before the divider
 	room := width - inset
 	if suffix != "" {
 		room -= xansi.StringWidth(suffix) + 1 // one cell between the name and the count
 	}
 	heading := xansi.Truncate(name, max(1, room), "…")
-	left := strings.Repeat(" ", inset) + p.text(p.dim).Render(heading)
+	left := strings.Repeat(" ", inset) + p.text(p.dim).Italic(file).Render(heading)
 	if selected {
-		left = strings.Repeat(" ", edge) + p.text(p.accent).Bold(true).Render(profileMarker+heading)
+		left = strings.Repeat(" ", edge) + p.text(p.accent).Bold(true).Italic(file).Render(profileMarker+heading)
 	}
 	if suffix == "" {
 		return left
