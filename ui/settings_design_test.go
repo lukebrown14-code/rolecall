@@ -115,6 +115,46 @@ func rowWith(lines []string, text string) string {
 	return ""
 }
 
+// The marker that shows focus lives in exactly one pane: the group list, or the settings
+// rows, whichever the Owner is driving. Colour is a bonus, never the cue.
+func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
+	// The group list has focus: the group is marked, no settings row is.
+	v := settingsAt(t, 120, 36, "j", "j")
+	if group := settingsColumn(v, 0); !strings.Contains(group, "▸ Tracking") {
+		t.Errorf("focused group list: %q", group)
+	}
+	if rows := settingsColumn(v, 1); strings.Contains(rows, "▸") {
+		t.Errorf("unfocused settings pane marked a row:\n%s", rows)
+	}
+	// The settings pane has focus: its row is marked, the group is not.
+	v = settingsAt(t, 120, 36, "j", "j", "tab")
+	if group := settingsColumn(v, 0); strings.Contains(group, "▸") {
+		t.Errorf("unfocused group list kept its marker: %q", group)
+	}
+	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ Tracks") {
+		t.Errorf("focused settings pane lost its marker:\n%s", rows)
+	}
+}
+
+// settingsColumn is one pane of the split Settings body: 0 is the group list, 1 is the
+// settings. Lines without the divider are the chrome around the body and are dropped.
+func settingsColumn(lines []string, side int) string {
+	var b strings.Builder
+	for _, l := range lines {
+		i := strings.Index(l, "│")
+		if i < 0 {
+			continue
+		}
+		if side == 0 {
+			b.WriteString(l[:i])
+		} else {
+			b.WriteString(l[i+len("│"):])
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "j", "j", "tab")

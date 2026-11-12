@@ -74,7 +74,7 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
-ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on
+ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale turns them on
 ```
 
 Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
@@ -238,8 +238,10 @@ context-free review. Every colour and style is in `ui/styles.go`.
 - **Active markers:** the active track, view tab and detail tab are bracketed — `[All]`,
   `[Leads 4]`, `[JD]` — as well as coloured, so they read without colour.
 - **Accessibility:** `NO_COLOR` drops all colour but keeps bold, underline and every word
-  and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in. The `?`
-  pop-up carries a legend for `● ○ ✓ ⚠ ✕ ↩ ~ ⚑`.
+  and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in; a locale that
+  is not UTF-8 turns ASCII on by itself. Text keeps a 4.5:1 contrast floor on the dark
+  background and rules and pane dividers 3:1, including the frame behind a pop-up, which
+  dims without going below the floor. The `?` pop-up carries a legend for `● ○ ✓ ⚠ ✕ ↩ ~ ⚑`.
 - **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
   within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
   Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and
@@ -560,7 +562,8 @@ Laid out like Profile. Parent spec: #58; this section covers the read-only first
   - Tracking: Tracks (`workspace.json`) and follow-up days (`config.toml`).
   - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
     harness, plugin.
-- **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; `e`
+- **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; the
+  `▸` marks the focused pane only, so both panes never carry it at once; `e`
   opens `workspace.json` in the Editor, or `config.toml` while This machine is selected; `r`
   rescans. This slice writes nothing.
 - **`,`** opens Settings from any screen, including the detail view and Stats. `Esc` returns to

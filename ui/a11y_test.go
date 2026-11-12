@@ -11,7 +11,8 @@ import (
 // state still reads. Checked across the list, the detail view and the pop-ups.
 func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"5"}} {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"5"},
+		{"6"}, {"6", "j", "j", "tab", "a"}, {"6", "tab", "enter"}} {
 		view := runKeys(t, fixtureCopy(t, nil), 120, keys...)
 		for _, seq := range []string{"38;2;", "48;2;"} {
 			if strings.Contains(view, seq) {
@@ -38,11 +39,23 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	}
 }
 
+// A pop-up over Settings dims the frame behind it but leaves the values and the group
+// marker where they were, so the frame still reads while the pop-up is open.
+func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
+	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab", "a"))
+	for _, want := range []string{"Add Track", "▸ Tracks", "Tracking", "Follow-up days"} {
+		if !strings.Contains(v, want) {
+			t.Fatalf("pop-up over Settings lost %q:\n%s", want, v)
+		}
+	}
+}
+
 // ROLECALL_ASCII replaces every drawn glyph with an ASCII stand-in, at the same width, so
 // the frame is unchanged. Every state leaves only ASCII.
 func TestAsciiGlyphsFallBack(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "e"}, {"5"}} {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "e"}, {"5"},
+		{"6"}, {"6", "j", "tab", "enter"}, {"6", "j", "j", "tab", "r"}, {"6", "j", "j", "j", "tab", "j", "enter"}} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
 		for _, r := range view {
 			if r > 127 {
@@ -77,6 +90,37 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 	}
 	if !hasProfileDivider(profile) {
 		t.Fatalf("ASCII fallback lost the list divider:\n%s", profile)
+	}
+}
+
+// A locale that is not UTF-8 turns ASCII on automatically, so a terminal that cannot
+// draw ◆ ▌ ⚑ still reads without anyone setting ROLECALL_ASCII. A UTF-8 locale keeps the
+// glyphs.
+func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "")
+	for _, tc := range []struct {
+		name     string
+		lang     string
+		nonASCII bool
+	}{
+		{"C locale", "C", false},
+		{"UTF-8 locale", "en_US.UTF-8", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("LC_ALL", "")
+			t.Setenv("LC_CTYPE", "")
+			t.Setenv("LANG", tc.lang)
+			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab"))
+			got := false
+			for _, r := range view {
+				if r > 127 {
+					got = true
+				}
+			}
+			if got != tc.nonASCII {
+				t.Fatalf("non-ASCII present = %v, want %v under LANG=%s:\n%s", got, tc.nonASCII, tc.lang, view)
+			}
+		})
 	}
 }
 
