@@ -22,14 +22,15 @@ SCRIPT = ROOT / "plugin" / "scripts" / "new-job.py"
 FIXTURE = ROOT / "fixtures" / "workspace"
 
 
-def load():
-    spec = importlib.util.spec_from_file_location("newjob_under_test", SCRIPT)
+def load(filename, name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "plugin" / "scripts" / filename)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-nj = load()
+nj = load("new-job.py", "newjob_under_test")
+signals = load("signals.py", "signals_under_test")
 
 
 def only_application(workspace):
@@ -112,8 +113,8 @@ def test_favourable_short_contract():
 
 
 def test_blockers_interface_for_sweep():
-    assert nj.BLOCKERS and all(hasattr(pattern, "search") for pattern, _ in nj.BLOCKERS)
-    assert nj.FAVOURABLE
+    assert signals.BLOCKERS and all(hasattr(pattern, "search") for pattern, _ in signals.BLOCKERS)
+    assert signals.FAVOURABLE
 
 
 # ---------------------------------------------------------------- page parsing

@@ -9,6 +9,7 @@ whether it is run from a shell or called in process with its own ``argv``.
 """
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -18,6 +19,51 @@ ENV_VAR = "ROLECALL_WORKSPACE"
 
 class WorkspaceError(Exception):
     """The Workspace argument or environment variable is missing or invalid."""
+
+
+class Config:
+    """The shared workspace.json fields, read the same way by every script.
+
+    A missing or invalid file, or a field of the wrong shape, reads as its default
+    (empty), so a script can run against a bare Workspace.
+    """
+
+    def __init__(self, raw):
+        self.raw = raw if isinstance(raw, dict) else {}
+
+    @property
+    def tracks(self):
+        tracks = self.raw.get("tracks")
+        return tracks if isinstance(tracks, list) else []
+
+    @property
+    def search_area(self):
+        area = self.raw.get("search_area")
+        return area if isinstance(area, dict) else {}
+
+    @property
+    def gates(self):
+        keys = ("letterWordCap", "letterWordMin", "keySkillsMin", "keySkillsMax")
+        return {key: self.raw[key] for key in keys if key in self.raw}
+
+    @property
+    def blockers(self):
+        blockers = self.raw.get("blockers")
+        return blockers if isinstance(blockers, list) else []
+
+    @property
+    def sources(self):
+        sources = self.raw.get("sources")
+        return sources if isinstance(sources, dict) else {}
+
+
+def load(path):
+    """Read a Workspace's workspace.json into the shared fields."""
+    try:
+        raw = json.loads((Path(path) / "workspace.json").read_text())
+    except (OSError, ValueError):
+        raw = {}
+    return Config(raw)
 
 
 def add_data_argument(parser):

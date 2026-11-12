@@ -31,7 +31,6 @@ Seek and LinkedIn return 403 and cannot be fetched by anything here.
 """
 
 import argparse
-import importlib.util
 import json
 import re
 import ssl
@@ -45,17 +44,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
-from workspace import add_data_argument, data_from_argv, workspace_from_cli  # noqa: E402
-
-# new-job.py supplies the visa/clearance patterns. Import it for those patterns
-# only: the Workspace itself is resolved once, below, through the shared helper.
-_nj_spec = importlib.util.spec_from_file_location(
-    "nj", Path(__file__).resolve().parent / "new-job.py"
-)
-if _nj_spec is None or _nj_spec.loader is None:
-    sys.exit("Could not load plugin/scripts/new-job.py -- the blocker patterns live there.")
-nj = importlib.util.module_from_spec(_nj_spec)
-_nj_spec.loader.exec_module(nj)
+from signals import FAVOURABLE, blocker_hits, blockers_for  # noqa: E402
+from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
@@ -184,8 +174,8 @@ MP_DELAY = 0.3  # seconds between ad fetches
 
 
 def load_blockers(workspace):
-    """The Workspace's visa/clearance patterns plus new-job's favourable list."""
-    return nj.configured_blockers(workspace), nj.FAVOURABLE
+    """The Workspace's visa/clearance patterns plus the shared favourable list."""
+    return blockers_for(load(workspace).blockers), FAVOURABLE
 
 
 class SourceError(Exception):
@@ -604,9 +594,9 @@ def seen_urls(workspace):
 # scanning one pasted ad but matches site navigation ("Contract Recruitment") on a
 # scraped page. Only keep patterns specific enough to survive a full-page scrape.
 def scan(text, blockers, favourable):
-    # new-job.py exports compiled patterns (re.I baked in) -- never pass flags again.
-    # Blocker matching (negation, EEO boilerplate) lives in new-job.py's blocker_hits.
-    hits = [(lbl, "BLOCKER") for lbl in nj.blocker_hits(text, blockers)]
+    # The shared signals module exports compiled patterns (re.I baked in) -- never pass
+    # flags again. Blocker matching (negation, EEO boilerplate) lives in signals.blocker_hits.
+    hits = [(lbl, "BLOCKER") for lbl in blocker_hits(text, blockers)]
     for pat, lbl in favourable:
         text_pat = pat.pattern if isinstance(pat, re.Pattern) else pat
         if "month" not in text_pat:

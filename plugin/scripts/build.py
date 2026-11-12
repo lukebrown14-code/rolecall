@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import identity as owner_identity_module  # noqa: E402
 import meta as meta_module  # noqa: E402
-from workspace import add_data_argument, workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
 PLUGIN = Path(__file__).resolve().parent.parent
 TEMPLATES = PLUGIN / "templates"
@@ -46,16 +46,11 @@ KEY_SKILLS_MAX = 12
 def load_config():
     """Per-workspace limits from workspace.json, keeping the defaults."""
     global LETTER_MAX_WORDS, LETTER_MIN_WORDS, KEY_SKILLS_MIN, KEY_SKILLS_MAX
-    try:
-        config = json.loads((Path(DATA) / "workspace.json").read_text())
-    except (OSError, ValueError, TypeError):
-        return
-    if not isinstance(config, dict):
-        return
-    LETTER_MAX_WORDS = config.get("letterWordCap", LETTER_MAX_WORDS)
-    LETTER_MIN_WORDS = config.get("letterWordMin", LETTER_MIN_WORDS)
-    KEY_SKILLS_MIN = config.get("keySkillsMin", KEY_SKILLS_MIN)
-    KEY_SKILLS_MAX = config.get("keySkillsMax", KEY_SKILLS_MAX)
+    gates = load(DATA).gates
+    LETTER_MAX_WORDS = gates.get("letterWordCap", LETTER_MAX_WORDS)
+    LETTER_MIN_WORDS = gates.get("letterWordMin", LETTER_MIN_WORDS)
+    KEY_SKILLS_MIN = gates.get("keySkillsMin", KEY_SKILLS_MIN)
+    KEY_SKILLS_MAX = gates.get("keySkillsMax", KEY_SKILLS_MAX)
 
 
 def need(tool):

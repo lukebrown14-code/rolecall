@@ -13,7 +13,6 @@ has a ``schema`` key is skipped, so a second run changes nothing.
 """
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -23,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta  # noqa: E402
-from workspace import add_data_argument, workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
 ARCHIVE = [
     "TRACKER.md",
@@ -249,13 +248,7 @@ def read_dismissed(workspace):
 
 def _default_track(workspace):
     """The Workspace's first track, or None when it configures none."""
-    try:
-        config = json.loads((workspace / "workspace.json").read_text())
-    except (OSError, ValueError):
-        return None
-    if not isinstance(config, dict):
-        return None
-    for track in config.get("tracks") or []:
+    for track in load(workspace).tracks:
         if isinstance(track, str) and track.strip():
             return track
     return None

@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from workspace import data_from_argv, workspace_from_cli  # noqa: E402
+from workspaceio import atomic_write  # noqa: E402
 
 OWNER = os.environ.get("ROLECALL_GITHUB_OWNER", "")
 REPOS = [repo for repo in os.environ.get("ROLECALL_GITHUB_REPOS", "").split(",") if repo]
@@ -163,12 +164,12 @@ def main(argv=None):
             # Keep everything after the synced table's trailing blank line.
             rest = tail.split("\n---\n", 1)
             body = "\n---\n" + rest[1] if len(rest) > 1 else ""
-            out.write_text(head + table + body)
+            atomic_write(out, (head + table + body).encode(), 0o600)
             print(f"Updated fact table in {out.relative_to(data)}({len(projects)} projects)")
             return
 
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(f"# Projects\n\n{table}")
+    atomic_write(out, f"# Projects\n\n{table}".encode(), 0o600)
     print(f"Wrote {out.relative_to(data)} ({len(projects)} projects)")
 
 
