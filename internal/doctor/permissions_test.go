@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -60,6 +61,25 @@ func TestCheckReportsLooseFilesInsideWorkspace(t *testing.T) {
 	}
 	if len(warnings) != 1 || !strings.Contains(warnings[0], file+" (file)") || !strings.Contains(warnings[0], "chmod 600 "+file) {
 		t.Fatalf("warnings = %v, want file warning with chmod fix for %s", warnings, file)
+	}
+}
+
+// A Workspace that is a git repository reports no warnings about .git: git manages its
+// own file modes, and the walk must not descend into hidden directories.
+func TestCheckIgnoresGitDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "init", root).Run(); err != nil {
+		t.Skipf("git unavailable: %v", err)
+	}
+	warnings, err := Check(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("fresh git Workspace warnings = %v, want none", warnings)
 	}
 }
 
