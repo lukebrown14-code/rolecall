@@ -53,14 +53,14 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 		}
 		return m, nil, false
 	}
-	if m.text != "" && chipCloseAt(line, x) {
+	if m.text != "" && chipCloseAt(line, x, m.glyph("×")) {
 		m.text, m.cursor = "", 0
 		return m, nil, true
 	}
 	if !m.hasTables() || m.detail != nil {
 		return m, nil, false
 	}
-	rule := ruleLine(view)
+	rule := ruleLine(view, m.glyph("─"))
 	if y == rule-1 {
 		if v, ok := labelAt(line, x, m.views()); ok {
 			m.table, m.cursor = v, 0
@@ -75,10 +75,11 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
-// ruleLine is the index of the frame's top rule: the first line drawn with ─.
-func ruleLine(view []string) int {
+// ruleLine is the index of the frame's top rule: the first line drawn with rule, the
+// horizontal character the renderer drew (─, or - in ASCII mode).
+func ruleLine(view []string, rule string) int {
 	for i, l := range view {
-		if strings.HasPrefix(l, "─") {
+		if strings.HasPrefix(l, rule) {
 			return i
 		}
 	}
@@ -124,9 +125,10 @@ func labelAt(line string, x int, labels []string) (int, bool) {
 	return hit, true
 }
 
-// chipCloseAt reports whether column x is the search chip's ×.
-func chipCloseAt(line string, x int) bool {
-	col := columnOf(line, "×")
+// chipCloseAt reports whether column x is the search chip's ×, the close character the
+// renderer drew (×, or x in ASCII mode).
+func chipCloseAt(line string, x int, close string) bool {
+	col := columnOf(line, close)
 	return col >= 0 && x >= col-1 && x <= col+1
 }
 

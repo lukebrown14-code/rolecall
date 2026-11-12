@@ -54,6 +54,23 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 	}
 }
 
+// In ASCII mode the frame draws - and x where the Unicode frame drew ─ and ×, so a
+// click must target the same characters the renderer drew.
+func TestClickTargetsAsciiGlyphs(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "1")
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "3")
+	m = clickOn(t, m, lineOf(t, m, "Interviewing"), "Interviewing")
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[Interviewing") {
+		t.Fatalf("ASCII view click did not switch:\n%s", view)
+	}
+	m = driveModel(t, m, "/pl", "enter")
+	m = clickOn(t, m, lineOf(t, m, "/pl x"), "x")
+	if view := ansi.Strip(m.View().Content); strings.Contains(view, "/pl x") {
+		t.Fatalf("ASCII chip click left the search on:\n%s", view)
+	}
+}
+
 func TestWheelMovesTheCursorAndClickClearsTheSearchChip(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelDown})
