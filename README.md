@@ -39,11 +39,16 @@ Then run `go run ./cmd/rolecall`. `--dir` overrides the configured Workspace.
 To install with Homebrew (macOS and Linux):
 
 ```sh
-brew install lukebrown14-code/tap/rolecall
+brew install lukebrown14-code/homebrew-tap/rolecall
 ```
 
 The formula installs the rolecall Plugin with the command. rolecall finds the
 bundled Plugin automatically when neither `plugin` nor `ROLECALL_PLUGIN` is set.
+
+Connect rolecall to your Harness:
+
+- [Claude Code](docs/harnesses/claude-code.md)
+- [Codex, Gemini CLI and opencode](docs/harnesses/other-harnesses.md)
 
 To build and install a standalone command:
 
