@@ -108,7 +108,7 @@ func (e docEntry) displayStatus(a store.Application) (string, bool) {
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{jdFile, a.HasJD, a.JDHasText}, {resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}

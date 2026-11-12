@@ -20,6 +20,7 @@ func WithASCII(on bool) Option { return func(m *model) { m.ascii = on } }
 
 const (
 	keyFollowUpDays = "follow_up_days"
+	keyEditor       = "editor"
 	keyBackspace    = "backspace"
 )
 
@@ -49,7 +50,7 @@ func machineSettingsList() []machineSetting {
 		{group: groupTracking, key: keyFollowUpDays, label: labelFollowUp},
 	}
 	for i, s := range []machineSetting{
-		{group: groupMachine, key: "editor", label: labelEditor},
+		{group: groupMachine, key: keyEditor, label: labelEditor},
 		{group: groupMachine, key: "downloads", label: labelDownloads},
 		{group: groupMachine, key: "harness", label: labelHarness},
 		{group: groupMachine, key: "plugin", label: labelPlugin},
@@ -97,7 +98,7 @@ func (m model) settingValue(s machineSetting) string {
 	switch s.key {
 	case keyFollowUpDays:
 		return strconv.Itoa(m.followUpDays)
-	case "editor":
+	case keyEditor:
 		return m.editor
 	case "downloads":
 		return m.downloads
@@ -126,7 +127,13 @@ func (m model) activateSetting() (tea.Model, tea.Cmd) {
 // machinePopup edits one config.toml setting. Nothing is written until it is saved.
 func (m model) machinePopup(s machineSetting) mode {
 	was := m.settingValue(s)
-	fld := formField{Label: s.label, Value: was, Placeholder: m.machineExample(s)}
+	// An unset Editor still resolves to a default, so prefill what the Owner sees rather
+	// than opening an empty pop-up over a row that shows a value.
+	value := was
+	if s.key == keyEditor && strings.TrimSpace(value) == "" {
+		value = ResolveEditor(m.editor)
+	}
+	fld := formField{Label: s.label, Value: value, Placeholder: m.machineExample(s)}
 	if s.key == keyFollowUpDays {
 		fld.Required, fld.Unit, fld.Note, fld.Validate = true, "days", "1 to 90", validFollowUpDays
 	}

@@ -110,10 +110,10 @@ func TestSettingsTabAndJKMoveRowsInTheSettingsPane(t *testing.T) {
 	requireAll(t, h.tm.plain(), "SETTINGS")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	// The group keeps its ▸ (in a quieter colour) so the rows' group stays clear.
-	requireAll(t, v, "▸ Search", "▸ Remote")
-	if strings.Contains(v, "▸ Places") {
-		t.Fatalf("j did not move the row:\n%s", v)
+	// Only the row carries the ▸; the group stays named without a second cursor.
+	requireAll(t, v, "Search", "▸ Remote")
+	if strings.Contains(v, "▸ Places") || strings.Contains(v, "▸ Search") {
+		t.Fatalf("marker wrong after j:\n%s", v)
 	}
 }
 

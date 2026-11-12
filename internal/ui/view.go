@@ -176,12 +176,19 @@ func (m model) listView(p pal) string {
 	case len(m.apps) == 0:
 		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.welcome(p))
 	case len(rows) == 0:
-		title, hint := emptyMessage(m.views()[m.table])
-		if m.text != "" {
-			title, hint = "No matches for “"+m.text+"”", "esc clears the search"
+		switch {
+		case m.text != "":
+			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
+				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render("No matches for “"+m.text+"”"), "", p.Text(p.Dim).Render("esc clears the search")))
+		case m.movedOut():
+			// A move just took this view's last row elsewhere: say where it went and keep
+			// a celebration whole, rather than showing "nothing here" under a toast.
+			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.movedOutView(p))
+		default:
+			title, hint := emptyMessage(m.views()[m.table])
+			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
+				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render(title), "", p.Text(p.Dim).Render(hint)))
 		}
-		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
-			lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render(title), "", p.Text(p.Dim).Render(hint)))
 	default:
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
@@ -237,6 +244,54 @@ func (m model) welcome(p pal) string {
 	steps := lipgloss.JoinVertical(lipgloss.Left, step("a", "add your first Lead"),
 		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
 	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
+}
+
+// movedStatus is the destination Status named by a move's toast, or "" for any other
+// feedback, so the empty view can tell a move apart from a first-run or a search.
+func movedStatus(toast string) string {
+	if strings.HasPrefix(toast, offerPrefix) {
+		return store.StatusOffer
+	}
+	switch {
+	case strings.HasPrefix(toast, "Moved to "):
+		status, _, _ := strings.Cut(strings.TrimPrefix(toast, "Moved to "), " ·")
+		return status
+	case strings.HasPrefix(toast, "Dismissed · "):
+		return store.StatusDismissed
+	}
+	return ""
+}
+
+// movedOut reports that a move just took the last row out of this view.
+func (m model) movedOut() bool { return movedStatus(m.toast) != "" }
+
+// viewHoldsStatus reports whether a Status lives in a view of the current screen, so the
+// empty state can say which key follows the moved row.
+func (m model) viewHoldsStatus(status string) bool {
+	screen, table := StatusLocation(status)
+	if screen != screenDefs[m.screen].name {
+		return false
+	}
+	for _, t := range m.views() {
+		if t == table {
+			return true
+		}
+	}
+	return false
+}
+
+// movedOutView is the empty view after a move: the Offer celebration in full, or a quiet
+// line naming where the Application went, and how to follow it.
+func (m model) movedOutView(p pal) string {
+	line := p.Text(p.Fg).Bold(true).Render(m.toast)
+	if movedStatus(m.toast) == store.StatusOffer {
+		line = p.Text(p.Gold).Bold(true).Render(m.toast)
+	}
+	hint := "press ← → to follow it"
+	if !m.viewHoldsStatus(movedStatus(m.toast)) {
+		hint = "press 1-6 to find it"
+	}
+	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
 }
 
 // emptyMessage says how Applications reach an empty view.
@@ -333,7 +388,11 @@ func (m model) tabs(p pal) (string, []int) {
 			if level >= shedNames {
 				name = ""
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + " "
+			sep := " "
+			if name == "" && count == "" {
+				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
+			}
+			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep
 		}
 		return out, starts
 	}

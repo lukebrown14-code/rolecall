@@ -204,8 +204,13 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 
 // funnelNote explains a rung against the previous one: "29% of Applied" where the
 // previous rung has Applications, and "5 skipped Draft" for those that reached this
-// rung without it. Never a drop-off, which a rising ever-reached count makes a lie.
+// rung without it. Never a drop-off, which a rising ever-reached count makes a lie. When
+// no Application logged the previous rung at all, a "0% of" would read as a drop, so the
+// note names the missing entry instead.
 func funnelNote(step reporting.FunnelStep, prev string) string {
+	if step.Through == 0 && step.Skipped > 0 {
+		return fmt.Sprintf("%d without %s logged", step.Skipped, prev)
+	}
 	var parts []string
 	if step.ConversionOK {
 		parts = append(parts, fmt.Sprintf("%d%% of %s", step.Conversion, prev))
@@ -327,10 +332,12 @@ func sparkline(p pal, weeks []reporting.Week) string {
 	top := len(levels) - 1
 	var b strings.Builder
 	for _, w := range weeks {
-		i := 0
-		if w.Count > 0 {
-			i = max(1, int(math.Ceil(float64(w.Count)*float64(top)/float64(most))))
+		// An empty week is blank, not the lowest bar: a bar there would read as "some".
+		if w.Count == 0 {
+			b.WriteString(" ")
+			continue
 		}
+		i := max(1, int(math.Ceil(float64(w.Count)*float64(top)/float64(most))))
 		b.WriteString(levels[i])
 	}
 	return b.String()

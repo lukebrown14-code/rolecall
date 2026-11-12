@@ -56,7 +56,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 		}
 		if fld.Err != "" {
 			// The error has its own line under the value, so it is never cut off.
-			for _, l := range wrapWords("✕ "+fld.Err, avail) {
+			for _, l := range wrapWords(errorMark+" "+fld.Err, avail) {
 				row += "\n" + indent + p.Text(p.Bad).Render(l)
 			}
 		}
@@ -67,19 +67,22 @@ func (m model) formBox(p pal, f *form, w int) string {
 				row += "\n" + indent + p.Text(p.Warn).Render("⚠ "+s)
 			}
 			if f.FetchErr != "" {
-				row += "\n" + indent + p.Text(p.Bad).Render("✕ "+f.FetchErr)
+				row += "\n" + indent + p.Text(p.Bad).Render(errorMark+" "+f.FetchErr)
 			}
 		}
 		rows = append(rows, row)
 	}
+	title := f.Title
 	if f.Discarding {
-		rows = append(rows, "", p.Text(p.Warn).Bold(true).Render("Discard changes?")+p.Text(p.Sub).Render(" y/n"))
+		// The question goes in the title, not a body line: a form taller than its pop-up
+		// scrolls, and the confirmation must never scroll out of sight.
+		title = "Discard changes?"
 	}
 	note := ""
 	if required {
 		note = "* required"
 	}
-	return popupNote(p, f.Title, note, false, w, m.viewWidth(), strings.Join(rows, "\n"), p.Keys(f.Keys()))
+	return popupNote(p, title, note, false, w, m.viewWidth(), strings.Join(rows, "\n"), p.Keys(f.Keys()))
 }
 
 // formValue is one field's value cell: a choice between arrows, the URL spinner, an empty

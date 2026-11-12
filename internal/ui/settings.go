@@ -274,9 +274,9 @@ func (m model) settingsBody(p pal, w, h int) string {
 		case m.settings.Focus == settingsList:
 			groups = append(groups, strings.Repeat(" ", edge)+p.Text(p.Accent).Bold(true).Render(profileMarker+name))
 		default:
-			// The selected group keeps its ▸ while the rows have focus, in a quieter
-			// colour, so it is clear which group the rows belong to.
-			groups = append(groups, strings.Repeat(" ", edge)+p.Text(p.Dim).Render(profileMarker)+p.Text(p.Fg).Bold(true).Render(name))
+			// While the rows have focus only they carry the ▸ cursor; the selected group
+			// stays bold and indented, so two cursors never show at once.
+			groups = append(groups, strings.Repeat(" ", edge)+p.Text(p.Fg).Bold(true).Render("  "+name))
 		}
 	}
 	list := lipgloss.NewStyle().Width(m.settingsListWidth()).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))

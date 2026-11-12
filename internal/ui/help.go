@@ -361,8 +361,10 @@ func glyphLegend(p pal, followUpDays int) string {
 		return strings.Join(parts, "  ")
 	}
 	dim := func(s string) string { return p.Text(p.Dim).Render(s) }
-	current := p.StatusMark(store.StatusInterviewing) + p.Text(p.Fg).Bold(true).Render(" current")
-	earlier := p.Text(p.Faint).Render(p.StatusGlyph(store.StatusApplied)) + dim(" earlier")
+	// The Timeline track keeps each Status's own glyph, so the legend cannot borrow one
+	// for "current": it says in words what separates the stops instead.
+	current := p.Text(p.Fg).Bold(true).Render("bold") + dim(" current stop")
+	earlier := p.Text(p.Faint).Render("faint") + dim(" earlier & future stops")
 	return p.Heading("Glyphs") + "\n" +
 		row("Statuses", line(open)) + "\n" +
 		row("", line(closed)) + "\n" +

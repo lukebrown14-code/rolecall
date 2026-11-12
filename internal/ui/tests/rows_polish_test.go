@@ -84,7 +84,7 @@ func TestNextActionLine(t *testing.T) {
 // Moving to Offer celebrates once, in the toast; a rejection stays quiet.
 func TestOfferCelebration(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	if v := ansi.Strip(runKeys(t, root, 120, "3", "tab", "m", "o")); !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") {
+	if v := ansi.Strip(runKeys(t, root, 120, "3", "tab", "m", "o")); !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") || !strings.Contains(v, "press ← → to follow it") {
 		t.Fatalf("no celebration:\n%s", v)
 	}
 	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "tab", "m", "r")); strings.Contains(v, "OFFER") {

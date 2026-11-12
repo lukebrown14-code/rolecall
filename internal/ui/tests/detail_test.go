@@ -246,7 +246,7 @@ func TestDetailDocsTabListsDocumentSet(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.show("✓ Resume", "✓ Cover letter", "○ Gaps", "missing", "gaps.md",
+	h.show("○ JD", "✓ Resume", "✓ Cover letter", "○ Gaps", "missing", "gaps.md",
 		"Owner Resume Role.pdf", "Owner Role Cover Letter.pdf", "Sent copy")
 }
 
@@ -265,7 +265,7 @@ func TestDetailDocsEditOpensMarkdownInEditor(t *testing.T) {
 	docsTab(h)
 	h.tm.Type("e")
 	run := h.lastRun()
-	if got, want := run[len(run)-1], filepath.Join(h.folder("docs-ready"), "resume.md"); got != want || !strings.Contains(strings.Join(run, " "), "myeditor") {
+	if got, want := run[len(run)-1], filepath.Join(h.folder("docs-ready"), "jd.md"); got != want || !strings.Contains(strings.Join(run, " "), "myeditor") {
 		t.Fatalf("e on .md: %q", run)
 	}
 	h.finalView()
@@ -275,7 +275,7 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("jjj") // past the absent cover letter and gaps
+	h.tm.Type("jjjj") // JD, Resume, Cover letter, Gaps → the built Resume PDF
 	h.key(tea.KeyEnter)
 	got := h.lastRun()
 	want := expectedOpen(filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf"), false)
@@ -289,7 +289,7 @@ func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("jj") // gaps.md is absent
+	h.tm.Type("jjj") // JD, Resume, Cover letter → gaps.md is absent
 	h.key(tea.KeyEnter)
 	h.show("Gaps is missing · e to open gaps.md")
 	if len(h.runs) != 0 {

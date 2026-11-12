@@ -91,7 +91,7 @@ func TestErrorLineCutsTheMessageNotTheKeys(t *testing.T) {
 		if !strings.HasSuffix(strings.TrimRight(last, " "), "e fix in editor  esc hide") {
 			t.Fatalf("%d: error keys cut or missing: %q", w, last)
 		}
-		if !strings.HasPrefix(strings.TrimSpace(last), "⚠ Can't read SWE/malformed") {
+		if !strings.HasPrefix(strings.TrimSpace(last), "✘ Can't read SWE/malformed") {
 			t.Fatalf("%d: error message missing: %q", w, last)
 		}
 	}

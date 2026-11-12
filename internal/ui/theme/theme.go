@@ -239,7 +239,7 @@ func StripColor(s string) string {
 // asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
 var asciiGlyphs = strings.NewReplacer(
 	"◆", "*", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
-	"●", "*", "○", "o", "✓", "v", "⚠", "!", "✕", "x", "✗", "x", "◌", "o", "█", "#",
+	"●", "*", "○", "0", "✓", "v", "⚠", "!", "✕", "x", "✗", "X", "✘", "X", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
 	"◐", "=", "★", "$", "⊘", "-",

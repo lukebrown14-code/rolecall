@@ -31,10 +31,10 @@ func TestFormKeysSayWhatEnterDoes(t *testing.T) {
 
 func TestFormCtrlSShowsEveryMissingFieldUnderIt(t *testing.T) {
 	v := addForm(t, "ctrl+s")
-	requireAll(t, v, "✕ Title is required", "✕ Company is required")
+	requireAll(t, v, "✘ Title is required", "✘ Company is required")
 	lines := strings.Split(v, "\n")
 	for i, l := range lines {
-		if strings.Contains(l, "Title*") && !strings.Contains(lines[i+1], "✕ Title is required") {
+		if strings.Contains(l, "Title*") && !strings.Contains(lines[i+1], "✘ Title is required") {
 			t.Fatalf("the error is not under its field:\n%s", v)
 		}
 	}
@@ -43,7 +43,7 @@ func TestFormCtrlSShowsEveryMissingFieldUnderIt(t *testing.T) {
 func TestFormChecksAFieldsFormatOnLeavingIt(t *testing.T) {
 	// URL, Title, Company, Track, then Closes: a bad date is flagged as soon as tab leaves it.
 	v := addForm(t, "tab", "tab", "tab", "tab", "31/12/2026", "tab")
-	requireAll(t, v, "✕ Closes must be YYYY-MM-DD")
+	requireAll(t, v, "✘ Closes must be YYYY-MM-DD")
 	// Passing an empty required field is fine: only saving asks for it.
 	if strings.Contains(v, "Title is required") {
 		t.Fatalf("leaving an empty required field flagged it:\n%s", v)

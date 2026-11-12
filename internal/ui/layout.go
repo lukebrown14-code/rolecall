@@ -324,8 +324,16 @@ func clipBox(p pal, lines []string, h int) []string {
 	if start > 0 {
 		kept[0] = cue(p.MoreCue(true, start+1))
 	}
-	if hidden := len(inner) - start - avail; hidden > 0 && avail > 1 {
-		kept[avail-1] = cue(p.MoreCue(false, hidden+1))
+	// Count only the hidden lines that carry content: a pop-up's blank padding must not
+	// read as hidden rows.
+	hidden := 0
+	for _, l := range inner[start+avail-1:] {
+		if strings.TrimSpace(xansi.Strip(l)) != "" {
+			hidden++
+		}
+	}
+	if hidden > 0 && avail > 1 {
+		kept[avail-1] = cue(p.MoreCue(false, hidden))
 	}
 	return append(append([]string{lines[0]}, kept...), lines[len(lines)-1])
 }

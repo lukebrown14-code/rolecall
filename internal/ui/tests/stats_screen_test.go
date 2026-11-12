@@ -100,6 +100,7 @@ func TestStatsFunnelExplainsEachRung(t *testing.T) {
 	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
 	for _, want := range []string{
 		"Applications that ever reached each Status",
+		"2 without Lead logged",
 		"50% of Draft · 6 skipped Draft",
 		"14% of Applied · 1 skipped Applied",
 		"closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2",

@@ -109,9 +109,9 @@ func rowWith(lines []string, text string) string {
 	return ""
 }
 
-// The focused pane's marker is the accent one; the selected group keeps a quiet ▸ while
-// the rows have focus, so the rows' group stays clear. No row is marked while the list
-// has focus.
+// The focused pane carries the ▸ marker: the group while the list has focus, the rows
+// while the settings pane does. Only one ▸ is ever drawn, so nothing reads as a second
+// cursor.
 func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
 	// The group list has focus: the group is marked, no settings row is.
 	v := settingsAt(t, 120, 36, "j", "j")
@@ -121,10 +121,11 @@ func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
 	if rows := settingsColumn(v, 1); strings.Contains(rows, "▸") {
 		t.Errorf("unfocused settings pane marked a row:\n%s", rows)
 	}
-	// The settings pane has focus: its row is marked, and the group keeps its place.
+	// The settings pane has focus: its row is marked, and the group keeps its place
+	// without a second ▸.
 	v = settingsAt(t, 120, 36, "j", "j", "tab")
-	if group := settingsColumn(v, 0); !strings.Contains(group, "▸ Tracking") {
-		t.Errorf("unfocused group list lost its place: %q", group)
+	if group := settingsColumn(v, 0); strings.Contains(group, "▸") || !strings.Contains(group, "Tracking") {
+		t.Errorf("unfocused group list should be unmarked but named: %q", group)
 	}
 	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ SWE") {
 		t.Errorf("focused settings pane lost its marker:\n%s", rows)

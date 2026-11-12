@@ -12,6 +12,10 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
+// errorMark is a failure's own glyph, distinct from warning's ⚠ and Rejected's ✕, so a
+// colour-blind Owner still tells a failure from a warning and from a closed Status.
+const errorMark = "✘"
+
 // parseFixes says how to fix each reason the store refuses a meta.yml, in place of the
 // parser's own words.
 var parseFixes = map[string]string{
@@ -115,7 +119,7 @@ func (m model) feedbackLine(p pal, w int) string {
 	switch {
 	case m.err != nil:
 		msg = m.errorText(m.err)
-		icon, c, hint = "⚠", p.Bad, "esc hide"
+		icon, c, hint = errorMark, p.Bad, "esc hide"
 		if _, ok := parseError(m.err); ok {
 			hint = "e fix in editor · esc hide"
 		}

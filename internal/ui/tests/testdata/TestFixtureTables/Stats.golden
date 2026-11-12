@@ -4,17 +4,17 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    FUNNEL          Applications that ever reached each Status
    ◌ Lead          ██████                   2
-   ◐ Draft         ██████                   2  0% of Lead · 2 skipped Lead
+   ◐ Draft         ██████                   2  2 without Lead logged
    ● Applied       ████████████████████████ 7  50% of Draft · 6 skipped Draft
    ◆ Interviewing  ██████                   2  14% of Applied · 1 skipped Applied
-   ★ Offer         ██████                   2  0% of Interviewing · 2 skipped Interviewing
+   ★ Offer         ██████                   2  2 without Interviewing logged
    closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2
 
    RESPONSE RATE   2 of 6  ▕████░░░░░░░░▏ 33%
                    Not counted: 1 Application applied less than 14 days ago (too early to judge)
                    A Response is an Application that reached Interviewing or Offer.
 
-   APPLIED / WEEK  ▁▁▁▁▁▁▁▁▁▁█▁  13 Jul → 28 Sep  0 this week · 12-week avg 0.1
+   APPLIED / WEEK            █   13 Jul → 28 Sep  0 this week · 12-week avg 0.1
 
    BY TRACK        Applied  Judged  Responses  Rate
    SWE                   1       0          0     —

@@ -138,7 +138,7 @@ func TestDocsEmptyLabel(t *testing.T) {
 
 func TestDocsEnterOpensReader(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
-	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "enter")
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "down", "enter")
 	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Resume]") {
 		t.Fatalf("reader did not open:\n%s", v)
 	}
@@ -157,7 +157,7 @@ func TestReaderFilesFollowRefresh(t *testing.T) {
 			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "Resume is gone") {
 				t.Fatalf("missing fallback:\n%s", v)
 			}
-			m = driveModel(t, m, "enter")
+			m = driveModel(t, m, "down", "enter")
 			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Resume is missing · e to open resume.md") {
 				t.Fatalf("missing feedback:\n%s", v)
 			}
@@ -239,7 +239,7 @@ func TestResumeOnlyWrittenLetterOpensFromDocs(t *testing.T) {
 	if v := ansi.Strip(m.View().Content); strings.Contains(v, "not needed") {
 		t.Fatalf("written letter labelled unnecessary: %s", v)
 	}
-	m = driveModel(t, m, "down", "enter")
+	m = driveModel(t, m, "down", "down", "enter")
 	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Cover letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
 		t.Fatalf("letter did not open: %s", v)
 	}
