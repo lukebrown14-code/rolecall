@@ -28,7 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import identity as owner_identity_module  # noqa: E402
 import meta as meta_module  # noqa: E402
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, workspace_from_cli  # noqa: E402
 
 PLUGIN = Path(__file__).resolve().parent.parent
 TEMPLATES = PLUGIN / "templates"
@@ -628,16 +628,13 @@ def main(argv=None):
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("job_dir")
-    parser.add_argument(
-        "--data",
-        help="Workspace path; or set ROLECALL_WORKSPACE",
-    )
+    add_data_argument(parser)
     args = parser.parse_args(argv)
 
     need("pandoc")
     need("typst")
 
-    DATA = workspace_from_cli(argv)
+    DATA = workspace_from_cli(args.data)
     load_config()
 
     # Who the Owner is comes from the Profile. A missing Name or Email is a

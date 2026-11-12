@@ -28,7 +28,7 @@ from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, data_from_argv, workspace_from_cli  # noqa: E402
 
 # Sites that serve job content only behind a login or heavy client-side JS.
 LOGIN_WALLED = ("seek.com.au", "linkedin.com", "glassdoor.com", "indeed.com")
@@ -602,14 +602,14 @@ def read_input(args):
     return jd.strip(), source, meta
 
 
-def main():
-    workspace = workspace_from_cli()
+def main(argv=None):
+    workspace = workspace_from_cli(data_from_argv(argv))
     tracks = _config(workspace).get("tracks") or []
 
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    fetch_only = "--fetch-only" in sys.argv
+    fetch_only = "--fetch-only" in (sys.argv[1:] if argv is None else argv)
     parser.add_argument("--track", required=not fetch_only, choices=tracks or None)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--url")
@@ -626,8 +626,8 @@ def main():
         "--source",
         help="ad URL to record when the text comes from --paste or --file",
     )
-    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
-    args = parser.parse_args()
+    add_data_argument(parser)
+    args = parser.parse_args(argv)
 
     # Fetch (or read stdin) and report as JSON, writing nothing: the ad text
     # plus the free visa/clearance signals, so a caller can see them before

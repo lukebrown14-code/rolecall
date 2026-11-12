@@ -45,7 +45,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, data_from_argv, workspace_from_cli  # noqa: E402
 
 # new-job.py supplies the visa/clearance patterns. Import it for those patterns
 # only: the Workspace itself is resolved once, below, through the shared helper.
@@ -651,9 +651,9 @@ def health_lines(health):
 
 # ----------------------------------------------------------------------- main
 
-def main():
+def main(argv=None):
     global ACTIVE_TRACKS, ROLE_CATALOGUE
-    workspace = workspace_from_cli()
+    workspace = workspace_from_cli(data_from_argv(argv))
     available = workspace_tracks(workspace)
 
     ap = argparse.ArgumentParser(description=__doc__,
@@ -670,8 +670,8 @@ def main():
     ap.add_argument("--platforms", action="store_true",
                     help="print the platform registry (name -> default targets) as JSON and exit")
     ap.add_argument("--all-locations", action="store_true")
-    ap.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
-    args = ap.parse_args()
+    add_data_argument(ap)
+    args = ap.parse_args(argv)
     if args.platforms:
         print(json.dumps({name: list(defaults) for name, (_, defaults) in PLATFORMS.items()}))
         return

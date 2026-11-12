@@ -1,10 +1,14 @@
 """Resolve the Workspace for every plugin script.
 
-Order: ``--data <path>``, ``--data=<path>``, then ``ROLECALL_WORKSPACE``.
-There is no repository-root or dashboard-era fallback: a script that cannot
-find a real directory stops with a clear message instead of guessing.
+Order: the ``--data`` option, then ``ROLECALL_WORKSPACE``. There is no
+repository-root or dashboard-era fallback: a script that cannot find a real
+directory stops with a clear message instead of guessing.
+
+Every script resolves through these functions, so a script behaves the same
+whether it is run from a shell or called in process with its own ``argv``.
 """
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -16,38 +20,42 @@ class WorkspaceError(Exception):
     """The Workspace argument or environment variable is missing or invalid."""
 
 
-def _argument(argv):
-    if "--data" in argv:
-        index = argv.index("--data")
-        if index + 1 >= len(argv):
-            raise WorkspaceError("--data needs a path")
-        return argv[index + 1]
-    for arg in argv:
-        if arg.startswith("--data="):
-            return arg.split("=", 1)[1]
-    return None
+def add_data_argument(parser):
+    """Add the shared ``--data`` option to a script's argument parser."""
+    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
 
 
-def resolve_workspace(argv=None):
-    """Return the Workspace as an absolute Path, or raise WorkspaceError."""
-    argv = sys.argv[1:] if argv is None else argv
-    value = _argument(argv)
-    if value is None:
-        value = os.environ.get(ENV_VAR)
+def data_from_argv(argv=None):
+    """Return the ``--data`` value in argv, or None.
+
+    For a script that must resolve the Workspace before it can build its full
+    parser (a choice list that depends on the Workspace's tracks).
+    """
+    parser = argparse.ArgumentParser(add_help=False)
+    add_data_argument(parser)
+    data, _ = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
+    return data.data
+
+
+def resolve_workspace(data=None):
+    """Return the Workspace as an absolute Path, or raise WorkspaceError.
+
+    ``data`` is the parsed ``--data`` value (or None); it falls back to
+    ``ROLECALL_WORKSPACE``.
+    """
+    value = data if data is not None else os.environ.get(ENV_VAR)
     if value is None or not value.strip():
-        raise WorkspaceError(
-            f"no Workspace: pass --data <path> or set {ENV_VAR}"
-        )
+        raise WorkspaceError(f"no Workspace: pass --data <path> or set {ENV_VAR}")
     workspace = Path(value).expanduser().resolve()
     if not workspace.is_dir():
         raise WorkspaceError(f"Workspace is not a directory: {workspace}")
     return workspace
 
 
-def workspace_from_cli(argv=None):
+def workspace_from_cli(data=None):
     """Resolve the Workspace or exit non-zero with the reason on stderr."""
     try:
-        return resolve_workspace(argv)
+        return resolve_workspace(data)
     except WorkspaceError as error:
         print(f"rolecall: {error}", file=sys.stderr)
         raise SystemExit(1) from error

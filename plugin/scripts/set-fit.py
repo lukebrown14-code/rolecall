@@ -20,20 +20,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, workspace_from_cli  # noqa: E402
 
 FITS = tuple(sorted(fit for fit in meta_store.FITS if fit))
 
 
 def main(argv=None):
-    workspace = workspace_from_cli()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
+    add_data_argument(parser)
     parser.add_argument("--folder", required=True, help="Application folder")
     parser.add_argument("--fit", required=True, choices=FITS)
     args = parser.parse_args(argv)
+    workspace = workspace_from_cli(args.data)
 
     try:
         folder = meta_store.resolve_folder(workspace, args.folder)

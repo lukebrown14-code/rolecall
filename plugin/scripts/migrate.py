@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta  # noqa: E402
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, workspace_from_cli  # noqa: E402
 
 ARCHIVE = [
     "TRACKER.md",
@@ -617,10 +617,10 @@ def apply(workspace, changes):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
+    add_data_argument(parser)
     parser.add_argument("--dry-run", action="store_true", help="print the plan only")
     args = parser.parse_args(argv)
-    workspace = workspace_from_cli(argv)
+    workspace = workspace_from_cli(args.data)
     try:
         changes = plan(workspace)
         print(render(workspace, changes))

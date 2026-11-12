@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from workspace import workspace_from_cli  # noqa: E402
+from workspace import add_data_argument, workspace_from_cli  # noqa: E402
 
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*$")
 ENTRY = re.compile(
@@ -751,7 +751,7 @@ def find_by_url(workspace, url):
 
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data", help="Workspace path; or set ROLECALL_WORKSPACE")
+    add_data_argument(parser)
     commands = parser.add_subparsers(dest="command")
 
     patch_parser = commands.add_parser("patch", help="set scalar keys")
@@ -783,7 +783,7 @@ def _parser():
 
 def main(argv=None):
     args = _parser().parse_args(argv)
-    workspace = workspace_from_cli()
+    workspace = workspace_from_cli(args.data)
     try:
         if args.command is None:
             json.dump(

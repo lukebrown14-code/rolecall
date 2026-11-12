@@ -53,7 +53,7 @@ def test_refresh_replaces_the_table_and_keeps_a_hand_written_project(
         "---\n\n"
         "## Atlas (manual)\n\nHand-written facts about 1,240 users.\n"
     )
-    monkeypatch.setattr(sync, "workspace_from_cli", lambda: tmp_path)
+    monkeypatch.setattr(sync, "workspace_from_cli", lambda *a, **k: tmp_path)
     monkeypatch.setattr(sync, "OWNER", "example")
     monkeypatch.setattr(sync, "REPOS", ["Delta"])
     monkeypatch.setattr(sync, "fetch", fake_fetch)
