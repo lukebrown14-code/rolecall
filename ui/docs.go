@@ -21,6 +21,20 @@ const (
 	docFit         = "Fit"
 )
 
+// appName is an Application's title as a message or breadcrumb names it: quoted when it
+// would not read as a name on its own (a bare slug such as docs-ready, or stray spaces),
+// and never blank.
+func appName(title string) string {
+	t := strings.TrimSpace(title)
+	switch {
+	case t == "":
+		return "(untitled)"
+	case t != title, !strings.Contains(t, " ") && strings.ContainsAny(t, "-_/."):
+		return "“" + t + "”"
+	}
+	return t
+}
+
 // The source files the documents live in (SCHEMA), beside coverLetterFile.
 const (
 	jdFile     = "jd.md"

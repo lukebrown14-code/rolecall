@@ -116,7 +116,7 @@ func TestDetailHeaderWithMissingAppliedDate(t *testing.T) {
 func TestDetailHeaderApproximateAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 2, "Engineer #1")
-	h.show("Engineer #1 · Example", "Interviewing · Unknown · closes —", "applied ~2025-01-01 · ~21mo ago")
+	h.show("Engineer #1 · Example", "Interviewing · Unknown · closes —", "applied ~2025-01-01")
 }
 
 func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {

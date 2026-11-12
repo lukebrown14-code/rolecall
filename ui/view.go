@@ -43,9 +43,10 @@ const (
 // Right-hand columns, identical on every view: state · flag · Fit, Fit flush right.
 // A column empty for every row of the current view is hidden.
 const (
-	slotState = 11 // "✓ ready", "not written", "rejected", "withdrawn"
+	slotState = 11 // "✓ ready", "○ 2/4 ready", "rejected", "withdrawn"
 	slotFlag  = 12 // "⚑ quiet 11mo"
-	slotFit   = 8  // "Marginal"
+	slotFit   = 12 // "fit Marginal"
+	fitLabel  = "fit "
 )
 
 func (m model) viewWidth() int {
@@ -76,30 +77,34 @@ func joinColumns(cols []string, w int, side bool) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, styled...)
 }
 
-// ago renders a date relative to today: "today", "in 4d", "3d ago", "2w ago", "2mo ago".
+// ago renders a date relative to today: "today", "in 4d", "3d ago", "2w ago", "2mo ago",
+// and past about three months the month itself, "Jan 2025", which reads better than
+// "21mo ago".
 func ago(date string, now time.Time) (string, int) {
-	t, err := time.Parse("2006-01-02", strings.Split(date, "T")[0])
-	if err != nil {
+	t, days, ok := daysFrom(date, now)
+	if !ok {
 		return date, 0
 	}
-	today, _ := time.Parse("2006-01-02", now.Format("2006-01-02"))
-	days := int(t.Sub(today).Hours() / hoursPerDay)
 	n := max(days, -days)
-	var s string
 	switch {
 	case days == 0:
 		return "today", 0
-	case n < weeksUntil:
-		s = fmt.Sprintf("%dd", n)
-	case n < monthsUntil:
-		s = fmt.Sprintf("%dw", n/daysPerWeek)
-	default:
-		s = fmt.Sprintf("%dmo", n/daysPerMonth)
+	case n >= monthYearAfter:
+		return t.Format("Jan 2006"), days
+	case days > 0:
+		return "in " + span(n), days
 	}
-	if days > 0 {
-		return "in " + s, days
+	return span(n) + " ago", days
+}
+
+// quiet is how long an Application has gone without a change, "9mo", for the follow-up
+// flag: always a span, since "quiet Feb 2026" would read as a date.
+func (m model) quiet(e *store.StatusEntry) string {
+	_, days, ok := daysFrom(e.At, m.now())
+	if !ok {
+		return ""
 	}
-	return s + " ago", days
+	return span(max(-days, 0))
 }
 
 // futureFlag marks a Status date after today: almost always a data error, so it is
@@ -670,8 +675,7 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	}
 	t := tableOf(a)
 	if cols := ApplicationColumns(a, t, m.now(), m.followUpDays); (t == tableApplied || t == tableInterviewing) && cols[len(cols)-1] == followUpFlag && a.LastChange != nil {
-		rel, _ := ago(a.LastChange.At, m.now())
-		flag = followUpFlag + " quiet " + strings.TrimSuffix(rel, " ago")
+		flag = followUpFlag + " quiet " + m.quiet(a.LastChange)
 	}
 	switch {
 	case t == tableDraft:
@@ -752,7 +756,12 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		cells = append(cells, slot(slotFlag, p.warn, flag))
 	}
 	if show.fit {
-		cells = append(cells, slot(slotFit, fitC, fit))
+		// Labelled, so the column reads on its own: "fit Good", "fit —".
+		label := st(dimC).Render(fitLabel)
+		if fit == "" {
+			label = ""
+		}
+		cells = append(cells, st(p.fg).Render(strings.Repeat(" ", max(0, slotFit-xansi.StringWidth(fitLabel+fit))))+label+st(fitC).Render(fit))
 	}
 	right := strings.Join(cells, st(p.fg).Render("  ")) + st(p.fg).Render(strings.Repeat(" ", rowPad))
 	// The Status glyph leads the title; the second line lines up under the title.
@@ -780,17 +789,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
-		switch r, days := ago(a.Closes, m.now()); {
-		case a.Closes == "":
-			out = append(out, dim.Render("no close date"))
-		case days < 0:
-			out = append(out, dim.Render("expired "+r))
-		case days == 0:
-			out = append(out, st(p.bad).Bold(true).Render("closes today"))
-		case days <= soonDays:
-			out = append(out, st(p.warn).Render("closes "+r))
-		default:
-			out = append(out, dim.Render("closes "+r))
+		// No close date is a quiet dash, not the same words on every row.
+		if text, s := closeInfo(a.Closes, m.now()); s == closeNone {
+			out = append(out, dim.Render("—"))
+		} else {
+			out = append(out, p.closeStyle(s, st, dimC).Render(text))
 		}
 	case tableDismissed:
 		if a.LastChange != nil {
@@ -852,13 +855,19 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
 		b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "\n" + p.docsMeter(a) + "\n\n")
-		b.WriteString(p.heading("Timeline") + "\n" + m.timeline(p, a, true) + "\n")
+		b.WriteString(m.fileMarks(p, a) + "\n" + p.docsMeter(a) + "\n")
+		if next := m.nextLine(p, a, inner); next != "" {
+			b.WriteString("\n" + next + "\n")
+		}
+		b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, false) + "\n\n")
 		b.WriteString(p.heading("Fit") + "\n")
 		if t := m.docText(a, fitFile); t != "" {
+			if a.Fit == "" {
+				b.WriteString(p.text(p.dim).Render(fitSummary(a, true)) + "\n")
+			}
 			b.WriteString(wrap(t, p.fg, docLines) + "\n")
 		} else {
-			b.WriteString(p.text(p.dim).Render("No fit.md yet") + "\n")
+			b.WriteString(m.fitEmpty(p, a) + "\n")
 		}
 		if beforeApplied(tableOf(a)) {
 			if jd := m.docText(a, jdFile); jd != "" {
@@ -870,7 +879,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		if t := m.docText(a, notesFile); t != "" {
 			b.WriteString(wrap(t, p.fg, docLines))
 		} else {
-			b.WriteString(p.text(p.dim).Render("No notes · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
+			b.WriteString(p.text(p.dim).Render("No notes yet · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
 		}
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
@@ -890,42 +899,38 @@ func (m model) fileMarks(p pal, a store.Application) string {
 	return strings.Join(parts, "  ")
 }
 
-// timeline is the Status log, newest last, plus the close date for Leads and Drafts.
-// Exact dates are shown where there is room for them.
-func (m model) timeline(p pal, a store.Application, dates bool) string {
-	var b strings.Builder
-	for i, e := range a.StatusLog {
-		// Earlier entries are faint; the current one is in its Status's colour, bold.
-		dot, name := p.text(p.faint).Render(p.statusGlyph(e.Status)), p.text(p.dim)
-		if i == len(a.StatusLog)-1 {
-			dot, name = p.statusMark(e.Status), p.text(p.fg).Bold(true)
-		}
-		when, whenC := m.agoEntry(&e), p.dim
-		if m.futureDate(&e) {
-			when, whenC = futureFlag, p.warn
-		}
-		if dates {
-			r := when
-			if !m.futureDate(&e) {
-				r, _ = ago(e.At, m.now())
-			}
-			when = entryDate(&e) + "  " + r
-		}
-		b.WriteString(dot + " " + name.Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
+// timelineBlock is the Timeline section: the Status log as a one-line track, then the
+// close date for Leads and Drafts by its urgency. An empty log says how to start it.
+// flow lets the track run onto more lines, for a column too narrow for one.
+func (m model) timelineBlock(p pal, a store.Application, w int, flow bool) string {
+	var lines []string
+	switch {
+	case len(a.StatusLog) == 0:
+		lines = append(lines, p.text(p.dim).Render("Not moved yet · ")+p.key().Render("m")+p.text(p.dim).Render(" to move"))
+	case flow:
+		lines = append(lines, m.timelineFlow(p, a, w))
+	default:
+		lines = append(lines, m.timelineTrack(p, a, w))
 	}
-	if a.Closes != "" && beforeApplied(tableOf(a)) {
-		r, days := ago(a.Closes, m.now())
-		c := p.dim
-		if days >= 0 && days <= soonDays {
-			c = p.warn
+	if beforeApplied(tableOf(a)) {
+		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
+			lines = append(lines, p.text(p.faint).Render("→ ")+p.closeStyle(s, p.text, p.dim).Render(text))
 		}
-		date := ""
-		if dates {
-			date = a.Closes + "  "
-		}
-		b.WriteString(p.text(p.faint).Render("→ ") + p.text(p.dim).Render(padRight("closes", labelWidth+1)+date) + p.text(c).Render(r) + "\n")
 	}
-	return b.String()
+	return strings.Join(lines, "\n")
+}
+
+// fitEmpty is the Fit section without reasoning: the verdict and where it came from, or
+// that there is none yet and the key that assesses it.
+func (m model) fitEmpty(p pal, a store.Application) string {
+	if a.Fit != "" {
+		return p.text(p.dim).Render(fitSummary(a, false))
+	}
+	s := p.text(p.dim).Render("No fit assessment yet")
+	if m.harness != "" {
+		s += p.text(p.dim).Render(" · ") + p.key().Render("f") + p.text(p.dim).Render(" to assess")
+	}
+	return s
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for

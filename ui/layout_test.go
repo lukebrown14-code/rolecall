@@ -41,7 +41,7 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 	}
 	view := ansi.Strip(runKeys(t, root, 120, "1"))
 	expired, fern, empty := strings.Index(view, "Expired · 1"), strings.Index(view, "Platform Engineer"), strings.Index(view, "Empty log")
-	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "expired 4w ago") {
+	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "closed 1 Sep") {
 		t.Fatalf("expired Lead not last under Expired:\n%s", view)
 	}
 }

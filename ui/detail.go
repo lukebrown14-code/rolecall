@@ -414,19 +414,13 @@ func (m model) detailView(p pal) string {
 	h := m.layout().bodyHeight(m.detailContextLines())
 	pad := strings.Repeat(" ", inset)
 	// Title first, then Company, as the list reads.
-	title := pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.fg).Bold(true).Render(a.Title) + p.text(p.dim).Render(" · "+a.Company)
+	title := pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.fg).Bold(true).Render(appName(a.Title)) + p.text(p.dim).Render(" · "+a.Company)
 	when := ""
-	switch r, days := ago(a.Closes, m.now()); {
+	switch text, s := closeInfo(a.Closes, m.now()); {
 	case a.Malformed != nil:
 		title = pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
-	case a.Closes != "" && beforeApplied(tableOf(a)):
-		c := p.dim
-		if days == 0 {
-			c = p.bad
-		} else if days > 0 && days <= soonDays {
-			c = p.warn
-		}
-		when = p.text(c).Render("closes " + r)
+	case s != closeNone && beforeApplied(tableOf(a)):
+		when = p.closeStyle(s, p.text, p.dim).Render(text)
 	case a.AppliedDate != nil:
 		if m.futureDate(a.AppliedDate) {
 			when = p.text(p.warn).Render("applied " + futureFlag)
@@ -437,7 +431,12 @@ func (m model) detailView(p pal) string {
 			if m.cardShown() {
 				exact = entryDate(a.AppliedDate) + " · "
 			}
-			when = p.text(p.dim).Render("applied " + exact + m.agoEntry(a.AppliedDate))
+			rel := m.agoEntry(a.AppliedDate)
+			if _, days, _ := daysFrom(a.AppliedDate.At, m.now()); exact != "" && -days >= monthYearAfter {
+				// An old date already reads as a month: the exact date says it all.
+				exact, rel = strings.TrimSuffix(exact, " · "), ""
+			}
+			when = p.text(p.dim).Render("applied " + exact + rel)
 		}
 	}
 	when = m.withChip(p, when)
@@ -468,7 +467,12 @@ func (m model) detailView(p pal) string {
 		for i, l := range content {
 			content[i] = " " + l
 		}
-		pane = m.detailTabsRow(p, a) + "\n\n" + strings.Join(content, "\n")
+		// Without the card, the next step takes the line between the tabs and the text.
+		gap := ""
+		if !m.cardShown() {
+			gap = " " + m.nextLine(p, a, paneW-gutter-1)
+		}
+		pane = m.detailTabsRow(p, a) + "\n" + gap + "\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
@@ -497,12 +501,10 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 		fit = fitNone
 	}
 	parts := []string{m.fileMarks(p, a), p.text(p.dim).Render("fit ") + p.text(p.fitColor(a.Fit)).Render(fit)}
-	if beforeApplied(tableOf(a)) || a.Closes != "" {
-		closes := a.Closes
-		if closes == "" {
-			closes = "—"
+	if beforeApplied(tableOf(a)) {
+		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
+			parts = append(parts, p.closeStyle(s, p.text, p.dim).Render(text))
 		}
-		parts = append(parts, p.text(p.dim).Render("closes "+closes))
 	}
 	parts = append(parts, p.text(p.dim).Render(a.Track))
 	sep := p.text(p.dim).Render("  ·  ")
@@ -518,41 +520,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 // their dates, and ones not reached faint and undated. To fit w it drops the earlier
 // dates, then all but the next Status ahead, then the earlier Statuses.
 func (m model) timelineTrack(p pal, a store.Application, w int) string {
-	date := func(e store.StatusEntry) string {
-		if m.futureDate(&e) {
-			return p.text(p.warn).Render(" " + futureFlag)
-		}
-		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
-		if err != nil {
-			return ""
-		}
-		d := t.Format("2 Jan")
-		if e.Approx {
-			d = "~" + d
-		}
-		return p.text(p.dim).Render(" " + d)
-	}
-	var past []string
-	var pastDated []string
-	current := ""
-	for i, e := range a.StatusLog {
-		if i == len(a.StatusLog)-1 {
-			current = p.statusMark(e.Status) + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
-			continue
-		}
-		name := p.text(p.faint).Render(p.statusGlyph(e.Status)) + " " + p.text(p.dim).Render(e.Status)
-		past = append(past, name)
-		pastDated = append(pastDated, name+date(e))
-	}
-	if current == "" {
-		current = p.statusMark(a.Status) + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
-	}
-	var ahead []string
-	if i := slices.Index(pipeline, a.Status); i >= 0 {
-		for _, s := range pipeline[i+1:] {
-			ahead = append(ahead, p.text(p.faint).Render(p.statusGlyph(s))+" "+p.text(p.dim).Render(s))
-		}
-	}
+	past, pastDated, current, ahead := m.trackStops(p, a)
 	join := func(stops ...[]string) string {
 		var all []string
 		for _, s := range stops {
@@ -577,6 +545,69 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 		}
 	}
 	return xansi.Truncate(current, w, "…")
+}
+
+// timelineFlow is the track for a narrow column: every stop with its date, flowing onto
+// as many lines as w needs, each line ending in the rule that leads to the next.
+func (m model) timelineFlow(p pal, a store.Application, w int) string {
+	_, pastDated, current, ahead := m.trackStops(p, a)
+	stops := append(append(append([]string{}, pastDated...), current), ahead...)
+	sep := p.text(p.rule).Render(" ─ ")
+	var lines []string
+	line := ""
+	for i, s := range stops {
+		item := s
+		if i < len(stops)-1 {
+			item += p.text(p.rule).Render(" ─")
+		}
+		switch {
+		case line == "":
+			line = item
+		case xansi.StringWidth(strings.TrimSuffix(line, p.text(p.rule).Render(" ─"))+sep+item) <= w:
+			line = strings.TrimSuffix(line, p.text(p.rule).Render(" ─")) + sep + item
+		default:
+			lines = append(lines, line)
+			line = item
+		}
+	}
+	return strings.Join(append(lines, line), "\n")
+}
+
+// trackStops is a timeline track's stops: earlier Statuses without and with their dates,
+// the current one, and the Statuses still ahead.
+func (m model) trackStops(p pal, a store.Application) (past, pastDated []string, current string, ahead []string) {
+	date := func(e store.StatusEntry) string {
+		if m.futureDate(&e) {
+			return p.text(p.warn).Render(" " + futureFlag)
+		}
+		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
+		if err != nil {
+			return ""
+		}
+		d := shortDate(t, m.now())
+		if e.Approx {
+			d = "~" + d
+		}
+		return p.text(p.dim).Render(" " + d)
+	}
+	for i, e := range a.StatusLog {
+		if i == len(a.StatusLog)-1 {
+			current = p.statusMark(e.Status) + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
+			continue
+		}
+		name := p.text(p.faint).Render(p.statusGlyph(e.Status)) + " " + p.text(p.dim).Render(e.Status)
+		past = append(past, name)
+		pastDated = append(pastDated, name+date(e))
+	}
+	if current == "" {
+		current = p.statusMark(a.Status) + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
+	}
+	if i := slices.Index(pipeline, a.Status); i >= 0 {
+		for _, s := range pipeline[i+1:] {
+			ahead = append(ahead, p.text(p.faint).Render(p.statusGlyph(s))+" "+p.text(p.dim).Render(s))
+		}
+	}
+	return past, pastDated, current, ahead
 }
 
 func (m model) detailTabsRow(p pal, a store.Application) string {
@@ -647,7 +678,11 @@ func (m model) detailCard(p pal, a store.Application) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(keepTogether(m.cardWidth()-cardPadding, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
+	inner := m.cardWidth() - cardPadding
+	b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
+	if next := m.nextLine(p, a, inner); next != "" {
+		b.WriteString(next + "\n\n")
+	}
 	b.WriteString(p.heading("Docs") + "\n" + p.docsMeter(a) + "\n")
 	for _, c := range docChips(a) {
 		if c.ready {
@@ -659,7 +694,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	if a.ResumeOnly && !a.CoverLetterHasText {
 		b.WriteString(p.text(p.dim).Render("  "+docCoverLetter+"\n  "+resumeOnlyNote) + "\n")
 	}
-	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))
+	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, true) + "\n")
 	if a.URL != "" {
 		b.WriteString("\n" + p.heading("Link") + "\n" + p.text(p.info).Render(xansi.Truncate(a.URL, m.cardWidth()-cardPadding, "…")))
 	}
