@@ -39,6 +39,7 @@ type model struct {
 	tick                  Ticker
 	err                   error
 	width                 int
+	gen                   int // bumps when Workspace content is reloaded; invalidates the render cache
 	followUpDays          int
 	statsTop              int         // the first Stats line shown when the report is taller than the body
 	stats                 *statsCache // the Stats report for the current interaction; see statsReport
@@ -221,6 +222,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+		m.gen++ // the folder was rescanned; drop the rendered bodies
 		if done.folder == m.selectAfter {
 			m.selectFolder(done.folder)
 			m.selectAfter = ""
@@ -420,6 +422,7 @@ func (m *model) reload(folder string) bool {
 		return false
 	}
 	m.apps, m.err = apps, nil
+	m.gen++
 	m.keepCursor(folder)
 	return true
 }
