@@ -63,7 +63,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		if a.Status == store.StatusInterviewing {
 			return nextStep{what: "prepare for the interview", key: "n", desc: "note"}, true
 		}
-		return nextStep{what: "wait for a reply", key: "m", desc: descMove}, true
+		return nextStep{what: "wait to hear back", key: "m", desc: descMove}, true
 	case store.StatusOffer:
 		return nextStep{what: "decide on the offer", key: "m", desc: descMove}, true
 	}
