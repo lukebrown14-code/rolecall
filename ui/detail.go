@@ -367,7 +367,7 @@ func (m model) detailView(p pal) string {
 	when := ""
 	switch r, days := ago(a.Closes, m.now()); {
 	case a.Malformed != nil:
-		title = "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+filepath.Join(a.Folder, "meta.yml"))
+		title = "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case a.Closes != "" && beforeApplied(tableOf(a)):
 		c := p.dim
 		if days == 0 {
@@ -398,10 +398,9 @@ func (m model) detailView(p pal) string {
 	var pane string
 	if a.Malformed != nil {
 		facts = ""
-		path := filepath.Join(a.Folder, "meta.yml")
-		// The error repeats the path; the line above already shows it in full.
-		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
-		pane = p.text(p.fg).Render(path) + "\n\n" + p.text(p.bad).Render(msg)
+		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
+		pane = p.text(p.fg).Render(m.malformedReason(a)) + "\n\n" + p.text(p.dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
+			"\n\n" + p.text(p.accent).Render("e") + p.text(p.dim).Render(" fix in editor")
 	} else {
 		pane = m.detailTabsRow(p, a) + "\n\n" + m.detailContent(p, a, paneW)
 	}

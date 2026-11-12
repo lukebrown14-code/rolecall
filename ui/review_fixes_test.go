@@ -230,7 +230,7 @@ func TestCompactMalformedErrorKeepsRecoveryKeys(t *testing.T) {
 		}
 	}
 	m = driveModel(t, m, "enter")
-	if !strings.Contains(ansi.Strip(m.View().Content), "invalid status_log entry") {
+	if !strings.Contains(ansi.Strip(m.View().Content), "indented lines must be") {
 		t.Fatal("inspect lost diagnostic")
 	}
 }
