@@ -275,7 +275,7 @@ func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 }
 
 // searchMode is the `/` filter input. It has no box: the input shows on the status row.
-type searchMode struct{}
+type searchMode struct{ prev string } // prev is the filter active when `/` was pressed; Esc restores it
 
 func (sm *searchMode) Keys() [][2]string {
 	return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
@@ -292,7 +292,7 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "esc":
-			m.text = ""
+			m.text = sm.prev
 			m.cursor = 0
 			return nil, nil
 		case "enter":

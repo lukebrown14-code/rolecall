@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/lukebrown14-code/rolecall/config"
 )
 
 // ExternalRunner substitutes the suspend/run/resume boundary in tests.
@@ -162,10 +164,7 @@ func (m model) editNotes(folder string) tea.Cmd {
 	}
 }
 
-const (
-	configDirMode  = 0o755
-	configFileMode = 0o600
-)
+const ()
 
 // editConfig opens the config file in the Editor, creating it empty first if missing.
 func (m model) editConfig() tea.Cmd {
@@ -173,14 +172,9 @@ func (m model) editConfig() tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		if err := os.MkdirAll(filepath.Dir(m.configPath), configDirMode); err != nil {
+		if err := config.Ensure(m.configPath); err != nil {
 			return configEdited{err}
 		}
-		f, err := os.OpenFile(m.configPath, os.O_CREATE|os.O_RDWR, configFileMode)
-		if err != nil {
-			return configEdited{err}
-		}
-		f.Close()
 		runner := m.external
 		if runner == nil {
 			runner = tea.ExecProcess

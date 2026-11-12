@@ -55,6 +55,7 @@ func (m *model) reloadConfig(done configEdited) {
 		m.err = err
 		return
 	}
+	m.err = nil
 	m.editor, m.editorSource = c.Editor, c.EditorSource
 	m.followUpDays, m.downloads, m.plugin, m.harness = c.FollowUpDays, c.Downloads, c.Plugin, c.Harness
 	// The Workspace is fixed for the session (the store is already open), so its source stays.
@@ -75,7 +76,7 @@ func (m model) editorLine() string {
 		line += " (" + m.editorSource + ")"
 	}
 	if !EditorOnPath(editor) {
-		line += " (not found on PATH)"
+		line += "\n(not found on PATH)"
 	}
 	return line
 }

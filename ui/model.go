@@ -302,7 +302,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = 0
 			}
 		case "/":
-			m.overlay = &searchMode{}
+			m.overlay = &searchMode{prev: m.text}
 		case "esc":
 			m.text = ""
 			m.cursor = 0

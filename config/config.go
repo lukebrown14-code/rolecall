@@ -58,6 +58,23 @@ func editorSource(configured string) string {
 // Path is where the Owner's settings file lives under home.
 func Path(home string) string { return filepath.Join(home, ".config/rolecall/config.toml") }
 
+const (
+	dirMode  = 0o755
+	fileMode = 0o600
+)
+
+// Ensure creates an empty config file (and its directory) at path if it is missing.
+func Ensure(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), dirMode); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, fileMode)
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
 // defaultFollowUpDays is the Follow-up threshold when config sets none.
 const defaultFollowUpDays = 14
 
@@ -72,14 +89,19 @@ func Load(home, dir string) (Config, error) {
 	if err := toml.Unmarshal(b, &c); err != nil {
 		return c, fmt.Errorf("%s: %w", path, err)
 	}
+	// A pointer tells an explicit follow_up_days = 0 from an absent key.
+	var present struct {
+		FollowUpDays *int `toml:"follow_up_days"`
+	}
+	_ = toml.Unmarshal(b, &present)
 	set := func(configured bool) string {
 		if configured {
 			return SourceConfig
 		}
 		return SourceDefault
 	}
-	c.FollowUpDaysSource = set(c.FollowUpDays != 0)
-	if c.FollowUpDays == 0 {
+	c.FollowUpDaysSource = set(present.FollowUpDays != nil)
+	if present.FollowUpDays == nil {
 		c.FollowUpDays = defaultFollowUpDays
 	}
 	c.DownloadsSource = set(c.Downloads != "")

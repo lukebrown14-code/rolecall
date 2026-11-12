@@ -309,3 +309,56 @@ func TestSettingsEditRefreshesEverySettingAndItsSource(t *testing.T) {
 		t.Fatalf("Workspace source lost after reload:\n%s", v)
 	}
 }
+
+func TestSettingsNarrowKeepsMissingEditorWarningUnbroken(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	root := fixtureCopy(t, nil)
+	toml := "editor = \"nosuch-editor-binary --wait --new-window --some-very-long-flag\"\n"
+	m := driveStart(t, root, fixtureClock, 50, 40, settingsOpts(t, root, toml)...)
+	v := plainView(driveModel(t, m, ","))
+	found := false
+	for _, l := range strings.Split(v, "\n") {
+		if strings.Contains(l, "(not found on PATH)") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("warning missing or broken mid-phrase:\n%s", v)
+	}
+}
+
+func TestCommaTypesIntoFilterAndEscRestoresIt(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	m := driveStart(t, root, fixtureClock, 120, 40, settingsOpts(t, root, "")...)
+	m = driveModel(t, m, "/pl", "enter")
+	filtered := plainView(m)
+	m = driveModel(t, m, "/", ",")
+	v := plainView(m)
+	if strings.Contains(v, "Settings") {
+		t.Fatalf("comma in the filter opened Settings:\n%s", v)
+	}
+	m = driveModel(t, m, "esc")
+	if after := plainView(m); after != filtered {
+		t.Fatalf("Esc did not restore the active filter\nbefore:\n%s\nafter:\n%s", filtered, after)
+	}
+}
+
+func TestSettingsReloadClearsEarlierError(t *testing.T) {
+	n := 0
+	h := newEditorHarness(t, "editor = \"nvim\"\n", func(p string) {
+		n++
+		if n == 1 {
+			_ = os.WriteFile(p, []byte("editor = = \n"), 0o600)
+		} else {
+			_ = os.WriteFile(p, []byte("editor = \"hx\"\n"), 0o600)
+		}
+	})
+	h.m = driveModel(t, h.m, ",", "e")
+	if !strings.Contains(plainView(h.m), "✕") {
+		t.Fatal("expected error after invalid edit")
+	}
+	h.m = driveModel(t, h.m, "e")
+	if v := plainView(h.m); strings.Contains(v, "✕") {
+		t.Fatalf("error not cleared after successful reload:\n%s", v)
+	}
+}
