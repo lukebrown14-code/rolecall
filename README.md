@@ -49,7 +49,16 @@ GUI editors need their wait flag so rolecall rescans only after editing finishes
 the TUI to open Settings, which shows the Editor in effect and where it came from
 (`Esc` returns); `e` on This machine edits `config.toml` and reloads it when the Editor exits.
 
-To install a standalone command:
+To install with Homebrew (macOS and Linux):
+
+```sh
+brew install lukebrown14-code/tap/rolecall
+```
+
+The formula installs the rolecall Plugin with the command. rolecall finds the
+bundled Plugin automatically when neither `plugin` nor `ROLECALL_PLUGIN` is set.
+
+To build and install a standalone command:
 
 ```sh
 mkdir -p ~/.local/bin

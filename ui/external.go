@@ -5,7 +5,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -30,14 +29,7 @@ type CapturedResult struct {
 type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 // ResolveEditor follows the Owner's configured editor preference.
-func ResolveEditor(configured string) string {
-	for _, s := range []string{configured, os.Getenv("VISUAL"), os.Getenv("EDITOR")} {
-		if s != "" {
-			return s
-		}
-	}
-	return "vi"
-}
+func ResolveEditor(configured string) string { return config.ResolveEditor(configured) }
 
 // editorOnPath reports whether the executable of an Editor command can be found: the
 // first word, with surrounding quotes honored, looked up on PATH (or used directly
@@ -156,6 +148,16 @@ func InitGit(root string) error {
 		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil
+}
+
+// LaunchHarness runs a configured Plugin skill from the CLI. Keep process
+// creation here so all external commands use the same audited boundary.
+func LaunchHarness(template, workspace, skill, resume string) error {
+	if resume != "" {
+		skill += " --resume " + QuoteShellArgument(resume)
+	}
+	command := harnessCommand(template, skill, handoffDir(workspace))
+	return exec.Command("/bin/sh", "-c", command).Run()
 }
 
 // editFile opens a file of the Application folder in the Owner's editor. The editor

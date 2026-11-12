@@ -10,7 +10,6 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 	"github.com/lukebrown14-code/rolecall/ui"
 	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -18,11 +17,6 @@ import (
 const watchDebounce = 200 * time.Millisecond
 
 const usageErrorExitCode = 2
-
-const (
-	workspaceDirMode  os.FileMode = 0o700
-	workspaceFileMode os.FileMode = 0o600
-)
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
@@ -54,55 +48,22 @@ func main() {
 }
 
 func initWorkspace(args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("usage: rolecall init <dir>")
-	}
-	root := args[0]
-	info, err := os.Stat(root)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	return runInit(args, os.Stdin, os.Stdout, os.Stderr, launchProfile)
+}
+
+// runInit is the CLI seam for onboarding; launcher is injected so tests can
+// exercise the profile handoff without starting an external Harness.
+func runInit(args []string, in *os.File, out, errOut *os.File, launcher profileLauncher) error {
+	return initWizard(args, in, out, errOut, launcher)
+}
+
+func initWorkspaceFiles(root string, contact contactDetails, tracks []string, search store.SearchArea) error {
+	if err := store.InitializeWorkspace(root, contact.fields(), tracks, search); err != nil {
 		return err
-	}
-	if info != nil {
-		if !info.IsDir() {
-			return fmt.Errorf("cannot initialize Workspace: %s is not a directory", root)
-		}
-		entries, err := os.ReadDir(root)
-		if err != nil {
-			return err
-		}
-		if len(entries) != 0 {
-			return fmt.Errorf("cannot initialize Workspace: %s is not empty", root)
-		}
-	}
-	if err := os.MkdirAll(root, workspaceDirMode); err != nil {
-		return err
-	}
-	if err := os.Chmod(root, workspaceDirMode); err != nil {
-		return err
-	}
-	for _, dir := range []string{"profile", "c" + "v", "jobs"} {
-		if err := os.Mkdir(filepath.Join(root, dir), workspaceDirMode); err != nil {
-			return err
-		}
-	}
-	files := map[string]string{
-		"workspace.json":                 "{\"tracks\":[]}\n",
-		"profile/master-profile.md":      "# Master Profile\n",
-		"profile/phrasing-bank.md":       "",
-		"profile/projects.md":            "",
-		"profile/writing-preferences.md": "",
-	}
-	for name, contents := range files {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(contents), workspaceFileMode); err != nil {
-			return err
-		}
 	}
 	if err := ui.InitGit(root); err != nil {
 		return err
 	}
-	fmt.Println("Created a private Workspace.")
-	fmt.Println("The Harness can send your Profile, resume and job text to an AI service using your credentials; review its privacy practices.")
-	fmt.Println("Keep this Workspace's git repository private. It contains personal data.")
 	return nil
 }
 
@@ -130,7 +91,7 @@ func runDoctor(dir string) error {
 		}
 	}
 
-	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness}, nil)
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
 	for _, check := range report.Checks {
 		if check.Found {
 			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
