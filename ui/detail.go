@@ -230,19 +230,20 @@ func (m model) syncDetail() model {
 // detail view re-renders on every key. Shared by copies of the model.
 type mdCache struct {
 	width int
+	theme theme
 	r     *glamour.TermRenderer
 }
 
-func (c *mdCache) renderer(width int) (*glamour.TermRenderer, error) {
-	if c != nil && c.r != nil && c.width == width {
+func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
+	if c != nil && c.r != nil && c.width == width && c.theme == t {
 		return c.r, nil
 	}
-	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle()), glamour.WithWordWrap(width),
+	r, err := glamour.NewTermRenderer(glamour.WithStyles(markdownStyle(t)), glamour.WithWordWrap(width),
 		// Glamour otherwise moves a table's links to a footnote, which empties the
 		// Contact table's Email cell; the value belongs in its row.
 		glamour.WithInlineTableLinks(true))
 	if err == nil && c != nil {
-		c.width, c.r = width, r
+		c.width, c.theme, c.r = width, t, r
 	}
 	return r, err
 }
@@ -267,7 +268,7 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 // renderMarkdown draws Markdown at a wrap width, falling back to the source when
 // Glamour cannot. The renderer is cached per width, so repeated frames are cheap.
 func (m model) renderMarkdown(text string, width int) string {
-	r, err := m.md.renderer(width)
+	r, err := m.md.renderer(width, m.theme)
 	if err == nil {
 		if rendered, err := r.Render(text); err == nil {
 			return strings.Trim(rendered, "\n")
@@ -413,7 +414,7 @@ func (m model) detailView(p pal) string {
 	if closes == "" {
 		closes = "—"
 	}
-	facts := pad + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes)
+	facts := pad + p.statusChip(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes)
 	ctx := []string{title, facts}
 	if !m.cardShown() {
 		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)
@@ -436,13 +437,14 @@ func (m model) detailView(p pal) string {
 		pane = m.detailTabsRow(p, a) + "\n\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
-	body, split := pane, 0
+	body, split, focus := pane, 0, focusNone
 	if m.cardShown() {
 		cardW := m.cardWidth()
 		card := lipgloss.NewStyle().Width(cardW).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
-		body, split = lipgloss.JoinHorizontal(lipgloss.Top, card, p.divider(h), pane), cardW
+		// The tab pane scrolls and takes the keys, so its rule is the accent.
+		body, split, focus = lipgloss.JoinHorizontal(lipgloss.Top, card, p.divider(h), pane), cardW, focusRight
 	}
-	return m.frame(p, ctx, body, split, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, ctx, body, split, focus, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
 // pipeline is the forward run of Statuses a timeline track looks ahead along.
@@ -477,9 +479,10 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 }
 
 // timelineTrack is the Status log as one line, oldest first, then the Statuses still
-// ahead: "○ Lead 24 Sep ─ ● Applied 25 Sep ─ ◌ Interviewing ─ ◌ Offer". ● is the current
-// Status, ○ an earlier one and ◌ one not reached. To fit w it drops the earlier dates,
-// then all but the next Status ahead, then the earlier Statuses.
+// ahead: "◌ Lead 24 Sep ─ ● Applied 25 Sep ─ ◆ Interviewing ─ ★ Offer". Each Status
+// keeps its own glyph: the current one in its colour and bold, earlier ones faint with
+// their dates, and ones not reached faint and undated. To fit w it drops the earlier
+// dates, then all but the next Status ahead, then the earlier Statuses.
 func (m model) timelineTrack(p pal, a store.Application, w int) string {
 	date := func(e store.StatusEntry) string {
 		if m.futureDate(&e) {
@@ -500,20 +503,20 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 	current := ""
 	for i, e := range a.StatusLog {
 		if i == len(a.StatusLog)-1 {
-			current = p.text(p.accent).Render("●") + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
+			current = p.statusMark(e.Status) + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
 			continue
 		}
-		name := p.text(p.faint).Render("○") + " " + p.text(p.dim).Render(e.Status)
+		name := p.text(p.faint).Render(p.statusGlyph(e.Status)) + " " + p.text(p.dim).Render(e.Status)
 		past = append(past, name)
 		pastDated = append(pastDated, name+date(e))
 	}
 	if current == "" {
-		current = p.text(p.accent).Render("●") + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
+		current = p.statusMark(a.Status) + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
 	}
 	var ahead []string
 	if i := slices.Index(pipeline, a.Status); i >= 0 {
 		for _, s := range pipeline[i+1:] {
-			ahead = append(ahead, p.text(p.faint).Render("◌")+" "+p.text(p.dim).Render(s))
+			ahead = append(ahead, p.text(p.faint).Render(p.statusGlyph(s))+" "+p.text(p.dim).Render(s))
 		}
 	}
 	join := func(stops ...[]string) string {
@@ -549,7 +552,7 @@ func (m model) detailTabsRow(p pal, a store.Application) string {
 		tabs[i] = p.text(p.dim).Render(" " + string(t) + " ")
 		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true).Render("[" + string(t) + "]")
+			tabs[i] = p.activeTab().Render("[" + string(t) + "]")
 		}
 	}
 	return strings.Join(tabs, " ")
@@ -611,7 +614,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	var b strings.Builder
 	label, c := p.docsLabel(a)
 	b.WriteString(keepTogether(m.cardWidth()-cardPadding, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
-	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
+	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "✓○ ")) + "\n")
 	for _, e := range docEntries(a) {
 		status, ready := e.displayStatus(a)
 		if ready {

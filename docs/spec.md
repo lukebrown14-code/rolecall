@@ -74,7 +74,7 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
-ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale turns them on
+ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale or TERM=linux turns them on
 ```
 
 Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
@@ -237,19 +237,32 @@ styles, so v0.1.1 changes look by editing that file alone.
 Settled with a throwaway prototype (branch `prototype/v011-styling`) and two rounds of
 context-free review. Every colour and style is in `ui/styles.go`.
 
-- **Theme:** dark only; the view paints the terminal background `#0D1117`. Accent **Mint**
-  `#5EEAD4`. Colour always pairs with a word or glyph.
+- **Theme:** colours are named by role (text, muted, faint, rule, accent, ok, info, warn,
+  danger, one per Status), each with a dark and a light value. The theme follows the
+  terminal's background (asked before start-up; `COLORFGBG` as the fallback), and
+  `ROLECALL_THEME=auto|dark|light` overrides it. The view paints the theme's background
+  (`#0D1117` or white). Accent **Mint** (`#5EEAD4`, `#0F766E` on light) means focus and
+  selection only; key names are bold text. Colour always pairs with a word or glyph.
 - **Active markers:** the active track, view tab and detail tab are bracketed — `[All]`,
   `[Leads 4]`, `[JD]` — as well as coloured, so they read without colour.
 - **Accessibility:** `NO_COLOR` drops all colour but keeps bold, underline and every word
   and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in; a locale that
-  is not UTF-8 turns ASCII on by itself. Text keeps a 4.5:1 contrast floor on the dark
-  background and rules and pane dividers 3:1, including the frame behind a pop-up, which
-  dims without going below the floor. The `?` pop-up carries a legend for `● ○ ✓ ⚠ ✕ ↩ ~ ⚑`.
-- **Status colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
-  within 7 days amber, expired dimmed. `⚑ quiet` amber. Interviewing lilac, Offer green,
-  Rejected red. Documents read `● ready` · `○ written` · `not written` (SCHEMA Ready and
-  Written; GLOSSARY avoids "built").
+  is not UTF-8, or `TERM=linux`, turns ASCII on by itself. Text keeps a 4.5:1 contrast
+  floor on either theme's background, pop-up fill and selection bar, and rules and pane
+  dividers 3:1, including the frame behind a pop-up, which dims without going below the
+  floor. The `?` pop-up carries a legend for the Status glyphs, the timeline and the
+  document marks.
+- **Status visual system:** each Status has a glyph and a colour on a cold-to-gold ramp —
+  Lead `◌` grey-blue · Draft `◐` pale blue · Applied `●` blue · Interviewing `◆` purple ·
+  Offer `★` gold — and the closed Statuses are muted, never red: Rejected `✕`, Withdrawn
+  `↩`, Dismissed `⊘` (ASCII `o = * @ $ x < -`). The glyph leads list rows, group headers
+  (label and rule in the Status colour), view tabs, the preview and detail chip, the
+  timeline and the Move pop-up. A timeline shows each Status by its own glyph: the
+  current one in its colour and bold, earlier ones faint. When two panes share the
+  frame, the focused pane's part of the top rule is the accent.
+- **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
+  within 7 days orange, expired dimmed. `⚑ quiet` orange. Documents read `✓ ready` ·
+  `○ written` · `not written` (SCHEMA Ready and Written; GLOSSARY avoids "built").
 - **Size classes (`ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a
@@ -508,7 +521,7 @@ Documents state rules, Build and the Plugin are unchanged.
 |---|---|
 | Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, workspace path, `git init`; spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
 | Profile | read-only Profile screen (screen 5; editing in 1.x) · `create-profile` skill (resume, LinkedIn export or guided questions → approved Profile) |
-| Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (dark only, so no theme) |
+| Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (the theme follows the terminal or ROLECALL_THEME, so no row) |
 | Documents | neutral default template + workspace brand override · 2–3 template choices (style packs AU/UK/US move to 1.x) |
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
 | Finding | per-workspace sources and locations, no default city |

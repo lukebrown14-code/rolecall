@@ -324,7 +324,7 @@ func (m model) statsView(p pal) string {
 		}
 	}
 	lines = p.clipLines(lines, 0, l.bodyHeight(1), pad)
-	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, m.statusRow(p, l.w, m.keyLine(p, l.w)))
+	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, l.w, m.keyLine(p, l.w)))
 }
 
 // statsBody renders the report top to bottom. The per-track table is hidden when

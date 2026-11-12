@@ -42,7 +42,7 @@ const (
 // Right-hand columns, identical on every view: state · flag · Fit, Fit flush right.
 // A column empty for every row of the current view is hidden.
 const (
-	slotState = 11 // "● ready", "not written", "✕ rejected", "↩ withdrawn"
+	slotState = 11 // "✓ ready", "not written", "rejected", "withdrawn"
 	slotFlag  = 12 // "⚑ quiet 11mo"
 	slotFit   = 8  // "Marginal"
 )
@@ -119,23 +119,23 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 }
 
 func (m model) View() tea.View {
-	p := basePal
+	p := m.pal()
 	var body string
 	switch box := m.overlayView(p); {
 	case m.tooSmall():
 		body = m.tooSmallView(p)
 	case box != "":
-		body = m.overlayBody(p, m.screenView(dimmedPal), box)
+		body = m.overlayBody(p, m.screenView(m.dimmedPal()), box)
 	default:
 		body = m.screenView(p)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
-	// Dark only: paint the terminal background so the palette reads the same on a light
-	// terminal. NO_COLOR drops colour but keeps bold and underline.
+	// Paint the theme's background so its roles keep their contrast whatever the
+	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
 	if noColor() {
 		v.Content = stripColor(v.Content)
 	} else {
-		v.BackgroundColor, v.ForegroundColor = colorBg, colorFg
+		v.BackgroundColor, v.ForegroundColor = p.bg, p.fg
 	}
 	return v
 }
@@ -187,7 +187,12 @@ func (m model) listView(p pal) string {
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.
-	return m.frame(p, []string{m.viewRow(p)}, body, divider, m.statusRow(p, w, keys))
+	// The list holds the cursor, so with a preview beside it the list's rule is the accent.
+	focus := focusNone
+	if divider > 0 {
+		focus = focusLeft
+	}
+	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.statusRow(p, w, keys))
 }
 
 // statusRow is the frame's last line: what just happened (a toast or error) when there is
@@ -269,7 +274,7 @@ func (m model) screenCountLabel(si int) string {
 func (m model) topBar(p pal) string {
 	l := m.layout()
 	room := l.w - rightMargin
-	on := lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true)
+	on := p.activeTab()
 	build := func(level int) string {
 		mark := " ◆ rolecall "
 		switch {
@@ -294,7 +299,7 @@ func (m model) topBar(p pal) string {
 			if level >= shedNames {
 				name = ""
 			}
-			out += " " + p.text(p.accent).Render(digit) + p.text(p.fg).Render(name) + p.text(p.dim).Render(count) + " "
+			out += " " + p.key().Render(digit) + p.text(p.fg).Render(name) + p.text(p.dim).Render(count) + " "
 		}
 		return out
 	}
@@ -367,7 +372,7 @@ func (m model) trackSelector(p pal, compact bool) string {
 	mark := func(name string) string {
 		return p.text(p.accent).Render("[") + on.Render(name) + p.text(p.accent).Render("]")
 	}
-	key := p.text(p.accent).Bold(true).Render("t")
+	key := p.key().Render("t")
 	if compact {
 		name := "All"
 		if m.track > 0 {
@@ -405,16 +410,22 @@ func (m model) viewRow(p pal) string {
 		for _, f := range []struct {
 			gap    string
 			counts bool
-		}{{"    ", true}, {"  ", true}, {"  ", false}} {
+			glyphs bool
+		}{{"    ", true, true}, {"  ", true, true}, {"  ", false, true}, {"  ", false, false}} {
 			parts := make([]string, len(ts))
 			for i, t := range ts {
 				label := t
 				if f.counts {
 					label = fmt.Sprintf("%s %s", t, m.countLabel(m.screen, t))
 				}
-				parts[i] = p.text(p.dim).Render(label)
+				// A view of one Status leads with its glyph, in its colour.
+				glyph := ""
+				if s := tableStatus(t); s != "" && f.glyphs {
+					glyph = p.statusMark(s) + " "
+				}
+				parts[i] = glyph + p.text(p.dim).Render(label)
 				if i == m.table && len(ts) > 1 {
-					parts[i] = current(label)
+					parts[i] = glyph + current(label)
 				}
 			}
 			lefts = append(lefts, pad+strings.Join(parts, f.gap))
@@ -485,7 +496,7 @@ func (m model) feedbackLine(p pal, w int) string {
 	if msg == "" {
 		return ""
 	}
-	bg := lipgloss.NewStyle().Background(colorPanel)
+	bg := lipgloss.NewStyle().Background(p.panel)
 	var left string
 	if raw {
 		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
@@ -495,7 +506,7 @@ func (m model) feedbackLine(p pal, w int) string {
 	right := ""
 	if hint != "" {
 		k, d, _ := strings.Cut(hint, " ")
-		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
+		right = bg.Foreground(p.fg).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
 	}
 	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-1), "…")
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
@@ -513,8 +524,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 		cur, total := 0, 0
 		for i, a := range rows {
 			if d, ok := dividers[i]; ok {
-				label := fmt.Sprintf("  %s · %d ", d.label, d.n)
-				lines := []string{p.text(p.dim).Bold(true).Render(label) + p.text(p.rule).Render(strings.Repeat("─", max(0, w-xansi.StringWidth(label))))}
+				lines := []string{p.groupHeader(d.label, tableStatus(d.label), d.n, w)}
 				if i > 0 {
 					lines = append([]string{""}, lines...) // air above each section
 				}
@@ -657,9 +667,9 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	case t == tableDraft:
 		state, _ = basePal.docsLabel(a)
 	case a.Status == store.StatusRejected:
-		state = "✕ rejected"
+		state = "rejected"
 	case a.Status == store.StatusWithdrawn:
-		state = "↩ withdrawn"
+		state = "withdrawn"
 	}
 	if t != tableDismissed {
 		fit = a.Fit
@@ -675,7 +685,7 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 func (p pal) docsLabel(a store.Application) (string, color.Color) {
 	switch strings.ToLower(a.Documents) {
 	case "ready":
-		return "● ready", p.ok
+		return "✓ ready", p.ok
 	case "written":
 		return "○ written", p.warn
 	}
@@ -689,8 +699,6 @@ func (p pal) stateColor(a store.Application, dimC color.Color) color.Color {
 		if _, c := p.docsLabel(a); c != p.dim {
 			return c
 		}
-	case a.Status == store.StatusRejected:
-		return p.bad
 	}
 	return dimC
 }
@@ -727,7 +735,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	}
 	if a.Malformed != nil {
 		return []string{line.Render(bar + st(p.bad).Bold(true).Render("⚠ "+filepath.Base(a.Folder))),
-			line.Render(bar + st(dimC).Render(xansi.Truncate(m.rel(a.Malformed.Error()), w-ellipsis, "…")))}
+			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.rel(a.Malformed.Error()), w-ellipsis-statusMarkWidth, "…")))}
 	}
 	state, flag, fit := m.slotText(a)
 	stateC := p.stateColor(a, dimC)
@@ -749,10 +757,12 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		cells = append(cells, slot(slotFit, fitC, fit))
 	}
 	right := strings.Join(cells, st(p.fg).Render("  ")) + st(p.fg).Render(strings.Repeat(" ", rowPad))
-	left := bar + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis), "…"))
+	// The Status glyph leads the title; the second line lines up under the title.
+	mark := st(p.statusColor(a.Status)).Render(p.statusGlyph(a.Status)) + st(p.fg).Render(" ")
+	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis-statusMarkWidth), "…"))
 	gap := st(p.fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
-	return []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+meta, w, "…"))}
+	return []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.fg).Render("  ")+meta, w, "…"))}
 }
 
 // meta is a row's second line: company, track, and the dates that matter for its table.
@@ -851,14 +861,14 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		if beforeApplied(tableOf(a)) {
 			if jd := m.docText(a, "jd.md"); jd != "" {
 				b.WriteString("\n" + p.heading("JD") + "\n" + wrap(jd, p.sub, previewLines) + "\n" +
-					p.text(p.accent).Render("enter") + p.text(p.dim).Render(" full JD") + "\n")
+					p.key().Render("enter") + p.text(p.dim).Render(" full JD") + "\n")
 			}
 		}
 		b.WriteString("\n" + p.heading("Notes") + "\n")
 		if t := m.docText(a, "notes.md"); t != "" {
 			b.WriteString(wrap(t, p.fg, docLines))
 		} else {
-			b.WriteString(p.text(p.dim).Render("No notes · ") + p.text(p.accent).Render("n") + p.text(p.dim).Render(" to add"))
+			b.WriteString(p.text(p.dim).Render("No notes · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
 		}
 		b.WriteString("\n\n" + p.text(p.dim).Render("? all keys"))
 	}
@@ -893,9 +903,10 @@ func (m model) hasContent(a store.Application, name string) bool {
 func (m model) timeline(p pal, a store.Application, dates bool) string {
 	var b strings.Builder
 	for i, e := range a.StatusLog {
-		dot, nameC := p.text(p.faint).Render("○"), p.dim
+		// Earlier entries are faint; the current one is in its Status's colour, bold.
+		dot, name := p.text(p.faint).Render(p.statusGlyph(e.Status)), p.text(p.dim)
 		if i == len(a.StatusLog)-1 {
-			dot, nameC = p.text(p.accent).Render("●"), p.fg
+			dot, name = p.statusMark(e.Status), p.text(p.fg).Bold(true)
 		}
 		when, whenC := m.agoEntry(&e), p.dim
 		if m.futureDate(&e) {
@@ -908,7 +919,7 @@ func (m model) timeline(p pal, a store.Application, dates bool) string {
 			}
 			when = entryDate(&e) + "  " + r
 		}
-		b.WriteString(dot + " " + p.text(nameC).Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
+		b.WriteString(dot + " " + name.Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
 	}
 	if a.Closes != "" && beforeApplied(tableOf(a)) {
 		r, days := ago(a.Closes, m.now())
@@ -920,7 +931,7 @@ func (m model) timeline(p pal, a store.Application, dates bool) string {
 		if dates {
 			date = a.Closes + "  "
 		}
-		b.WriteString(p.text(p.faint).Render("◌ ") + p.text(p.dim).Render(padRight("closes", labelWidth+1)+date) + p.text(c).Render(r) + "\n")
+		b.WriteString(p.text(p.faint).Render("→ ") + p.text(p.dim).Render(padRight("closes", labelWidth+1)+date) + p.text(c).Render(r) + "\n")
 	}
 	return b.String()
 }

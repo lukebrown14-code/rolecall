@@ -2,11 +2,12 @@
 
 Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and CI, not here.
 
-- Colour always pairs with a word or glyph, so meaning never rests on colour alone. Text
-  keeps a 4.5:1 contrast floor on the dark background and rules and dividers 3:1, even when
-  a pop-up dims the frame behind it. The frame stays readable with `NO_COLOR` set (no colour,
-  bold and underline kept) and with `ROLECALL_ASCII=1` (every glyph has an ASCII stand-in);
-  a locale that is not UTF-8 turns ASCII on by itself.
+- Colour always pairs with a word or glyph, so meaning never rests on colour alone. Colours
+  are roles with a dark and a light value; text keeps a 4.5:1 contrast floor on both themes
+  and rules and dividers 3:1, even when a pop-up dims the frame behind it. The accent means
+  focus and selection only. The frame stays readable with `NO_COLOR` set (no colour, bold
+  and underline kept) and with `ROLECALL_ASCII=1` (every glyph has an ASCII stand-in); a
+  locale that is not UTF-8, or `TERM=linux`, turns ASCII on by itself.
 - Rescan-and-restore-cursor goes through the one `reload` helper in `ui/model.go`.
 - Only `store` reads or writes Workspace files; `ui` never touches them directly.
 - Behaviour tests drive `Update` directly, not the whole program: a key in, model and disk

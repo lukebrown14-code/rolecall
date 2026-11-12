@@ -186,7 +186,7 @@ func (m model) helpBox(p pal) string {
 		var b strings.Builder
 		b.WriteString(p.heading(title) + "\n")
 		for _, kv := range list {
-			b.WriteString(p.text(p.accent).Bold(true).Render(padRight(kv[0], helpKeyWidth)) + p.text(p.fg).Render(kv[1]) + "\n")
+			b.WriteString(p.key().Render(padRight(kv[0], helpKeyWidth)) + p.text(p.fg).Render(kv[1]) + "\n")
 		}
 		return strings.TrimSuffix(b.String(), "\n")
 	}

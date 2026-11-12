@@ -351,11 +351,14 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // Markdown, in the same frame Stats uses.
 func (m model) profileView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
-	split := 0
+	split, focus := 0, focusNone
 	if m.profileLoaded() && m.profileListShown(w) {
-		split = m.profileListWidth()
+		split, focus = m.profileListWidth(), focusRight
+		if m.profile.focus != profileContent {
+			focus = focusLeft
+		}
 	}
-	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
 // profileContextRow names the focused pane on the left and the file it reads on the

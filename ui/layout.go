@@ -107,21 +107,33 @@ func (m model) contextLines() int {
 // frame stacks one screen: tab bar, gap, context lines, rule, body, rule, status row.
 // split is the column of the body's vertical divider, 0 for none; the rules meet it
 // with ┬ and ┴.
-func (m model) frame(p pal, ctx []string, body string, split int, status string) string {
+func (m model) frame(p pal, ctx []string, body string, split int, focus paneFocus, status string) string {
 	l := m.layout()
-	top, bot := strings.Repeat("─", l.w), strings.Repeat("─", l.w)
+	rule := p.text(p.rule)
+	top, bot := rule.Render(strings.Repeat("─", l.w)), rule.Render(strings.Repeat("─", l.w))
 	if split > 0 && split < l.w {
-		top = strings.Repeat("─", split) + "┬" + strings.Repeat("─", l.w-split-1)
-		bot = strings.Repeat("─", split) + "┴" + strings.Repeat("─", l.w-split-1)
+		left, right := strings.Repeat("─", split), strings.Repeat("─", l.w-split-1)
+		top = p.paneRule(focus == focusLeft).Render(left) + rule.Render("┬") + p.paneRule(focus == focusRight).Render(right)
+		bot = rule.Render(left + "┴" + right)
 	}
 	parts := []string{m.topBar(p)}
 	if !l.short {
 		parts = append(parts, "")
 	}
 	parts = append(parts, ctx...)
-	parts = append(parts, p.text(p.rule).Render(top), body, p.text(p.rule).Render(bot), status)
+	parts = append(parts, top, body, bot, status)
 	return strings.Join(parts, "\n")
 }
+
+// paneFocus is which of two panes has focus, for the frame's top rule: the focused
+// pane's part is the accent, the other the rule colour.
+type paneFocus int
+
+const (
+	focusNone paneFocus = iota
+	focusLeft
+	focusRight
+)
 
 // divider is a vertical rule h lines tall.
 func (p pal) divider(h int) string {
@@ -307,7 +319,7 @@ func clipBox(p pal, lines []string, h int) []string {
 		w := xansi.StringWidth(blank)
 		pad := popEdges/bothSides + gutter // the border and the padding
 		text = xansi.Truncate(text, max(0, w-pad*bothSides), "")
-		return xansi.Cut(blank, 0, pad) + panelFill(text) + xansi.Cut(blank, pad+xansi.StringWidth(text), w)
+		return xansi.Cut(blank, 0, pad) + p.panelFill(text) + xansi.Cut(blank, pad+xansi.StringWidth(text), w)
 	}
 	if start > 0 {
 		kept[0] = cue(p.moreCue(true, start+1))

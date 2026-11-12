@@ -288,11 +288,14 @@ func (m model) moveSetting(st settingsState, delta int) settingsState {
 // settingsView is the Settings screen in the same frame Profile uses.
 func (m model) settingsView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
-	split := 0
+	split, focus := 0, focusNone
 	if m.settings != nil && m.settings.ws.Err == nil && m.settingsListShown(w) {
-		split = m.settingsListWidth()
+		split, focus = m.settingsListWidth(), focusRight
+		if m.settings.focus == settingsList {
+			focus = focusLeft
+		}
 	}
-	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
 // settingsContextRow names the focused pane, or the group and its position when the group

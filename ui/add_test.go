@@ -138,6 +138,10 @@ func selectedRow(t *testing.T, view string) string {
 	t.Helper()
 	for _, line := range strings.Split(ansi.Strip(view), "\n") {
 		if _, rest, ok := strings.Cut(line, "▌ "); ok {
+			// The title follows its Status glyph.
+			for _, g := range statusGlyphs {
+				rest = strings.TrimPrefix(rest, g+" ")
+			}
 			return strings.TrimSpace(rest)
 		}
 	}

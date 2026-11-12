@@ -57,10 +57,16 @@ func (h *liveHarness) wait(text string) {
 func (h *liveHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
 
 // rowLine is the first line of the row whose title starts with title.
+// statusGlyphs lead a list row's title, one per Status.
+var statusGlyphs = []string{"◌", "◐", "●", "◆", "★", "✕", "↩", "⊘"}
+
+// rowLine is the list line whose title is title: the title follows a Status glyph.
 func rowLine(view, title string) string {
 	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(line, "  "+title) || strings.Contains(line, "▌ "+title) {
-			return line
+		for _, g := range statusGlyphs {
+			if strings.Contains(line, g+" "+title) {
+				return line
+			}
 		}
 	}
 	return ""
@@ -112,8 +118,8 @@ func TestLiveDroppedPDFsFlipDocsMarker(t *testing.T) {
 	out := filepath.Join(h.folder("docs-none"), "out")
 	h.write(filepath.Join(out, "Owner Resume Role.pdf"), "%PDF")
 	h.write(filepath.Join(out, "Owner Role Cover Letter.pdf"), "%PDF")
-	h.wait("● ready")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "● ready") {
+	h.wait("✓ ready")
+	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "✓ ready") {
 		t.Fatalf("docs-none row lacks the Ready marker:\n%s", v)
 	}
 }

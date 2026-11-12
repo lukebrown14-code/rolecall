@@ -37,6 +37,7 @@ type model struct {
 	followUpDays          int
 	configHome            string // where config.toml lives; empty means machine settings cannot be saved
 	ascii                 bool   // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	theme                 theme  // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
 	back                  *settingsBack // where Esc returns from Settings opened with a comma
@@ -64,11 +65,13 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	if now == nil {
 		now = time.Now
 	}
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{},
-		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot), spinner.WithStyle(basePal.spinnerStyle()))}
+	th, _ := themeFromEnv()
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}, theme: th,
+		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot))}
 	for _, option := range options {
 		option(&m)
 	}
+	m.spinner.Style = m.theme.base().spinnerStyle()
 	if m.watchWindow > 0 {
 		// Watching starts before the first scan so no change slips between the two.
 		w, e := startWatcher(filepath.Join(s.Root(), "jobs"), m.watchWindow)
