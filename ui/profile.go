@@ -278,14 +278,13 @@ func (m model) scrollProfile(delta int) model {
 func (m model) profileHelpKeys() []helpKey {
 	var keys []helpKey
 	if m.profileLoaded() {
-		keys = append(keys, help(groupAction, "j k", "section"), help(groupAction, "e", "edit file"),
-			help(groupNav, "tab", "focus"))
+		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", "section"),
+			help(groupNav, "tab", "focus").at(prioScreen))
 	}
-	keys = append(keys, help(groupNav, "1-6", "screen"), help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"))
 	if m.err != nil {
-		keys = append(keys, help(groupNav, "esc", "clear error"))
+		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
 	}
-	return append(keys, help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	return keys
 }
 
 // profileKey handles the keys the Profile screen accepts. Application keys and the track

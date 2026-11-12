@@ -205,7 +205,7 @@ func TestCompactHelpCanReachLastPage(t *testing.T) {
 		seen += ansi.Strip(m.View().Content)
 		m = driveModel(t, m, "down")
 	}
-	for _, text := range []string{"quit", "Docs: ○ not written", "esc close"} {
+	for _, text := range []string{"quit", "○ missing", "esc close"} {
 		if !strings.Contains(seen, text) {
 			t.Fatalf("help never showed %q", text)
 		}

@@ -3,6 +3,7 @@ package ui_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -183,6 +184,13 @@ func TestRescanDropsFilterOnARemovedTrack(t *testing.T) {
 }
 
 // Keys that do nothing while an overlay owns the keyboard are not offered in the help bar.
+// helpLists reports whether the `?` pop-up lists a "key description" pair: the pop-up
+// pads the key column, so any run of spaces separates them.
+func helpLists(view, pair string) bool {
+	k, d, _ := strings.Cut(pair, " ")
+	return regexp.MustCompile(regexp.QuoteMeta(k) + `\s+` + regexp.QuoteMeta(d)).MatchString(view)
+}
+
 func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 	rowKeys := []string{"e edit", "m move", "u undo", "x dismiss", "n notes"}
 	assertHidden := func(t *testing.T, context, view string) {
@@ -231,7 +239,7 @@ func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 		h.tm.Type("?")
 		view := h.finish()
 		for _, want := range []string{"Keys", "e edit", "m move", "x dismiss", "quit"} {
-			if !strings.Contains(view, want) {
+			if !helpLists(view, want) {
 				t.Errorf("full help lacks %q:\n%s", want, view)
 			}
 		}

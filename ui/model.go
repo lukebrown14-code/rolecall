@@ -307,11 +307,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a, ok := m.current(); ok {
 				return m, m.openEdit(a)
 			}
-		case "t":
-			if len(m.tracks) > 0 {
-				m.track = (m.track + 1) % (len(m.tracks) + 1)
-				m.cursor = 0
-			}
+		case "t", "T":
+			m.cycleTrack(k.String() == "T")
 		case "/":
 			m.overlay = &searchMode{}
 		case "esc":
@@ -319,10 +316,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "tab":
+		case "right", "tab":
+			// ←→ switch views; tab does too here, as a table screen has only one pane.
 			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
-		case "shift+tab":
+		case "left", "shift+tab":
 			m.table = (m.table + len(m.views()) - 1) % len(m.views())
 			m.cursor = 0
 		case "down", "j":
@@ -357,6 +355,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cursor = 0
 	}
 	return m, nil
+}
+
+// cycleTrack moves the track filter to the next track, or the previous one: All, then
+// each workspace.json track in order.
+func (m *model) cycleTrack(back bool) {
+	if len(m.tracks) == 0 {
+		return
+	}
+	n := len(m.tracks) + 1
+	step := 1
+	if back {
+		step = n - 1
+	}
+	m.track = (m.track + step) % n
+	m.cursor = 0
 }
 
 // cursorFolder is the folder of the row under the cursor, or "" when the table is empty.

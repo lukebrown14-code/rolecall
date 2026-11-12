@@ -450,7 +450,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 
 func TestProfileHelpListsOnlyValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "?"))
-	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-6", "screen", "rescan", "all keys", "quit"} {
+	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-6", "screen", "rescan", "help", "quit"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}
@@ -470,7 +470,7 @@ func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 		}
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "5", "?"))
-	for _, wanted := range []string{"1-6", "screen", "rescan", "all keys", "quit"} {
+	for _, wanted := range []string{"1-6", "screen", "rescan", "help", "quit"} {
 		if !strings.Contains(view, wanted) {
 			t.Fatalf("help lacks %q with no Profile:\n%s", wanted, view)
 		}

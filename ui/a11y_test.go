@@ -127,7 +127,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 // The ? pop-up explains the glyphs.
 func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
-	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "follow-up due") {
+	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "● current status") || !strings.Contains(view, "⚑ quiet: no reply in 14+ days") || !strings.Contains(view, "— not assessed") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
 	}
 }

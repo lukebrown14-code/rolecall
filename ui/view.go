@@ -208,7 +208,7 @@ func (m model) listView(p pal) string {
 	keys := m.keyLine(p, w)
 	if m.searching() {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
-		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
+		keys = spread(in, p.keys(pairs(m.helpKeys(), groupAction, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.
@@ -825,7 +825,6 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		} else {
 			b.WriteString(p.text(p.dim).Render("No notes · ") + p.text(p.accent).Render("n") + p.text(p.dim).Render(" to add"))
 		}
-		b.WriteString("\n\n" + p.text(p.dim).Render("? all keys"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }

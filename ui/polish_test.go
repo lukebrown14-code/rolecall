@@ -42,14 +42,18 @@ func TestEmptyResumeIsNotMarkedWritten(t *testing.T) {
 }
 
 // The key line under a keyed pop-up shows context, not a second copy of the border keys.
-func TestPopupKeyLineShowsContextNotKeys(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	last := view[strings.LastIndex(view, "\n")+1:]
-	if !strings.Contains(last, "Leads · ") {
-		t.Fatalf("key line under Move lacks context: %q", last)
-	}
-	if strings.Contains(last, "letter move") {
-		t.Fatalf("key line repeats the pop-up keys: %q", last)
+// Every pop-up owns the keyboard, so the key line lists the pop-up's keys, never the
+// screen's beneath it.
+func TestPopupKeyLineShowsThePopupKeys(t *testing.T) {
+	for _, keys := range [][]string{{"1", "m"}, {"a"}, {"?"}} {
+		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
+		last := view[strings.LastIndex(view, "\n")+1:]
+		if !strings.Contains(last, "esc") {
+			t.Fatalf("%v: key line lacks the pop-up's esc: %q", keys, last)
+		}
+		if strings.Contains(last, "/ search") || strings.Contains(last, "1-6 screen") {
+			t.Fatalf("%v: key line shows the screen's keys under a pop-up: %q", keys, last)
+		}
 	}
 }
 

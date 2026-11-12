@@ -135,10 +135,10 @@ func TestHandoffAvailability(t *testing.T) {
 			m := driveStart(t, root, fixtureClock, 200, 40, ui.WithHarness("x {skill} {dir}"))
 			m = driveModel(t, m, tc.filter, "enter", tc.screen, "?")
 			view := plain(m)
-			if !strings.Contains(view, "f assess fit") {
+			if !helpLists(view, "f assess fit") {
 				t.Fatalf("help lacks f:\n%s", view)
 			}
-			if got := strings.Contains(view, "p prepare docs"); got != tc.wantP {
+			if got := helpLists(view, "p prepare docs"); got != tc.wantP {
 				t.Fatalf("p shown = %v, want %v:\n%s", got, tc.wantP, view)
 			}
 		})

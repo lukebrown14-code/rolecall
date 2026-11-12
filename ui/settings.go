@@ -183,15 +183,13 @@ func remoteLabel(remote string) string {
 
 func (m model) settingsListShown(w int) bool { return w >= settingsSplitWidth }
 
-// settingsHelpKeys is the keys Settings accepts. Application actions are absent.
+// settingsHelpKeys is the keys Settings accepts. Application actions are absent, and so
+// are the global keys.
 func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.editing {
-		return []helpKey{help(groupAction, "enter", hintSave), help(groupNav, "esc", "cancel")}
+		return []helpKey{help(groupAction, "enter", hintSave).at(prioCore), help(groupNav, "esc", "cancel").at(prioPinned)}
 	}
 	keys := []helpKey{}
-	if m.settings != nil && m.settings.ws.Err == nil {
-		keys = append(keys, help(groupAction, "j k", "move"))
-	}
 	keys = append(keys, m.trackHelpKeys()...)
 	keys = append(keys, m.gateHelpKeys()...)
 	keys = append(keys, m.searchHelpKeys()...)
@@ -202,15 +200,14 @@ func (m model) settingsHelpKeys() []helpKey {
 	}
 	keys = append(keys, help(groupAction, "e", "edit "+file))
 	if m.settings != nil && m.settings.ws.Err == nil {
-		keys = append(keys, help(groupNav, "tab", "focus"))
+		keys = append(keys, help(groupNav, "j k", "move"), help(groupNav, "tab", "focus").at(prioScreen))
 	}
-	keys = append(keys, help(groupNav, "1-6", "screen"), help(groupNav, "?", "all keys"))
 	if m.err != nil {
-		keys = append(keys, help(groupNav, "esc", "clear error"))
+		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
 	} else if m.back != nil {
-		keys = append(keys, help(groupNav, "esc", "back"))
+		keys = append(keys, help(groupNav, "esc", "back").at(prioPinned))
 	}
-	return append(keys, help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	return keys
 }
 
 // settingsKey handles the keys Settings accepts. It never writes: e hands workspace.json
