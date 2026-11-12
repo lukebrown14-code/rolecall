@@ -2,7 +2,7 @@ package store
 
 import (
 	"encoding/json"
-	"os"
+	"fmt"
 	"path/filepath"
 )
 
@@ -45,54 +45,64 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 		LetterWordCap: DefaultLetterWordCap, LetterWordMin: DefaultLetterWordMin,
 		KeySkillsMin: DefaultKeySkillsMin, KeySkillsMax: DefaultKeySkillsMax,
 	}
-	b, err := os.ReadFile(out.Path)
-	if os.IsNotExist(err) {
-		return out, nil
-	}
+	w, err := readWorkspace(s.root)
 	if err != nil {
 		return out, err
 	}
-	var raw struct {
-		Schema     json.RawMessage `json:"schema"`
-		Tracks     []string        `json:"tracks"`
-		SearchArea struct {
-			Places []string `json:"places"`
-			Remote string   `json:"remote"`
-		} `json:"search_area"`
-		LetterWordCap *int            `json:"letterWordCap"`
-		LetterWordMin *int            `json:"letterWordMin"`
-		KeySkillsMin  *int            `json:"keySkillsMin"`
-		KeySkillsMax  *int            `json:"keySkillsMax"`
-		Sources       json.RawMessage `json:"sources"`
-		Blockers      json.RawMessage `json:"blockers"`
+	if w.Raw == nil {
+		return out, nil
 	}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		out.Err = err
+	if w.ParseErr != nil {
+		out.Err = w.ParseErr
 		return out, nil
 	}
 	// A schema this build cannot use stops the screen: it must not offer edits that would
 	// be refused, and the Owner needs to see why.
-	if version, err := workspaceSchemaVersion(out.Path, raw.Schema); err != nil {
+	if version, err := w.schema(); err != nil {
 		out.Schema, out.Err, out.NewerSchema = version, err, version > 1
 		return out, nil
 	} else {
 		out.Schema = version
 	}
-	out.Tracks, out.Places, out.Remote = raw.Tracks, raw.SearchArea.Places, raw.SearchArea.Remote
+	// decode reads one top-level key; a key present but of the wrong shape is a file error.
+	decode := func(key string, dst any) bool {
+		raw, ok := w.Values[key]
+		if !ok {
+			return true
+		}
+		if err := json.Unmarshal(raw, dst); err != nil {
+			out.Err = fmt.Errorf("%s: %w", w.Path, err)
+			return false
+		}
+		return true
+	}
+	if !decode("tracks", &out.Tracks) {
+		return out, nil
+	}
+	var area struct {
+		Places []string `json:"places"`
+		Remote string   `json:"remote"`
+	}
+	if !decode("search_area", &area) {
+		return out, nil
+	}
+	out.Places, out.Remote = area.Places, area.Remote
 	out.Set = map[string]bool{}
 	for _, g := range []struct {
-		key      string
-		dst, src *int
+		key string
+		dst *int
 	}{
-		{GateLetterCap, &out.LetterWordCap, raw.LetterWordCap}, {GateLetterMin, &out.LetterWordMin, raw.LetterWordMin},
-		{GateSkillsMin, &out.KeySkillsMin, raw.KeySkillsMin}, {GateSkillsMax, &out.KeySkillsMax, raw.KeySkillsMax},
+		{GateLetterCap, &out.LetterWordCap}, {GateLetterMin, &out.LetterWordMin},
+		{GateSkillsMin, &out.KeySkillsMin}, {GateSkillsMax, &out.KeySkillsMax},
 	} {
-		if g.src != nil {
-			*g.dst = *g.src
+		if !decode(g.key, g.dst) {
+			return out, nil
+		}
+		if _, ok := w.Values[g.key]; ok {
 			out.Set[g.key] = true
 		}
 	}
-	out.Sources, out.Blockers = entryCount(raw.Sources), entryCount(raw.Blockers)
+	out.Sources, out.Blockers = entryCount(w.Values["sources"]), entryCount(w.Values["blockers"])
 	return out, nil
 }
 
