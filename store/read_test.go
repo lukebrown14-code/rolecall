@@ -41,6 +41,13 @@ func TestReadMetadata(t *testing.T) {
 	}
 }
 
+func TestNewerMetaSchemaIsRejectedWithUpgradeGuidance(t *testing.T) {
+	a := readMeta(t, "schema: 2\ntitle: Engineer\ncompany: Acme\ntrack: SWE\n")
+	if a.Malformed == nil || !strings.Contains(a.Malformed.Error(), "upgrade rolecall") {
+		t.Fatalf("newer schema should be rejected with upgrade guidance: %+v", a)
+	}
+}
+
 func TestStatusHistoryAndMalformedFiles(t *testing.T) {
 	base := "title: Engineer\ncompany: Acme\ntrack: SWE\n"
 	for _, status := range []string{"Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed"} {

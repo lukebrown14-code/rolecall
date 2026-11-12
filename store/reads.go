@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -18,10 +19,26 @@ func (s *Store) Tracks() ([]string, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	var config struct {
-		Tracks []string `json:"tracks"`
+		Schema json.RawMessage `json:"schema"`
+		Tracks []string        `json:"tracks"`
 	}
 	if err = json.Unmarshal(b, &config); err != nil {
 		return nil, fmt.Errorf("%s: invalid Workspace settings", path)
+	}
+	if config.Schema != nil {
+		if bytes.Equal(config.Schema, []byte("null")) {
+			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
+		}
+		var version int
+		if err := json.Unmarshal(config.Schema, &version); err != nil {
+			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
+		}
+		if version != 1 {
+			if version > 1 {
+				return nil, fmt.Errorf("%s: Workspace schema %d is newer than this version; upgrade rolecall", path, version)
+			}
+			return nil, fmt.Errorf("%s: unsupported Workspace schema %d", path, version)
+		}
 	}
 	return config.Tracks, nil
 }

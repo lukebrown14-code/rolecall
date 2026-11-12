@@ -102,6 +102,34 @@ def test_scan_order_follows_then_sorted_folder_names(tmp_path):
     ]
 
 
+def test_newer_meta_schema_is_rejected_with_upgrade_guidance(tmp_path):
+    workspace = tmp_path / "workspace"
+    shutil.copytree(FIXTURE, workspace)
+    folder = workspace / "jobs" / "SWE" / "fern"
+    (folder / "meta.yml").write_text(
+        "schema: 2\ntitle: Engineer\ncompany: Acme\ntrack: SWE\n"
+    )
+
+    app = next(item for item in scan(workspace) if item["Folder"] == str(folder))
+
+    assert app["Malformed"] is True
+    assert "upgrade rolecall" in app["Error"]
+
+
+def test_malformed_meta_schema_number_is_refused(tmp_path):
+    workspace = tmp_path / "workspace"
+    shutil.copytree(FIXTURE, workspace)
+    folder = workspace / "jobs" / "SWE" / "fern"
+    (folder / "meta.yml").write_text(
+        "schema: 2_0\ntitle: Engineer\ncompany: Acme\ntrack: SWE\n"
+    )
+
+    app = next(item for item in scan(workspace) if item["Folder"] == str(folder))
+
+    assert app["Malformed"] is True
+    assert "unsupported schema" in app["Error"]
+
+
 @pytest.mark.parametrize(
     "broken",
     [
