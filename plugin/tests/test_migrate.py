@@ -5,7 +5,9 @@ Every test copies ``fixtures/dashboard-era`` to a temporary Workspace and runs
 exit codes and stdout; nothing imports the script.
 """
 
+import importlib.util
 import re
+from collections import Counter
 from pathlib import Path
 
 from conftest import copy_fixture_workspace, run_script
@@ -13,6 +15,14 @@ from conftest import copy_fixture_workspace, run_script
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATE = ROOT / "plugin" / "scripts" / "migrate.py"
 FIXTURE = ROOT / "fixtures" / "dashboard-era"
+
+
+def load_migrate():
+    """Load migrate.py in process, the way the plugin runs it."""
+    spec = importlib.util.spec_from_file_location("migrate_under_test", MIGRATE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 ARCHIVE_FILES = [
     "TRACKER.md",
@@ -291,6 +301,29 @@ def test_incomplete_pre_migration_meta_is_rebuilt(tmp_path):
     assert "schema: 1" in text
     assert "Globex" in text
     assert entry(text, "Interviewing")[0] == "Interviewing"
+
+
+def test_apply_writes_each_application_meta_once(tmp_path, monkeypatch):
+    """Each Application is one read-modify-validate-write, not a patch then a rewrite."""
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    migrate = load_migrate()
+    writes = Counter()
+    real = migrate.meta.atomic_write
+
+    def counting(path, data, mode):
+        writes[Path(path)] += 1
+        return real(path, data, mode)
+
+    monkeypatch.setattr(migrate.meta, "atomic_write", counting)
+    changes = migrate.plan(workspace)
+    migrate.apply(workspace, changes)
+
+    folders = [
+        change.folder for change in changes if isinstance(change, migrate.FolderChange)
+    ]
+    assert folders
+    for folder in folders:
+        assert writes[folder / "meta.yml"] == 1, folder
 
 
 def test_second_run_changes_nothing(tmp_path):
