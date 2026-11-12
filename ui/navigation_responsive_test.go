@@ -19,7 +19,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				m = driveModel(t, m, append([]string{"3"}, keys...)...)
 				view := ansi.Strip(m.View().Content)
 				line := strings.Split(view, "\n")[0]
-				if keys[0] == "/" && !strings.Contains(view, "search Orbit") {
+				if keys[0] == "/" && !strings.Contains(view, "/Orbit ×") {
 					t.Errorf("missing search context: %s", view)
 				}
 				if keys[0] == "t" && !strings.Contains(view, "[SWE]") {

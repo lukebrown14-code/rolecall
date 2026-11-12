@@ -146,6 +146,23 @@ func (m model) editFile(folder, name string) tea.Cmd {
 	return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, name))
 }
 
+// editFileAt is editFile at a line, for an Editor known to take one: +N for the vi and
+// Emacs families and nano, path:N for Sublime Text, Zed and Helix, -g path:N for VS Code.
+// Any other Editor opens the file at the top.
+func (m model) editFileAt(folder, name string, line int) tea.Cmd {
+	editor := ResolveEditor(m.editor)
+	before, after := "", ""
+	switch filepath.Base(firstWord(editor)) {
+	case "vi", "vim", "nvim", "view", "nano", "pico", "emacs", "emacsclient", "micro", "kak", "joe", "mg", "ne":
+		before = fmt.Sprintf(" +%d", line)
+	case "subl", "zed", "hx", "helix":
+		after = fmt.Sprintf(":%d", line)
+	case "code", "codium", "cursor":
+		before, after = " -g", fmt.Sprintf(":%d", line)
+	}
+	return m.runExternal(folder, "/bin/sh", "-c", "exec "+editor+before+" \"$1\""+after, "rolecall-editor", filepath.Join(folder, name))
+}
+
 func (m model) editNotes(folder string) tea.Cmd {
 	return func() tea.Msg {
 		if err := m.store.EnsureNotes(folder); err != nil {

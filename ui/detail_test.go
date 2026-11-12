@@ -303,7 +303,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes —", "→ Draft")
+	h.show("Draft · Platform · closes —", "Moved to Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -347,9 +347,9 @@ func TestDetailMalformedShowsPathAndError(t *testing.T) {
 	}
 	h.tm.Type("G")
 	h.key(tea.KeyEnter)
-	// The full path wraps in the pane; its tail names the file.
-	msg := bad.Malformed.Error()
-	h.show(filepath.Join(filepath.Base(bad.Folder), "meta.yml"), msg[strings.LastIndex(msg, "/")+1:])
+	// The pane says where and how to fix it, and the file's Workspace path.
+	h.show("Can't read SWE/malformed", "meta.yml line 4: indented lines must be status_log entries",
+		filepath.Join("jobs", "SWE", filepath.Base(bad.Folder), "meta.yml"), "e fix in editor")
 }
 
 func TestDetailEscReturnsToSameRow(t *testing.T) {
@@ -401,7 +401,7 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "→ Applied")
+	yes.show("Applied · ", "Moved to Applied")
 }
 
 func TestResumeReader(t *testing.T) {

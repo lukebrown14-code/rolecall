@@ -107,7 +107,10 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
   Closed rows show the outcome, `✕ rejected` / `↩ withdrawn`, beside Fit).
 - **Follow-up:** `⚑` when the Status is Applied or Interviewing and the last change is more than `follow_up_days` old.
 - **Fit:** the enum word, or `—`.
-- **Malformed** `meta.yml`: the row shows `⚠` and the folder name. The detail view shows the path and why parsing failed.
+- **Malformed** `meta.yml`: the row reads `⚠ Can't read SWE/malformed`, then the failing line and how to fix it
+  (`meta.yml line 4: indented lines must be status_log entries: …`). The detail view says the same with the path.
+  `e` opens the file in the Editor at that line (`+N` for vi, Emacs and nano, `path:N` for Sublime, Zed and
+  Helix, `-g path:N` for VS Code; others open at the top). A search matches a malformed row by its folder only.
 - **Approx dates:** `~` prefix, on exact dates (`~2026-01-01`) and relative ones (`applied ~3mo ago`).
 - Columns shrink to fit the terminal width, truncating Title first, then Company.
 
@@ -116,7 +119,8 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | Key | Scope | Action |
 |---|---|---|
 | `1` `2` `3` | global | switch screen |
-| `Tab` / `Shift-Tab` | screen | next / previous table |
+| `←` `→` | screen | previous / next view (table); in the detail view, previous / next tab |
+| `Tab` / `Shift-Tab` | screen | next / previous pane (Profile, Settings); on a table screen, which has one pane, next / previous view |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom |
 | `a` | global | Add form |
 | `v` / `Enter` | row | detail view |
@@ -126,15 +130,21 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `u` | global | undo the last move made in this session |
 | `x` | row (unsent) | Dismiss. Same as Move → Dismissed |
 | `d` | row | Download |
-| `t` | global | cycle the track filter: All → each `workspace.json` track |
+| `t` / `T` | global | next / previous track filter: All → each `workspace.json` track |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
 | `,` | global | open Settings (screen 6); `Esc` returns |
-| `?` | global | full help |
+| `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs |
+| `:` / `Ctrl-K` | global | command palette: type to filter this context's actions, `Enter` runs one |
 | `q` / `Ctrl-C` | global | quit |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `b`: see [v0.2](#v02-harness-and-extras).
 - The bottom help bar shows only the keys valid for the current row (e.g. `d` hidden when nothing is built).
+- **One keymap:** each screen, focus and pop-up declares its keys with a priority (`ui/help.go`). The key line,
+  the `?` pop-up and the command palette all read it, so a key is declared once. While a pop-up is open the key
+  line shows the pop-up's keys.
+- **Mouse:** click a screen tab, a view or a row; the wheel scrolls whatever `↑↓` moves; click the search
+  chip's `×` to clear it.
 
 ### Move popup (`m`)
 
@@ -250,8 +260,9 @@ context-free review. Every colour and style is in `ui/styles.go`.
   is not UTF-8, or `TERM=linux`, turns ASCII on by itself. Text keeps a 4.5:1 contrast
   floor on either theme's background, pop-up fill and selection bar, and rules and pane
   dividers 3:1, including the frame behind a pop-up, which dims without going below the
-  floor. The `?` pop-up carries a legend for the Status glyphs, the timeline and the
-  document marks.
+  floor. The `?` pop-up carries a legend, one meaning per glyph: Statuses `◌ ◐ ● ◆ ★ ✕ ↩
+  ⊘`; Timeline, the current Status's glyph in its colour and earlier ones faint, `~`
+  approximate; Docs `✓` ready, `○` missing; Flags `⚠ ⚑`; Fit values and `—` not assessed.
 - **Status visual system:** each Status has a glyph and a colour on a cold-to-gold ramp —
   Lead `◌` grey-blue · Draft `◐` pale blue · Applied `●` blue · Interviewing `◆` purple ·
   Offer `★` gold — and the closed Statuses are muted, never red: Rejected `✕`, Withdrawn
@@ -281,13 +292,17 @@ context-free review. Every colour and style is in `ui/styles.go`.
 - **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
   Stats), read once by its key: `t  [All]  SWE  Platform`, or `t [All]▸` when narrow.
 - **Scope line:** whenever a track or text filter is on, the context row says what it
-  hides — `search pl · 3 of 4` — and the tab and view counts read `3/4` rather than a
-  filtered number that looks like a total.
-- **Feedback:** a toast (successes clear on the next key) or an error (stays until `Esc`)
+  hides — `/pl ×   3 of 4` — and the tab and view counts read `3/4` rather than a filtered
+  number that looks like a total.
+- **Feedback:** the message on the left, cut first; its keys on the right, never cut. Every
+  move, dismiss, save and Settings change says what happened (`✓ Moved to Applied ·
+  Software Engineer   u undo`), and a moved row is lit for 600 ms so the eye can follow it.
+  A toast (successes clear on the next key) or an error (stays until `Esc`)
   shows on the status row; it never replaces the bottom rule. Paths read relative to the
   Workspace.
-- **Search:** while typing, the search input is on the status row; after `Enter` the scope
-  line shows `search pl` and the count.
+- **Search:** while a text filter is on, a chip (`/pl ×`) shows on every screen, beside the detail title too;
+  `Esc` clears it. While typing, the search input is on the status row; after `Enter` the scope
+  line shows the chip and the count.
 - **Rows:** two lines (title + right-hand columns, then company · track · dates). A blank
   line between rows when they all fit; dense when they don't. Right-hand columns are
   state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
@@ -297,14 +312,17 @@ context-free review. Every colour and style is in `ui/styles.go`.
   no key is cut, and is centred on the full width between the rules: it never covers the
   tab bar, context row or status row. The rows it covers are blank either side; the rest
   of the screen is dimmed. A pop-up taller than the body scrolls inside its border, keeping
-  the selection in view. `?` is a pop-up; any key closes it, `Esc` included. The Move
+  the selection in view. `?` is a pop-up; any key closes it, `Esc` included, and it pages
+  only when it has a second page. The Move
   pop-up always moves the Application it shows, even if a live refresh moved the cursor.
 - **Overflow:** one cue everywhere — `↓ 3 more` / `↑ 3 more` at the text column — on lists,
   Stats, Profile, Settings, readers and pop-ups. A section heading never sits alone above
   it. Text wraps only at spaces.
 - **Narrow terminals:** the tab bar sheds detail, the preview and detail card fold away
   below the wide class, pop-ups shrink to fit. The key line drops actions from the right but
-  keeps `enter`, `a add` and `/ search` to the last. Below 56×14 a centred notice — `rolecall
+  keeps `enter`, `m move`, `a add` and `/ search` to the last, and `? help` and `esc`
+  always; navigation hints (`1-6 screen`, `←→ view`) go first. The detail view keeps `←→
+  tab` and `↑↓` over its actions. Below 56×14 a centred notice — `rolecall
   needs 56×14 · now 48×12 · resize to continue` — replaces the layout.
 
 ## Plugin (v0.1)

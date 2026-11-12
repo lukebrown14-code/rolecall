@@ -71,7 +71,7 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	got, _ = os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -88,7 +88,7 @@ func TestReadyMoveToAppliedHasNoPrompt(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	got, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -145,7 +145,7 @@ func TestAppliedRecordsExactlyTheListedFilesThatExist(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	quit(t, tm)
 
 	want := map[string]string{
@@ -166,11 +166,11 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	tm.Type("3")
 	wait("Applied 1")
 	tm.Type("mw") // away from Applied
-	wait("→ Withdrawn")
+	wait("Moved to Withdrawn")
 	before := sentFiles(t, folder)
 
 	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("changed"), 0o644); err != nil {
@@ -186,7 +186,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, before) {
@@ -204,7 +204,7 @@ func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	tm.Type("u")
 	wait("back to Draft")
 	quit(t, tm)
@@ -239,7 +239,7 @@ func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	m = runMsg(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = driveModel(t, m, "2", "ma", "q") // the broken row still carries its logged Status, Draft
 	view := m.View().Content
-	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not Ready") {
+	if !strings.Contains(view, "add a track: line") || strings.Contains(view, "Docs not Ready") {
 		t.Fatalf("want the store error and no prompt, got:\n%s", view)
 	}
 

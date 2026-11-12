@@ -130,6 +130,7 @@ func (m model) View() tea.View {
 		body = m.screenView(p)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
+	v.MouseMode = tea.MouseModeCellMotion // clicks and the wheel; see mouse.go
 	// Paint the theme's background so its roles keep their contrast whatever the
 	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
 	if noColor() {
@@ -158,10 +159,9 @@ func (m model) listView(p pal) string {
 	l := m.layout()
 	w, bodyH := l.w, l.bodyHeight(1)
 	rows := m.rows()
-	split := l.wide() && len(rows) > 0
-	listW, divider := w, 0
+	listW, split := m.listPane(len(rows))
+	divider := 0
 	if split {
-		listW = w - l.panel(previewShare, previewMin, previewMax) - 1
 		divider = listW
 	}
 	previewW := w - listW - 1
@@ -183,7 +183,7 @@ func (m model) listView(p pal) string {
 	keys := m.keyLine(p, w)
 	if m.searching() {
 		in := p.text(p.accent).Bold(true).Render(" / ") + p.text(p.fg).Render(m.text) + p.text(p.accent).Render("▏")
-		keys = spread(in, p.keys(pairs(m.helpKeys(), groupNav)), w-1)
+		keys = spread(in, p.keys(pairs(m.helpKeys(), groupAction, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.
@@ -193,6 +193,16 @@ func (m model) listView(p pal) string {
 		focus = focusLeft
 	}
 	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.statusRow(p, w, keys))
+}
+
+// listPane is the list's width and whether the preview pane sits beside it, for a view
+// of n rows. A mouse click reads the same geometry the frame is drawn with.
+func (m model) listPane(n int) (int, bool) {
+	l := m.layout()
+	if l.wide() && n > 0 {
+		return l.w - l.panel(previewShare, previewMin, previewMax) - 1, true
+	}
+	return l.w, false
 }
 
 // statusRow is the frame's last line: what just happened (a toast or error) when there is
@@ -266,16 +276,14 @@ func (m model) screenCountLabel(si int) string {
 	return fmt.Sprintf("%d/%d", m.screenCount(si), total)
 }
 
-// topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
-// the pipeline summary on the right. Every tab keeps the same padding whether active
-// or not, so nothing moves between screens. As it narrows it sheds, in order, other
-// screens' counts, the word "rolecall", other screens' names (their digits stay) and
-// the ◆; the active screen keeps its name and count at every width.
-func (m model) topBar(p pal) string {
-	l := m.layout()
-	room := l.w - rightMargin
+// tabs is the tab bar's left side, fitted to the width, and the column each screen's
+// tab starts at, so a click reads the same geometry the bar is drawn with. The active
+// tab is bracketed where the others have spaces: marked without colour, and the same
+// width, so nothing shifts.
+func (m model) tabs(p pal) (string, []int) {
+	room := m.layout().w - rightMargin
 	on := p.activeTab()
-	build := func(level int) string {
+	build := func(level int) (string, []int) {
 		mark := " ◆ rolecall "
 		switch {
 		case level >= shedMark:
@@ -284,13 +292,15 @@ func (m model) topBar(p pal) string {
 			mark = " ◆ "
 		}
 		out := p.text(p.accent).Bold(true).Render(mark)
+		starts := make([]int, len(screenDefs))
 		for si, d := range screenDefs {
+			starts[si] = xansi.StringWidth(out) + 1
 			digit, name, count := fmt.Sprintf("%d", si+1), " "+d.name, ""
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
 			if si == m.screen {
-				out += on.Render(" " + digit + name + count + " ")
+				out += on.Render("[" + digit + name + count + "]")
 				continue
 			}
 			if level >= shedCounts {
@@ -301,12 +311,24 @@ func (m model) topBar(p pal) string {
 			}
 			out += " " + p.key().Render(digit) + p.text(p.fg).Render(name) + p.text(p.dim).Render(count) + " "
 		}
-		return out
+		return out, starts
 	}
-	out := build(0)
+	out, starts := build(0)
 	for level := shedCounts; level <= shedMark && xansi.StringWidth(out) > room; level++ {
-		out = build(level)
+		out, starts = build(level)
 	}
+	return out, starts
+}
+
+// topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
+// the pipeline summary on the right. Every tab keeps the same padding whether active
+// or not, so nothing moves between screens. As it narrows it sheds, in order, other
+// screens' counts, the word "rolecall", other screens' names (their digits stay) and
+// the ◆; the active screen keeps its name and count at every width.
+func (m model) topBar(p pal) string {
+	l := m.layout()
+	room := l.w - rightMargin
+	out, _ := m.tabs(p)
 	out = xansi.Truncate(out, room, "")
 	if !l.wide() {
 		return out
@@ -434,7 +456,7 @@ func (m model) viewRow(p pal) string {
 			lefts = append(lefts, pad+current(ts[m.table]))
 		}
 	}
-	scope := m.scopeLine(p)
+	scope := m.withChip(p, m.scopeLine(p))
 	right := func(compact bool) string {
 		var parts []string
 		for _, s := range []string{scope, m.trackSelector(p, compact)} {
@@ -466,57 +488,25 @@ func (m model) viewRow(p pal) string {
 	return contextRow(left, sel, w)
 }
 
-// scopeLine names what a filter hides, when one is on: the search text and the
-// shown-of-total count. The track is named by the track filter beside it.
+// scopeLine is the shown-of-total count when a filter is on. The search chip beside it
+// names the text and the track filter names the track.
 func (m model) scopeLine(p pal) string {
 	if !m.hasTables() || (m.track == 0 && m.text == "") {
 		return ""
 	}
-	var parts []string
-	if m.text != "" {
-		parts = append(parts, "search "+m.text)
-	}
-	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
-	return p.text(p.dim).Render(strings.Join(parts, " · "))
-}
-
-// feedbackLine is the status row when something just happened: a toast (successes clear
-// on the next key), an error (stays until esc), or a build in flight (a spinner until it
-// finishes). It never replaces the bottom rule.
-func (m model) feedbackLine(p pal, w int) string {
-	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
-	raw := false
-	switch {
-	case m.err != nil:
-		msg = m.rel(m.err.Error())
-		icon, c, hint = "✕", p.bad, "enter inspect · esc hide"
-	case m.building != nil && m.toast == "":
-		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
-	}
-	if msg == "" {
-		return ""
-	}
-	bg := lipgloss.NewStyle().Background(p.panel)
-	var left string
-	if raw {
-		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
-	} else {
-		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
-	}
-	right := ""
-	if hint != "" {
-		k, d, _ := strings.Cut(hint, " ")
-		right = bg.Foreground(p.fg).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
-	}
-	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-1), "…")
-	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
-	gap := bg.Render(strings.Repeat(" ", n))
-	return xansi.Truncate(left+gap+right, w, "")
+	return p.text(p.dim).Render(fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
 }
 
 // listBody lays out the rows with section dividers. Rows get a blank line between them
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
+	blocks, cur := m.listBlocks(p, rows, w, h)
+	return scroll(p, blocks, cur, h)
+}
+
+// listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
+// spaced when they all fit in h and dense when they do not.
+func (m model) listBlocks(p pal, rows []store.Application, w, h int) ([]block, int) {
 	show := m.columns(rows)
 	dividers := m.dividers(rows)
 	build := func(gap bool) ([]block, int, int) {
@@ -538,7 +528,7 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 			if _, next := dividers[i+1]; gap && i+1 < len(rows) && !next {
 				lines = append(lines, "")
 			}
-			blocks = append(blocks, block{lines: lines, row: true})
+			blocks = append(blocks, block{lines: lines, row: true, idx: i})
 			total += len(lines)
 		}
 		return blocks, cur, total
@@ -547,12 +537,13 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 	if total > h {
 		blocks, cur, _ = build(false)
 	}
-	return scroll(p, blocks, cur, h)
+	return blocks, cur
 }
 
 type block struct {
 	lines []string
 	row   bool // an Application, as opposed to a section divider
+	idx   int  // the row's index in the view, when row is set
 }
 
 type divider struct {
@@ -593,31 +584,7 @@ func (m model) expired(a store.Application) bool {
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
 // when rows are really hidden, and count rows, not dividers.
 func scroll(p pal, blocks []block, cur, h int) string {
-	fit := func(start int) int {
-		avail := h
-		if start > 0 {
-			avail--
-		}
-		used, end := 0, start
-		for end < len(blocks) && used+len(blocks[end].lines) <= avail {
-			used += len(blocks[end].lines)
-			end++
-		}
-		for end < len(blocks) && used+1 > avail && end > start {
-			end--
-			used -= len(blocks[end].lines)
-		}
-		return end
-	}
-	start, end := 0, fit(0)
-	for cur >= end && start < cur {
-		start++
-		end = fit(start)
-	}
-	// A section heading never sits alone above the "more" cue.
-	for end < len(blocks) && end-1 > start && !blocks[end-1].row {
-		end--
-	}
+	start, end := scrollWindow(blocks, cur, h)
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -647,6 +614,37 @@ func scroll(p pal, blocks []block, cur, h int) string {
 		out = append(out, "")
 	}
 	return strings.Join(out[:h], "\n")
+}
+
+// scrollWindow is the blocks shown in h lines with block cur in view: [start, end). A
+// "↑ n more" line takes the first line when start is past the top.
+func scrollWindow(blocks []block, cur, h int) (start, end int) {
+	fit := func(start int) int {
+		avail := h
+		if start > 0 {
+			avail--
+		}
+		used, end := 0, start
+		for end < len(blocks) && used+len(blocks[end].lines) <= avail {
+			used += len(blocks[end].lines)
+			end++
+		}
+		for end < len(blocks) && used+1 > avail && end > start {
+			end--
+			used -= len(blocks[end].lines)
+		}
+		return end
+	}
+	start, end = 0, fit(0)
+	for cur >= end && start < cur {
+		start++
+		end = fit(start)
+	}
+	// A section heading never sits alone above the "more" cue.
+	for end < len(blocks) && end-1 > start && !blocks[end-1].row {
+		end--
+	}
+	return start, end
 }
 
 // slotSet says which right-hand columns the current view shows.
@@ -734,8 +732,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		titleC, dimC = p.accent, p.sub
 	}
 	if a.Malformed != nil {
-		return []string{line.Render(bar + st(p.bad).Bold(true).Render("⚠ "+filepath.Base(a.Folder))),
-			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.rel(a.Malformed.Error()), w-ellipsis-statusMarkWidth, "…")))}
+		return []string{line.Render(bar + st(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
+			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))}
 	}
 	state, flag, fit := m.slotText(a)
 	stateC := p.stateColor(a, dimC)
@@ -762,7 +760,11 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis-statusMarkWidth), "…"))
 	gap := st(p.fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
-	return []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.fg).Render("  ")+meta, w, "…"))}
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.fg).Render("  ")+meta, w, "…"))}
+	if m.flash != "" && a.Folder == m.flash {
+		lines = p.flashRow(lines, w)
+	}
+	return lines
 }
 
 // meta is a row's second line: company, track, and the dates that matter for its table.
@@ -845,7 +847,8 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 	}
 	var b strings.Builder
 	if a.Malformed != nil {
-		b.WriteString(p.text(p.bad).Bold(true).Render("⚠ malformed meta.yml") + "\n\n" + wrap(m.rel(a.Malformed.Error()), p.dim, errorLines))
+		b.WriteString(p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.fg, errorLines) +
+			"\n\n" + p.text(p.accent).Render("e") + p.text(p.dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
 		label, c := p.docsLabel(a)
@@ -870,7 +873,6 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		} else {
 			b.WriteString(p.text(p.dim).Render("No notes · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
 		}
-		b.WriteString("\n\n" + p.text(p.dim).Render("? all keys"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }

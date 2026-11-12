@@ -28,7 +28,7 @@ var snapshotStates = []struct {
 	{"10-help", []string{"?"}, nil},
 	{"11-search-typing", []string{"/", "p", "l"}, nil},
 	{"12-search-no-match", []string{"/", "z", "z", "q", "enter"}, nil},
-	{"13-error", []string{"G", "e"}, nil},
+	{"13-error", []string{"G", "m", "d"}, nil},
 	{"14-track-cycled", []string{"1", "t"}, nil},
 	{"15-stats", []string{"4"}, nil},
 	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "right", "right"}, nil},
@@ -49,6 +49,10 @@ var snapshotStates = []struct {
 	{"31-light-profile", []string{"5"}, map[string]string{"ROLECALL_THEME": "light"}},
 	{"32-ascii-applied-all", []string{"3"}, map[string]string{"ROLECALL_ASCII": "1"}},
 	{"33-no-color-applied-all", []string{"3"}, map[string]string{"NO_COLOR": "1"}},
+	{"34-toast-after-move", []string{"3", "m", "i"}, nil},
+	{"35-command-palette", []string{"1", ":", "mo"}, nil},
+	{"36-search-chip-detail", []string{"3", "/docs-written", "enter", "enter"}, nil},
+	{"37-error-fix-hint", []string{"G", "enter", "m", "d"}, nil},
 }
 
 // sizedSnapshotStates are states that only exist at one size, written at that size
@@ -58,9 +62,9 @@ var sizedSnapshotStates = []struct {
 	w, h int
 	keys []string
 }{
-	{"34-too-small", 48, 12, []string{"1"}},
-	{"35-detail-strip", 80, 24, []string{"3", "enter"}},
-	{"36-detail-strip-lead", 60, 16, []string{"1", "j", "enter"}},
+	{"38-too-small", 48, 12, []string{"1"}},
+	{"39-detail-strip", 80, 24, []string{"3", "enter"}},
+	{"40-detail-strip-lead", 60, 16, []string{"1", "j", "enter"}},
 }
 
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to

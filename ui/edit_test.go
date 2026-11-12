@@ -59,6 +59,7 @@ func TestEditPatchesOnlyChangedKeyAndKeepsConcurrentWrites(t *testing.T) {
 	}
 	h.tm.Type(" Two")
 	h.saveForm(7)
+	h.wait("Saved · Engineer #1 Two")
 	h.quit()
 
 	want := strings.Replace(strings.Replace(before, "fit: Good", "fit: Poor", 1),
@@ -133,33 +134,6 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	}
 	if plain := ansi.Strip(view); !strings.Contains(plain, "✓ ready") || strings.Contains(plain, "○ written") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
-	}
-}
-
-func TestEditMalformedShowsStoreErrorAndWritesNothing(t *testing.T) {
-	h := newAddHarness(t)
-	apps, err := h.store.Scan()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var want string
-	for _, a := range apps {
-		if a.Malformed != nil && strings.HasSuffix(a.Folder, "/malformed") {
-			want = strings.TrimPrefix(a.Malformed.Error(), h.root+string(filepath.Separator)) // shown relative to the Workspace
-		}
-	}
-	if want == "" {
-		t.Fatal("fixture has no malformed Application")
-	}
-	before := h.snapshot()
-	h.tm.Type("G") // the malformed row sorts last on Leads
-	h.tm.Type("e")
-	view := h.quit()
-	if !strings.Contains(ansi.Strip(view), want) || strings.Contains(view, "Resume only") {
-		t.Fatalf("want store error %q and no form:\n%s", want, view)
-	}
-	if !sameSnapshot(before, h.snapshot()) {
-		t.Fatal("refused edit wrote to the Workspace")
 	}
 }
 

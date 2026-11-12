@@ -306,6 +306,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	if a.Malformed != nil {
+		if pe, ok := parseError(a.Malformed); ok && key == "e" {
+			return m, m.editAt(pe), true
+		}
 		return m, nil, true
 	}
 	if d.tab == tabDocs {
@@ -384,7 +387,7 @@ func (m model) detailView(p pal) string {
 	when := ""
 	switch r, days := ago(a.Closes, m.now()); {
 	case a.Malformed != nil:
-		title = pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+filepath.Join(a.Folder, "meta.yml"))
+		title = pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case a.Closes != "" && beforeApplied(tableOf(a)):
 		c := p.dim
 		if days == 0 {
@@ -406,6 +409,7 @@ func (m model) detailView(p pal) string {
 			when = p.text(p.dim).Render("applied " + exact + m.agoEntry(a.AppliedDate))
 		}
 	}
+	when = m.withChip(p, when)
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
 	// Beside the card, the facts line: Status · Track · close date. Without the card, the
@@ -424,10 +428,9 @@ func (m model) detailView(p pal) string {
 		for i := 1; i < len(ctx); i++ {
 			ctx[i] = ""
 		}
-		path := filepath.Join(a.Folder, "meta.yml")
-		// The error repeats the path; the line above already shows it in full.
-		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
-		pane = p.text(p.fg).Render(path) + "\n\n" + p.text(p.bad).Render(msg)
+		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
+		pane = p.text(p.fg).Render(m.malformedReason(a)) + "\n\n" + p.text(p.dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
+			"\n\n" + p.key().Render("e") + p.text(p.dim).Render(" fix in editor")
 	} else {
 		// The tab names sit one cell in from their brackets; the content lines up with them.
 		content := strings.Split(m.detailContent(p, a, paneW), "\n")

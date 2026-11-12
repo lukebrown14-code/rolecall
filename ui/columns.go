@@ -39,7 +39,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	docs := ""
 	switch strings.ToLower(a.Documents) {
 	case "ready":
-		docs = "●"
+		docs = "✓"
 	case "written":
 		docs = "○"
 	}

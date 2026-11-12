@@ -67,7 +67,7 @@ func TestMalformedMovePreservesBytes(t *testing.T) {
 	tm.Type("Gm")
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Move")) })
 	tm.Type("d")
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("/malformed/meta.y")) })
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Can't read SWE/malformed")) })
 	tm.Type("q")
 	io.ReadAll(tm.FinalOutput(t, teatest.WithFinalTimeout(3*time.Second)))
 	after, err := os.ReadFile(path)

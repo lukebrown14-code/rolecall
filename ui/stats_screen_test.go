@@ -28,7 +28,7 @@ func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
 
 func TestStatsHelpBarOnlyListsValidKeys(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "?"))
-	for _, want := range []string{"add", "rescan", "quit", "cycle track", "1-6", "screen"} {
+	for _, want := range []string{"add", "rescan", "quit", "next track", "1-6", "screen"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
 		}

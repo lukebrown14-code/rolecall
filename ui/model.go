@@ -32,6 +32,9 @@ type model struct {
 	undo                  []undoMove
 	toast                 string // feedback line: what just happened (cleared on the next key)
 	toastHint             string // key hint shown with it, e.g. "u undo"
+	flash                 string // folder of the row just moved, lit until flashID's tick
+	flashID               int
+	tick                  Ticker
 	err                   error
 	width                 int
 	followUpDays          int
@@ -174,11 +177,14 @@ func (m model) totalCount(screen int, table string) int {
 	return n
 }
 func (m model) matches(a store.Application) bool {
-	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
+	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
+	}
+	if next, cmd, ok := m.mouse(msg); ok {
+		return next, cmd
 	}
 	if batch, ok := msg.(foldersChanged); ok {
 		return m.refresh(batch.folders), m.watch.next()
@@ -247,12 +253,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		return m, cmd
 	}
+	if done, ok := msg.(flashDone); ok {
+		if done.id == m.flashID {
+			m.flash = ""
+		}
+		return m, nil
+	}
+	var flash tea.Cmd // a move lights its row until this fires
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if m.settingsEditing() {
 			return m.settingsEditKey(k) // typing owns every key, digits and esc included
 		}
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
+			return m, nil
+		}
+		if pe, ok := parseError(m.err); ok && k.String() == "e" {
+			// The error on show names a meta.yml the store cannot read: e opens it there.
+			m.err = nil
+			return m, m.editAt(pe)
+		}
+		if k.String() == ":" || k.String() == "ctrl+k" {
+			// The command palette lists what the keys underneath it would do.
+			m.overlay = m.openPalette()
 			return m, nil
 		}
 		if k.String() == "," && m.screen != settingsScreen {
@@ -282,14 +305,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "x":
 			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
-				m.move(a, store.StatusDismissed, false)
+				flash = m.move(a, store.StatusDismissed, false)
 			}
 		case "u":
 			if len(m.undo) > 0 {
 				last := m.undo[len(m.undo)-1]
 				for _, a := range m.apps {
 					if a.Folder == last.folder {
-						m.move(a, last.status, true)
+						flash = m.move(a, last.status, true)
 						if m.err == nil {
 							m.undo = m.undo[:len(m.undo)-1]
 						}
@@ -310,11 +333,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a, ok := m.current(); ok {
 				return m, m.openEdit(a)
 			}
-		case "t":
-			if len(m.tracks) > 0 {
-				m.track = (m.track + 1) % (len(m.tracks) + 1)
-				m.cursor = 0
-			}
+		case "t", "T":
+			m.cycleTrack(k.String() == "T")
 		case "/":
 			m.overlay = &searchMode{}
 		case "esc":
@@ -322,10 +342,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "q", "ctrl+c":
 			return m, m.quit()
-		case "tab":
+		case "right", "tab":
+			// ←→ switch views; tab does too here, as a table screen has only one pane.
 			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
-		case "shift+tab":
+		case "left", "shift+tab":
 			m.table = (m.table + len(m.views()) - 1) % len(m.views())
 			m.cursor = 0
 		case "down", "j":
@@ -359,7 +380,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.cursor < 0 {
 		m.cursor = 0
 	}
-	return m, nil
+	return m, flash
+}
+
+// cycleTrack moves the track filter to the next track, or the previous one: All, then
+// each workspace.json track in order.
+func (m *model) cycleTrack(back bool) {
+	if len(m.tracks) == 0 {
+		return
+	}
+	n := len(m.tracks) + 1
+	step := 1
+	if back {
+		step = n - 1
+	}
+	m.track = (m.track + step) % n
+	m.cursor = 0
 }
 
 // cursorFolder is the folder of the row under the cursor, or "" when the table is empty.

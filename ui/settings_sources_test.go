@@ -220,11 +220,11 @@ func TestSettingsEditKeepsOldValuesAndShowsErrorOnInvalidTOML(t *testing.T) {
 	})
 	h.machine()
 	h.d.Type("e")
-	if v := squash(h.d.plain()); !strings.Contains(v, "Editor nvim (config.toml)") || !strings.Contains(v, "✕") {
+	if v := squash(h.d.plain()); !strings.Contains(v, "Editor nvim (config.toml)") || !strings.Contains(v, "⚠") {
 		t.Fatalf("old values and error not shown:\n%s", h.d.plain())
 	}
 	h.d.Type("e") // fixing it clears the error
-	if v := h.d.plain(); strings.Contains(v, "✕") || !strings.Contains(squash(v), "Editor hx (config.toml)") {
+	if v := h.d.plain(); strings.Contains(v, "⚠") || !strings.Contains(squash(v), "Editor hx (config.toml)") {
 		t.Fatalf("error not cleared by a good reload:\n%s", v)
 	}
 }

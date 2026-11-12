@@ -1,4 +1,4 @@
- ◆ rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live · 1 due
+ ◆ rolecall [1 Leads 4] 2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live · 1 due
 
    ◌ [Leads 4]    ⊘ Dismissed 2                                                                 t  [All]  SWE  Platform
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
@@ -11,12 +11,12 @@
    ◌ Platform Engineer                                        —  │ TIMELINE                                             
      Fern Systems · Platform · no close date                     │                                                      
                                                                  │ FIT                                                  
-   ⚠ malformed                                                   │ No fit.md yet                                        
-     jobs/SWE/malformed/meta.yml:4: invalid status_log entry …   │                                                      
+   ⚠ Can't read SWE/malformed                                    │ No fit.md yet                                        
+     meta.yml line 4: indented lines must be status_log entri…   │                                                      
                                                                  │ NOTES                                                
                                                                  │ No notes · n to add                                  
                                                                  │                                                      
-                                                                 │ ? all keys                                           
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · a add · / search               1-6 screen · tab view · ? all keys
+ enter open · e edit · m move · x dismiss · n notes · a add · / search       ←→ view · 1-6 screen · : commands · ? help

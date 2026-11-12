@@ -21,10 +21,6 @@ type mode interface {
 	boxed() bool
 }
 
-// overlayOpen reports whether a mode that hides the view's keys owns the keyboard. The
-// help pop-up is excluded: it lists paging controls, so it lists the view's keys.
-func (m model) overlayOpen() bool { return m.overlay != nil && !m.helpOpen() }
-
 func (m model) helpOpen() bool {
 	_, ok := m.overlay.(*helpMode)
 	return ok
@@ -33,17 +29,6 @@ func (m model) helpOpen() bool {
 func (m model) searching() bool {
 	_, ok := m.overlay.(*searchMode)
 	return ok
-}
-
-// boxOpen reports whether a pop-up whose bottom border carries its own keys is open.
-func (m model) boxOpen() bool { return m.overlay != nil && m.overlay.boxed() }
-
-// overlayHints are the active mode's keys, or nil when none is open.
-func (m model) overlayHints() [][2]string {
-	if m.overlay == nil {
-		return nil
-	}
-	return m.overlay.Keys()
 }
 
 // overlayView is the active mode's box, or "" when none is open.
@@ -180,8 +165,7 @@ func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	}
 	switch k.String() {
 	case "y":
-		m.move(cm.app, cm.status, false)
-		return nil, nil
+		return nil, m.move(cm.app, cm.status, false)
 	case "n", "esc":
 		return nil, nil
 	}
@@ -258,12 +242,12 @@ func (bf *buildFailMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return bf, nil
 }
 
-// helpMode pages the help; other keys close it.
-type helpMode struct{ page int }
+// helpMode pages the help; other keys close it. pages is set as it is drawn.
+type helpMode struct{ page, pages int }
 
-func (hm *helpMode) Keys() [][2]string { return [][2]string{{"↑↓", "page"}, {"esc", hintClose}} }
+func (hm *helpMode) Keys() [][2]string { return helpModeKeys(hm.pages) }
 
-func (hm *helpMode) boxed() bool { return false }
+func (hm *helpMode) boxed() bool { return true }
 
 func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
 
@@ -271,7 +255,7 @@ func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case "down", "j", "pgdown":
-			hm.page++
+			hm.page = min(hm.page+1, max(0, hm.pages-1))
 		case "up", "k", "pgup":
 			hm.page = max(0, hm.page-1)
 		default:

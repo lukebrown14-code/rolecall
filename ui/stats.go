@@ -279,13 +279,14 @@ func (m model) statsApps() []store.Application {
 	return out
 }
 
-// statsHelpKeys is the keys Stats accepts: add and screens, track, help, rescan, quit.
+// statsHelpKeys is the keys only Stats accepts: add. The track filter and the rest are
+// global keys.
 func (m model) statsHelpKeys() []helpKey {
-	keys := []helpKey{help(groupAction, "a", "add"), help(groupNav, "1-6", "screen")}
-	if len(m.tracks) > 0 {
-		keys = append(keys, help(groupMore, "t", "cycle track"))
+	keys := []helpKey{help(groupAction, "a", "add").at(prioCore)}
+	if m.err != nil {
+		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
 	}
-	return append(keys, help(groupNav, "?", "all keys"), help(groupMore, ",", "settings"), help(groupMore, "r", "rescan"), help(groupMore, "q", "quit"))
+	return keys
 }
 
 // statsKey handles the keys Stats accepts. Tab and row keys are inert there.
@@ -293,19 +294,14 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "a":
 		return m, m.openAdd()
-	case "t":
-		if len(m.tracks) > 0 {
-			m.track = (m.track + 1) % (len(m.tracks) + 1)
-			m.cursor = 0
-		}
+	case "t", "T":
+		m.cycleTrack(k.String() == "T")
 	case "r":
 		m.rescanAll()
 	case "?":
 		m.overlay = &helpMode{}
 	case "esc":
-		if m.err != nil {
-			m.err = nil
-		}
+		m.text = "" // an error is cleared before the screen sees esc
 	case "q":
 		return m, m.quit()
 	}

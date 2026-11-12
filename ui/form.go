@@ -226,7 +226,7 @@ func (m model) formBox(p pal, fm *formMode, width int) string {
 			if fld.value == "" {
 				rows[i] = mark + p.text(p.bad).Render(fld.label+": "+fld.err)
 			} else {
-				rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("✕ "+fld.err)
+				rows[i] += "\n" + strings.Repeat(" ", formChrome-1+formLabelWidth) + p.text(p.bad).Render("⚠ "+fld.err)
 			}
 		}
 		if fld.label == fieldURL {
@@ -237,7 +237,7 @@ func (m model) formBox(p pal, fm *formMode, width int) string {
 				rows[i] += "\n" + indent + p.text(p.warn).Render("⚠ "+s)
 			}
 			if f.fetchErr != "" {
-				rows[i] += "\n" + indent + p.text(p.bad).Render("✕ "+f.fetchErr)
+				rows[i] += "\n" + indent + p.text(p.bad).Render("⚠ "+f.fetchErr)
 			}
 		}
 	}

@@ -1,4 +1,4 @@
- * rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats  5 Profile  6 Settings                          10 live . 1 due
+ * rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats [5 Profile] 6 Settings                          10 live . 1 due
 
    SECTIONS                                                                                   profile/master-profile.md
 -------------------------------+----------------------------------------------------------------------------------------
@@ -33,4 +33,4 @@
                                |                                                                                        
                                |                                                                                        
 -------------------------------+----------------------------------------------------------------------------------------
- j k section . e edit file                                                          tab focus . 1-6 screen . ? all keys
+ e edit file                                                 j k section . tab focus . 1-6 screen . : commands . ? help
