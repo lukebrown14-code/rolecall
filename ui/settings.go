@@ -26,9 +26,13 @@ func (sm *settingsMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 
 // editorLine is the Editor setting: the effective command and where it came from.
 func (m model) editorLine() string {
-	line := ResolveEditor(m.editor)
+	editor := ResolveEditor(m.editor)
+	line := editor
 	if m.editorSource != "" {
 		line += " (" + m.editorSource + ")"
+	}
+	if !EditorOnPath(editor) {
+		line += " (not found on PATH)"
 	}
 	return line
 }

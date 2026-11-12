@@ -35,6 +35,58 @@ func ResolveEditor(configured string) string {
 	return "vi"
 }
 
+// EditorOnPath reports whether the executable of an Editor command can be found: the
+// first word, with surrounding quotes honored, looked up on PATH (or used directly
+// when it contains a slash). Flags and later arguments are not checked. It is shared
+// with `rolecall doctor`.
+func EditorOnPath(command string) bool {
+	exe := firstWord(command)
+	if exe == "" {
+		return false
+	}
+	_, err := exec.LookPath(exe)
+	return err == nil
+}
+
+// firstWord returns the first shell word of command, unquoting '...' and "..." and
+// treating a backslash as escaping the next character outside single quotes.
+func firstWord(command string) string {
+	var w []rune
+	var quote rune
+	started := false
+	rs := []rune(command)
+	for i := 0; i < len(rs); i++ {
+		c := rs[i]
+		switch {
+		case quote == '\'':
+			if c == '\'' {
+				quote = 0
+			} else {
+				w = append(w, c)
+			}
+		case c == '\\' && i+1 < len(rs):
+			i++
+			w = append(w, rs[i])
+		case quote == '"':
+			if c == '"' {
+				quote = 0
+			} else {
+				w = append(w, c)
+			}
+		case c == '\'' || c == '"':
+			quote, started = c, true
+		case c == ' ' || c == '\t':
+			if started || len(w) > 0 {
+				return string(w)
+			}
+		default:
+			w = append(w, c)
+			started = true
+		}
+	}
+	return string(w)
+}
+
 type externalFinished struct {
 	folder string
 	err    error
