@@ -1,7 +1,7 @@
 """The Python meta writers mirror the Go store: patch, append-status, create.
 
 Tests drive the script as a subprocess and compare bytes with the shared Go
-goldens in ``store/testdata/patch``. Reading the goldens from their Go home
+goldens in ``internal/store/tests/testdata/patch``. Reading the goldens from their Go home
 means the two implementations cannot drift apart silently.
 """
 
@@ -15,7 +15,7 @@ from conftest import copy_fixture_workspace, run_script
 ROOT = Path(__file__).resolve().parents[2]
 META = ROOT / "plugin" / "scripts" / "meta.py"
 FIXTURE = ROOT / "fixtures" / "workspace"
-PATCH = ROOT / "store" / "testdata" / "patch"
+PATCH = ROOT / "internal" / "store" / "tests" / "testdata" / "patch"
 
 VALUES = {
     "schema": "1",

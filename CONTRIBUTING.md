@@ -17,7 +17,7 @@ Install Go (the version is declared in `go.mod`) and Python 3, then run:
 scripts/check-go.sh              # gofmt, architecture rules, go vet, golangci-lint if installed
 python3 scripts/check-skills.py  # skill dependencies in .agents/skills
 go test -race ./...
-go test -race -count=3 ./ui      # the UI tests run three times to catch flakiness
+go test -race -count=3 ./internal/ui/...      # the UI tests run three times to catch flakiness
 ruff check plugin                # Python plugin lint (needs: python3 -m pip install ruff pytest)
 python3 -m pytest plugin/tests
 ```
@@ -63,10 +63,22 @@ Error messages show paths but never file contents, so please keep that true in n
 - [GLOSSARY.md](GLOSSARY.md) defines the project's terms. Use them in code, issues and docs.
 - Architecture decisions live in [docs/adr/](docs/adr/). Read the relevant ADR before
   changing a rule it sets, and propose a new ADR for a decision that changes one.
-- Only `store` reads or writes Workspace files. Only `ui/external.go` launches processes.
-  All colours live in `ui/styles.go`. The check script enforces the last two.
+- Only `store` reads or writes Workspace files. Only `internal/process/process.go` launches processes.
+  Colours live in `internal/ui/theme/theme.go`; UI-specific styling lives in `internal/ui/styles.go`. The check script enforces the last two.
 
 ## Licence
 
 rolecall is released under the MIT licence (see [LICENSE](LICENSE)). By contributing, you agree
 that your contribution is released under the same licence.
+
+## Source layout
+
+`cmd/rolecall/` contains the command-line entry point. Application packages live under
+`internal/`: `config`, `doctor`, `process`, `reporting`, `store`, and `ui`. Go prevents
+other repositories from importing these packages. `plugin/` contains the Harness plugin,
+`fixtures/` holds shared fictional Workspaces, and `scripts/` contains development checks.
+
+See [the UI guide](internal/ui/README.md) for screen and presentation responsibilities.
+Public-interface tests live in each package's `tests/` directory. Tests of private model
+state remain beside their implementation. Use recursive package paths (`./internal/ui/...`)
+to include both the implementation packages and their tests.

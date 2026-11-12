@@ -30,7 +30,7 @@ jobs:
         with:
           version: v2.15.0
       - run: scripts/check-go.sh
-      - run: go test -race -count=3 ./ui
+      - run: go test -race -count=3 ./internal/ui/...
       - run: go test -race ./...
 
   python:

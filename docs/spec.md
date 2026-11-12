@@ -34,9 +34,9 @@ each other directly: files are the only link.
 ```
 rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)        
 ├─ cmd/rolecall/main.go                       ├─ workspace.json
-├─ store/   meta.yml read/patch, scan         ├─ profile/   (+ writing-preferences.md)
-├─ ui/      Bubble Tea models, views          ├─ cv/
-├─ config/                                    └─ jobs/<track>/<slug>/
+├─ internal/store/   meta.yml read/patch, scan         ├─ profile/   (+ writing-preferences.md)
+├─ internal/ui/      Bubble Tea models, views          ├─ cv/
+├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
 │  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents
@@ -141,7 +141,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `b`: see [v0.2](#v02-harness-and-extras).
 - The bottom help bar shows only the keys valid for the current row (e.g. `d` hidden when nothing is built).
-- **One keymap:** each screen, focus and pop-up declares its keys with a priority (`ui/help.go`). The key line,
+- **One keymap:** each screen, focus and pop-up declares its keys with a priority (`internal/ui/help.go`). The key line,
   the `?` pop-up and the command palette all read it, so a key is declared once. While a pop-up is open the key
   line shows the pop-up's keys.
 - **Mouse:** click a screen tab, a view or a row; the wheel scrolls whatever `↑↓` moves; click the search
@@ -245,13 +245,14 @@ patch, write atomically. It refuses to touch malformed files and shows the error
 ### Styling policy for v0.1
 
 Layout only. Use terminal default colours, plus bold for headers and reverse video for the
-selected row. Put every Lip Gloss style in one file (`ui/styles.go`) as neutral
+selected row. Keep shared colour roles in `internal/ui/theme/` and UI-specific styles in
+`internal/ui/styles.go` as neutral
 styles, so v0.1.1 changes look by editing that file alone.
 
 ### v0.1.1 look (built)
 
 Settled with a throwaway prototype (branch `prototype/v011-styling`) and two rounds of
-context-free review. Every colour and style is in `ui/styles.go`.
+context-free review. Shared colours and terminal appearance live in `internal/ui/theme/`; UI-specific styles live in `internal/ui/styles.go`.
 
 - **Theme:** colours are named by role (text, muted, faint, rule, accent, ok, info, warn,
   danger, one per Status), each with a dark and a light value. The theme follows the
@@ -284,7 +285,7 @@ context-free review. Every colour and style is in `ui/styles.go`.
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
   `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
   detail card add a meter, `▰▰▱▱ 2 of 4 ready` (GLOSSARY avoids "built").
-- **Size classes (`ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
+- **Size classes (`internal/ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a
   minimum and a maximum. Content starts at column 3 (markers and the selection bar at
@@ -570,7 +571,7 @@ Acceptance:
 4. Enter on `resume.md` in Docs opens Resume; empty and absent documents show `(empty)` and `not written` where appropriate.
 5. Resume only Applications show no Letter tab and show `not needed · Resume only` in the card and Docs.
 6. Tabs fit at 80 columns and readers work with `harness` and `plugin` unset.
-7. `scripts/check-go.sh` and `go test -race -count=3 ./ui` pass.
+7. `scripts/check-go.sh` and `go test -race -count=3 ./internal/ui` pass.
 
 These are readers; preview continues to mean the side pane beside the tables.
 Documents state rules, Build and the Plugin are unchanged.
