@@ -86,7 +86,7 @@ If there is no workspace, rolecall exits with a one-line message naming the conf
 | Key | Screen | Tables (`Tab` cycles) | Holds Status |
 |---|---|---|---|
 | `1` | Leads | **Leads** │ **Dismissed** | Lead │ Dismissed |
-| `2` | Draft | — | Draft |
+| `2` | Drafts | — | Draft |
 | `3` | Applied | **All** │ **Applied** │ **Interviewing** │ **Offer** │ **Closed** | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
 | `4` | Stats (v0.2) | — | — |
 
@@ -131,6 +131,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `x` | row (unsent) | Dismiss. Same as Move → Dismissed |
 | `d` | row | Download |
 | `t` / `T` | global | next / previous track filter: All → each `workspace.json` track |
+| `s` | Leads | sort by close date, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `/` | table | text filter on Title + Company. `Esc` clears it |
 | `r` | global | rescan the workspace |
 | `,` | global | open Settings (screen 6); `Esc` returns |
@@ -276,9 +277,13 @@ context-free review. Every colour and style is in `ui/styles.go`.
   timeline and the Move pop-up. A timeline shows each Status by its own glyph: the
   current one in its colour and bold, earlier ones faint. When two panes share the
   frame, the focused pane's part of the top rule is the accent.
-- **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
-  within 7 days orange, expired dimmed. `⚑ quiet` orange. Documents read `✓ ready` ·
-  `○ written` · `not written` (SCHEMA Ready and Written; GLOSSARY avoids "built").
+- **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Close dates by
+  urgency: `closes in 6d` amber within 7 days, `closes in 2d ▲` red and bold within 2 (and
+  today), `closed 3 Sep` struck through and muted once past — in rows, the preview and the
+  detail view. `⚑ quiet` orange. Documents are named JD · Resume ·
+  Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
+  `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
+  detail card add a meter, `▰▰▱▱ 2 of 4 ready` (GLOSSARY avoids "built").
 - **Size classes (`ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a
@@ -305,14 +310,35 @@ context-free review. Every colour and style is in `ui/styles.go`.
   Software Engineer   u undo`), and a moved row is lit for 600 ms so the eye can follow it.
   A toast (successes clear on the next key) or an error (stays until `Esc`)
   shows on the status row; it never replaces the bottom rule. Paths read relative to the
-  Workspace.
+  Workspace. A move to Offer celebrates once, in gold: `★ OFFER · Orbit Labs ★  12
+  applied · 41 days · first offer`; a rejection stays quiet.
+- **Agent writing:** when the file watcher sees a document's file written (`jd.md`,
+  `resume.md`, `cover-letter.md`, a PDF in `out/`), its chip reads `⠹ Resume writing…`
+  for 4 s after the last write, beside the `1 of 4 ready` meter. That is all the TUI can
+  honestly see of a Harness working in another terminal; a Handoff run hands the terminal
+  over, so nothing is drawn during it.
+- **First run:** a Workspace with no Applications shows a centred welcome instead of
+  empty panes: `▞ rolecall · no Applications yet`, then `a` add your first Lead, `6` pick
+  an Editor, `?` see every key. The wordmark's `▞` (ASCII `#`) is no Status's glyph.
 - **Search:** while a text filter is on, a chip (`/pl ×`) shows on every screen, beside the detail title too;
   `Esc` clears it. While typing, the search input is on the status row; after `Enter` the scope
   line shows the chip and the count.
 - **Rows:** two lines (title + right-hand columns, then company · track · dates). A blank
   line between rows when they all fit; dense when they don't. Right-hand columns are
-  state · flag · Fit, Fit flush right; a column empty for the whole view is hidden.
-  Expired Leads and Drafts sort last under an **Expired** section.
+  state · flag · Fit, Fit flush right and labelled (`fit Good`, `fit —`); a column empty
+  for the whole view is hidden. No close date is a muted `—`. Dates older than about three
+  months read as the month (`applied Jan 2025`), not `21mo ago`. Expired Leads and Drafts
+  sort last under an **Expired** section. Titles that would not read as a name (a bare
+  slug, an empty title) are quoted in toasts and the detail breadcrumb.
+- **Next step:** the preview, the detail card (or, without it, the line under the detail
+  tabs) say what to do next and the key that does it, worked out from Status and
+  documents: `NEXT  add the JD   enter open`, `NEXT  follow up · quiet 9mo   n note`,
+  `NEXT  decide on the offer   m move`. A key is offered only where it works here (`f` and
+  `p` with a Harness, `b` with a Plugin).
+- **Timeline:** one track of Status glyphs everywhere — the preview, the detail strip, and
+  the detail card, where it flows onto more lines. An empty log reads `Not moved yet · m
+  to move`. Empty tabs say what fills them (`No JD saved · e to open jd.md`, `No fit
+  assessment yet`); a Fit without reasoning saved says so (`Good · no reasoning saved`).
 - **Pop-ups:** one template — title in the top border, keys in the bottom border, solid
   fill, amber border and ⚠ for warnings. A pop-up is at least as wide as its key hints, so
   no key is cut, and is centred on the full width between the rules: it never covers the

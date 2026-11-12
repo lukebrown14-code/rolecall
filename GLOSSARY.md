@@ -96,8 +96,12 @@ _Avoid_: score, match
 The resume tailored for one Application, written from the Profile. It is one of the Application's documents, beside the cover letter.
 The Owner may call their general, untailored resume a CV.
 
+**Document**:
+One of an Application's JD, Resume, Cover letter, Gaps and PDF, always called by that name. A document is ready (its file has text; the PDF once the build has made every PDF the Application needs) or missing; an empty file is missing. Its file name (resume.md) shows only where it is opened, muted.
+_Avoid_: letter, cover, present, absent, written, empty (as a document's state) (for these)
+
 **Written**:
-The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.
+The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists. The TUI does not show the word: it counts ready documents instead, "○ 2/4 ready".
 _Avoid_: done
 
 **Template**:

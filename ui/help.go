@@ -211,6 +211,13 @@ func (m model) contextKeys() []helpKey {
 		return append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
 	}
+	if m.views()[m.table] == tableLeads {
+		sort := "sort newest"
+		if m.leadsNewest {
+			sort = "sort by close date"
+		}
+		keys = append(keys, help(groupAction, "s", sort).at(prioMinor))
+	}
 	keys = append(keys, help(groupAction, "a", "add").at(prioCore), help(groupAction, "/", "search").at(prioCore))
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view"))
@@ -360,8 +367,9 @@ func glyphLegend(p pal, followUpDays int) string {
 		row("Statuses", line(open)) + "\n" +
 		row("", line(closed)) + "\n" +
 		row("Timeline", current, earlier, dim("~ approximate date")) + "\n" +
-		row("Docs", dim("✓ ready"), dim("○ missing or not ready")) + "\n" +
-		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("⚑ quiet %d+ days", followUpDays))) + "\n" +
+		row("Docs", dim("✓ ready"), dim("○ missing"), dim(meterOn+meterOff+" N of M ready")) + "\n" +
+		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
+		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("⚑ quiet %d+ days", followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
 		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor+" · — not assessed"))
 }
 

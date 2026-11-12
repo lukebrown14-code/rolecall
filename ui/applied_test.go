@@ -44,7 +44,7 @@ func appliedSession(t *testing.T, root string) (tm *driver, wait func(string)) {
 		}
 	}
 	tm.Type("2")
-	wait("Draft 1")
+	wait("Drafts 1")
 	return tm, wait
 }
 

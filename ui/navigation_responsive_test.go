@@ -51,7 +51,7 @@ func TestTabBarDoesNotMoveBetweenScreens(t *testing.T) {
 			line := strings.Split(ansi.Strip(runKeysSized(t, root, size[0], size[1], screen)), "\n")[0]
 			var at []int
 			for _, digit := range []string{"1 ", "2 ", "3 ", "4 ", "5 ", "6 "} {
-				at = append(at, strings.Index(line, digit+map[string]string{"1 ": "Leads", "2 ": "Draft", "3 ": "Applied", "4 ": "Stats", "5 ": "Profile", "6 ": "Settings"}[digit]))
+				at = append(at, strings.Index(line, digit+map[string]string{"1 ": "Leads", "2 ": "Drafts", "3 ": "Applied", "4 ": "Stats", "5 ": "Profile", "6 ": "Settings"}[digit]))
 			}
 			if want == nil {
 				want = at
@@ -82,7 +82,7 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 	if wide := top(120, 36); !strings.Contains(wide, "10 live · 1 due") {
 		t.Errorf("wide tab bar lacks the pulse: %q", wide)
 	}
-	if medium := top(80, 24); strings.Contains(medium, "live") || !strings.Contains(medium, "◆ rolecall") {
+	if medium := top(80, 24); strings.Contains(medium, "live") || !strings.Contains(medium, "▞ rolecall") {
 		t.Errorf("medium tab bar: %q, want the wordmark and no pulse", medium)
 	}
 	if narrow := top(60, 16); strings.Contains(narrow, "rolecall") || !strings.Contains(narrow, "1 Leads 4") {

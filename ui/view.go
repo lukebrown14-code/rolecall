@@ -28,10 +28,11 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedCounts     = 1 // topBar detail levels: drop other screens' counts…
-	shedWordmark   = 2 // …then the word "rolecall"…
-	shedNames      = 3 // …then other screens' names, keeping their digits…
-	shedMark       = 4 // …then the ◆
+	shedEdge       = 1 // topBar detail levels: drop the space before the wordmark…
+	shedCounts     = 2 // …then other screens' counts…
+	shedWordmark   = 3 // …then the word "rolecall"…
+	shedNames      = 4 // …then other screens' names, keeping their digits…
+	shedMark       = 5 // …then the wordmark's mark
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -42,9 +43,10 @@ const (
 // Right-hand columns, identical on every view: state · flag · Fit, Fit flush right.
 // A column empty for every row of the current view is hidden.
 const (
-	slotState = 11 // "✓ ready", "not written", "rejected", "withdrawn"
+	slotState = 11 // "✓ ready", "○ 2/4 ready", "rejected", "withdrawn"
 	slotFlag  = 12 // "⚑ quiet 11mo"
-	slotFit   = 8  // "Marginal"
+	slotFit   = 12 // "fit Marginal"
+	fitLabel  = "fit "
 )
 
 func (m model) viewWidth() int {
@@ -75,30 +77,34 @@ func joinColumns(cols []string, w int, side bool) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, styled...)
 }
 
-// ago renders a date relative to today: "today", "in 4d", "3d ago", "2w ago", "2mo ago".
+// ago renders a date relative to today: "today", "in 4d", "3d ago", "2w ago", "2mo ago",
+// and past about three months the month itself, "Jan 2025", which reads better than
+// "21mo ago".
 func ago(date string, now time.Time) (string, int) {
-	t, err := time.Parse("2006-01-02", strings.Split(date, "T")[0])
-	if err != nil {
+	t, days, ok := daysFrom(date, now)
+	if !ok {
 		return date, 0
 	}
-	today, _ := time.Parse("2006-01-02", now.Format("2006-01-02"))
-	days := int(t.Sub(today).Hours() / hoursPerDay)
 	n := max(days, -days)
-	var s string
 	switch {
 	case days == 0:
 		return "today", 0
-	case n < weeksUntil:
-		s = fmt.Sprintf("%dd", n)
-	case n < monthsUntil:
-		s = fmt.Sprintf("%dw", n/daysPerWeek)
-	default:
-		s = fmt.Sprintf("%dmo", n/daysPerMonth)
+	case n >= monthYearAfter:
+		return t.Format("Jan 2006"), days
+	case days > 0:
+		return "in " + span(n), days
 	}
-	if days > 0 {
-		return "in " + s, days
+	return span(n) + " ago", days
+}
+
+// quiet is how long an Application has gone without a change, "9mo", for the follow-up
+// flag: always a span, since "quiet Feb 2026" would read as a date.
+func (m model) quiet(e *store.StatusEntry) string {
+	_, days, ok := daysFrom(e.At, m.now())
+	if !ok {
+		return ""
 	}
-	return s + " ago", days
+	return span(max(-days, 0))
 }
 
 // futureFlag marks a Status date after today: almost always a data error, so it is
@@ -166,14 +172,17 @@ func (m model) listView(p pal) string {
 	}
 	previewW := w - listW - 1
 	var body string
-	if len(rows) == 0 {
+	switch {
+	case len(m.apps) == 0:
+		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.welcome(p))
+	case len(rows) == 0:
 		title, hint := emptyMessage(m.views()[m.table])
 		if m.text != "" {
 			title, hint = "No matches for “"+m.text+"”", "esc clears the search"
 		}
 		body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
 			lipgloss.JoinVertical(lipgloss.Center, p.text(p.fg).Bold(true).Render(title), "", p.text(p.dim).Render(hint)))
-	} else {
+	default:
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
@@ -216,6 +225,18 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 		return m.feedbackLine(p, w)
 	}
 	return fallback
+}
+
+// welcome is the first-run screen, for a Workspace with no Applications at all: the
+// first three moves instead of empty panes.
+func (m model) welcome(p pal) string {
+	title := p.text(p.accent).Bold(true).Render(wordmark+" rolecall") + p.text(p.dim).Render(" · no Applications yet")
+	step := func(k, desc string) string {
+		return p.key().Render(padRight(k, gutter+1)) + p.text(p.fg).Render(desc)
+	}
+	steps := lipgloss.JoinVertical(lipgloss.Left, step("a", "add your first Lead"),
+		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
+	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
 // emptyMessage says how Applications reach an empty view.
@@ -279,17 +300,20 @@ func (m model) screenCountLabel(si int) string {
 // tabs is the tab bar's left side, fitted to the width, and the column each screen's
 // tab starts at, so a click reads the same geometry the bar is drawn with. The active
 // tab is bracketed where the others have spaces: marked without colour, and the same
-// width, so nothing shifts.
+// width, so nothing shifts. The detail level is the one every screen's bar fits at, so
+// switching screens never sheds or restores a count.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	on := p.activeTab()
-	build := func(level int) (string, []int) {
-		mark := " ◆ rolecall "
+	build := func(level, active int) (string, []int) {
+		mark := " " + wordmark + " rolecall "
 		switch {
 		case level >= shedMark:
 			mark = ""
 		case level >= shedWordmark:
-			mark = " ◆ "
+			mark = " " + wordmark + " "
+		case level >= shedEdge:
+			mark = wordmark + " rolecall "
 		}
 		out := p.text(p.accent).Bold(true).Render(mark)
 		starts := make([]int, len(screenDefs))
@@ -299,7 +323,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
-			if si == m.screen {
+			if si == active {
 				out += on.Render("[" + digit + name + count + "]")
 				continue
 			}
@@ -313,18 +337,26 @@ func (m model) tabs(p pal) (string, []int) {
 		}
 		return out, starts
 	}
-	out, starts := build(0)
-	for level := shedCounts; level <= shedMark && xansi.StringWidth(out) > room; level++ {
-		out, starts = build(level)
+	fits := func(level int) bool {
+		for si := range screenDefs {
+			if out, _ := build(level, si); xansi.StringWidth(out) > room {
+				return false
+			}
+		}
+		return true
 	}
-	return out, starts
+	level := 0
+	for level < shedMark && !fits(level) {
+		level++
+	}
+	return build(level, m.screen)
 }
 
 // topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
 // the pipeline summary on the right. Every tab keeps the same padding whether active
 // or not, so nothing moves between screens. As it narrows it sheds, in order, other
 // screens' counts, the word "rolecall", other screens' names (their digits stay) and
-// the ◆; the active screen keeps its name and count at every width.
+// the wordmark's mark; the active screen keeps its name and count at every width.
 func (m model) topBar(p pal) string {
 	l := m.layout()
 	room := l.w - rightMargin
@@ -446,7 +478,7 @@ func (m model) viewRow(p pal) string {
 					glyph = p.statusMark(s) + " "
 				}
 				parts[i] = glyph + p.text(p.dim).Render(label)
-				if i == m.table && len(ts) > 1 {
+				if i == m.table {
 					parts[i] = glyph + current(label)
 				}
 			}
@@ -563,6 +595,9 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 			}
 		}
 	case tableLeads, tableDraft:
+		if m.leadsNewest && m.views()[m.table] == tableLeads {
+			break // newest first mixes expired Leads in with the rest
+		}
 		for i, a := range rows {
 			if m.expired(a) {
 				div[i] = divider{"Expired", len(rows) - i}
@@ -658,8 +693,7 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	}
 	t := tableOf(a)
 	if cols := ApplicationColumns(a, t, m.now(), m.followUpDays); (t == tableApplied || t == tableInterviewing) && cols[len(cols)-1] == followUpFlag && a.LastChange != nil {
-		rel, _ := ago(a.LastChange.At, m.now())
-		flag = followUpFlag + " quiet " + strings.TrimSuffix(rel, " ago")
+		flag = followUpFlag + " quiet " + m.quiet(a.LastChange)
 	}
 	switch {
 	case t == tableDraft:
@@ -676,18 +710,6 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 		}
 	}
 	return state, flag, fit
-}
-
-// docsLabel is the one wording for documents, glossary terms Ready and Written, and
-// its colour.
-func (p pal) docsLabel(a store.Application) (string, color.Color) {
-	switch strings.ToLower(a.Documents) {
-	case "ready":
-		return "✓ ready", p.ok
-	case "written":
-		return "○ written", p.warn
-	}
-	return "not written", p.dim
 }
 
 // stateColor is the colour of a row's state slot.
@@ -752,7 +774,12 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		cells = append(cells, slot(slotFlag, p.warn, flag))
 	}
 	if show.fit {
-		cells = append(cells, slot(slotFit, fitC, fit))
+		// Labelled, so the column reads on its own: "fit Good", "fit —".
+		label := st(dimC).Render(fitLabel)
+		if fit == "" {
+			label = ""
+		}
+		cells = append(cells, st(p.fg).Render(strings.Repeat(" ", max(0, slotFit-xansi.StringWidth(fitLabel+fit))))+label+st(fitC).Render(fit))
 	}
 	right := strings.Join(cells, st(p.fg).Render("  ")) + st(p.fg).Render(strings.Repeat(" ", rowPad))
 	// The Status glyph leads the title; the second line lines up under the title.
@@ -780,17 +807,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
-		switch r, days := ago(a.Closes, m.now()); {
-		case a.Closes == "":
-			out = append(out, dim.Render("no close date"))
-		case days < 0:
-			out = append(out, dim.Render("expired "+r))
-		case days == 0:
-			out = append(out, st(p.bad).Bold(true).Render("closes today"))
-		case days <= soonDays:
-			out = append(out, st(p.warn).Render("closes "+r))
-		default:
-			out = append(out, dim.Render("closes "+r))
+		// No close date is a quiet dash, not the same words on every row.
+		if text, s := closeInfo(a.Closes, m.now()); s == closeNone {
+			out = append(out, dim.Render("—"))
+		} else {
+			out = append(out, p.closeStyle(s, st, dimC).Render(text))
 		}
 	case tableDismissed:
 		if a.LastChange != nil {
@@ -851,91 +872,79 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 			"\n\n" + p.text(p.accent).Render("e") + p.text(p.dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
-		label, c := p.docsLabel(a)
 		b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "   " + p.text(c).Render(label) + "\n\n")
-		b.WriteString(p.heading("Timeline") + "\n" + m.timeline(p, a, true) + "\n")
+		b.WriteString(m.fileMarks(p, a) + "\n" + p.docsMeter(a) + "\n")
+		if next := m.nextLine(p, a, inner); next != "" {
+			b.WriteString("\n" + next + "\n")
+		}
+		b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, false) + "\n\n")
 		b.WriteString(p.heading("Fit") + "\n")
-		if t := m.docText(a, "fit.md"); t != "" {
+		if t := m.docText(a, fitFile); t != "" {
+			if a.Fit == "" {
+				b.WriteString(p.text(p.dim).Render(fitSummary(a, true)) + "\n")
+			}
 			b.WriteString(wrap(t, p.fg, docLines) + "\n")
 		} else {
-			b.WriteString(p.text(p.dim).Render("No fit.md yet") + "\n")
+			b.WriteString(m.fitEmpty(p, a) + "\n")
 		}
 		if beforeApplied(tableOf(a)) {
-			if jd := m.docText(a, "jd.md"); jd != "" {
+			if jd := m.docText(a, jdFile); jd != "" {
 				b.WriteString("\n" + p.heading("JD") + "\n" + wrap(jd, p.sub, previewLines) + "\n" +
 					p.key().Render("enter") + p.text(p.dim).Render(" full JD") + "\n")
 			}
 		}
 		b.WriteString("\n" + p.heading("Notes") + "\n")
-		if t := m.docText(a, "notes.md"); t != "" {
+		if t := m.docText(a, notesFile); t != "" {
 			b.WriteString(wrap(t, p.fg, docLines))
 		} else {
-			b.WriteString(p.text(p.dim).Render("No notes · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
+			b.WriteString(p.text(p.dim).Render("No notes yet · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
 		}
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
 
-// fileMarks is the one-line document set: ✓ present, ○ missing. A source mark reflects
-// content, not just presence, so it never reads "✓ resume" beside "not written".
+// fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":
+// ✓ ready, ○ missing. A source document is ready when it has text, not merely a file.
 func (m model) fileMarks(p pal, a store.Application) string {
-	mark := func(ok bool, name string) string {
-		if ok {
-			return p.text(p.ok).Render("✓") + p.text(p.fg).Render(" "+name)
-		}
-		return p.text(p.dim).Render("○ " + name)
+	parts := make([]string, 0, len(docChips(a)))
+	for _, c := range docChips(a) {
+		parts = append(parts, m.chipText(p, a, c))
 	}
-	pdfs := "pdf"
-	if n := len(a.PDFs); n > 0 {
-		pdfs = fmt.Sprintf("%d pdf", n)
-	}
-	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume && m.hasContent(a, "resume.md"), "resume"),
-		mark(a.HasCoverLetter && m.hasContent(a, "cover-letter.md"), "cover"), mark(len(a.PDFs) > 0, pdfs)}, "  ")
+	return strings.Join(parts, "  ")
 }
 
-// hasContent reports whether a document holds non-whitespace text.
-func (m model) hasContent(a store.Application, name string) bool {
-	b, err := m.store.ReadDocument(a.Folder, name)
-	return err == nil && strings.TrimSpace(string(b)) != ""
+// timelineBlock is the Timeline section: the Status log as a one-line track, then the
+// close date for Leads and Drafts by its urgency. An empty log says how to start it.
+// flow lets the track run onto more lines, for a column too narrow for one.
+func (m model) timelineBlock(p pal, a store.Application, w int, flow bool) string {
+	var lines []string
+	switch {
+	case len(a.StatusLog) == 0:
+		lines = append(lines, p.text(p.dim).Render("Not moved yet · ")+p.key().Render("m")+p.text(p.dim).Render(" to move"))
+	case flow:
+		lines = append(lines, m.timelineFlow(p, a, w))
+	default:
+		lines = append(lines, m.timelineTrack(p, a, w))
+	}
+	if beforeApplied(tableOf(a)) {
+		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
+			lines = append(lines, p.text(p.faint).Render("→ ")+p.closeStyle(s, p.text, p.dim).Render(text))
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
-// timeline is the Status log, newest last, plus the close date for Leads and Drafts.
-// Exact dates are shown where there is room for them.
-func (m model) timeline(p pal, a store.Application, dates bool) string {
-	var b strings.Builder
-	for i, e := range a.StatusLog {
-		// Earlier entries are faint; the current one is in its Status's colour, bold.
-		dot, name := p.text(p.faint).Render(p.statusGlyph(e.Status)), p.text(p.dim)
-		if i == len(a.StatusLog)-1 {
-			dot, name = p.statusMark(e.Status), p.text(p.fg).Bold(true)
-		}
-		when, whenC := m.agoEntry(&e), p.dim
-		if m.futureDate(&e) {
-			when, whenC = futureFlag, p.warn
-		}
-		if dates {
-			r := when
-			if !m.futureDate(&e) {
-				r, _ = ago(e.At, m.now())
-			}
-			when = entryDate(&e) + "  " + r
-		}
-		b.WriteString(dot + " " + name.Render(padRight(e.Status, labelWidth+1)) + p.text(whenC).Render(when) + "\n")
+// fitEmpty is the Fit section without reasoning: the verdict and where it came from, or
+// that there is none yet and the key that assesses it.
+func (m model) fitEmpty(p pal, a store.Application) string {
+	if a.Fit != "" {
+		return p.text(p.dim).Render(fitSummary(a, false))
 	}
-	if a.Closes != "" && beforeApplied(tableOf(a)) {
-		r, days := ago(a.Closes, m.now())
-		c := p.dim
-		if days >= 0 && days <= soonDays {
-			c = p.warn
-		}
-		date := ""
-		if dates {
-			date = a.Closes + "  "
-		}
-		b.WriteString(p.text(p.faint).Render("→ ") + p.text(p.dim).Render(padRight("closes", labelWidth+1)+date) + p.text(c).Render(r) + "\n")
+	s := p.text(p.dim).Render("No fit assessment yet")
+	if m.harness != "" {
+		s += p.text(p.dim).Render(" · ") + p.key().Render("f") + p.text(p.dim).Render(" to assess")
 	}
-	return b.String()
+	return s
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for

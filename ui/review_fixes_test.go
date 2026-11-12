@@ -23,7 +23,7 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Draft, at: 2026-10-01T01:00:00Z}", 1))
-	h.wait("Draft 3") // Empty log left Leads; the cursor now sits on another row
+	h.wait("Drafts 3") // Empty log left Leads; the cursor now sits on another row
 	h.tm.Type("x")
 	h.wait("Dismissed · ")
 	s, err := store.Open(h.root)

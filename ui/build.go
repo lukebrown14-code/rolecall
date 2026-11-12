@@ -63,7 +63,7 @@ func (m *model) startBuild() tea.Cmd {
 		return nil
 	}
 	m.capturedRun = true
-	m.building = &buildState{folder: a.Folder, title: a.Title, status: a.Status}
+	m.building = &buildState{folder: a.Folder, title: appName(a.Title), status: a.Status}
 	return tea.Batch(m.build(a), m.spinner.Tick)
 }
 

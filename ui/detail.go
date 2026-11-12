@@ -21,7 +21,7 @@ type detailTab string
 const coverLetterFile = "cover-letter.md"
 
 const (
-	tabLetter detailTab = "Letter"
+	tabLetter detailTab = docCoverLetter
 	tabGaps   detailTab = "Gaps"
 	tabResume detailTab = "Resume"
 	tabJD     detailTab = "JD"
@@ -45,7 +45,7 @@ func visibleDetailTabs(a store.Application) []detailTab {
 	return append(tabs, tabNotes, tabDocs)
 }
 
-var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md", tabLetter: coverLetterFile, tabGaps: "gaps.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: jdFile, tabNotes: notesFile, tabFit: fitFile, tabResume: resumeFile, tabLetter: coverLetterFile, tabGaps: gapsFile}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
@@ -77,36 +77,37 @@ func (e docEntry) group() string {
 }
 func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
-func (e docEntry) label() string {
+// title is the entry as the Owner knows it: a document's name, a built PDF's own file
+// name, or the copy of what was sent.
+func (e docEntry) title() string {
 	switch {
-	case e.markdown() && e.present && !e.hasText:
-		return e.name + " (empty)"
-	case e.markdown() && e.present:
-		return e.name + " (present)"
 	case e.markdown():
-		return e.name + " (absent)"
+		return docName(e.name)
+	case e.name == "sent/":
+		return "Sent copy"
 	}
-	return e.name
+	return strings.TrimPrefix(e.name, "out/")
 }
 
-const emptyDocumentStatus = "(empty)"
+// resumeOnlyNote is the Cover letter's state on a Resume only Application.
+const resumeOnlyNote = "not needed · Resume only"
 
-// displayStatus keeps the inventory and card presence cues consistent.
+// displayStatus is a source document's state, ready or missing (an empty file is
+// missing), and whether it is ready. Built and sent files are ready by being there.
 func (e docEntry) displayStatus(a store.Application) (string, bool) {
-	if e.name == coverLetterFile && a.ResumeOnly && !e.hasText {
-		return "not needed · Resume only", false
+	switch {
+	case !e.markdown():
+		return "", true
+	case e.name == coverLetterFile && a.ResumeOnly && !e.hasText:
+		return resumeOnlyNote, false
+	case !e.hasText:
+		return docMissing, false
 	}
-	if e.markdown() && e.present && !e.hasText {
-		return emptyDocumentStatus, false
-	}
-	if !e.present {
-		return "not written", false
-	}
-	return "", true
+	return docReady, true
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}
@@ -162,6 +163,7 @@ const (
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
+	docColumn     = 14        // the Docs tab's name and state columns
 	stripLines    = 2         // the strip that stands in for the card: timeline track, then documents
 	cardPadding   = inset + 1 // the card's padding: the text column on the left, one cell on the right
 )
@@ -211,7 +213,7 @@ func (m model) syncDetail() model {
 	}
 	d := *m.detail
 	if !slices.Contains(visibleDetailTabs(a), d.tab) {
-		m.err = fmt.Errorf("%s is gone", markdownTabFiles[d.tab])
+		m.err = fmt.Errorf("%s is gone", docName(markdownTabFiles[d.tab]))
 		d.tab = tabDocs
 	}
 	d.docs = min(d.docs, len(docEntries(a))-1)
@@ -248,21 +250,50 @@ func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
 	return r, err
 }
 
-// markdownBody renders one of the Markdown tabs, or its empty state.
+// markdownBody renders one of the Markdown tabs, or its empty state, which says what to
+// press to fill it.
 func (m model) markdownBody(a store.Application, tab detailTab, name string) string {
 	var out string
-	if tab == tabFit {
-		fit := a.Fit
-		if fit == "" {
-			fit = fitNone
-		}
-		out = "Fit: " + fit + "\n\n"
-	}
 	b, err := m.store.ReadDocument(a.Folder, name)
-	if err != nil || strings.TrimSpace(string(b)) == "" {
-		return out + "No content in " + name
+	empty := err != nil || strings.TrimSpace(string(b)) == ""
+	if tab == tabFit {
+		out = "Fit: " + fitSummary(a, !empty) + "\n\n"
+	}
+	if empty {
+		return out + m.emptyDocument(a, tab, name)
 	}
 	return out + m.renderMarkdown(string(b), m.bodyWidth())
+}
+
+// emptyDocument is a tab's empty state: what is missing and the key that fills it.
+func (m model) emptyDocument(a store.Application, tab detailTab, name string) string {
+	switch tab {
+	case tabJD:
+		return "No JD saved · e to open " + name
+	case tabFit:
+		if m.harness != "" {
+			return "No fit assessment yet · f to assess fit"
+		}
+		return "No fit assessment yet"
+	case tabNotes:
+		return "No notes yet · e to write some"
+	}
+	return "No " + docName(name) + " yet · e to open " + name
+}
+
+// fitSummary is the Fit with where it comes from when the two sources disagree: the
+// verdict lives in meta.yml and its reasoning beside it, so a verdict without reasoning,
+// or reasoning without a verdict, says so rather than reading as two different answers.
+func fitSummary(a store.Application, reasoning bool) string {
+	switch {
+	case a.Fit == "" && reasoning:
+		return fitNone + " · reasoning saved below"
+	case a.Fit == "":
+		return fitNone
+	case !reasoning:
+		return a.Fit + " · no reasoning saved"
+	}
+	return a.Fit
 }
 
 // renderMarkdown draws Markdown at a wrap width, falling back to the source when
@@ -364,7 +395,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		case e.markdown() && key == "e":
 			return m, m.editFile(a.Folder, e.name), true
 		case e.markdown():
-			m.err = fmt.Errorf("%s hasn't been written yet", e.name)
+			m.err = fmt.Errorf("%s is missing · e to open %s", e.title(), e.name)
 		}
 	}
 	return m, nil, true
@@ -383,19 +414,13 @@ func (m model) detailView(p pal) string {
 	h := m.layout().bodyHeight(m.detailContextLines())
 	pad := strings.Repeat(" ", inset)
 	// Title first, then Company, as the list reads.
-	title := pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.fg).Bold(true).Render(a.Title) + p.text(p.dim).Render(" · "+a.Company)
+	title := pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.fg).Bold(true).Render(appName(a.Title)) + p.text(p.dim).Render(" · "+a.Company)
 	when := ""
-	switch r, days := ago(a.Closes, m.now()); {
+	switch text, s := closeInfo(a.Closes, m.now()); {
 	case a.Malformed != nil:
 		title = pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
-	case a.Closes != "" && beforeApplied(tableOf(a)):
-		c := p.dim
-		if days == 0 {
-			c = p.bad
-		} else if days > 0 && days <= soonDays {
-			c = p.warn
-		}
-		when = p.text(c).Render("closes " + r)
+	case s != closeNone && beforeApplied(tableOf(a)):
+		when = p.closeStyle(s, p.text, p.dim).Render(text)
 	case a.AppliedDate != nil:
 		if m.futureDate(a.AppliedDate) {
 			when = p.text(p.warn).Render("applied " + futureFlag)
@@ -406,7 +431,12 @@ func (m model) detailView(p pal) string {
 			if m.cardShown() {
 				exact = entryDate(a.AppliedDate) + " · "
 			}
-			when = p.text(p.dim).Render("applied " + exact + m.agoEntry(a.AppliedDate))
+			rel := m.agoEntry(a.AppliedDate)
+			if _, days, _ := daysFrom(a.AppliedDate.At, m.now()); exact != "" && -days >= monthYearAfter {
+				// An old date already reads as a month: the exact date says it all.
+				exact, rel = strings.TrimSuffix(exact, " · "), ""
+			}
+			when = p.text(p.dim).Render("applied " + exact + rel)
 		}
 	}
 	when = m.withChip(p, when)
@@ -437,7 +467,12 @@ func (m model) detailView(p pal) string {
 		for i, l := range content {
 			content[i] = " " + l
 		}
-		pane = m.detailTabsRow(p, a) + "\n\n" + strings.Join(content, "\n")
+		// Without the card, the next step takes the line between the tabs and the text.
+		gap := ""
+		if !m.cardShown() {
+			gap = " " + m.nextLine(p, a, paneW-gutter-1)
+		}
+		pane = m.detailTabsRow(p, a) + "\n" + gap + "\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
@@ -466,12 +501,10 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 		fit = fitNone
 	}
 	parts := []string{m.fileMarks(p, a), p.text(p.dim).Render("fit ") + p.text(p.fitColor(a.Fit)).Render(fit)}
-	if beforeApplied(tableOf(a)) || a.Closes != "" {
-		closes := a.Closes
-		if closes == "" {
-			closes = "—"
+	if beforeApplied(tableOf(a)) {
+		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
+			parts = append(parts, p.closeStyle(s, p.text, p.dim).Render(text))
 		}
-		parts = append(parts, p.text(p.dim).Render("closes "+closes))
 	}
 	parts = append(parts, p.text(p.dim).Render(a.Track))
 	sep := p.text(p.dim).Render("  ·  ")
@@ -487,41 +520,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 // their dates, and ones not reached faint and undated. To fit w it drops the earlier
 // dates, then all but the next Status ahead, then the earlier Statuses.
 func (m model) timelineTrack(p pal, a store.Application, w int) string {
-	date := func(e store.StatusEntry) string {
-		if m.futureDate(&e) {
-			return p.text(p.warn).Render(" " + futureFlag)
-		}
-		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
-		if err != nil {
-			return ""
-		}
-		d := t.Format("2 Jan")
-		if e.Approx {
-			d = "~" + d
-		}
-		return p.text(p.dim).Render(" " + d)
-	}
-	var past []string
-	var pastDated []string
-	current := ""
-	for i, e := range a.StatusLog {
-		if i == len(a.StatusLog)-1 {
-			current = p.statusMark(e.Status) + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
-			continue
-		}
-		name := p.text(p.faint).Render(p.statusGlyph(e.Status)) + " " + p.text(p.dim).Render(e.Status)
-		past = append(past, name)
-		pastDated = append(pastDated, name+date(e))
-	}
-	if current == "" {
-		current = p.statusMark(a.Status) + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
-	}
-	var ahead []string
-	if i := slices.Index(pipeline, a.Status); i >= 0 {
-		for _, s := range pipeline[i+1:] {
-			ahead = append(ahead, p.text(p.faint).Render(p.statusGlyph(s))+" "+p.text(p.dim).Render(s))
-		}
-	}
+	past, pastDated, current, ahead := m.trackStops(p, a)
 	join := func(stops ...[]string) string {
 		var all []string
 		for _, s := range stops {
@@ -546,6 +545,69 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 		}
 	}
 	return xansi.Truncate(current, w, "…")
+}
+
+// timelineFlow is the track for a narrow column: every stop with its date, flowing onto
+// as many lines as w needs, each line ending in the rule that leads to the next.
+func (m model) timelineFlow(p pal, a store.Application, w int) string {
+	_, pastDated, current, ahead := m.trackStops(p, a)
+	stops := append(append(append([]string{}, pastDated...), current), ahead...)
+	sep := p.text(p.rule).Render(" ─ ")
+	var lines []string
+	line := ""
+	for i, s := range stops {
+		item := s
+		if i < len(stops)-1 {
+			item += p.text(p.rule).Render(" ─")
+		}
+		switch {
+		case line == "":
+			line = item
+		case xansi.StringWidth(strings.TrimSuffix(line, p.text(p.rule).Render(" ─"))+sep+item) <= w:
+			line = strings.TrimSuffix(line, p.text(p.rule).Render(" ─")) + sep + item
+		default:
+			lines = append(lines, line)
+			line = item
+		}
+	}
+	return strings.Join(append(lines, line), "\n")
+}
+
+// trackStops is a timeline track's stops: earlier Statuses without and with their dates,
+// the current one, and the Statuses still ahead.
+func (m model) trackStops(p pal, a store.Application) (past, pastDated []string, current string, ahead []string) {
+	date := func(e store.StatusEntry) string {
+		if m.futureDate(&e) {
+			return p.text(p.warn).Render(" " + futureFlag)
+		}
+		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
+		if err != nil {
+			return ""
+		}
+		d := shortDate(t, m.now())
+		if e.Approx {
+			d = "~" + d
+		}
+		return p.text(p.dim).Render(" " + d)
+	}
+	for i, e := range a.StatusLog {
+		if i == len(a.StatusLog)-1 {
+			current = p.statusMark(e.Status) + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
+			continue
+		}
+		name := p.text(p.faint).Render(p.statusGlyph(e.Status)) + " " + p.text(p.dim).Render(e.Status)
+		past = append(past, name)
+		pastDated = append(pastDated, name+date(e))
+	}
+	if current == "" {
+		current = p.statusMark(a.Status) + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
+	}
+	if i := slices.Index(pipeline, a.Status); i >= 0 {
+		for _, s := range pipeline[i+1:] {
+			ahead = append(ahead, p.text(p.faint).Render(p.statusGlyph(s))+" "+p.text(p.dim).Render(s))
+		}
+	}
+	return past, pastDated, current, ahead
 }
 
 func (m model) detailTabsRow(p pal, a store.Application) string {
@@ -589,20 +651,21 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		status, ready := e.displayStatus(a)
 		mark, nameC := p.text(p.ok).Render("✓ "), p.fg
-		name := e.name
-		if status != "" {
-			name += "  " + status
-		}
-		if status == emptyDocumentStatus {
-			name = e.label()
-		}
 		if !ready {
 			mark, nameC = p.text(p.dim).Render("○ "), p.dim
 		}
-		row := "  " + mark + p.text(nameC).Render(name)
+		// The name, then its state, then the file it lives in, muted: what e opens.
+		name := e.title()
+		file := ""
+		if e.markdown() {
+			name = padRight(name, docColumn) + padRight(status, docColumn)
+			file = e.name
+		}
+		row := "  " + mark + p.text(nameC).Render(name) + p.text(p.faint).Render(file)
 		if i == m.detail.docs {
 			row = lipgloss.NewStyle().Background(p.sel).Width(paneW - paneMargin).Render(
-				p.text(p.accent).Background(p.sel).Render("▌ ") + p.text(p.accent).Background(p.sel).Bold(true).Render(xansi.Strip(mark)+name))
+				p.text(p.accent).Background(p.sel).Render("▌ ") + p.text(p.accent).Background(p.sel).Bold(true).Render(xansi.Strip(mark)+name) +
+					p.text(p.sub).Background(p.sel).Render(file))
 		}
 		lines = append(lines, row)
 	}
@@ -615,24 +678,19 @@ func (m model) detailCard(p pal, a store.Application) string {
 		return ""
 	}
 	var b strings.Builder
-	label, c := p.docsLabel(a)
-	b.WriteString(keepTogether(m.cardWidth()-cardPadding, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
-	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "✓○ ")) + "\n")
-	for _, e := range docEntries(a) {
-		status, ready := e.displayStatus(a)
-		if ready {
-			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")
-		} else {
-			name := e.name
-			if status == "not needed · Resume only" {
-				name += "\n  " + status
-			} else if status == emptyDocumentStatus {
-				name += " (empty)"
-			}
-			b.WriteString(p.text(p.dim).Render("○ "+name) + "\n")
-		}
+	inner := m.cardWidth() - cardPadding
+	b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
+	if next := m.nextLine(p, a, inner); next != "" {
+		b.WriteString(next + "\n\n")
 	}
-	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))
+	b.WriteString(p.heading("Docs") + "\n" + p.docsMeter(a) + "\n")
+	for _, c := range docChips(a) {
+		b.WriteString(m.chipText(p, a, c) + "\n")
+	}
+	if a.ResumeOnly && !a.CoverLetterHasText {
+		b.WriteString(p.text(p.dim).Render("  "+docCoverLetter+"\n  "+resumeOnlyNote) + "\n")
+	}
+	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, true) + "\n")
 	if a.URL != "" {
 		b.WriteString("\n" + p.heading("Link") + "\n" + p.text(p.info).Render(xansi.Truncate(a.URL, m.cardWidth()-cardPadding, "…")))
 	}

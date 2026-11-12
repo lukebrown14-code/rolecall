@@ -114,7 +114,7 @@ func TestLiveFitWrittenToMetaUpdatesRow(t *testing.T) {
 func TestLiveDroppedPDFsFlipDocsMarker(t *testing.T) {
 	h := newLiveHarness(t, nil)
 	h.tm.Type("2")
-	h.wait("Draft 2")
+	h.wait("Drafts 2")
 	out := filepath.Join(h.folder("docs-none"), "out")
 	h.write(filepath.Join(out, "Owner Resume Role.pdf"), "%PDF")
 	h.write(filepath.Join(out, "Owner Role Cover Letter.pdf"), "%PDF")

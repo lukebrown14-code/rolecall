@@ -112,7 +112,7 @@ func TestRestoreDefaultsToStatusBeforeTheLastDismissedEntry(t *testing.T) {
 func TestRestoreAfterDismissRestoreUndoReturnsToEarlierStatus(t *testing.T) {
 	h := newReviewHarness(t, entry("Draft", "01"), map[string]string{})
 	h.tm.Type("2")
-	h.waitOutput("Draft 1")
+	h.waitOutput("Drafts 1")
 	h.tm.Type("x")
 	h.waitForLogLength(2)
 	h.tm.Type("1")
@@ -142,7 +142,7 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(filepath.Join(h.folder, "resume.md"), 0o644) })
 	h.tm.Type("2")
-	h.waitOutput("Draft 1")
+	h.waitOutput("Drafts 1")
 	h.tm.Type("ma")
 	h.waitOutput("Docs not Ready")
 	h.tm.Type("y")
@@ -217,7 +217,7 @@ func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 	t.Run("not ready prompt", func(t *testing.T) {
 		h := newReviewHarness(t, entry("Draft", "01"), map[string]string{})
 		h.tm.Type("2")
-		h.waitOutput("Draft 1")
+		h.waitOutput("Drafts 1")
 		h.tm.Type("ma")
 		h.waitOutput("Docs not Ready")
 		assertHidden(t, "prompt", h.finish())

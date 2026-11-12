@@ -130,8 +130,9 @@ func TestDocsEmptyLabel(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40)
 	m = driveModel(t, m, "2", "/docs-none", "enter", "enter", "right", "right", "right")
 	v := ansi.Strip(m.View().Content)
-	if strings.Count(v, "resume.md (empty)") != 2 {
-		t.Fatalf("missing empty label:\n%s", v)
+	// An empty file is missing, like an absent one: no third state.
+	if !strings.Contains(v, "○ Resume") || !strings.Contains(v, "missing") || strings.Contains(v, "(empty)") {
+		t.Fatalf("empty Resume not shown as missing:\n%s", v)
 	}
 }
 
@@ -153,11 +154,11 @@ func TestReaderFilesFollowRefresh(t *testing.T) {
 				t.Fatal(err)
 			}
 			m = driveModel(t, m, "e")
-			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "resume.md is gone") {
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "Resume is gone") {
 				t.Fatalf("missing fallback:\n%s", v)
 			}
 			m = driveModel(t, m, "enter")
-			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "resume.md hasn't been written yet") {
+			if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Resume is missing · e to open resume.md") {
 				t.Fatalf("missing feedback:\n%s", v)
 			}
 		})
@@ -188,7 +189,7 @@ func TestLetterAndGapsReaders(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 80, 40)
 	m = driveModel(t, m, "3", "/docs-written", "enter", "enter")
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "[JD]  Fit   Resume   Letter   Gaps   Notes   Docs") {
+	if !strings.Contains(v, "[JD]  Fit   Resume   Cover letter   Gaps   Notes   Docs") {
 		t.Fatalf("tabs: %s", v)
 	}
 	m = driveModel(t, m, "right", "right", "right")
@@ -201,12 +202,24 @@ func TestLetterAndGapsReaders(t *testing.T) {
 	}
 }
 
+// tabRow is the detail view's tab line.
+func tabRow(v string) string {
+	for _, l := range strings.Split(v, "\n") {
+		if strings.Contains(l, "[JD]") {
+			return l
+		}
+	}
+	return ""
+}
+
+const docCoverLetter = "Cover letter"
+
 func TestResumeOnlyLetterChoice(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	m := driveStart(t, root, fixtureClock, 120, 40)
 	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter")
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "not needed · Resume only") || strings.Contains(v, " Letter ") {
+	if !strings.Contains(v, "not needed · Resume only") || strings.Contains(tabRow(v), docCoverLetter) {
 		t.Fatalf("Resume only card: %s", v)
 	}
 	m = driveModel(t, m, "left")
@@ -227,7 +240,7 @@ func TestResumeOnlyWrittenLetterOpensFromDocs(t *testing.T) {
 		t.Fatalf("written letter labelled unnecessary: %s", v)
 	}
 	m = driveModel(t, m, "down", "enter")
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "[Cover letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
 		t.Fatalf("letter did not open: %s", v)
 	}
 }

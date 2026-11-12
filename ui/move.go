@@ -61,13 +61,16 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		return nil
 	}
 	if undo {
-		m.toast = fmt.Sprintf("Undone · %s back to %s", a.Title, status)
+		m.toast = fmt.Sprintf("Undone · %s back to %s", appName(a.Title), status)
 		return m.startFlash(a.Folder)
 	}
 	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
-	m.toast = fmt.Sprintf("Moved to %s · %s", status, a.Title)
+	m.toast = fmt.Sprintf("Moved to %s · %s", status, appName(a.Title))
 	if status == store.StatusDismissed {
-		m.toast = "Dismissed · " + a.Title
+		m.toast = "Dismissed · " + appName(a.Title)
+	}
+	if status == store.StatusOffer {
+		m.toast = m.offerToast(a)
 	}
 	m.toastHint = "u undo"
 	return m.startFlash(a.Folder)

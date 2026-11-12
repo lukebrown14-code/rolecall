@@ -100,7 +100,7 @@ func TestDownloadIsHiddenAndInertWithoutPDFs(t *testing.T) {
 	h2.key(tea.KeyEnter)
 	h2.tm.Type("d")
 	v = h2.show("Fern")
-	if strings.Contains(v, "d download") || strings.Contains(v, "PDF") {
+	if strings.Contains(v, "d download") || strings.Contains(v, "PDFs") || strings.Contains(v, "PDF to") {
 		t.Fatalf("d was not inert:\n%s", v)
 	}
 	if len(h2.runs) != 0 {

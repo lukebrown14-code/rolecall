@@ -8,7 +8,7 @@ import (
 // Screens, numbered 1-6.
 const (
 	screenLeads    = "Leads"
-	screenDraft    = "Draft"
+	screenDraft    = "Drafts"
 	screenApplied  = "Applied"
 	screenStats    = "Stats"
 	screenProfile  = "Profile"
@@ -26,7 +26,7 @@ const settingsScreen = 5
 const (
 	tableLeads        = "Leads"
 	tableDismissed    = "Dismissed"
-	tableDraft        = "Draft"
+	tableDraft        = "Drafts"
 	tableApplied      = store.StatusApplied
 	tableInterviewing = store.StatusInterviewing
 	tableOffer        = store.StatusOffer

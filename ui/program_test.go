@@ -15,7 +15,7 @@ func TestNavigation(t *testing.T) {
 		want string
 	}{
 		{nil, "Leads 4"},
-		{[]string{"2"}, "Draft 2"},
+		{[]string{"2"}, "Drafts 2"},
 		{[]string{"3"}, "Closed 4"},
 		{[]string{"tab", "?"}, "Keys"},
 	} {
@@ -66,7 +66,7 @@ func TestFilters(t *testing.T) {
 	}{
 		{[]string{"/zzznomatch"}, "No matches"},
 		{[]string{"enter", "2"}, "Draft"},
-		{[]string{"r", "esc"}, "Draft 2"},
+		{[]string{"r", "esc"}, "Drafts 2"},
 	} {
 		m = driveModel(t, m, tc.keys...)
 		if v := ansi.Strip(m.View().Content); !strings.Contains(v, tc.want) {

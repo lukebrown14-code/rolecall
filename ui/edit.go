@@ -52,7 +52,7 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 		}
 	}
 	if len(changed) == 0 {
-		m.toast = "Nothing changed · " + a.Title
+		m.toast = "Nothing changed · " + appName(a.Title)
 		return nil
 	}
 	if err := m.store.Patch(a.Folder, changed); err != nil {

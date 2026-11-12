@@ -58,11 +58,12 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 
 func (m model) confirmBox(p pal, cm *confirmMode) string {
 	a := cm.app
-	state := "not written yet"
+	n, total := readyCount(a)
+	state := fmt.Sprintf("%d of %d documents ready", n, total)
 	if a.Documents == store.DocsWritten {
-		state = "Written, but the build hasn't made its PDFs yet, so not Ready"
+		state += "; the PDF is missing until you build"
 	}
-	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render("Docs for "+lipgloss.NewStyle().Bold(true).Render(a.Title)+" are "+state+".") +
+	body := lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(appName(a.Title))+": "+state+".") +
 		"\n\n" + p.text(p.sub).Render("Mark it Applied anyway?")
 	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.keys(cm.Keys()))
 }
