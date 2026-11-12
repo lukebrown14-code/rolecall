@@ -47,12 +47,12 @@ func (m *model) startHandoff(skill string) tea.Cmd {
 // harnessCommand fills the Harness template: {skill} becomes the Plugin skill name
 // and {dir} the shell-quoted Application folder.
 func harnessCommand(template, skill, dir string) string {
-	return strings.NewReplacer("{skill}", skill, "{dir}", shellQuote(dir)).Replace(template)
+	return strings.NewReplacer("{skill}", skill, "{dir}", QuoteShellArgument(dir)).Replace(template)
 }
 
-// shellQuote wraps s in single quotes for /bin/sh so it stays one argument however
+// QuoteShellArgument wraps s in single quotes for /bin/sh so it stays one argument however
 // it is spelled: spaces stay inside, and an embedded quote is spliced to '\”.
-func shellQuote(s string) string {
+func QuoteShellArgument(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 

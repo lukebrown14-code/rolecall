@@ -99,6 +99,16 @@ func InitGit(root string) error {
 	return nil
 }
 
+// LaunchHarness runs a configured Plugin skill from the CLI. Keep process
+// creation here so all external commands use the same audited boundary.
+func LaunchHarness(template, workspace, skill, resume string) error {
+	if resume != "" {
+		skill += " --resume " + QuoteShellArgument(resume)
+	}
+	command := harnessCommand(template, skill, handoffDir(workspace))
+	return exec.Command("/bin/sh", "-c", command).Run()
+}
+
 // editFile opens a file of the Application folder in the Owner's editor. The editor
 // preference may include flags or quoted executable paths, so the filename is passed
 // as a shell positional argument and Application paths remain literal.
