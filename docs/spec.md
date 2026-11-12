@@ -86,7 +86,7 @@ If there is no workspace, rolecall exits with a one-line message naming the conf
 | Key | Screen | Tables (`Tab` cycles) | Holds Status |
 |---|---|---|---|
 | `1` | Leads | **Leads** │ **Dismissed** | Lead │ Dismissed |
-| `2` | Draft | — | Draft |
+| `2` | Drafts | — | Draft |
 | `3` | Applied | **All** │ **Applied** │ **Interviewing** │ **Offer** │ **Closed** | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
 | `4` | Stats (v0.2) | — | — |
 

@@ -20,12 +20,12 @@ func TestApplicationColumns(t *testing.T) {
 }
 
 func TestTableSorting(t *testing.T) {
-	for _, table := range []string{"Leads", "Draft", "Dismissed", "Applied", "Interviewing", "Offer", "Closed"} {
+	for _, table := range []string{"Leads", "Drafts", "Dismissed", "Applied", "Interviewing", "Offer", "Closed"} {
 		t.Run(table, func(t *testing.T) {
 			rows := []store.Application{{Folder: "missing"}, {Folder: "old", Closes: "2026-01-01", AppliedDate: &store.StatusEntry{At: "2026-01-01"}, LastChange: &store.StatusEntry{At: "2026-01-01"}}, {Folder: "new", Closes: "2026-02-01", AppliedDate: &store.StatusEntry{At: "2026-02-01"}, LastChange: &store.StatusEntry{At: "2026-02-01"}}}
 			ui.SortApplications(rows, table)
 			want := "new"
-			if table == "Leads" || table == "Draft" {
+			if table == "Leads" || table == "Drafts" {
 				want = "old"
 			}
 			if rows[0].Folder != want || rows[2].Folder != "missing" {
@@ -50,7 +50,7 @@ func TestTitleShrinksBeforeCompany(t *testing.T) {
 
 func TestColumnsAcrossTables(t *testing.T) {
 	now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
-	for _, table := range []string{"Leads", "Draft", "Dismissed", "Applied", "Interviewing", "Offer", "Closed"} {
+	for _, table := range []string{"Leads", "Drafts", "Dismissed", "Applied", "Interviewing", "Offer", "Closed"} {
 		t.Run(table, func(t *testing.T) {
 			a := store.Application{Title: "Role", Company: "Firm", Track: "tech", Status: table, Closes: "2026-01-01", Documents: "Written", AppliedDate: &store.StatusEntry{At: "2026-01-01", Approx: true}, LastChange: &store.StatusEntry{At: "2026-01-01", Approx: true}}
 			got := strings.Join(ui.ApplicationColumns(a, table, now, 14), "|")
@@ -58,7 +58,7 @@ func TestColumnsAcrossTables(t *testing.T) {
 			switch table {
 			case "Leads":
 				want = "Role|Firm|tech|past|—"
-			case "Draft":
+			case "Drafts":
 				want = "Role|Firm|tech|past|—|○"
 			case "Dismissed":
 				want = "Role|Firm|tech|~2026-01-01"

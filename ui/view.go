@@ -28,10 +28,11 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedCounts     = 1 // topBar detail levels: drop other screens' counts…
-	shedWordmark   = 2 // …then the word "rolecall"…
-	shedNames      = 3 // …then other screens' names, keeping their digits…
-	shedMark       = 4 // …then the ◆
+	shedEdge       = 1 // topBar detail levels: drop the space before the wordmark…
+	shedCounts     = 2 // …then other screens' counts…
+	shedWordmark   = 3 // …then the word "rolecall"…
+	shedNames      = 4 // …then other screens' names, keeping their digits…
+	shedMark       = 5 // …then the wordmark's mark
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -279,17 +280,20 @@ func (m model) screenCountLabel(si int) string {
 // tabs is the tab bar's left side, fitted to the width, and the column each screen's
 // tab starts at, so a click reads the same geometry the bar is drawn with. The active
 // tab is bracketed where the others have spaces: marked without colour, and the same
-// width, so nothing shifts.
+// width, so nothing shifts. The detail level is the one every screen's bar fits at, so
+// switching screens never sheds or restores a count.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	on := p.activeTab()
-	build := func(level int) (string, []int) {
-		mark := " ◆ rolecall "
+	build := func(level, active int) (string, []int) {
+		mark := " " + wordmark + " rolecall "
 		switch {
 		case level >= shedMark:
 			mark = ""
 		case level >= shedWordmark:
-			mark = " ◆ "
+			mark = " " + wordmark + " "
+		case level >= shedEdge:
+			mark = wordmark + " rolecall "
 		}
 		out := p.text(p.accent).Bold(true).Render(mark)
 		starts := make([]int, len(screenDefs))
@@ -299,7 +303,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
-			if si == m.screen {
+			if si == active {
 				out += on.Render("[" + digit + name + count + "]")
 				continue
 			}
@@ -313,18 +317,26 @@ func (m model) tabs(p pal) (string, []int) {
 		}
 		return out, starts
 	}
-	out, starts := build(0)
-	for level := shedCounts; level <= shedMark && xansi.StringWidth(out) > room; level++ {
-		out, starts = build(level)
+	fits := func(level int) bool {
+		for si := range screenDefs {
+			if out, _ := build(level, si); xansi.StringWidth(out) > room {
+				return false
+			}
+		}
+		return true
 	}
-	return out, starts
+	level := 0
+	for level < shedMark && !fits(level) {
+		level++
+	}
+	return build(level, m.screen)
 }
 
 // topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
 // the pipeline summary on the right. Every tab keeps the same padding whether active
 // or not, so nothing moves between screens. As it narrows it sheds, in order, other
 // screens' counts, the word "rolecall", other screens' names (their digits stay) and
-// the ◆; the active screen keeps its name and count at every width.
+// the wordmark's mark; the active screen keeps its name and count at every width.
 func (m model) topBar(p pal) string {
 	l := m.layout()
 	room := l.w - rightMargin
@@ -446,7 +458,7 @@ func (m model) viewRow(p pal) string {
 					glyph = p.statusMark(s) + " "
 				}
 				parts[i] = glyph + p.text(p.dim).Render(label)
-				if i == m.table && len(ts) > 1 {
+				if i == m.table {
 					parts[i] = glyph + current(label)
 				}
 			}

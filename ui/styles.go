@@ -232,6 +232,9 @@ func (p pal) fitColor(fit string) color.Color {
 	return p.dim
 }
 
+// wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "#").
+const wordmark = "▞"
+
 // statusMarkWidth is a Status glyph and the space after it, before a row's title.
 const statusMarkWidth = 2
 
@@ -503,6 +506,8 @@ var asciiGlyphs = strings.NewReplacer(
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
 	"◐", "=", "★", "$", "⊘", "-",
+	// the wordmark's mark, distinct from every Status stand-in
+	"▞", "#",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
 	// the box rules Glamour draws around a Markdown table
 	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
