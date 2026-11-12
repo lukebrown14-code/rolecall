@@ -189,7 +189,8 @@ func (m model) listView(p pal) string {
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
-			body = lipgloss.JoinHorizontal(lipgloss.Top, list, p.Divider(bodyH), m.preview(p, rows[m.cursor], previewW, bodyH))
+			sel, _ := m.selected()
+			body = lipgloss.JoinHorizontal(lipgloss.Top, list, p.Divider(bodyH), m.preview(p, sel, previewW, bodyH))
 		}
 	}
 	keys := m.keyLine(p, w)
