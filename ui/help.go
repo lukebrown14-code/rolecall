@@ -385,11 +385,17 @@ func (m model) helpBox(p pal) string {
 	if c := conventions(keys); c != "" {
 		body += "\n\n" + p.text(p.dim).Render(c)
 	}
-	body += "\n\n" + glyphLegend(p, m.followUpDays)
-	lines := strings.Split(body, "\n")
 	// A page fills the body between the rules, less the pop-up's borders and padding.
 	const popChrome = 4
 	size := max(1, m.layout().bodyHeight(m.contextLines())-popChrome)
+	lines := append(strings.Split(body, "\n"), "")
+	// The legend starts a page of its own rather than leaving its heading behind, when
+	// it fits on one.
+	legend := strings.Split(glyphLegend(p, m.followUpDays), "\n")
+	if at := len(lines) % size; at != 0 && at+len(legend) > size && len(legend) <= size {
+		lines = append(lines, make([]string, size-at)...)
+	}
+	lines = append(lines, legend...)
 	pages := (len(lines) + size - 1) / size
 	hm, _ := m.overlay.(*helpMode)
 	page := 0

@@ -286,7 +286,8 @@ context-free review. Every colour and style is in `ui/styles.go`.
   always drawn; the status row holds a toast, an error, the search input or the key line,
   one at a time (actions left, navigation pinned right).
 - **Tab bar:** every tab has the same padding, active or not, so nothing shifts between
-  screens. As it narrows it drops other screens' counts, the word "rolecall" (kept down to
+  screens; the active tab is filled and bracketed (`[1 Leads 4]`), so it reads without
+  colour. As it narrows it drops other screens' counts, the word "rolecall" (kept down to
   80 columns), then other screens' names (their digits stay); the active screen keeps its
   name and count.
 - **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
@@ -316,7 +317,8 @@ context-free review. Every colour and style is in `ui/styles.go`.
   only when it has a second page. The Move
   pop-up always moves the Application it shows, even if a live refresh moved the cursor.
 - **Overflow:** one cue everywhere — `↓ 3 more` / `↑ 3 more` at the text column — on lists,
-  Stats, Profile, Settings, readers and pop-ups. A section heading never sits alone above
+  Stats, Profile, Settings, readers and pop-ups. Stats taller than the body scrolls with
+  `j k ↑↓`, `g G` and the wheel. The `?` legend starts a page of its own rather than split. A section heading never sits alone above
   it. Text wraps only at spaces.
 - **Narrow terminals:** the tab bar sheds detail, the preview and detail card fold away
   below the wide class, pop-ups shrink to fit. The key line drops actions from the right but
