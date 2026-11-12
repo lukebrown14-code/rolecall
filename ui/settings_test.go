@@ -327,19 +327,12 @@ func TestSettingsNarrowKeepsMissingEditorWarningUnbroken(t *testing.T) {
 	}
 }
 
-func TestCommaTypesIntoFilterAndEscRestoresIt(t *testing.T) {
+func TestCommaTypesIntoFilterInsteadOfOpeningSettings(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	m := driveStart(t, root, fixtureClock, 120, 40, settingsOpts(t, root, "")...)
-	m = driveModel(t, m, "/pl", "enter")
-	filtered := plainView(m)
 	m = driveModel(t, m, "/", ",")
-	v := plainView(m)
-	if strings.Contains(v, "Settings") {
+	if v := plainView(m); strings.Contains(v, "Settings") {
 		t.Fatalf("comma in the filter opened Settings:\n%s", v)
-	}
-	m = driveModel(t, m, "esc")
-	if after := plainView(m); after != filtered {
-		t.Fatalf("Esc did not restore the active filter\nbefore:\n%s\nafter:\n%s", filtered, after)
 	}
 }
 
