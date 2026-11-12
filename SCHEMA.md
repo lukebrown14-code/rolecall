@@ -188,7 +188,9 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 
 The TUI reads `schema` and `tracks` (array of strings, display order) and shows `search_area`, the gates
 (`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
-`blockers` on the Settings screen. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+`blockers` on the Settings screen. `sources` is an object mapping a Platform name (e.g.
+`greenhouse`) to a list of that Platform's targets; when present it wholly replaces the plugin's
+shipped source plan. `blockers` is a list of signal names. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
 pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
 most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track

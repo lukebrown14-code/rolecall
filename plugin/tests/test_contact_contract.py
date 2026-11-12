@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugin" / "scripts"))
-import identity  # noqa: E402
+import contact  # noqa: E402
 
 PROFILE = ROOT / "fixtures" / "workspace" / "profile" / "master-profile.md"
 EXPECTED = ROOT / "fixtures" / "profile-contact.json"
@@ -14,4 +14,4 @@ EXPECTED = ROOT / "fixtures" / "profile-contact.json"
 
 def test_fixture_profile_contact_matches_the_shared_expectations():
     expected = json.loads(EXPECTED.read_text())
-    assert identity.parse_contact(PROFILE.read_text()) == expected
+    assert contact.parse_contact(PROFILE.read_text()) == expected

@@ -6,7 +6,7 @@
     python3 plugin/scripts/sweep.py --source greenhouse
     python3 plugin/scripts/sweep.py --all-locations # ignore the location filter
     python3 plugin/scripts/sweep.py --probe greenhouse:cultureamp  # one source, health JSON
-    python3 plugin/scripts/sweep.py --platforms    # the registry as JSON (for the dashboard)
+    python3 plugin/scripts/sweep.py --platforms    # the registry as JSON
 
 This does the mechanical half of a job sweep: fetch, filter by track and
 location, drop anything already captured as an Application, and flag visa and

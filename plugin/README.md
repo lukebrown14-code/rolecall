@@ -63,7 +63,7 @@ PDFs in `out/`. It needs:
 - `typst` — Typst to PDF. The templates and the eight Hanken Grotesk fonts
   (plus their OFL licence) are shipped in `plugin/templates/`; nothing needs
   installing for fonts.
-- `pdftotext` (poppler), optional — used for the ATS/identity check when present.
+- `pdftotext` (poppler), optional — used for the ATS/contact check when present.
 
 On macOS: `brew install pandoc typst poppler`. The build gates every document
 before it compiles either one, and publishes PDFs into `out/` only when every
@@ -100,7 +100,7 @@ ruff check plugin
 The Python tests stub `pandoc`, `typst` and `pdftotext`, so they pass on a
 bare Python install.
 
-`store/build_integration_test.go` runs `build.py` for real. It skips with a
+`internal/store/tests/build_integration_test.go` runs `build.py` for real. It skips with a
 clear reason when `python3`, `pandoc` or `typst` is missing; the CI Go job
 installs only Go and Python, so it skips there. Install the tools locally to
 exercise it.
@@ -109,7 +109,7 @@ exercise it.
 
 The automated tests cannot see a real Workspace, so this check is manual. Run it
 on a **copy** of the Workspace; only the migration's final apply touches the real
-one. Do it before the plugin replaces the dashboard workflow.
+one.
 
 ### Documents
 
