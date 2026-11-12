@@ -272,8 +272,10 @@ context-free review. Every colour and style is in `ui/styles.go`.
   current one in its colour and bold, earlier ones faint. When two panes share the
   frame, the focused pane's part of the top rule is the accent.
 - **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Closes today red,
-  within 7 days orange, expired dimmed. `⚑ quiet` orange. Documents read `✓ ready` ·
-  `○ written` · `not written` (SCHEMA Ready and Written; GLOSSARY avoids "built").
+  within 7 days orange, expired dimmed. `⚑ quiet` orange. Documents are named JD · Resume ·
+  Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
+  `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
+  detail card add a meter, `▰▰▱▱ 2 of 4 ready` (GLOSSARY avoids "built").
 - **Size classes (`ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a

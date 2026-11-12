@@ -9,6 +9,7 @@ import (
 const resumeFile = "resume.md"
 
 const gapsFile = "gaps.md"
+const jdFile = "jd.md"
 
 const coverLetterFile = "cover-letter.md"
 
@@ -18,7 +19,7 @@ func readFolder(a *Application) error {
 		dest *bool
 		dir  bool
 	}{
-		{"jd.md", &a.HasJD, false}, {"notes.md", &a.HasNotes, false}, {"fit.md", &a.HasFit, false}, {gapsFile, &a.HasGaps, false}, {resumeFile, &a.HasResume, false}, {coverLetterFile, &a.HasCoverLetter, false}, {"sent", &a.HasSent, true},
+		{jdFile, &a.HasJD, false}, {"notes.md", &a.HasNotes, false}, {"fit.md", &a.HasFit, false}, {gapsFile, &a.HasGaps, false}, {resumeFile, &a.HasResume, false}, {coverLetterFile, &a.HasCoverLetter, false}, {"sent", &a.HasSent, true},
 	}
 	for _, f := range flags {
 		info, err := os.Stat(filepath.Join(a.Folder, f.name))
@@ -36,6 +37,7 @@ func readFolder(a *Application) error {
 		present bool
 		text    *bool
 	}{
+		{jdFile, a.HasJD, &a.JDHasText},
 		{resumeFile, a.HasResume, &a.ResumeHasText},
 		{coverLetterFile, a.HasCoverLetter, &a.CoverLetterHasText},
 		{gapsFile, a.HasGaps, &a.GapsHasText},

@@ -690,18 +690,6 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	return state, flag, fit
 }
 
-// docsLabel is the one wording for documents, glossary terms Ready and Written, and
-// its colour.
-func (p pal) docsLabel(a store.Application) (string, color.Color) {
-	switch strings.ToLower(a.Documents) {
-	case "ready":
-		return "✓ ready", p.ok
-	case "written":
-		return "○ written", p.warn
-	}
-	return "not written", p.dim
-}
-
 // stateColor is the colour of a row's state slot.
 func (p pal) stateColor(a store.Application, dimC color.Color) color.Color {
 	switch {
@@ -863,24 +851,23 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 			"\n\n" + p.text(p.accent).Render("e") + p.text(p.dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
-		label, c := p.docsLabel(a)
 		b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "   " + p.text(c).Render(label) + "\n\n")
+		b.WriteString(m.fileMarks(p, a) + "\n" + p.docsMeter(a) + "\n\n")
 		b.WriteString(p.heading("Timeline") + "\n" + m.timeline(p, a, true) + "\n")
 		b.WriteString(p.heading("Fit") + "\n")
-		if t := m.docText(a, "fit.md"); t != "" {
+		if t := m.docText(a, fitFile); t != "" {
 			b.WriteString(wrap(t, p.fg, docLines) + "\n")
 		} else {
 			b.WriteString(p.text(p.dim).Render("No fit.md yet") + "\n")
 		}
 		if beforeApplied(tableOf(a)) {
-			if jd := m.docText(a, "jd.md"); jd != "" {
+			if jd := m.docText(a, jdFile); jd != "" {
 				b.WriteString("\n" + p.heading("JD") + "\n" + wrap(jd, p.sub, previewLines) + "\n" +
 					p.key().Render("enter") + p.text(p.dim).Render(" full JD") + "\n")
 			}
 		}
 		b.WriteString("\n" + p.heading("Notes") + "\n")
-		if t := m.docText(a, "notes.md"); t != "" {
+		if t := m.docText(a, notesFile); t != "" {
 			b.WriteString(wrap(t, p.fg, docLines))
 		} else {
 			b.WriteString(p.text(p.dim).Render("No notes · ") + p.key().Render("n") + p.text(p.dim).Render(" to add"))
@@ -889,27 +876,18 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
 
-// fileMarks is the one-line document set: ✓ present, ○ missing. A source mark reflects
-// content, not just presence, so it never reads "✓ resume" beside "not written".
+// fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":
+// ✓ ready, ○ missing. A source document is ready when it has text, not merely a file.
 func (m model) fileMarks(p pal, a store.Application) string {
-	mark := func(ok bool, name string) string {
-		if ok {
-			return p.text(p.ok).Render("✓") + p.text(p.fg).Render(" "+name)
+	parts := make([]string, 0, len(docChips(a)))
+	for _, c := range docChips(a) {
+		if c.ready {
+			parts = append(parts, p.text(p.ok).Render("✓")+p.text(p.fg).Render(" "+c.name))
+		} else {
+			parts = append(parts, p.text(p.dim).Render("○ "+c.name))
 		}
-		return p.text(p.dim).Render("○ " + name)
 	}
-	pdfs := "pdf"
-	if n := len(a.PDFs); n > 0 {
-		pdfs = fmt.Sprintf("%d pdf", n)
-	}
-	return strings.Join([]string{mark(a.HasJD, "jd"), mark(a.HasResume && m.hasContent(a, "resume.md"), "resume"),
-		mark(a.HasCoverLetter && m.hasContent(a, "cover-letter.md"), "cover"), mark(len(a.PDFs) > 0, pdfs)}, "  ")
-}
-
-// hasContent reports whether a document holds non-whitespace text.
-func (m model) hasContent(a store.Application, name string) bool {
-	b, err := m.store.ReadDocument(a.Folder, name)
-	return err == nil && strings.TrimSpace(string(b)) != ""
+	return strings.Join(parts, "  ")
 }
 
 // timeline is the Status log, newest last, plus the close date for Leads and Drafts.

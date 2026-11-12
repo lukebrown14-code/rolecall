@@ -173,9 +173,9 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		tabs  int
 		wants []string
 	}{
-		{"jd", 0, []string{"No content in jd.md"}},
-		{"fit", 1, []string{"Fit: not assessed", "No content in fit.md"}},
-		{"notes", 2, []string{"No content in notes.md"}},
+		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
+		{"fit", 1, []string{"Fit: not assessed", "No fit assessment yet"}},
+		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newDetailHarness(t, nil)
@@ -246,15 +246,15 @@ func TestDetailDocsTabListsDocumentSet(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.show("✓ resume.md", "✓ cover-letter.md", "○ gaps.md  not written",
-		"out/Owner Resume Role.pdf", "out/Owner Role Cover Letter.pdf", "sent/")
+	h.show("✓ Resume", "✓ Cover letter", "○ Gaps", "missing", "gaps.md",
+		"Owner Resume Role.pdf", "Owner Role Cover Letter.pdf", "Sent copy")
 }
 
 func TestDetailDocsTabOmitsSentWhenAbsent(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 3, "docs-partial")
 	docsTab(h)
-	if v := h.show("✓ resume.md", "out/Owner Resume Role.pdf"); strings.Contains(v, "sent/") {
+	if v := h.show("✓ Resume", "Owner Resume Role.pdf"); strings.Contains(v, "Sent copy") {
 		t.Fatalf("sent/ listed although absent:\n%s", v)
 	}
 }
@@ -291,7 +291,7 @@ func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
 	docsTab(h)
 	h.tm.Type("jj") // gaps.md is absent
 	h.key(tea.KeyEnter)
-	h.show("gaps.md hasn't been written yet")
+	h.show("Gaps is missing · e to open gaps.md")
 	if len(h.runs) != 0 {
 		t.Fatalf("ran %q", h.runs)
 	}
@@ -416,7 +416,7 @@ func TestResumeReader(t *testing.T) {
 		t.Fatalf("editor command: %v", got)
 	}
 	h.key(tea.KeyRight)
-	h.show("[Letter]")
+	h.show("[Cover letter]")
 	h.key(tea.KeyRight)
 	h.show("[Gaps]")
 	h.key(tea.KeyRight)

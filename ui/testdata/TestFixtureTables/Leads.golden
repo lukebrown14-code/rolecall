@@ -6,16 +6,16 @@
  ▌   Example · SWE · no close date                               │ Example · SWE                                        
                                                                  │                                                      
    ◌ Empty log                                                —  │ ◌ Lead   fit not assessed                            
-     Fictional Labs · SWE · no close date                        │ ✓ jd  ○ resume  ○ cover  ○ pdf   not written         
+     Fictional Labs · SWE · no close date                        │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
+                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
+   ◌ Platform Engineer                                        —  │                                                      
+     Fern Systems · Platform · no close date                     │ TIMELINE                                             
                                                                  │                                                      
-   ◌ Platform Engineer                                        —  │ TIMELINE                                             
-     Fern Systems · Platform · no close date                     │                                                      
-                                                                 │ FIT                                                  
-   ⚠ Can't read SWE/malformed                                    │ No fit.md yet                                        
-     meta.yml line 4: indented lines must be status_log entri…   │                                                      
+   ⚠ Can't read SWE/malformed                                    │ FIT                                                  
+     meta.yml line 4: indented lines must be status_log entri…   │ No fit.md yet                                        
+                                                                 │                                                      
                                                                  │ NOTES                                                
                                                                  │ No notes · n to add                                  
-                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

@@ -21,7 +21,7 @@ type detailTab string
 const coverLetterFile = "cover-letter.md"
 
 const (
-	tabLetter detailTab = "Letter"
+	tabLetter detailTab = docCoverLetter
 	tabGaps   detailTab = "Gaps"
 	tabResume detailTab = "Resume"
 	tabJD     detailTab = "JD"
@@ -45,7 +45,7 @@ func visibleDetailTabs(a store.Application) []detailTab {
 	return append(tabs, tabNotes, tabDocs)
 }
 
-var markdownTabFiles = map[detailTab]string{tabJD: "jd.md", tabNotes: "notes.md", tabFit: "fit.md", tabResume: "resume.md", tabLetter: coverLetterFile, tabGaps: "gaps.md"}
+var markdownTabFiles = map[detailTab]string{tabJD: jdFile, tabNotes: notesFile, tabFit: fitFile, tabResume: resumeFile, tabLetter: coverLetterFile, tabGaps: gapsFile}
 
 // detailState is the open detail view. It is replaced, never mutated in place, so
 // copies of the model stay independent.
@@ -77,36 +77,37 @@ func (e docEntry) group() string {
 }
 func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
-func (e docEntry) label() string {
+// title is the entry as the Owner knows it: a document's name, a built PDF's own file
+// name, or the copy of what was sent.
+func (e docEntry) title() string {
 	switch {
-	case e.markdown() && e.present && !e.hasText:
-		return e.name + " (empty)"
-	case e.markdown() && e.present:
-		return e.name + " (present)"
 	case e.markdown():
-		return e.name + " (absent)"
+		return docName(e.name)
+	case e.name == "sent/":
+		return "Sent copy"
 	}
-	return e.name
+	return strings.TrimPrefix(e.name, "out/")
 }
 
-const emptyDocumentStatus = "(empty)"
+// resumeOnlyNote is the Cover letter's state on a Resume only Application.
+const resumeOnlyNote = "not needed · Resume only"
 
-// displayStatus keeps the inventory and card presence cues consistent.
+// displayStatus is a source document's state, ready or missing (an empty file is
+// missing), and whether it is ready. Built and sent files are ready by being there.
 func (e docEntry) displayStatus(a store.Application) (string, bool) {
-	if e.name == coverLetterFile && a.ResumeOnly && !e.hasText {
-		return "not needed · Resume only", false
+	switch {
+	case !e.markdown():
+		return "", true
+	case e.name == coverLetterFile && a.ResumeOnly && !e.hasText:
+		return resumeOnlyNote, false
+	case !e.hasText:
+		return docMissing, false
 	}
-	if e.markdown() && e.present && !e.hasText {
-		return emptyDocumentStatus, false
-	}
-	if !e.present {
-		return "not written", false
-	}
-	return "", true
+	return docReady, true
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{"resume.md", a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {"gaps.md", a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, true, false})
 	}
@@ -162,6 +163,7 @@ const (
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
+	docColumn     = 14        // the Docs tab's name and state columns
 	stripLines    = 2         // the strip that stands in for the card: timeline track, then documents
 	cardPadding   = inset + 1 // the card's padding: the text column on the left, one cell on the right
 )
@@ -211,7 +213,7 @@ func (m model) syncDetail() model {
 	}
 	d := *m.detail
 	if !slices.Contains(visibleDetailTabs(a), d.tab) {
-		m.err = fmt.Errorf("%s is gone", markdownTabFiles[d.tab])
+		m.err = fmt.Errorf("%s is gone", docName(markdownTabFiles[d.tab]))
 		d.tab = tabDocs
 	}
 	d.docs = min(d.docs, len(docEntries(a))-1)
@@ -248,21 +250,50 @@ func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
 	return r, err
 }
 
-// markdownBody renders one of the Markdown tabs, or its empty state.
+// markdownBody renders one of the Markdown tabs, or its empty state, which says what to
+// press to fill it.
 func (m model) markdownBody(a store.Application, tab detailTab, name string) string {
 	var out string
-	if tab == tabFit {
-		fit := a.Fit
-		if fit == "" {
-			fit = fitNone
-		}
-		out = "Fit: " + fit + "\n\n"
-	}
 	b, err := m.store.ReadDocument(a.Folder, name)
-	if err != nil || strings.TrimSpace(string(b)) == "" {
-		return out + "No content in " + name
+	empty := err != nil || strings.TrimSpace(string(b)) == ""
+	if tab == tabFit {
+		out = "Fit: " + fitSummary(a, !empty) + "\n\n"
+	}
+	if empty {
+		return out + m.emptyDocument(a, tab, name)
 	}
 	return out + m.renderMarkdown(string(b), m.bodyWidth())
+}
+
+// emptyDocument is a tab's empty state: what is missing and the key that fills it.
+func (m model) emptyDocument(a store.Application, tab detailTab, name string) string {
+	switch tab {
+	case tabJD:
+		return "No JD saved · e to open " + name
+	case tabFit:
+		if m.harness != "" {
+			return "No fit assessment yet · f to assess fit"
+		}
+		return "No fit assessment yet"
+	case tabNotes:
+		return "No notes yet · e to write some"
+	}
+	return "No " + docName(name) + " yet · e to open " + name
+}
+
+// fitSummary is the Fit with where it comes from when the two sources disagree: the
+// verdict lives in meta.yml and its reasoning beside it, so a verdict without reasoning,
+// or reasoning without a verdict, says so rather than reading as two different answers.
+func fitSummary(a store.Application, reasoning bool) string {
+	switch {
+	case a.Fit == "" && reasoning:
+		return fitNone + " · reasoning saved below"
+	case a.Fit == "":
+		return fitNone
+	case !reasoning:
+		return a.Fit + " · no reasoning saved"
+	}
+	return a.Fit
 }
 
 // renderMarkdown draws Markdown at a wrap width, falling back to the source when
@@ -364,7 +395,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		case e.markdown() && key == "e":
 			return m, m.editFile(a.Folder, e.name), true
 		case e.markdown():
-			m.err = fmt.Errorf("%s hasn't been written yet", e.name)
+			m.err = fmt.Errorf("%s is missing · e to open %s", e.title(), e.name)
 		}
 	}
 	return m, nil, true
@@ -589,20 +620,21 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		status, ready := e.displayStatus(a)
 		mark, nameC := p.text(p.ok).Render("✓ "), p.fg
-		name := e.name
-		if status != "" {
-			name += "  " + status
-		}
-		if status == emptyDocumentStatus {
-			name = e.label()
-		}
 		if !ready {
 			mark, nameC = p.text(p.dim).Render("○ "), p.dim
 		}
-		row := "  " + mark + p.text(nameC).Render(name)
+		// The name, then its state, then the file it lives in, muted: what e opens.
+		name := e.title()
+		file := ""
+		if e.markdown() {
+			name = padRight(name, docColumn) + padRight(status, docColumn)
+			file = e.name
+		}
+		row := "  " + mark + p.text(nameC).Render(name) + p.text(p.faint).Render(file)
 		if i == m.detail.docs {
 			row = lipgloss.NewStyle().Background(p.sel).Width(paneW - paneMargin).Render(
-				p.text(p.accent).Background(p.sel).Render("▌ ") + p.text(p.accent).Background(p.sel).Bold(true).Render(xansi.Strip(mark)+name))
+				p.text(p.accent).Background(p.sel).Render("▌ ") + p.text(p.accent).Background(p.sel).Bold(true).Render(xansi.Strip(mark)+name) +
+					p.text(p.sub).Background(p.sel).Render(file))
 		}
 		lines = append(lines, row)
 	}
@@ -615,22 +647,17 @@ func (m model) detailCard(p pal, a store.Application) string {
 		return ""
 	}
 	var b strings.Builder
-	label, c := p.docsLabel(a)
 	b.WriteString(keepTogether(m.cardWidth()-cardPadding, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
-	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "✓○ ")) + "\n")
-	for _, e := range docEntries(a) {
-		status, ready := e.displayStatus(a)
-		if ready {
-			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(e.name) + "\n")
+	b.WriteString(p.heading("Docs") + "\n" + p.docsMeter(a) + "\n")
+	for _, c := range docChips(a) {
+		if c.ready {
+			b.WriteString(p.text(p.ok).Render("✓ ") + p.text(p.fg).Render(c.name) + "\n")
 		} else {
-			name := e.name
-			if status == "not needed · Resume only" {
-				name += "\n  " + status
-			} else if status == emptyDocumentStatus {
-				name += " (empty)"
-			}
-			b.WriteString(p.text(p.dim).Render("○ "+name) + "\n")
+			b.WriteString(p.text(p.dim).Render("○ "+c.name) + "\n")
 		}
+	}
+	if a.ResumeOnly && !a.CoverLetterHasText {
+		b.WriteString(p.text(p.dim).Render("  "+docCoverLetter+"\n  "+resumeOnlyNote) + "\n")
 	}
 	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))
 	if a.URL != "" {
