@@ -382,10 +382,13 @@ func (m model) trackSelector(p pal, w int) string {
 // view's name, plus the scope line on the right when a filter is on. The row is always
 // present, so the layout never jumps between screens.
 func (m model) viewRow(p pal) string {
+	w := m.viewWidth()
 	if !m.hasTables() {
+		if chip := m.searchChip(p); chip != "" {
+			return spread("", chip, w-rightMargin)
+		}
 		return ""
 	}
-	w := m.viewWidth()
 	ts := m.views()
 	row := "   " + p.text(p.dim).Render(ts[0])
 	if len(ts) > 1 {
@@ -436,12 +439,9 @@ func (m model) scopeLine(p pal) string {
 	if m.track > 0 {
 		parts = append(parts, "track "+m.tracks[m.track-1])
 	}
-	if m.text != "" {
-		parts = append(parts, "search "+m.text)
-	}
 	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
 	parts = append(parts, label)
-	return p.text(p.dim).Render(strings.Join(parts, " · "))
+	return m.withChip(p, p.text(p.dim).Render(strings.Join(parts, " · ")))
 }
 
 // listBody lays out the rows with section dividers. Rows get a blank line between them

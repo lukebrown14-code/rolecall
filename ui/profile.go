@@ -300,6 +300,9 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "q":
 		return m, m.quit()
+	case "esc":
+		m.text = "" // an error is cleared before the screen sees esc
+		return m, nil
 	}
 	if !m.profileLoaded() {
 		return m, nil // nothing to select, scroll or edit
@@ -348,7 +351,8 @@ func (m model) profileView(p pal) string {
 func (m model) profileContextRow(p pal, w int) string {
 	left := xansi.Truncate(m.profileContextLabel(p, w), max(0, w-rightMargin-gutter), "…")
 	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
-	return spread(left, p.text(p.dim).Render(xansi.Truncate(m.profileSelectedPath(), avail, "…")), w-rightMargin)
+	right := m.withChip(p, p.text(p.dim).Render(m.profileSelectedPath()))
+	return spread(left, xansi.Truncate(right, avail, "…"), w-rightMargin)
 }
 
 // profileContextLabel is the context row's left: the focused pane, or the selected entry's

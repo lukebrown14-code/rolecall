@@ -174,7 +174,7 @@ func (m model) totalCount(screen int, table string) int {
 	return n
 }
 func (m model) matches(a store.Application) bool {
-	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(a.Title+" "+a.Company), strings.ToLower(m.text))
+	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if size, ok := msg.(tea.WindowSizeMsg); ok {

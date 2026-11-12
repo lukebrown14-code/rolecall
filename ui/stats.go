@@ -301,9 +301,7 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "?":
 		m.overlay = &helpMode{}
 	case "esc":
-		if m.err != nil {
-			m.err = nil
-		}
+		m.text = "" // an error is cleared before the screen sees esc
 	case "q":
 		return m, m.quit()
 	}

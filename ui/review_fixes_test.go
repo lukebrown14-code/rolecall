@@ -51,7 +51,7 @@ func TestPasteFillsFormAndSearch(t *testing.T) {
 	if view := ansi.Strip(runKeys(t, root, 120, "a", "paste:Pasted Title\n")); !strings.Contains(view, "Pasted Title▏") {
 		t.Fatalf("paste missing from the Title field:\n%s", view)
 	}
-	if view := ansi.Strip(runKeys(t, root, 120, "/", "paste:Orbit\n")); !strings.Contains(view, "search Orbit") {
+	if view := ansi.Strip(runKeys(t, root, 120, "/", "paste:Orbit\n")); !strings.Contains(view, "/Orbit ×") {
 		t.Fatalf("paste missing from the search:\n%s", view)
 	}
 }
@@ -153,7 +153,7 @@ func TestEveryScreenFillsTheTerminal(t *testing.T) {
 func TestScopeLineNamesEveryFilter(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	search := ansi.Strip(runKeys(t, root, 120, "1", "/pl", "enter"))
-	for _, want := range []string{"search pl", "3 of 4", "Leads 3/4"} {
+	for _, want := range []string{"/pl ×", "2 of 4", "Leads 2/4"} {
 		if !strings.Contains(search, want) {
 			t.Fatalf("search scope lacks %q:\n%s", want, search)
 		}

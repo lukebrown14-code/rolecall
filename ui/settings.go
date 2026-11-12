@@ -302,7 +302,8 @@ func (m model) settingsContextRow(p pal, w int) string {
 	}
 	left = xansi.Truncate(left, max(0, w-rightMargin-gutter), "…")
 	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
-	return spread(left, p.text(p.dim).Render(xansi.Truncate(settingsFile, avail, "…")), w-rightMargin)
+	right := m.withChip(p, p.text(p.dim).Render(settingsFile))
+	return spread(left, xansi.Truncate(right, avail, "…"), w-rightMargin)
 }
 
 // settingsBody is the group list beside the settings, or the invalid-file notice.

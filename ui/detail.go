@@ -383,6 +383,7 @@ func (m model) detailView(p pal) string {
 			when = p.text(p.dim).Render("applied " + m.agoEntry(a.AppliedDate))
 		}
 	}
+	when = m.withChip(p, when)
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
 	// The facts line: Status · Track · closes · applied, with exact dates.

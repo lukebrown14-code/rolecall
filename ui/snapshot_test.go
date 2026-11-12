@@ -44,6 +44,8 @@ var snapshotStates = []struct {
 	{"27-settings-machine-edit", []string{"6", "j", "j", "j", "tab", "enter"}},
 	{"28-toast-after-move", []string{"3", "m", "i"}},
 	{"29-command-palette", []string{"1", ":", "mo"}},
+	{"30-search-chip-detail", []string{"3", "/docs-written", "enter", "enter"}},
+	{"31-error-fix-hint", []string{"G", "enter", "m", "d"}},
 }
 
 // TestSnapshots writes every snapshotState as .txt (plain) and .ansi (with colour) to

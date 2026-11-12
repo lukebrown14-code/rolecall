@@ -231,7 +231,7 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 	if m.trackFilterApplies() {
 		keys = append(keys, help(groupGlobal, "t", "next track"), help(groupGlobal, "T", "previous track"))
 	}
-	if m.text != "" && m.hasTables() && m.detail == nil {
+	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, "esc", "clear search"))
 	}
 	if m.screen != settingsScreen {
