@@ -115,17 +115,34 @@ func runDoctor(dir string) error {
 	if err != nil {
 		return err
 	}
+	if _, err := store.Open(c.Workspace); err != nil {
+		return fmt.Errorf("open Workspace: %w", err)
+	}
 	warnings, err := doctor.Check(c.Workspace, doctor.GitHubVisibilityLookup)
 	if err != nil {
 		return fmt.Errorf("check Workspace permissions: %w", err)
 	}
 	if len(warnings) == 0 {
 		fmt.Println("Workspace permissions are private.")
-		return nil
+	} else {
+		for _, warning := range warnings {
+			fmt.Printf("WARNING: %s\n", warning)
+		}
 	}
-	for _, warning := range warnings {
-		fmt.Printf("WARNING: %s\n", warning)
+
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness}, nil)
+	for _, check := range report.Checks {
+		if check.Found {
+			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
+			continue
+		}
+		message := check.Name + " missing"
+		if check.Detail != "" {
+			message += " (" + check.Detail + ")"
+		}
+		fmt.Printf("WARNING: %s; %s\n", message, check.Hint)
 	}
+	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
 	return nil
 }
 
