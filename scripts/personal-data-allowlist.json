@@ -1,13 +1,13 @@
 [
-  "alex.quinn@example.test",
-  "sam.rivers@example.test",
-  "sam@example.test",
-  "jobs@example.test",
+  "alex.quinn\u0040example.test",
+  "sam.rivers\u0040example.test",
+  "sam\u0040example.test",
+  "jobs\u0040example.test",
   "git@github.com",
   "+61 400 000 000",
   "linkedin.com/in/alexquinn",
   "(415) 555-0132",
   "212-555-0198",
-  "alex@example.test",
+  "alex\u0040example.test",
   "linkedin.com/in/alex"
 ]
