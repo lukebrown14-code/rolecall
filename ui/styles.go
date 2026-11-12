@@ -389,6 +389,12 @@ func (p pal) panelFill(s string) string {
 // get an amber border and a ⚠ in the title. w is capped to the terminal width, less
 // the clear margin overlay adds.
 func popup(p pal, title string, warn bool, w, termWidth int, body, hints string) string {
+	return popupNote(p, title, "", warn, w, termWidth, body, hints)
+}
+
+// popupNote is popup with a short note at the right of the top border, such as a form's
+// "* required". An empty note, or one with no room beside the title, is left out.
+func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hints string) string {
 	// Grow to fit the hints in the bottom border, so a key is never cut.
 	w = max(w, xansi.StringWidth(hints)+popHintChrome)
 	if termWidth > 0 {
@@ -401,7 +407,11 @@ func popup(p pal, title string, warn bool, w, termWidth int, body, hints string)
 	b := p.text(border)
 	inner := w - popEdges
 	t := p.text(border).Bold(true).Background(p.panel).Render(" " + xansi.Truncate(title, inner-ellipsis-gutter, "…") + " ")
-	top := b.Render("╭─") + t + b.Render(strings.Repeat("─", max(0, inner-1-xansi.StringWidth(t)))+"╮")
+	n := ""
+	if note != "" && xansi.StringWidth(t)+xansi.StringWidth(note)+popHintChrome <= inner {
+		n = p.text(p.dim).Background(p.panel).Render(" "+note+" ") + b.Render("─")
+	}
+	top := b.Render("╭─") + t + b.Render(strings.Repeat("─", max(0, inner-1-xansi.StringWidth(t)-xansi.StringWidth(n)))) + n + b.Render("╮")
 	h := xansi.Truncate(" "+hints+" ", inner-popEdges-1, "…")
 	bottom := b.Render("╰─") + p.panelFill(h) + b.Render(strings.Repeat("─", max(0, inner-1-xansi.StringWidth(h)))+"╯")
 	lines := []string{top}

@@ -48,7 +48,7 @@ func selectRow(d *driver, group, row int) {
 
 func TestSettingsEditEditorSavesAndKeepsComments(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 1)
+	selectRow(d, 3, 0)
 	d.Type("enter")
 	for range 3 {
 		d.Type("backspace")
@@ -98,10 +98,12 @@ func TestSettingsRereadsConfigAfterTheEditorCloses(t *testing.T) {
 
 func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 1)
+	selectRow(d, 3, 0)
 	d.Type("enter")
 	d.Type("zzz")
 	d.Type("esc")
+	requireAll(t, d.plain(), "Discard changes?")
+	d.Type("y")
 	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
 		t.Fatalf("written:\n%s", b)
 	}
@@ -111,7 +113,7 @@ func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 	for _, bad := range []string{"0", "91", "abc", ""} {
 		d, cfg := machineDriver(t, 120)
-		selectRow(d, 2, 2)
+		selectRow(d, 2, 3)
 		d.Type("enter")
 		for range 3 {
 			d.Type("backspace")
@@ -127,13 +129,13 @@ func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 
 func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 2, 2)
+	selectRow(d, 2, 3)
 	d.Type("enter")
 	d.Type("backspace")
 	d.Type("backspace")
 	d.Type("30")
 	d.Type("enter")
-	requireAll(t, d.plain(), "Follow-up days", "30")
+	requireAll(t, d.plain(), "Follow-up due after", "30 days")
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "follow_up_days = 30\n") {
 		t.Fatalf("config.toml:\n%s", b)
 	}
@@ -147,7 +149,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	if v := d.plain(); strings.Contains(v, "assess fit") || strings.Contains(v, "build") {
 		t.Fatalf("keys shown before they are set:\n%s", v)
 	}
-	selectRow(d, 3, 3)
+	selectRow(d, 3, 2)
 	d.Type("enter")
 	d.Type("claude {prompt}")
 	d.Type("enter")
@@ -163,7 +165,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 
 func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 5)
+	selectRow(d, 3, 4)
 	requireAll(t, d.plain(), "ASCII glyphs", "No")
 	d.Type("enter")
 	requireAll(t, d.plain(), "ASCII glyphs", "Yes")
@@ -177,12 +179,18 @@ func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	}
 }
 
+// The cursor passes over the read-only Workspace row, so enter never lands on it and does
+// nothing: tab and k both stop at the Editor below it.
 func TestSettingsWorkspaceRowIsReadOnly(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
 	selectRow(d, 3, 0)
+	d.Type("k")
+	if l := rowWith(strings.Split(d.plain(), "\n"), "Editor"); !strings.Contains(l, "▸ Editor") {
+		t.Fatalf("cursor left the Editor row: %q\n%s", l, d.plain())
+	}
 	d.Type("enter")
-	d.Type("x")
-	d.Type("enter")
+	requireAll(t, d.plain(), "Edit Editor")
+	d.Type("esc")
 	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
 		t.Fatalf("written:\n%s", b)
 	}

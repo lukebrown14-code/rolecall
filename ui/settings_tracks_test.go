@@ -44,7 +44,7 @@ func TestSettingsAddTrackWritesFileAndHeaderFollows(t *testing.T) {
 func TestSettingsAddTrackRules(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE"]}`)
 	for name, want := range map[string]string{
-		"   ": "empty",
+		"   ": "required",
 		"swe": "already exists",
 		"A/B": "/",
 	} {
@@ -53,6 +53,7 @@ func TestSettingsAddTrackRules(t *testing.T) {
 		h.tm.Type("enter")
 		requireAll(t, h.tm.plain(), want)
 		h.tm.Type("esc")
+		h.tm.Type("y") // discard the typed name
 	}
 	if strings.Contains(h.file(), "A/B") {
 		t.Fatalf("invalid name written: %s", h.file())
@@ -82,7 +83,7 @@ func TestSettingsRemoveUnusedAndLastTrack(t *testing.T) {
 	if strings.Contains(h.file(), "Spare") {
 		t.Fatalf("not removed: %s", h.file())
 	}
-	requireAll(t, h.tm.plain(), "none")
+	requireAll(t, h.tm.plain(), "+ add a Track")
 	h.tm.Type("1")
 	if strings.Contains(h.tm.plain(), "Spare") {
 		t.Fatalf("header filter kept removed Track:\n%s", h.tm.plain())

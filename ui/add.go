@@ -31,7 +31,16 @@ func (m *model) openAdd() tea.Cmd {
 		m.err = errors.New("Add needs at least one track in workspace.json")
 		return nil
 	}
-	m.overlay = &formMode{form: newForm(&addValues{track: m.tracks[0]}, m.tracks, false)}
+	f := newForm(&addValues{track: m.tracks[0]}, m.tracks, false)
+	if m.plugin != "" {
+		// With the Plugin, enter on a URL fetches the ad and fills the fields below it.
+		for i := range f.fields {
+			if f.fields[i].label == fieldURL {
+				f.fields[i].note = "optional · enter fetches the ad"
+			}
+		}
+	}
+	m.overlay = &formMode{form: f}
 	return nil
 }
 
@@ -42,20 +51,20 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	for i, t := range tracks {
 		trackChoices[i] = choice{t, t}
 	}
-	url := formField{label: fieldURL, value: v.url, placeholder: "https://…"}
+	url := formField{label: fieldURL, value: v.url, placeholder: "https://…", note: "optional"}
 	titleField := formField{label: "Title", required: true, value: v.title}
 	company := formField{label: "Company", required: true, value: v.company}
 	track := formField{label: "Track", value: v.track, choices: trackChoices}
 	closes := formField{label: "Closes", value: v.closes, placeholder: "YYYY-MM-DD", validate: validCloses}
 	fit := formField{label: "Fit", value: v.fit, choices: []choice{{"", "—"}, {store.FitStrong, store.FitStrong}, {store.FitGood, store.FitGood}, {store.FitMarginal, store.FitMarginal}, {store.FitPoor, store.FitPoor}}}
 	fields := []formField{url, titleField, company, track, closes, fit}
-	title := "Add a Lead"
-	if withResumeOnly {
-		fields = []formField{titleField, company, track, url, closes, fit,
-			{label: "Resume only", value: v.resumeOnly, choices: []choice{{"false", "No"}, {"true", "Yes"}}}}
-		title = "Edit · " + v.title
+	if !withResumeOnly {
+		return newFormOf("Add a Lead", fields...)
 	}
-	return &form{title: title, fields: fields}
+	f := newFormOf("Edit "+v.title, titleField, company, track, url, closes, fit,
+		formField{label: "Resume only", value: v.resumeOnly, choices: []choice{{"false", "No"}, {"true", "Yes"}}})
+	f.showDirty = true
+	return f
 }
 
 // addValues reads the form's answers.

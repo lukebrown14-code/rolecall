@@ -18,7 +18,7 @@ func gatesHarness(t *testing.T, workspaceJSON string) *settingsHarness {
 func TestSettingsEditWordCapSavesAndShows(t *testing.T) {
 	h := gatesHarness(t, `{"sources":[1],"letterWordCap":350}`)
 	h.tm.Type("enter")
-	requireAll(t, h.tm.plain(), "Cover letter word cap")
+	requireAll(t, h.tm.plain(), "Cover letter maximum")
 	for range 3 {
 		h.tm.Type("backspace")
 	}
@@ -42,6 +42,7 @@ func TestSettingsBadGateIsRefusedWithReasonAndNothingSaved(t *testing.T) {
 		h.tm.Type("enter")
 		requireAll(t, h.tm.plain(), want)
 		h.tm.Type("esc")
+		h.tm.Type("y") // discard the typed name
 	}
 	if h.file() != before {
 		t.Fatalf("file changed: %s", h.file())

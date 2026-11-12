@@ -90,12 +90,13 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 		`"letterWordCap":300,"sources":[1,2,3],"blockers":["a","b"]}`, nil)
 	h.tm.Type("6")
 	requireAll(t, h.tm.plain(), "Search", "Documents", "Tracking", "This machine",
-		"Places", "Australia, APAC", "Remote", "in my places", "Sources · 3", "Blockers · 2")
+		"Places", "Australia, APAC", "Remote roles", "count if in my Places")
+	requireAll(t, squash(h.tm.plain()), "Sources 3 read-only", "Blockers 2 read-only")
 	h.tm.Type("j")
-	requireAll(t, h.tm.plain(), "Cover letter word cap", "300", "Cover letter minimum", "150",
+	requireAll(t, h.tm.plain(), "Cover letter maximum", "300 words", "Cover letter minimum", "150",
 		"Key Skills minimum", "8", "Key Skills maximum", "12")
 	h.tm.Type("j")
-	requireAll(t, h.tm.plain(), "Tracks", "SWE", "Follow-up days", "21")
+	requireAll(t, h.tm.plain(), "TRACKS", "SWE", "Follow-up due after", "21 days")
 	h.tm.Type("j")
 	requireAll(t, h.tm.plain(), "Workspace", h.root[len(h.root)-40:], "Editor", "myeditor", "Downloads", "/dl",
 		"Harness", "claude {prompt}", "Plugin", "/opt/plugin")
@@ -104,15 +105,13 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 func TestSettingsTabAndJKMoveRowsInTheSettingsPane(t *testing.T) {
 	h := newSettingsHarness(t, 120, "", nil)
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "GROUPS", "▸ Search")
+	requireAll(t, h.tm.plain(), "SETTINGS", "▸ Search")
 	h.tm.Type("tab")
 	requireAll(t, h.tm.plain(), "SETTINGS")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	requireAll(t, v, "Search", "▸ Remote")
-	if strings.Contains(v, "▸ Search") {
-		t.Fatalf("the unfocused group list kept its marker:\n%s", v)
-	}
+	// The group keeps its ▸ (in a quieter colour) so the rows' group stays clear.
+	requireAll(t, v, "▸ Search", "▸ Remote")
 	if strings.Contains(v, "▸ Places") {
 		t.Fatalf("j did not move the row:\n%s", v)
 	}
@@ -123,12 +122,12 @@ func TestSettingsEOpensWorkspaceJSONAndCountUpdatesOnReturn(t *testing.T) {
 		writeWorkspaceFile(t, filepath.Dir(path), `{"sources":[1,2,3,4,5]}`)
 	})
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "Sources · 2")
+	requireAll(t, squash(h.tm.plain()), "Sources 2")
 	h.tm.Type("e")
 	if got := h.opened(); len(got) != 1 || got[0] != filepath.Join(h.root, "workspace.json") {
 		t.Fatalf("editor opened %v", got)
 	}
-	requireAll(t, h.tm.plain(), "Sources · 5")
+	requireAll(t, squash(h.tm.plain()), "Sources 5")
 }
 
 func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
@@ -137,7 +136,7 @@ func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
 	writeWorkspaceFile(t, h.root, `{"sources":[1,2,3]}`)
 	h.tm.Type("1")
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "Sources · 3")
+	requireAll(t, squash(h.tm.plain()), "Sources 3")
 }
 
 func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T) {
@@ -153,7 +152,7 @@ func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T)
 	requireAll(t, v, filepath.Join(h.root, "workspace.json"), "unexpected end of JSON input", "e", "edit")
 	h.tm.Type("j")
 	h.tm.Type("tab")
-	if strings.Contains(h.tm.plain(), "Cover letter word cap") {
+	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
 		t.Fatalf("settings are shown for an invalid file:\n%s", h.tm.plain())
 	}
 	h.tm.Type("e")
@@ -175,7 +174,7 @@ func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 		t.Fatalf("group list still shown below 80 columns:\n%s", v)
 	}
 	h.tm.Type("j")
-	requireAll(t, h.tm.plain(), "Documents 2/4", "Cover letter word cap")
+	requireAll(t, h.tm.plain(), "Documents 2/4", "Cover letter maximum")
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {

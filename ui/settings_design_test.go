@@ -24,7 +24,7 @@ var settingsPopups = []struct {
 	keys []string
 	want string
 }{
-	{"search area", []string{"tab", "enter"}, "enter save"},
+	{"search area", []string{"tab", "enter"}, "ctrl+s save"},
 	{"gate", []string{"j", "tab", "enter"}, "enter save"},
 	{"add track", []string{"j", "j", "tab", "a"}, "enter add"},
 	{"rename track", []string{"j", "j", "tab", "r"}, "enter review"},
@@ -87,18 +87,16 @@ func TestSettingsTrackFooterKeys(t *testing.T) {
 }
 
 func TestSettingsFooterOffersEnterOnEditableRowsOnly(t *testing.T) {
-	// Follow-up days and a machine setting are editable; Workspace and Sources are not.
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "tab", "j", "j")); !strings.Contains(f, "enter edit") {
+	// Follow-up and a machine setting are editable; the add row adds. Read-only rows are
+	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers enter on one.
+	if f := footer(settingsAt(t, 120, 36, "j", "j", "tab", "j", "j", "j")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Follow-up days: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "j", "tab", "j")); !strings.Contains(f, "enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "j", "j", "j", "tab")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Editor: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "j", "tab")); strings.Contains(f, "enter") {
-		t.Errorf("Workspace: %q", f)
-	}
-	if f := footer(settingsAt(t, 120, 36, "tab", "j", "j")); strings.Contains(f, "enter") {
-		t.Errorf("Sources: %q", f)
+	if f := footer(settingsAt(t, 120, 36, "j", "j", "tab", "j", "j")); !strings.Contains(f, "enter add a Track") {
+		t.Errorf("add row: %q", f)
 	}
 }
 
@@ -111,8 +109,9 @@ func rowWith(lines []string, text string) string {
 	return ""
 }
 
-// The marker that shows focus lives in exactly one pane: the group list, or the settings
-// rows, whichever the Owner is driving. Colour is a bonus, never the cue.
+// The focused pane's marker is the accent one; the selected group keeps a quiet ▸ while
+// the rows have focus, so the rows' group stays clear. No row is marked while the list
+// has focus.
 func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
 	// The group list has focus: the group is marked, no settings row is.
 	v := settingsAt(t, 120, 36, "j", "j")
@@ -122,12 +121,12 @@ func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
 	if rows := settingsColumn(v, 1); strings.Contains(rows, "▸") {
 		t.Errorf("unfocused settings pane marked a row:\n%s", rows)
 	}
-	// The settings pane has focus: its row is marked, the group is not.
+	// The settings pane has focus: its row is marked, and the group keeps its place.
 	v = settingsAt(t, 120, 36, "j", "j", "tab")
-	if group := settingsColumn(v, 0); strings.Contains(group, "▸") {
-		t.Errorf("unfocused group list kept its marker: %q", group)
+	if group := settingsColumn(v, 0); !strings.Contains(group, "▸ Tracking") {
+		t.Errorf("unfocused group list lost its place: %q", group)
 	}
-	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ Tracks") {
+	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ SWE") {
 		t.Errorf("focused settings pane lost its marker:\n%s", rows)
 	}
 }
@@ -154,7 +153,7 @@ func settingsColumn(lines []string, side int) string {
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "j", "j", "tab")
-		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▸ Tracks") {
+		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▸ SWE") {
 			t.Errorf("%dx%d first Track: %q", size[0], size[1], l)
 		}
 		lines = settingsAt(t, size[0], size[1], "j", "j", "tab", "j")
@@ -163,7 +162,7 @@ func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 		}
 	}
 	// Narrow: the Groups column is hidden, so the row is selected without pressing tab.
-	if l := rowWith(settingsAt(t, 60, 16, "j", "j"), "SWE"); !strings.Contains(l, "▸ Tracks") {
+	if l := rowWith(settingsAt(t, 60, 16, "j", "j"), "SWE"); !strings.Contains(l, "▸ SWE") {
 		t.Errorf("60x16 before tab: %q", l)
 	}
 }

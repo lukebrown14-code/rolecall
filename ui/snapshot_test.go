@@ -53,6 +53,12 @@ var snapshotStates = []struct {
 	{"35-command-palette", []string{"1", ":", "mo"}, nil},
 	{"36-search-chip-detail", []string{"3", "/docs-written", "enter", "enter"}, nil},
 	{"37-error-fix-hint", []string{"G", "enter", "m", "d"}, nil},
+	{"41-add-form-save-errors", []string{"a", "ctrl+s"}, nil},
+	{"42-add-form-discard", []string{"a", "tab", "Engineer", "esc"}, nil},
+	{"43-settings-tracks-rows", []string{"6", "j", "j", "tab"}, nil},
+	{"44-settings-machine-edit-editor", []string{"6", "j", "j", "j", "tab", "enter"}, nil},
+	{"45-settings-gate-refused", []string{"6", "j", "tab", "enter", "backspace", "backspace", "backspace", "100", "enter"}, nil},
+	{"46-settings-saved-undo", []string{"6", "j", "tab", "enter", "backspace", "backspace", "backspace", "300", "enter"}, nil},
 }
 
 // sizedSnapshotStates are states that only exist at one size, written at that size

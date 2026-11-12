@@ -14,27 +14,44 @@ import (
 // renameKey opens the rename pop-up on r over a Track row. handled is false anywhere else,
 // so r keeps meaning rescan.
 func (m model) renameKey(k tea.KeyPressMsg) (next model, handled bool) {
-	st := m.settings
-	if k.String() != "r" || st == nil || st.ws.Err != nil || st.focus != settingsRows || st.group != groupTracking ||
-		st.row >= len(st.ws.Tracks) {
+	if k.String() != "r" || !m.settingsRowsFocused() || !m.onTrack() {
 		return m, false
 	}
-	old := st.ws.Tracks[st.row]
-	m.overlay = &renameMode{old: old, name: old}
+	m.overlay = m.renamePopup(m.settings.ws.Tracks[m.settings.row])
 	return m, true
 }
 
+// renamePopup asks for a Track's new name; enter goes on to review what will change.
+func (m model) renamePopup(old string) mode {
+	f := newFormOf("Rename Track "+old, formField{label: "New name", required: true, value: old})
+	f.submit = hintReview
+	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
+		name := strings.TrimSpace(f.value("New name"))
+		if name == old {
+			return nil, nil
+		}
+		others := slices.DeleteFunc(slices.Clone(m.settings.ws.Tracks), func(t string) bool { return t == old })
+		if err := validTrackName(name, others); err != nil {
+			return nil, err
+		}
+		impact, err := m.store.TrackRenameImpact(old)
+		if err != nil {
+			m.err = err
+			return nil, nil
+		}
+		return &renameMode{old: old, name: name, impact: impact, stage: renameConfirm}, nil
+	}}
+}
+
 const (
-	renameName = iota
-	renameConfirm
+	renameConfirm = iota + 1
 	renameReport
 )
 
-// renameMode renames a Track across the Workspace in three steps: ask for the name, confirm
-// the reach, then (only when files were skipped) report what the Owner must fix by hand.
+// renameMode is a Track rename after the name is chosen: review what will change and
+// confirm, then (only when files were skipped) report what the Owner must fix by hand.
 type renameMode struct {
 	old, name string
-	err       string
 	stage     int
 	impact    store.RenameImpact
 	result    store.RenameResult
@@ -43,13 +60,10 @@ type renameMode struct {
 func (rm *renameMode) boxed() bool { return true }
 
 func (rm *renameMode) Keys() [][2]string {
-	switch rm.stage {
-	case renameConfirm:
-		return [][2]string{{"y enter", "rename"}, {"n esc", "cancel"}}
-	case renameReport:
-		return [][2]string{{"esc", "close"}}
+	if rm.stage == renameReport {
+		return [][2]string{{"esc", hintClose}}
 	}
-	return [][2]string{{"enter", hintReview}, {"esc", "cancel"}}
+	return [][2]string{{"y enter", "rename"}, {keyNoEsc, "cancel"}}
 }
 
 func plural(n int, one, many string) string {
@@ -60,86 +74,53 @@ func plural(n int, one, many string) string {
 }
 
 func (rm *renameMode) View(m *model, p pal) string {
+	w := popSmall - popInset
+	para := func(s string) string {
+		return lipgloss.NewStyle().Foreground(p.fg).Width(w).Render(s)
+	}
 	var body string
-	switch rm.stage {
-	case renameName:
-		body = p.text(p.dim).Render("Name  ") + p.text(p.fg).Render(rm.name) + p.text(p.accent).Render("▏")
-		if rm.err != "" {
-			body += "\n" + p.text(p.bad).Render("✗ "+rm.err)
-		}
-	case renameConfirm:
-		roles := "roles.json will not change."
+	if rm.stage == renameConfirm {
+		roles := "roles.json has no role on " + rm.old + "."
 		if rm.impact.Roles {
-			roles = "roles.json will change."
+			roles = "roles.json: its roles on " + rm.old + " move to " + rm.name + "."
 		}
-		text := fmt.Sprintf("Rename %s to %s.\n%s will change. %s\nFolders stay where they are.",
-			rm.old, rm.name, plural(rm.impact.Applications, "Application", "Applications"), roles)
-		body = lipgloss.NewStyle().Foreground(p.fg).Width(popSmall-popInset).Render(text) + "\n\n" +
-			p.text(p.warn).Render("This can't be undone with u.")
-	default:
+		body = strings.Join([]string{
+			p.text(p.fg).Bold(true).Render(rm.old + " → " + rm.name),
+			"",
+			para(fmt.Sprintf("%s change Track in meta.yml, archived ones included.",
+				plural(rm.impact.Applications, "Application", "Applications"))),
+			para(roles),
+			p.text(p.dim).Width(w).Render("Folders stay where they are, under jobs/" + rm.old + "/."),
+			"",
+			p.text(p.warn).Render("This can't be undone with u."),
+		}, "\n")
+	} else {
 		lines := []string{fmt.Sprintf("Renamed %s to %s.", rm.old, rm.name),
 			plural(len(rm.result.Skipped), "malformed meta.yml", "malformed meta.yml files") + " skipped, fix by hand:"}
 		for _, s := range rm.result.Skipped {
 			lines = append(lines, "  "+s)
 		}
-		body = lipgloss.NewStyle().Foreground(p.fg).Width(popSmall - popInset).Render(strings.Join(lines, "\n"))
+		body = para(strings.Join(lines, "\n"))
 	}
-	return popup(p, "Rename Track", rm.stage != renameName, popSmall, m.viewWidth(), body, p.keys(rm.Keys()))
+	return popup(p, "Rename Track "+rm.old, true, popSmall, m.viewWidth(), body, p.keys(rm.Keys()))
 }
 
 func (rm *renameMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.PasteMsg:
-		if rm.stage == renameName {
-			rm.name += pasted(msg.Content)
-			rm.err = ""
-		}
-	case tea.KeyPressMsg:
-		switch rm.stage {
-		case renameName:
-			return rm.nameKey(m, msg)
-		case renameConfirm:
-			switch msg.String() {
-			case "y", "enter":
-				return rm.apply(m)
-			case "n", "esc":
-				return nil, nil
-			}
-		default:
-			if msg.String() == "esc" || msg.String() == "enter" {
-				return nil, nil
-			}
-		}
+	k, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return rm, nil
 	}
-	return rm, nil
-}
-
-func (rm *renameMode) nameKey(m *model, k tea.KeyPressMsg) (mode, tea.Cmd) {
-	switch {
-	case k.String() == "esc":
+	if rm.stage == renameConfirm {
+		switch k.String() {
+		case "y", "enter":
+			return rm.apply(m)
+		case "n", "esc":
+			return nil, nil
+		}
+		return rm, nil
+	}
+	if k.String() == "esc" || k.String() == "enter" {
 		return nil, nil
-	case k.Code == tea.KeyBackspace:
-		rm.name = dropLastGrapheme(rm.name)
-		rm.err = ""
-	case k.String() == "enter":
-		name := strings.TrimSpace(rm.name)
-		if name == rm.old {
-			return nil, nil
-		}
-		others := slices.DeleteFunc(slices.Clone(m.settings.ws.Tracks), func(t string) bool { return t == rm.old })
-		if err := validTrackName(name, others); err != nil {
-			rm.err = err.Error()
-			return rm, nil
-		}
-		impact, err := m.store.TrackRenameImpact(rm.old)
-		if err != nil {
-			m.err = err
-			return nil, nil
-		}
-		rm.name, rm.impact, rm.stage = name, impact, renameConfirm
-	default:
-		rm.name += k.Text
-		rm.err = ""
 	}
 	return rm, nil
 }
@@ -159,6 +140,7 @@ func (rm *renameMode) apply(m *model) (mode, tea.Cmd) {
 		rm.stage = renameReport
 		return rm, nil
 	}
-	m.toast = fmt.Sprintf("Renamed %s to %s (%s)", rm.old, rm.name, plural(res.Applications, "Application", "Applications"))
+	*m = m.saved(fmt.Sprintf("Renamed %s to %s (%s)", rm.old, rm.name, plural(res.Applications, "Application", "Applications")),
+		settingsFile, nil)
 	return nil, nil
 }

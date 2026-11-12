@@ -92,7 +92,7 @@ func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent,
 const (
 	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list
 	cardShare, cardMin, cardMax          = 28, 30, 40 // the detail view's card
-	profileShare, profileMin, profileMax = 26, 22, 32 // Profile's section list
+	profileShare, profileMin, profileMax = 28, 26, 36 // Profile's section list: short names whole from 80 columns
 	groupsShare, groupsMin, groupsMax    = 18, 18, 24 // Settings' group list
 )
 

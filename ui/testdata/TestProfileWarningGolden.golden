@@ -1,40 +1,40 @@
  ◆ rolecall  1 Leads 4  2 Draft 2  3 Applied 9  4 Stats [5 Profile] 6 Settings                          10 live · 1 due
 
    SECTIONS                                                                                   profile/master-profile.md
-───────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────
- ▸ Contact                  ✗  │  ⚠ Contact is missing Email. Builds will fail until it is added.                       
-   Headlines (approved per… 2  │                                                                                        
-   Experience               2  │                                                                                        
-   Key Skills keyword pool  8  │   Field               │ Value                                                          
-   Summary                     │  ─────────────────────┼─────────────────────────────────────────────────────────────── 
-   Facts that are NOT avai… 2  │   Name                │ Alex Quinn                                                     
-   ──────────────────────────  │   Phone               │ +61 400 000 000                                                
-   projects.md                 │   Location            │ Brisbane, QLD                                                  
-                               │   LinkedIn            │ linkedin.com/in/alexquinn                                      
-                               │   GitHub              │ github.com/alexquinn                                           
-                               │   Work rights         │ Full working rights in Australia (the subclass never appears)  
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-                               │                                                                                        
-───────────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
+ ▸ Contact                    ✗  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
+   Headlines                  2  │                                                                                      
+   Experience                 2  │  Name         Alex Quinn                                                             
+   Key Skills                 8  │  Phone        +61 400 000 000                                                        
+   Summary                       │  Location     Brisbane, QLD                                                          
+   Facts NOT available        2  │  LinkedIn     linkedin.com/in/alexquinn                                              
+   files ──────────────────────  │  GitHub       github.com/alexquinn                                                   
+   projects.md                   │  Work rights  Full working rights in Australia (the subclass never appears)          
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+                                 │                                                                                      
+─────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────
  e edit file                                                 j k section · tab focus · 1-6 screen · : commands · ? help

@@ -262,9 +262,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var flash tea.Cmd // a move lights its row until this fires
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		if m.settingsEditing() {
-			return m.settingsEditKey(k) // typing owns every key, digits and esc included
-		}
 		if k.String() == "esc" && m.err != nil {
 			m.err = nil
 			return m, nil

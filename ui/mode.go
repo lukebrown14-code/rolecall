@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/store"
 )
@@ -48,28 +50,15 @@ type formMode struct {
 	editOf *store.Application
 }
 
-func (fm *formMode) Keys() [][2]string {
-	return [][2]string{{"tab", hintNext}, {"←→", "change"}, {"enter", hintSave}, {"esc", "cancel"}}
-}
+func (fm *formMode) Keys() [][2]string { return fm.form.keys() }
 
 func (fm *formMode) boxed() bool { return true }
 
-func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm, popForm) }
+func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm.form, popForm) }
 
 // Update runs the form. Nothing is written until it completes.
 func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	if paste, ok := msg.(tea.PasteMsg); ok {
-		fm.form.paste(paste.Content)
-		return fm, nil
-	}
-	k, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return fm, nil
-	}
-	if k.String() == "esc" {
-		return nil, nil
-	}
-	if k.String() == "enter" && fm.wantsFetch(m) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == "enter" && !fm.form.discarding && fm.wantsFetch(m) {
 		if m.capturedRun {
 			fm.form.fetchErr = "A fetch is already running"
 			if m.building != nil {
@@ -79,8 +68,11 @@ func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		}
 		return fm.startFetch(m)
 	}
-	if !fm.form.key(k) {
+	switch fm.form.update(msg) {
+	case formOpen:
 		return fm, nil
+	case formCancel:
+		return nil, nil
 	}
 	f := fm.form
 	v := f.addValues()
@@ -110,8 +102,18 @@ type moveMode struct {
 	sel     int
 }
 
+// Keys name the first letters on offer, so the letter keys read as keys: "d/a/x… move".
 func (mv *moveMode) Keys() [][2]string {
-	return [][2]string{{"letter", "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
+	const shown = 3
+	var letters []string
+	for _, s := range mv.options[:min(shown, len(mv.options))] {
+		letters = append(letters, statusLetters[s])
+	}
+	label := strings.Join(letters, "/")
+	if len(mv.options) > shown {
+		label += "…"
+	}
+	return [][2]string{{label, "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
 }
 
 func (mv *moveMode) boxed() bool { return true }
@@ -151,7 +153,7 @@ type confirmMode struct {
 }
 
 func (cm *confirmMode) Keys() [][2]string {
-	return [][2]string{{"y", "mark Applied"}, {"n esc", "cancel"}}
+	return [][2]string{{"y", "mark Applied"}, {keyNoEsc, "cancel"}}
 }
 
 func (cm *confirmMode) boxed() bool { return true }

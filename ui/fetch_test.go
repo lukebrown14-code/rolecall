@@ -140,7 +140,7 @@ func TestAddURLIsFirstFieldAndEditKeepsOrder(t *testing.T) {
 	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape}) // close Add
 
 	h.tm.Type("e") // Edit the first Lead
-	h.wait("Edit ·")
+	h.wait("Resume only")
 	view = h.tm.plain()
 	if u, ti := strings.Index(view, "URL"), strings.Index(view, "Title"); u < 0 || ti < 0 || ti > u {
 		t.Fatalf("Edit order: URL at %d, Title at %d:\n%s", u, ti, view)

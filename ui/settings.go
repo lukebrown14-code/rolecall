@@ -7,11 +7,15 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/config"
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// settingsFile is the one file the Settings screen opens with e.
+// settingsFile is the Workspace file the Search, Documents and Tracking groups write.
 const settingsFile = "workspace.json"
+
+// configFile is the machine file This machine and follow-up days are kept in.
+const configFile = "config.toml"
 
 // The two panes tab moves between.
 const (
@@ -23,7 +27,8 @@ const (
 // Settings screen sizing mirrors Profile: a group list side panel, then the settings.
 const (
 	settingsSplitWidth = profileSplitWidth
-	settingsLabelWidth = 24
+	// maxLabelWidth caps the label column, which is otherwise as wide as the group's longest label.
+	maxLabelWidth = 24
 )
 
 // settingsListWidth is the group list's column, divider excluded.
@@ -34,14 +39,16 @@ var settingsGroups = []string{"Search", "Documents", "Tracking", groupMachineNam
 
 const groupMachineName = "This machine"
 
-// Labels of the machine settings, which carry a source.
+// Labels of the settings rows the code refers to.
 const (
 	labelEditor    = "Editor"
-	labelFollowUp  = "Follow-up days"
+	labelFollowUp  = "Follow-up due after"
 	labelHarness   = "Harness"
 	labelWorkspace = "Workspace"
 	labelDownloads = "Downloads"
 	labelPlugin    = "Plugin"
+	labelASCII     = "ASCII glyphs"
+	labelAddTrack  = "+ add a Track"
 )
 
 // editorExamples is the help line for the Editor setting: values for editor in config.toml.
@@ -71,64 +78,40 @@ func (m model) closeSettings() model {
 	return m
 }
 
-// sourceParts is what follows a setting's value: where it came from and, for the Editor,
-// a warning when its executable is not on PATH. Neither is ever cut to fit.
-func (m model) sourceParts(r settingRow) []string {
-	if r.value == "" || r.value == "not set" {
-		return nil
-	}
-	src := ""
-	switch r.label {
-	case labelEditor:
-		src = m.editorSource
-	case labelWorkspace:
-		src = m.sources.Workspace
-	case labelFollowUp:
-		src = m.sources.FollowUpDays
-	case labelDownloads:
-		src = m.sources.Downloads
-	case labelPlugin:
-		src = m.sources.Plugin
-	case labelHarness:
-		src = m.sources.Harness
-	}
-	var parts []string
-	if src != "" {
-		parts = append(parts, "("+src+")")
-	}
-	if r.label == labelEditor && !editorOnPath(r.value) {
-		parts = append(parts, "(not found on PATH)")
-	}
-	return parts
-}
-
-// minValueRoom is the least width worth giving a value; below it the source and warning
-// move to their own line under the row instead of squeezing the value out.
-const minValueRoom = 12
-
-// settingRow is one line in a group: a label and what it currently holds. placeholder is
-// an example to type while the value is unset, and readOnly marks a row Settings shows
-// but never edits in place (Workspace, Sources, Blockers), so the two read apart.
+// settingRow is one line in a group. Every editable value says where it comes from
+// (source), an unset one shows an example instead, and a read-only row says why it is
+// fixed, so "not set", "default" and "read-only" never read alike.
 type settingRow struct {
 	label, value string
-	placeholder  string
-	readOnly     bool
+	unit         string // after the value: "days", "words"
+	source       string // the file or variable the value comes from, or "default"
+	example      string // shown while the value is unset
+	readOnly     bool   // shown, never edited here; the cursor passes over it
+	reason       string // why a read-only row is fixed
+	warning      string // a problem with the value, e.g. an Editor not on PATH
+	section      string // a heading drawn above the row
+	action       bool   // "+ add a Track": no value, enter acts
+}
+
+// settingsUndo is the last Settings save, so u can put the old value back once.
+type settingsUndo struct {
+	what    string // "Editor back to vi"
+	restore func(model) model
 }
 
 // settingsState is the loaded workspace.json and where the Owner is. It is replaced, never
 // mutated in place, so copies of the model stay independent.
 type settingsState struct {
-	ws    store.WorkspaceSettings
-	group int
-	row   int
-	focus int // settingsList or settingsRows
-
-	editing bool   // a text setting is open for editing
-	input   string // what the Owner has typed so far
+	ws       store.WorkspaceSettings
+	trackUse map[string]int // Applications on each Track, archived ones included
+	group    int
+	row      int
+	focus    int // settingsList or settingsRows
+	undo     *settingsUndo
 }
 
 // loadSettings re-reads workspace.json and config.toml. It runs on entering the screen, on r and after
-// the editor closes; the group, row and focus are kept.
+// the editor closes; the group, row, focus and undo are kept.
 func (m model) loadSettings() model {
 	ws, err := m.store.Settings()
 	if err != nil {
@@ -140,67 +123,142 @@ func (m model) loadSettings() model {
 			return m
 		}
 	}
-	st := settingsState{ws: ws}
+	st := settingsState{ws: ws, trackUse: map[string]int{}}
+	for _, t := range ws.Tracks {
+		if n, err := m.store.TrackUse(t); err == nil {
+			st.trackUse[t] = n
+		}
+	}
 	if m.settings != nil {
-		st.group, st.row, st.focus = m.settings.group, m.settings.row, m.settings.focus
+		st.group, st.row, st.focus, st.undo = m.settings.group, m.settings.row, m.settings.focus, m.settings.undo
 	}
 	m.settings = &st
+	st.row = m.selectableRow(st.group, st.row, 1)
 	return m
 }
 
-// rows are the settings of the selected group, each with its current value.
+// sourceText is a source as the value's provenance reads: "from $EDITOR", "config.toml".
+func sourceText(src string) string {
+	switch src {
+	case config.SourceVisual, config.SourceEditor, config.SourcePlugin, config.SourceFlag:
+		return "from " + src
+	}
+	return src
+}
+
+// fileSource is a workspace.json value's source: the file, or the default it falls back to.
+func fileSource(set bool) string {
+	if set {
+		return settingsFile
+	}
+	return config.SourceDefault
+}
+
+// settingsRows are the settings of a group, each with its current value and source.
 func (m model) settingsRows(group int) []settingRow {
 	ws := m.settings.ws
 	switch settingsGroups[group] {
 	case "Search":
 		return []settingRow{
-			{label: "Places", value: strings.Join(ws.Places, ", "), placeholder: "Australia, APAC"},
-			{label: "Remote", value: remoteLabel(ws.Remote)},
-			{label: "Sources · " + strconv.Itoa(ws.Sources), readOnly: true},
-			{label: "Blockers · " + strconv.Itoa(ws.Blockers), readOnly: true},
+			{label: fieldPlaces, value: strings.Join(ws.Places, ", "), source: settingsFile, example: "Australia, APAC"},
+			{label: fieldRemote, value: remoteLabel(ws.Remote), source: fileSource(ws.Remote != "")},
+			{label: "Sources", value: strconv.Itoa(ws.Sources), readOnly: true, reason: "read-only"},
+			{label: "Blockers", value: strconv.Itoa(ws.Blockers), readOnly: true, reason: "read-only"},
 		}
 	case "Documents":
 		return m.gateRows()
 	case "Tracking":
 		return m.trackingRows()
 	}
-	return []settingRow{
-		{label: labelWorkspace, value: m.store.Root(), readOnly: true},
-		{label: labelEditor, value: ResolveEditor(m.editor), placeholder: "nvim, code --wait"},
-		{label: labelDownloads, value: m.downloads, placeholder: "~/Downloads"},
-		{label: labelHarness, value: m.harness, placeholder: `claude "/{skill} {dir}"`},
-		{label: labelPlugin, value: m.plugin, placeholder: "path to rolecall/plugin"},
-		{label: "ASCII glyphs", value: yesNo(m.ascii)},
+	editor := ResolveEditor(m.editor)
+	editorRow := settingRow{label: labelEditor, value: editor, source: sourceText(m.editorSource), example: "nvim, code --wait"}
+	if !editorOnPath(editor) {
+		editorRow.warning = "not found on PATH"
 	}
+	ascii := config.SourceDefault
+	if m.ascii {
+		ascii = configFile
+	}
+	return []settingRow{
+		{label: labelWorkspace, value: m.store.Root(), readOnly: true, reason: "fixed this session", source: sourceText(m.sources.Workspace)},
+		editorRow,
+		{label: labelDownloads, value: m.downloads, source: sourceText(m.sources.Downloads), example: "~/Downloads"},
+		{label: labelHarness, value: m.harness, source: sourceText(m.sources.Harness), example: `claude "/{skill} {dir}"`},
+		{label: labelPlugin, value: m.plugin, source: sourceText(m.sources.Plugin), example: "path to rolecall/plugin"},
+		{label: labelASCII, value: yesNo(m.ascii), source: ascii},
+	}
+}
+
+// Remote rule labels: how search_area.remote reads, here and in the Search area form.
+var remoteLabels = map[string]string{
+	store.RemoteInPlaces: "count if in my Places",
+	store.RemoteAnywhere: "count from anywhere",
+	store.RemoteNo:       "never count",
 }
 
 // remoteLabel is search_area.remote as the Owner reads it; missing means the default.
 func remoteLabel(remote string) string {
-	switch remote {
-	case store.RemoteAnywhere, store.RemoteNo:
-		return remote
+	if l, ok := remoteLabels[remote]; ok {
+		return l
 	}
-	return "in my places"
+	return remoteLabels[store.RemoteInPlaces]
+}
+
+// selectable reports whether the cursor can rest on a row: everything but read-only rows.
+func (r settingRow) selectable() bool { return !r.readOnly }
+
+// selectableRow is row if the cursor can rest there, else the nearest row in direction
+// dir (then the other way) that it can.
+func (m model) selectableRow(group, row, dir int) int {
+	rows := m.settingsRows(group)
+	if len(rows) == 0 {
+		return 0
+	}
+	row = min(max(row, 0), len(rows)-1)
+	for _, d := range []int{dir, -dir} {
+		for i := row; i >= 0 && i < len(rows); i += d {
+			if rows[i].selectable() {
+				return i
+			}
+		}
+	}
+	return row
 }
 
 func (m model) settingsListShown(w int) bool { return w >= settingsSplitWidth }
 
+// settingsGroupFile is the file the selected group's values live in, for the context row
+// and e.
+func (m model) settingsGroupFile() string {
+	switch {
+	case m.settings == nil:
+		return settingsFile
+	case settingsGroups[m.settings.group] == groupMachineName:
+		return configFile
+	case m.settings.group == groupTracking:
+		return settingsFile + " · " + configFile
+	}
+	return settingsFile
+}
+
 // settingsHelpKeys is the keys Settings accepts. Application actions are absent, and so
 // are the global keys.
 func (m model) settingsHelpKeys() []helpKey {
-	if m.settings != nil && m.settings.editing {
-		return []helpKey{help(groupAction, "enter", hintSave).at(prioCore), help(groupNav, "esc", "cancel").at(prioPinned)}
-	}
 	keys := []helpKey{}
 	keys = append(keys, m.trackHelpKeys()...)
 	keys = append(keys, m.gateHelpKeys()...)
 	keys = append(keys, m.searchHelpKeys()...)
 	keys = append(keys, m.machineHelpKeys()...)
-	file := settingsFile
-	if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName && m.configHome != "" {
-		file = "config.toml"
+	if m.settings != nil && m.settings.undo != nil {
+		keys = append(keys, help(groupAction, "u", "undo").at(prioMinor))
 	}
-	keys = append(keys, help(groupAction, "e", "edit "+file))
+	if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName {
+		if m.configHome != "" {
+			keys = append(keys, help(groupAction, "e", "edit "+configFile))
+		}
+	} else {
+		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
+	}
 	if m.settings != nil && m.settings.ws.Err == nil {
 		keys = append(keys, help(groupNav, "j k", "move"), help(groupNav, "tab", "focus").at(prioScreen))
 	}
@@ -212,12 +270,9 @@ func (m model) settingsHelpKeys() []helpKey {
 	return keys
 }
 
-// settingsKey handles the keys Settings accepts. It never writes: e hands workspace.json
-// to the Owner's editor and the screen re-reads when it exits.
+// settingsKey handles the keys Settings accepts. e hands the group's file to the Owner's
+// editor and the screen re-reads when it exits; every other write goes through a pop-up.
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.settings != nil && m.settings.editing {
-		return m.settingsEditKey(k)
-	}
 	if next, ok := m.renameKey(k); ok {
 		return next, nil
 	}
@@ -232,7 +287,10 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.quit()
 	case "e":
 		// On This machine e opens config.toml (Editor and the rest); elsewhere workspace.json.
-		if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName && m.configHome != "" {
+		if m.settings != nil && settingsGroups[m.settings.group] == groupMachineName {
+			if m.configHome == "" {
+				return m, nil
+			}
 			return m, m.editConfig()
 		}
 		return m, m.editFile(m.store.Root(), settingsFile)
@@ -243,6 +301,9 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	if m.settings == nil || m.settings.ws.Err != nil {
 		return m, nil // an invalid file offers e and nothing else
+	}
+	if k.String() == "u" && m.settings.undo != nil {
+		return m.undoSetting(), nil
 	}
 	if next, ok := m.tracksKey(k); ok {
 		return next, nil
@@ -256,11 +317,12 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	st := *m.settings
 	switch k.String() {
 	case "enter":
-		if st.focus == settingsRows {
+		if st.focus == settingsRows || !m.settingsListShown(m.viewWidth()) {
 			return m.activateSetting()
 		}
 	case "tab", "shift+tab":
 		st.focus = (st.focus + 1) % settingsPanes
+		st.row = m.selectableRow(st.group, st.row, 1)
 	case "down", "j":
 		st = m.moveSetting(st, 1)
 	case "up", "k":
@@ -270,16 +332,50 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// moveSetting moves the group while the list has focus, the row otherwise.
+// moveSetting moves the group while the list has focus, the row otherwise. The row skips
+// read-only rows, so enter always has something to do.
 func (m model) moveSetting(st settingsState, delta int) settingsState {
 	if st.focus == settingsList {
 		st.group = min(max(st.group+delta, 0), len(settingsGroups)-1)
-		st.row = 0
+		st.row = m.selectableRow(st.group, 0, 1)
 		return st
 	}
-	m.settings = &st
-	st.row = min(max(st.row+delta, 0), len(m.settingsRows(st.group))-1)
+	rows := m.settingsRows(st.group)
+	for i := st.row + delta; i >= 0 && i < len(rows); i += delta {
+		if rows[i].selectable() {
+			st.row = i
+			break
+		}
+	}
 	return st
+}
+
+// saved reports a Settings save on the feedback line, naming the file it went to, and
+// keeps restore so u can put the old value back.
+func (m model) saved(msg, file string, undo *settingsUndo) model {
+	m.toast = msg + " · " + file
+	if m.settings != nil {
+		st := *m.settings
+		st.undo = undo
+		m.settings = &st
+	}
+	if undo != nil {
+		m.toastHint = "u undo"
+	}
+	return m
+}
+
+// undoSetting puts back the value the last Settings save replaced.
+func (m model) undoSetting() model {
+	u := m.settings.undo
+	m = u.restore(m)
+	st := *m.settings
+	st.undo = nil
+	m.settings = &st
+	if m.err == nil {
+		m.toast, m.toastHint = "Undone · "+u.what, ""
+	}
+	return m
 }
 
 // settingsView is the Settings screen in the same frame Profile uses.
@@ -295,20 +391,16 @@ func (m model) settingsView(p pal) string {
 	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
-// settingsContextRow names the focused pane, or the group and its position when the group
-// list is hidden; the file path is on the right.
+// settingsContextRow is one stable heading, or the group and its position when the group
+// list is hidden; the selected group's file is on the right.
 func (m model) settingsContextRow(p pal, w int) string {
 	pad := strings.Repeat(" ", inset)
 	left := pad + p.heading("SETTINGS")
-	switch {
-	case m.settings == nil || m.settings.ws.Err != nil:
-	case !m.settingsListShown(w):
+	if m.settings != nil && m.settings.ws.Err == nil && !m.settingsListShown(w) {
 		left = pad + p.text(p.fg).Bold(true).Render(settingsGroups[m.settings.group]) +
 			p.text(p.dim).Render(" "+strconv.Itoa(m.settings.group+1)+"/"+strconv.Itoa(len(settingsGroups)))
-	case m.settings.focus == settingsList:
-		left = pad + p.heading("GROUPS")
 	}
-	return contextRow(left, m.withChip(p, p.text(p.dim).Render(settingsFile)), w)
+	return contextRow(left, m.withChip(p, p.text(p.dim).Render(m.settingsGroupFile())), w)
 }
 
 // settingsBody is the group list beside the settings, or the invalid-file notice.
@@ -341,56 +433,121 @@ func (m model) settingsBody(p pal, w, h int) string {
 		case m.settings.focus == settingsList:
 			groups = append(groups, strings.Repeat(" ", edge)+p.text(p.accent).Bold(true).Render(profileMarker+name))
 		default:
-			// The current group, unmarked: the marker belongs to the focused pane, and the
-			// settings rows carry it while they have focus. Bold keeps the group findable.
-			groups = append(groups, pad+p.text(p.fg).Bold(true).Render(name))
+			// The selected group keeps its ▸ while the rows have focus, in a quieter
+			// colour, so it is clear which group the rows belong to.
+			groups = append(groups, strings.Repeat(" ", edge)+p.text(p.dim).Render(profileMarker)+p.text(p.fg).Bold(true).Render(name))
 		}
 	}
 	list := lipgloss.NewStyle().Width(m.settingsListWidth()).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
 	return lipgloss.JoinHorizontal(lipgloss.Top, list, p.divider(h), pane)
 }
 
-// settingsRowsView lists the selected group's settings, one per line. The row marker shows
-// only while the settings pane has focus.
+// settingValueText is a row's value with its unit, as the value column shows it.
+func (r settingRow) valueText() string {
+	if r.value != "" && r.unit != "" {
+		return r.value + " " + r.unit
+	}
+	return r.value
+}
+
+// provenance is what follows a row's value: why a read-only row is fixed, where a value
+// comes from, or an example while it is unset.
+func (r settingRow) provenance() string {
+	switch {
+	case r.readOnly && r.source != "":
+		return r.reason + " · " + r.source
+	case r.readOnly:
+		return r.reason
+	case r.value == "" && r.example != "":
+		return "example: " + r.example
+	}
+	return r.source
+}
+
+// warnSep leads a row's warning after its source.
+const warnSep = "  ⚠ "
+
+// tail is the source and warning after a row's value, as plain text, for sizing.
+func (r settingRow) tail() string {
+	t := r.provenance()
+	if r.warning != "" {
+		t += warnSep + r.warning
+	}
+	return t
+}
+
+// settingsRowsView lists the selected group's settings, one per line, in three columns:
+// label, value, and where the value comes from. The row marker shows only while the
+// settings pane has focus.
 func (m model) settingsRowsView(p pal, width, h int) string {
+	rows := m.settingsRows(m.settings.group)
+	valueW, labelW, tailW := 0, 0, 0
+	for _, r := range rows {
+		tailW = max(tailW, xansi.StringWidth(r.tail()))
+		if !r.action {
+			labelW = max(labelW, profileMarkerWidth+xansi.StringWidth(r.label)+gutter)
+		}
+		w := xansi.StringWidth(r.valueText())
+		if r.value == "" && !r.action {
+			w = xansi.StringWidth("not set")
+		}
+		valueW = max(valueW, w)
+	}
+	labelW = min(labelW, maxLabelWidth)
+	room := width - labelW
+	valueW = min(valueW, max(minValueRoom, room-tailW-gutter))
+	marked := m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())
 	var lines []string
-	for i, r := range m.settingsRowsShown(m.settings.group) {
-		var extra []string
+	selLine := 0
+	for i, r := range rows {
+		if r.section != "" {
+			if len(lines) > 0 {
+				lines = append(lines, "")
+			}
+			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.heading(r.section))
+		}
+		selected := marked && i == m.settings.row
+		if i == m.settings.row {
+			selLine = len(lines)
+		}
 		mark, label := "  ", p.text(p.dim).Render(r.label)
-		if (m.settings.focus == settingsRows || !m.settingsListShown(m.viewWidth())) && i == m.settings.row {
-			mark, label = profileMarker, p.text(p.accent).Bold(true).Render(r.label)
-		}
-		tag := ""
-		if r.readOnly {
-			tag = "  " + p.text(p.dim).Render("(read-only)")
-		}
-		pad := strings.Repeat(" ", max(1, settingsLabelWidth-profileMarkerWidth-xansi.StringWidth(r.label)))
-		line := mark + label
 		switch {
-		case r.value != "":
-			var parts []string
-			if !(m.settings.editing && i == m.settings.row) {
-				parts = m.sourceParts(r)
-			}
-			tail := tag
-			if len(parts) > 0 {
-				tail += " " + strings.Join(parts, " ")
-			}
-			if room := width - settingsLabelWidth - xansi.StringWidth(tail); room >= minValueRoom || len(parts) == 0 {
-				line += pad + p.text(p.fg).Render(fitValue(r, room)) + p.text(p.dim).Render(tail)
-			} else {
-				line += pad + p.text(p.fg).Render(fitValue(r, width-settingsLabelWidth)) + tag
-				extra = parts
-			}
-		case r.placeholder != "":
-			line += pad + p.text(p.dim).Render("not set ("+r.placeholder+")") + tag
+		case selected:
+			mark, label = p.text(p.accent).Bold(true).Render(profileMarker), p.text(p.accent).Bold(true).Render(r.label)
+		case r.action:
+			label = p.text(p.sub).Render(r.label)
+		}
+		line := mark + label
+		if r.action {
+			lines = append(lines, xansi.Truncate(line, width, "…"))
+			continue
+		}
+		pad := strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.label)))
+		var value string
+		switch {
+		case r.value == "":
+			value = p.text(p.dim).Italic(true).Render("not set")
 		default:
-			line += pad + tag
+			value = p.text(p.fg).Render(fitValue(r.label, r.valueText(), valueW))
+		}
+		value += strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value)))
+		tail := p.text(p.dim).Render(r.provenance())
+		if r.warning != "" {
+			tail += p.text(p.warn).Render(warnSep + r.warning)
+		}
+		line += pad + value
+		if r.tail() != "" {
+			// The source and any warning are never cut: without room they get their own line.
+			if width-labelW-valueW-gutter >= xansi.StringWidth(r.tail()) {
+				line += strings.Repeat(" ", gutter) + tail
+				lines = append(lines, xansi.Truncate(line, width, "…"))
+			} else {
+				lines = append(lines, xansi.Truncate(line, width, "…"),
+					xansi.Truncate(strings.Repeat(" ", labelW)+tail, width, "…"))
+			}
+			continue
 		}
 		lines = append(lines, xansi.Truncate(line, width, "…"))
-		for _, part := range extra {
-			lines = append(lines, xansi.Truncate(strings.Repeat(" ", settingsLabelWidth)+p.text(p.dim).Render(part), width, "…"))
-		}
 	}
 	if settingsGroups[m.settings.group] == groupMachineName {
 		lines = append(lines, "")
@@ -398,18 +555,21 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.text(p.dim).Render(l))
 		}
 	}
-	return strings.Join(p.clipLines(lines, m.settings.row-h/bothSides, h, strings.Repeat(" ", profileMarkerWidth)), "\n")
+	return strings.Join(p.clipLines(lines, selLine-h/bothSides, h, strings.Repeat(" ", profileMarkerWidth)), "\n")
 }
+
+// minValueRoom is the least width worth giving a value.
+const minValueRoom = 12
 
 // fitValue cuts a value that does not fit. A path keeps its end, where the folder names
 // that tell Workspaces apart are; other values keep their start.
-func fitValue(r settingRow, room int) string {
-	if xansi.StringWidth(r.value) <= room || room < 2 {
-		return r.value
+func fitValue(label, value string, room int) string {
+	if xansi.StringWidth(value) <= room || room < 2 {
+		return value
 	}
-	switch r.label {
+	switch label {
 	case labelWorkspace, labelDownloads, labelPlugin:
-		return "…" + xansi.TruncateLeft(r.value, xansi.StringWidth(r.value)-room+1, "")
+		return "…" + xansi.TruncateLeft(value, xansi.StringWidth(value)-room+1, "")
 	}
-	return xansi.Truncate(r.value, room, "…")
+	return xansi.Truncate(value, room, "…")
 }

@@ -65,6 +65,9 @@ func keyMessages(k string) []tea.Msg {
 	if code, ok := named[k]; ok {
 		return []tea.Msg{tea.KeyPressMsg{Code: code}}
 	}
+	if k == "ctrl+s" {
+		return []tea.Msg{tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}}
+	}
 	if text, ok := strings.CutPrefix(k, "paste:"); ok {
 		return []tea.Msg{tea.PasteMsg{Content: text}}
 	}
