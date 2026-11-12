@@ -306,92 +306,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.hasTables() {
 			return screenDefs[m.screen].key(m, k)
 		}
-		switch k.String() {
-		case "v", "enter":
-			if a, ok := m.selected(); ok {
-				m.openDetail(a.Folder)
+		if cmd, handled, early := m.runListAction(k.String()); handled {
+			if early {
+				return m, cmd
 			}
-		case "m":
-			if a, ok := m.current(); ok {
-				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
-				return m, nil
+			flash = cmd
+		} else {
+			switch k.String() {
+			case "t", "T":
+				m.cycleTrack(k.String() == "T")
+			case "esc":
+				m.text = ""
+				m.cursor = 0
+			case "q", "ctrl+c":
+				return m, m.quit()
+			case "right", "tab":
+				// ←→ switch views; tab does too here, as a table screen has only one pane.
+				m.table = (m.table + 1) % len(m.views())
+				m.cursor = 0
+			case "left", "shift+tab":
+				m.table = (m.table + len(m.views()) - 1) % len(m.views())
+				m.cursor = 0
+			case "down", "j":
+				m.cursor++
+			case "up", "k":
+				m.cursor--
+			case "g":
+				m.cursor = 0
+			case "G":
+				m.cursor = len(m.rows()) - 1
+			case "?":
+				m.overlay = &helpMode{}
+			case "r":
+				m.rescanAll()
 			}
-		case "x":
-			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
-				flash = m.move(a, store.StatusDismissed, false)
-			}
-		case "u":
-			if len(m.undo) > 0 {
-				last := m.undo[len(m.undo)-1]
-				for _, a := range m.apps {
-					if a.Folder == last.folder {
-						flash = m.move(a, last.status, true)
-						if m.err == nil {
-							m.undo = m.undo[:len(m.undo)-1]
-						}
-						break
-					}
-				}
-			}
-
-		case "a":
-			return m, m.openAdd()
-		case "b":
-			return m, m.startBuild()
-		case "f":
-			return m, m.startHandoff(skillAssessFit)
-		case "p":
-			return m, m.startHandoff(skillPrepareDocuments)
-		case "e":
-			if a, ok := m.current(); ok {
-				return m, m.openEdit(a)
-			}
-		case "t", "T":
-			m.cycleTrack(k.String() == "T")
-		case "s":
-			if m.detail == nil && m.views()[m.table] == tableLeads {
-				folder := m.cursorFolder()
-				m.leadsNewest = !m.leadsNewest
-				m.keepCursor(folder)
-				m.toast = "Leads by close date, soonest first"
-				if m.leadsNewest {
-					m.toast = "Leads newest first"
-				}
-			}
-		case "/":
-			m.overlay = &searchMode{}
-		case "esc":
-			m.text = ""
-			m.cursor = 0
-		case "q", "ctrl+c":
-			return m, m.quit()
-		case "right", "tab":
-			// ←→ switch views; tab does too here, as a table screen has only one pane.
-			m.table = (m.table + 1) % len(m.views())
-			m.cursor = 0
-		case "left", "shift+tab":
-			m.table = (m.table + len(m.views()) - 1) % len(m.views())
-			m.cursor = 0
-		case "down", "j":
-			m.cursor++
-		case "up", "k":
-			m.cursor--
-		case "g":
-			m.cursor = 0
-		case "G":
-			m.cursor = len(m.rows()) - 1
-		case "?":
-			m.overlay = &helpMode{}
-		case "n":
-			if a, ok := m.current(); ok {
-				return m, m.editNotes(a.Folder)
-			}
-		case "d":
-			if a, ok := m.current(); ok && len(a.PDFs) > 0 {
-				return m, m.download(a)
-			}
-		case "r":
-			m.rescanAll()
 		}
 	}
 	m = m.syncDetail()

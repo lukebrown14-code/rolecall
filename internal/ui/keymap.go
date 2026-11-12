@@ -6,21 +6,28 @@ import (
 )
 
 // listAction is one row action the list and detail views accept: the keys that trigger
-// it, how the help words it, its group and key-line priority, when it applies, and what
-// it does. The help and the dispatcher both read this one table, so what a key does and
-// what the help claims can never drift apart.
+// it, how the help words it, its group and key-line priority, when it is listed and when
+// it runs, and what it does. The help and the dispatcher both read this one table, so the
+// two cannot drift apart.
 //
 // `keys` are the keys that run it; `keyLabel` is what the help shows (often a friendlier
-// alias, e.g. "enter" for enter and v). `enabled` is the single gate: it decides both
-// whether the help lists the action and whether the dispatcher runs it.
+// alias, e.g. "enter" for enter and v). `listed` is when the help advertises the key;
+// `enabled` is when the dispatcher runs it. They are the same for almost every key. They
+// differ for the ones that stay quiet until the Owner has set the Plugin or Harness
+// (build, assess fit, prepare docs): the key still works and says what is missing, but the
+// help does not advertise it.
 type listAction struct {
 	keys     []string
 	keyLabel string
 	desc     func(model) string
 	group    helpGroup
 	prio     func(model) int
+	listed   func(model) bool
 	enabled  func(model) bool
-	run      func(m *model, key string) tea.Cmd
+	// early is true when the dispatcher returns at once instead of falling through to the
+	// end-of-update sync: the actions that open a pop-up or start a run.
+	early bool
+	run   func(m *model, key string) tea.Cmd
 }
 
 // text is a fixed help description.
@@ -28,6 +35,9 @@ func text(s string) func(model) string { return func(model) string { return s } 
 
 // fixed is a fixed key-line priority.
 func fixed(prio int) func(model) int { return func(model) int { return prio } }
+
+// always is an unconditional gate.
+func always(model) bool { return true }
 
 // onRow reports whether a row is under the cursor (or the detail view's Application is
 // open).
@@ -39,13 +49,6 @@ func onRow(m model) bool { _, ok := m.current(); return ok }
 func usable(m model) bool {
 	a, ok := m.current()
 	return !ok || a.Malformed == nil
-}
-
-// sent reports whether the current row is a sent Application (Applied or Interviewing),
-// which the follow-up and Handoff rules single out.
-func sent(m model) bool {
-	a, ok := m.current()
-	return ok && (a.Status == store.StatusApplied || a.Status == store.StatusInterviewing)
 }
 
 // leadOrDraft reports whether the current row is still the Owner's to send.
@@ -60,13 +63,14 @@ var listActions = []listAction{
 	{
 		keys: []string{"enter", "v"}, keyLabel: "enter", desc: text("open"),
 		group: groupAction, prio: fixed(prioCore),
-		enabled: func(m model) bool {
+		listed: func(m model) bool {
 			a, ok := m.current()
 			if !ok {
 				return false
 			}
 			return m.detail == nil || (m.detail.tab == tabDocs && a.Malformed == nil)
 		},
+		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.selected(); ok {
 				m.openDetail(a.Folder)
@@ -89,6 +93,7 @@ var listActions = []listAction{
 			}
 			return prioMain
 		},
+		listed:  onRow,
 		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok {
@@ -100,7 +105,8 @@ var listActions = []listAction{
 	{
 		keys: []string{"m"}, keyLabel: "m", desc: text("move"),
 		group: groupAction, prio: fixed(prioCore),
-		enabled: func(m model) bool { return onRow(m) && usable(m) },
+		listed:  func(m model) bool { return onRow(m) && usable(m) },
+		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok {
 				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
@@ -111,7 +117,8 @@ var listActions = []listAction{
 	{
 		keys: []string{"u"}, keyLabel: "u", desc: text("undo"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool { return usable(m) && len(m.undo) > 0 },
+		listed:  func(m model) bool { return usable(m) && len(m.undo) > 0 },
+		enabled: func(m model) bool { return len(m.undo) > 0 },
 		run: func(m *model, _ string) tea.Cmd {
 			if len(m.undo) == 0 {
 				return nil
@@ -132,7 +139,8 @@ var listActions = []listAction{
 	{
 		keys: []string{"x"}, keyLabel: "x", desc: text("dismiss"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool { return m.detail == nil && leadOrDraft(m) && usable(m) },
+		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
+		enabled: leadOrDraft,
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
 				return m.move(a, store.StatusDismissed, false)
@@ -149,7 +157,8 @@ var listActions = []listAction{
 			}
 			return prioMain
 		},
-		enabled: func(m model) bool { return onRow(m) && usable(m) },
+		listed:  func(m model) bool { return onRow(m) && usable(m) },
+		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok {
 				return m.editNotes(a.Folder)
@@ -160,18 +169,23 @@ var listActions = []listAction{
 	{
 		keys: []string{"b"}, keyLabel: "b", desc: text("build"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool {
+		listed: func(m model) bool {
 			a, ok := m.current()
 			return ok && a.Malformed == nil && m.plugin != "" && buildable(a)
 		},
-		run: func(m *model, _ string) tea.Cmd { return m.startBuild() },
+		enabled: always,
+		run:     func(m *model, _ string) tea.Cmd { return m.startBuild() },
 	},
 	{
 		keys: []string{"d"}, keyLabel: "d", desc: text("download"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool {
+		listed: func(m model) bool {
 			a, ok := m.current()
 			return ok && a.Malformed == nil && len(a.PDFs) > 0
+		},
+		enabled: func(m model) bool {
+			a, ok := m.current()
+			return ok && len(a.PDFs) > 0
 		},
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok && len(a.PDFs) > 0 {
@@ -183,13 +197,15 @@ var listActions = []listAction{
 	{
 		keys: []string{"f"}, keyLabel: "f", desc: text("assess fit"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool { return onRow(m) && m.harness != "" },
+		listed:  func(m model) bool { return onRow(m) && m.harness != "" },
+		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillAssessFit) },
 	},
 	{
 		keys: []string{"p"}, keyLabel: "p", desc: text("prepare docs"),
 		group: groupAction, prio: fixed(prioMinor),
-		enabled: func(m model) bool { return usable(m) && leadOrDraft(m) && m.harness != "" },
+		listed:  func(m model) bool { return usable(m) && leadOrDraft(m) && m.harness != "" },
+		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
@@ -201,6 +217,7 @@ var listActions = []listAction{
 			return "sort newest"
 		},
 		group: groupAction, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		enabled: func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		run: func(m *model, _ string) tea.Cmd {
 			folder := m.cursorFolder()
@@ -216,13 +233,15 @@ var listActions = []listAction{
 	{
 		keys: []string{"a"}, keyLabel: "a", desc: text("add"),
 		group: groupAction, prio: fixed(prioCore),
-		enabled: func(m model) bool { return m.detail == nil },
+		listed:  func(m model) bool { return m.detail == nil },
+		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.openAdd() },
 	},
 	{
 		keys: []string{"/"}, keyLabel: "/", desc: text("search"),
 		group: groupAction, prio: fixed(prioCore),
-		enabled: func(m model) bool { return m.detail == nil },
+		listed:  func(m model) bool { return m.detail == nil },
+		enabled: always,
 		run: func(m *model, _ string) tea.Cmd {
 			m.overlay = &searchMode{}
 			return nil
@@ -230,13 +249,30 @@ var listActions = []listAction{
 	},
 }
 
-// actionKeys is the row actions that apply here, in help order, built from the one table.
+// actionKeys is the row actions the help lists here, in order, built from the one table.
 func (m model) actionKeys() []helpKey {
 	var keys []helpKey
 	for _, a := range listActions {
-		if a.enabled(m) {
+		if a.listed(m) {
 			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(a.prio(m)))
 		}
 	}
 	return keys
+}
+
+// runListAction finds the action a key triggers here: the first enabled action whose keys
+// include it. handled is false when no action claims the key. early is true when the
+// caller should return at once rather than fall through to the end-of-update sync.
+func (m *model) runListAction(key string) (cmd tea.Cmd, handled, early bool) {
+	for _, a := range listActions {
+		if !a.enabled(*m) {
+			continue
+		}
+		for _, k := range a.keys {
+			if k == key {
+				return a.run(m, key), true, a.early
+			}
+		}
+	}
+	return nil, false, false
 }
