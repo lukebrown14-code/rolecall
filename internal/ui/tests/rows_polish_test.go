@@ -84,8 +84,17 @@ func TestNextActionLine(t *testing.T) {
 // Moving to Offer celebrates once, in the toast; a rejection stays quiet.
 func TestOfferCelebration(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	if v := ansi.Strip(runKeys(t, root, 120, "3", "tab", "m", "o")); !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") || !strings.Contains(v, "press ← → to follow it") {
+	// The move lands on the Application's new home: the Offer view, with its row selected,
+	// and the celebration as one toast (not a body banner over an empty list).
+	v := ansi.Strip(runKeys(t, root, 120, "3", "tab", "m", "o"))
+	if !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") {
 		t.Fatalf("no celebration:\n%s", v)
+	}
+	if !strings.Contains(v, "[Offer 3]") {
+		t.Fatalf("did not land on the Offer view:\n%s", v)
+	}
+	if strings.Contains(v, "press ← → to follow it") {
+		t.Fatalf("redundant follow hint still shown:\n%s", v)
 	}
 	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "tab", "m", "r")); strings.Contains(v, "OFFER") {
 		t.Fatalf("a rejection celebrated:\n%s", v)

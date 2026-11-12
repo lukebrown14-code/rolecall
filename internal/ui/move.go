@@ -71,9 +71,41 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 	}
 	if status == store.StatusOffer {
 		m.toast = m.offerToast(a)
+		// Land on the Application's new home so the celebration sits over its row, not
+		// an empty list left behind.
+		m.followAfterMove(a.Folder)
 	}
-	m.toastHint = "u undo"
 	return m.startFlash(a.Folder)
+}
+
+// followAfterMove puts the selection on folder's row in whichever screen and view now
+// hold it, so a move that empties the current view lands on the Application's new home
+// instead of an empty list. Filters are left alone: the moved Application was just on
+// screen, so they cannot be hiding it.
+func (m *model) followAfterMove(folder string) {
+	for _, a := range m.apps {
+		if a.Folder != folder {
+			continue
+		}
+		screen, table := StatusLocation(a.Status)
+		for i, d := range screenDefs {
+			if d.name == screen {
+				m.screen = i
+			}
+		}
+		for i, t := range m.views() {
+			if t == table {
+				m.table = i
+			}
+		}
+		m.detail = nil
+		for i, r := range m.rows() {
+			if r.Folder == folder {
+				m.cursor = i
+			}
+		}
+		return
+	}
 }
 
 // flashFor is how long a moved row stays lit, so the eye can follow it.
