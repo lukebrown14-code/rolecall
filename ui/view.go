@@ -330,6 +330,9 @@ func (m model) topBar(p pal) string {
 	}
 	available := max(0, w-xansi.StringWidth(out)-rightMargin-gutter)
 	track := xansi.Truncate(m.trackSelector(p, available), available, "…")
+	if track == "" {
+		return xansi.Truncate(out, w, "")
+	}
 	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
 }
 
