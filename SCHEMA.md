@@ -228,5 +228,5 @@ file updates the fixtures in the same commit.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed
 tables, jd front matter, legacy keys, bulk-stamped logs and an unmappable Fit. It is used by
-`plugin/tests/test_migrate.py` and `store/migrate_integration_test.go`. It is input to the
+`plugin/tests/test_migrate.py` and `internal/store/tests/migrate_integration_test.go`. It is input to the
 one-time migration only and is not scanned by the store.

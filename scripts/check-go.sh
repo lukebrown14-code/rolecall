@@ -8,16 +8,16 @@ if [ -n "$unformatted" ]; then
   echo "gofmt needed:"; echo "$unformatted"; exit 1
 fi
 
-# ADR-0003: process/process.go is the only process launch boundary.
-launches=$(grep -rln 'exec.Command\|tea.ExecProcess\|CombinedOutput\|c.Run()' --include='*.go' . | grep -v '_test\.go$' | grep -v '^\./process/process\.go$' || true)
+# ADR-0003: internal/process/process.go is the only process launch boundary.
+launches=$(grep -rln 'exec.Command\|tea.ExecProcess\|CombinedOutput\|c.Run()' --include='*.go' . | grep -v '_test\.go$' | grep -v '^\./internal/process/process\.go$' || true)
 if [ -n "$launches" ]; then
-  echo "process launch outside process/process.go (ADR-0003):"; echo "$launches"; exit 1
+  echo "process launch outside internal/process/process.go (ADR-0003):"; echo "$launches"; exit 1
 fi
 
-# Every colour lives in ui/styles.go: no colour or escape literals anywhere else.
-colours=$(grep -rnE 'lipgloss\.Color\(|"#[0-9A-Fa-f]{6}"|\\x1b\[|\\033\[' --include='*.go' . | grep -v '_test\.go:' | grep -v '^\./ui/styles\.go:' || true)
+# Every colour lives in internal/ui/theme/theme.go or UI-specific styles.go: no colour or escape literals anywhere else.
+colours=$(grep -rnE 'lipgloss\.Color\(|"#[0-9A-Fa-f]{6}"|\\x1b\[|\\033\[' --include='*.go' . | grep -v '_test\.go:' | grep -vE '^\./internal/ui/(styles\.go|theme/theme\.go):' || true)
 if [ -n "$colours" ]; then
-  echo "colour literal outside ui/styles.go:"; echo "$colours"; exit 1
+  echo "colour literal outside theme or UI styles:"; echo "$colours"; exit 1
 fi
 
 go vet ./...

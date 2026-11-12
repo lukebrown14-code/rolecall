@@ -7,6 +7,6 @@ out=${1:-$(mktemp -d)}
 [ $# -gt 0 ] && shift
 sizes=${*:-120x36 80x24}
 for size in $sizes; do
-  ROLECALL_SNAP_DIR="$out" ROLECALL_SNAP_SIZE="$size" go test ./ui -run '^TestSnapshots$' -count=1 >/dev/null
+  ROLECALL_SNAP_DIR="$out" ROLECALL_SNAP_SIZE="$size" go test ./internal/ui/tests -run '^TestSnapshots$' -count=1 >/dev/null
 done
 echo "$out"
