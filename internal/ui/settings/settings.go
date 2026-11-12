@@ -335,10 +335,8 @@ func (st State[Undo]) Load(s *store.Store) (State[Undo], error) {
 	}
 	st.Ws = ws
 	st.TrackUse = map[string]int{}
-	for _, track := range ws.Tracks {
-		if n, err := s.TrackUse(track); err == nil {
-			st.TrackUse[track] = n
-		}
+	if counts, err := s.TrackUseAll(); err == nil {
+		st.TrackUse = counts
 	}
 	return st, nil
 }

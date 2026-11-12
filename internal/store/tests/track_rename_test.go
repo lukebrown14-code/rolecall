@@ -113,6 +113,25 @@ func TestRenameTrackLeavesNestedTrackKeysAlone(t *testing.T) {
 	}
 }
 
+// TrackUseAll counts every Track in one pass and agrees with the per-Track count.
+func TestTrackUseAllCountsEveryTrack(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeArchived(t, s.Root())
+	counts, err := s.TrackUseAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, track := range []string{"SWE", "Platform"} {
+		want, err := s.TrackUse(track)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if counts[track] != want {
+			t.Fatalf("%s: TrackUseAll=%d, TrackUse=%d", track, counts[track], want)
+		}
+	}
+}
+
 func TestRenameTrackSkipsAndNamesMalformed(t *testing.T) {
 	s := fixtureProfileStore(t)
 	res, err := s.RenameTrack("SWE", "Engineering")

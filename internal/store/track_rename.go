@@ -54,6 +54,23 @@ func (s *Store) TrackUse(track string) (int, error) {
 	return n, err
 }
 
+// TrackUseAll counts the Applications on every Track in one pass over the Workspace,
+// archived and malformed ones included, so a caller showing each Track's use does not
+// walk the whole tree once per Track.
+func (s *Store) TrackUseAll() (map[string]int, error) {
+	counts := map[string]int{}
+	err := s.eachMeta(func(dir string, b []byte) error {
+		a := readApplication(dir, b)
+		if a.Malformed != nil {
+			counts[rawTrack(b)]++
+			return nil
+		}
+		counts[a.Track]++
+		return nil
+	})
+	return counts, err
+}
+
 // RenameTrack renames a Track across the Workspace: the track of every readable meta.yml
 // under jobs/ (archive included, written with the usual meta.yml rules), then tracks in
 // workspace.json, then the role tracks in jobs/roles.json. Folders never move, and
