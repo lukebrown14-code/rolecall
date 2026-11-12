@@ -46,15 +46,6 @@ func (m model) overlayHints() [][2]string {
 	return m.overlay.Keys()
 }
 
-// overlayLeft is the first column a pop-up may use: Settings keeps its Groups column and
-// the divider clear, so a pop-up never covers them.
-func (m model) overlayLeft() int {
-	if m.screen == settingsScreen && m.settingsListShown(m.viewWidth()) {
-		return settingsListWidth + profileDivider
-	}
-	return 0
-}
-
 // overlayView is the active mode's box, or "" when none is open.
 func (m model) overlayView(p pal) string {
 	if m.overlay == nil {

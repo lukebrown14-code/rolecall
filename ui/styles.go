@@ -126,6 +126,9 @@ const (
 	ellipsis  = 4 // room kept for "…" and a space when text is cut
 	bothSides = 2
 	popClear  = 2 // blank cells kept either side of a pop-up, so nothing behind it touches the border
+	// popHintChrome is the bottom border's cells around its hints: "╰─ " … " ─╯" and a
+	// spare cell, so the hints never touch the corner.
+	popHintChrome = 7
 )
 
 // popWidth is the width a pop-up of preferred width w gets on a terminal termWidth wide.
@@ -153,6 +156,8 @@ func panelFill(s string) string {
 // get an amber border and a ⚠ in the title. w is capped to the terminal width, less
 // the clear margin overlay adds.
 func popup(p pal, title string, warn bool, w, termWidth int, body, hints string) string {
+	// Grow to fit the hints in the bottom border, so a key is never cut.
+	w = max(w, xansi.StringWidth(hints)+popHintChrome)
 	if termWidth > 0 {
 		w = min(w, popWidth(w, termWidth))
 	}
@@ -172,30 +177,6 @@ func popup(p pal, title string, warn bool, w, termWidth int, body, hints string)
 		lines = append(lines, b.Render("│")+panelFill(content+strings.Repeat(" ", max(0, inner-xansi.StringWidth(content))))+b.Render("│"))
 	}
 	return strings.Join(append(lines, bottom), "\n")
-}
-
-// overlay draws box centred over base, with popClear blank cells either side so the
-// dimmed text behind never butts against the border. A box taller than the screen
-// loses middle lines and keeps its bottom border, where the key hints are.
-func overlay(base, box string, width int) string { return overlayIn(base, box, 0, width) }
-
-// overlayIn is overlay centred in the columns from x0 to x0+width, for a screen whose
-// left column the box must not cover.
-func overlayIn(base, box string, x0, width int) string {
-	const half = 2
-	h := lipgloss.Height(base)
-	lines := strings.Split(box, "\n")
-	if len(lines) > h && h > 1 {
-		lines = append(lines[:h-1], lines[len(lines)-1])
-	}
-	pad := strings.Repeat(" ", popClear)
-	for i, l := range lines {
-		lines[i] = pad + l + pad
-	}
-	box = strings.Join(lines, "\n")
-	x := x0 + max(0, (width-lipgloss.Width(box))/half)
-	y := max(0, (h-len(lines))/half)
-	return lipgloss.NewCompositor(lipgloss.NewLayer(base), lipgloss.NewLayer(box).X(x).Y(y).Z(1)).Render()
 }
 
 // markdownStyle is Glamour's dark style with the accent on headings, no heading markers

@@ -20,12 +20,14 @@ const (
 	settingsPanes
 )
 
-// Settings screen sizing mirrors Profile: a fixed list column, then the settings.
+// Settings screen sizing mirrors Profile: a group list side panel, then the settings.
 const (
 	settingsSplitWidth = profileSplitWidth
-	settingsListWidth  = 20
 	settingsLabelWidth = 24
 )
+
+// settingsListWidth is the group list's column, divider excluded.
+func (m model) settingsListWidth() int { return m.layout().panel(groupsShare, groupsMin, groupsMax) }
 
 // settingsGroups are the groups in display order.
 var settingsGroups = []string{"Search", "Documents", "Tracking", groupMachineName}
@@ -286,45 +288,48 @@ func (m model) moveSetting(st settingsState, delta int) settingsState {
 // settingsView is the Settings screen in the same frame Profile uses.
 func (m model) settingsView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
-	rule := p.text(p.rule).Render(strings.Repeat("─", w))
-	return m.topBar(p) + "\n\n" + m.settingsContextRow(p, w) + "\n" + rule + "\n" +
-		m.settingsBody(p, w, h) + "\n" + rule + "\n" + m.statusRow(p, w, m.keyLine(p, w))
+	split := 0
+	if m.settings != nil && m.settings.ws.Err == nil && m.settingsListShown(w) {
+		split = m.settingsListWidth()
+	}
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
 // settingsContextRow names the focused pane, or the group and its position when the group
 // list is hidden; the file path is on the right.
 func (m model) settingsContextRow(p pal, w int) string {
-	left := "  " + p.heading("SETTINGS")
+	pad := strings.Repeat(" ", inset)
+	left := pad + p.heading("SETTINGS")
 	switch {
 	case m.settings == nil || m.settings.ws.Err != nil:
 	case !m.settingsListShown(w):
-		left = "  " + p.text(p.fg).Bold(true).Render(settingsGroups[m.settings.group]) +
+		left = pad + p.text(p.fg).Bold(true).Render(settingsGroups[m.settings.group]) +
 			p.text(p.dim).Render(" "+strconv.Itoa(m.settings.group+1)+"/"+strconv.Itoa(len(settingsGroups)))
 	case m.settings.focus == settingsList:
-		left = "  " + p.heading("GROUPS")
+		left = pad + p.heading("GROUPS")
 	}
-	left = xansi.Truncate(left, max(0, w-rightMargin-gutter), "…")
-	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
-	return spread(left, p.text(p.dim).Render(xansi.Truncate(settingsFile, avail, "…")), w-rightMargin)
+	return contextRow(left, p.text(p.dim).Render(settingsFile), w)
 }
 
 // settingsBody is the group list beside the settings, or the invalid-file notice.
 func (m model) settingsBody(p pal, w, h int) string {
+	pad := strings.Repeat(" ", inset)
 	if m.settings != nil && m.settings.ws.Err != nil {
-		text := "  " + p.text(p.bad).Render("workspace.json is not valid JSON") + "\n  " +
-			p.text(p.fg).Render(m.settings.ws.Path) + "\n  " + p.text(p.fg).Render(m.settings.ws.Err.Error()) +
-			"\n\n  " + p.text(p.dim).Render("Press e to fix it in your editor. Nothing is written.")
+		text := pad + p.text(p.bad).Render("workspace.json is not valid JSON") + "\n" + pad +
+			p.text(p.fg).Render(m.settings.ws.Path) + "\n" + pad + p.text(p.fg).Render(m.settings.ws.Err.Error()) +
+			"\n\n" + pad + p.text(p.dim).Render("Press e to fix it in your editor. Nothing is written.")
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
 	}
 	if m.settings == nil {
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "")
 	}
-	paneW := w
+	// Without the list the rows' markers sit at the chrome column, like the list's.
+	paneW, gutterW := w, edge
 	if m.settingsListShown(w) {
-		paneW = w - settingsListWidth - profileDivider
+		paneW, gutterW = w-m.settingsListWidth()-profileDivider, profileGutter
 	}
-	pane := lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(profileGutter).
-		Render(m.settingsRowsView(p, paneW-profileGutter))
+	pane := lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutterW).
+		Render(m.settingsRowsView(p, paneW-gutterW-rightMargin, h))
 	if !m.settingsListShown(w) {
 		return pane
 	}
@@ -332,23 +337,22 @@ func (m model) settingsBody(p pal, w, h int) string {
 	for i, name := range settingsGroups {
 		switch {
 		case i != m.settings.group:
-			groups = append(groups, "  "+p.text(p.dim).Render(name))
+			groups = append(groups, pad+p.text(p.dim).Render(name))
 		case m.settings.focus == settingsList:
-			groups = append(groups, p.text(p.accent).Bold(true).Render(profileMarker+name))
+			groups = append(groups, strings.Repeat(" ", edge)+p.text(p.accent).Bold(true).Render(profileMarker+name))
 		default:
 			// The current group, unmarked: the marker belongs to the focused pane, and the
 			// settings rows carry it while they have focus. Bold keeps the group findable.
-			groups = append(groups, "  "+p.text(p.fg).Bold(true).Render(name))
+			groups = append(groups, pad+p.text(p.fg).Bold(true).Render(name))
 		}
 	}
-	list := lipgloss.NewStyle().Width(settingsListWidth).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
-	sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top, list, sep, pane)
+	list := lipgloss.NewStyle().Width(m.settingsListWidth()).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, p.divider(h), pane)
 }
 
 // settingsRowsView lists the selected group's settings, one per line. The row marker shows
 // only while the settings pane has focus.
-func (m model) settingsRowsView(p pal, width int) string {
+func (m model) settingsRowsView(p pal, width, h int) string {
 	var lines []string
 	for i, r := range m.settingsRowsShown(m.settings.group) {
 		var extra []string
@@ -390,11 +394,11 @@ func (m model) settingsRowsView(p pal, width int) string {
 	}
 	if settingsGroups[m.settings.group] == groupMachineName {
 		lines = append(lines, "")
-		for _, l := range strings.Split(xansi.Hardwrap(editorExamples, max(1, width), true), "\n") {
-			lines = append(lines, p.text(p.dim).Render(l))
+		for _, l := range wrapWords(editorExamples, max(1, width-profileMarkerWidth)) {
+			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.text(p.dim).Render(l))
 		}
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(p.clipLines(lines, m.settings.row-h/bothSides, h, strings.Repeat(" ", profileMarkerWidth)), "\n")
 }
 
 // fitValue cuts a value that does not fit. A path keeps its end, where the folder names

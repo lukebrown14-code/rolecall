@@ -41,15 +41,17 @@ const (
 )
 
 // Profile screen sizing: the section list, the divider, and the gutter before the
-// Markdown. The list gets a fixed column so headings line up; the content takes the rest.
-// The list has its own split: it needs less room than an Application preview, so it stays
-// until 80 columns and the Markdown gets everything below that.
+// Markdown. The list is a side panel (layout.go) so headings line up; the content takes
+// the rest. The list needs less room than an Application preview, so it stays down to
+// the medium size class and the Markdown gets everything below that.
 const (
-	profileSplitWidth = 80
-	profileListWidth  = 24
+	profileSplitWidth = mediumWidth
 	profileDivider    = 1
 	profileGutter     = 2
 )
+
+// profileListWidth is the section list's column, divider excluded.
+func (m model) profileListWidth() int { return m.layout().panel(profileShare, profileMin, profileMax) }
 
 // profileState is the loaded Profile and where the Owner is in it. It is replaced, never
 // mutated in place, so copies of the model stay independent.
@@ -189,7 +191,7 @@ func (m model) syncProfile() model {
 }
 
 // profileBodyHeight is the lines between the two rules, as on every screen.
-func (m model) profileBodyHeight() int { return max(minBody, m.viewHeight()-chromeLines) }
+func (m model) profileBodyHeight() int { return m.layout().bodyHeight(1) }
 
 // profileListShown reports whether the section list has room beside the content. Below the
 // split width the list is hidden and the context row names the selection instead.
@@ -199,13 +201,24 @@ func (m model) profileListShown(w int) bool { return w >= profileSplitWidth }
 // what is left beside the list and its divider.
 func (m model) profilePaneWidth(w int) int {
 	if !m.profileListShown(w) {
-		return max(minWrapWidth+profileGutter, w)
+		return max(minWrapWidth+inset, w)
 	}
-	return max(minWrapWidth+profileGutter, w-profileListWidth-profileDivider)
+	return max(minWrapWidth+profileGutter, w-m.profileListWidth()-profileDivider)
+}
+
+// profilePaneGutter is the cells before the Markdown: the gutter after the divider, or
+// the text column when the pane has the whole width.
+func (m model) profilePaneGutter(w int) int {
+	if m.profileListShown(w) {
+		return profileGutter
+	}
+	return inset
 }
 
 // profileContentWidth is the Markdown wrap width inside that pane.
-func (m model) profileContentWidth(w int) int { return m.profilePaneWidth(w) - profileGutter }
+func (m model) profileContentWidth(w int) int {
+	return m.profilePaneWidth(w) - m.profilePaneGutter(w) - rightMargin
+}
 
 // profileMarkdown renders the selected section or other Profile file, with the Contact
 // warning above it when a required field is missing. Glamour tables can run wider than
@@ -338,52 +351,69 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // Markdown, in the same frame Stats uses.
 func (m model) profileView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
-	rule := p.text(p.rule).Render(strings.Repeat("─", w))
-	return m.topBar(p) + "\n\n" + m.profileContextRow(p, w) + "\n" + rule + "\n" +
-		m.profileBody(p, w, h) + "\n" + rule + "\n" + m.statusRow(p, w, m.keyLine(p, w))
+	split := 0
+	if m.profileLoaded() && m.profileListShown(w) {
+		split = m.profileListWidth()
+	}
+	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, m.statusRow(p, w, m.keyLine(p, w)))
 }
 
 // profileContextRow names the focused pane on the left and the file it reads on the
 // right, cut to what is left so the row never spills. Once the list is hidden the left
 // names the selected entry and its position instead, since there is no list to mark it.
 func (m model) profileContextRow(p pal, w int) string {
-	left := xansi.Truncate(m.profileContextLabel(p, w), max(0, w-rightMargin-gutter), "…")
-	avail := max(0, w-rightMargin-xansi.StringWidth(left)-gutter)
-	return spread(left, p.text(p.dim).Render(xansi.Truncate(m.profileSelectedPath(), avail, "…")), w-rightMargin)
+	return contextRow(m.profileContextLabel(p, w), p.text(p.dim).Render(m.profileSelectedPath()), w)
 }
 
 // profileContextLabel is the context row's left: the focused pane, or the selected entry's
 // name and 1-based position when the section list is hidden.
 func (m model) profileContextLabel(p pal, w int) string {
+	pad := strings.Repeat(" ", inset)
 	if !m.profileLoaded() {
-		return "  " + p.heading("PROFILE")
+		return pad + p.heading("PROFILE")
 	}
 	if !m.profileListShown(w) {
 		pos, of := m.profile.position()
-		return "  " + p.text(p.fg).Bold(true).Render(m.profile.entryName()) +
+		return pad + p.text(p.fg).Bold(true).Render(m.profile.entryName()) +
 			p.text(p.dim).Render(" "+strconv.Itoa(pos)+"/"+strconv.Itoa(of))
 	}
 	pane := "SECTIONS"
 	if m.profile.focus == profileContent {
 		pane = "CONTENT"
 	}
-	return "  " + p.heading(pane)
+	return pad + p.heading(pane)
 }
 
 // profileBody is the list and content panes, or the missing-Profile notice. Both panes
 // are exactly the body height so the rules never move.
 func (m model) profileBody(p pal, w, h int) string {
 	if !m.profileLoaded() {
-		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "  "+p.text(p.fg).Render(noProfile))
+		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Repeat(" ", inset)+p.text(p.fg).Render(noProfile))
 	}
 	pane := lipgloss.NewStyle().Width(m.profilePaneWidth(w)).Height(h).MaxHeight(h).
-		PaddingLeft(profileGutter).Render(m.profile.body.View())
+		PaddingLeft(m.profilePaneGutter(w)).Render(m.profileContentView(p))
 	if !m.profileListShown(w) {
 		return pane
 	}
-	list := lipgloss.NewStyle().Width(profileListWidth).Height(h).MaxHeight(h).Render(m.profileSectionList(p, h))
-	sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top, list, sep, pane)
+	list := lipgloss.NewStyle().Width(m.profileListWidth()).Height(h).MaxHeight(h).Render(m.profileSectionList(p, h))
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, p.divider(h), pane)
+}
+
+// profileContentView is the content viewport, with the shared overflow cue on its first
+// or last line while text is scrolled out of view that way.
+func (m model) profileContentView(p pal) string {
+	b := m.profile.body
+	lines := strings.Split(b.View(), "\n")
+	if len(lines) == 0 || b.Height() <= 1 {
+		return b.View()
+	}
+	if above := b.YOffset(); above > 0 {
+		lines[0] = p.moreCue(true, above+1)
+	}
+	if below := b.TotalLineCount() - b.YOffset() - b.Height(); below > 0 && len(lines) >= b.Height() {
+		lines[b.Height()-1] = p.moreCue(false, below+1)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // profileSectionList is the sections, a divider, then the other Profile files that exist:
@@ -391,22 +421,19 @@ func (m model) profileBody(p pal, w, h int) string {
 // window follows the selection when the entries outrun the lines.
 func (m model) profileSectionList(p pal, h int) string {
 	st := m.profile
+	listW := m.profileListWidth()
 	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {
 		suffix, colour := m.profileSectionSuffix(p, section)
-		rows = append(rows, profileListRow(p, section.Heading, suffix, colour, i == st.selected))
+		rows = append(rows, profileListRow(p, listW, section.Heading, suffix, colour, i == st.selected))
 	}
 	if len(st.profile.Files) > 0 {
-		rows = append(rows, p.text(p.rule).Render(strings.Repeat("─", profileListWidth-profileGutter)))
+		rows = append(rows, strings.Repeat(" ", inset)+p.text(p.rule).Render(strings.Repeat("─", listW-inset-gutter)))
 	}
 	for i, file := range st.profile.Files {
-		rows = append(rows, profileListRow(p, file.Name, "", p.dim, st.sectionCount()+i == st.selected))
+		rows = append(rows, profileListRow(p, listW, file.Name, "", p.dim, st.sectionCount()+i == st.selected))
 	}
-	if len(rows) > h {
-		start := min(max(0, st.row()-h/2), len(rows)-h)
-		rows = rows[start:]
-	}
-	return strings.Join(rows, "\n")
+	return strings.Join(p.clipLines(rows, st.row()-h/bothSides, h, strings.Repeat(" ", inset)), "\n")
 }
 
 // profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ✗ in
@@ -427,20 +454,20 @@ func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string
 // profileListRow is one entry in the list column: the marker and name on the left, the
 // count right-aligned in the column. The name is cut to leave room for the suffix, and a
 // section with no count leaves the column blank.
-func profileListRow(p pal, name, suffix string, colour color.Color, selected bool) string {
-	width := profileListWidth - gutter // two blank cells before the divider
-	room := width - profileMarkerWidth
+func profileListRow(p pal, listW int, name, suffix string, colour color.Color, selected bool) string {
+	width := listW - gutter // two blank cells before the divider
+	room := width - inset
 	if suffix != "" {
 		room -= xansi.StringWidth(suffix) + 1 // one cell between the name and the count
 	}
 	heading := xansi.Truncate(name, max(1, room), "…")
-	left := "  " + p.text(p.dim).Render(heading)
+	left := strings.Repeat(" ", inset) + p.text(p.dim).Render(heading)
 	if selected {
-		left = p.text(p.accent).Bold(true).Render(profileMarker + heading)
+		left = strings.Repeat(" ", edge) + p.text(p.accent).Bold(true).Render(profileMarker+heading)
 	}
 	if suffix == "" {
 		return left
 	}
-	gap := width - profileMarkerWidth - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
+	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	return left + strings.Repeat(" ", max(1, gap)) + p.text(colour).Render(suffix)
 }

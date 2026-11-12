@@ -314,21 +314,17 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // statsView is the Stats screen: no tables, no cursor, no preview pane.
 func (m model) statsView(p pal) string {
-	w := m.viewWidth()
-	bodyH := max(minBody, m.viewHeight()-chromeLines)
+	l := m.layout()
 	report := Stats(m.statsApps(), m.now(), m.followUpDays)
-	body := m.statsBody(p, report, w)
-	lines := strings.Split(body, "\n")
-	if len(lines) > bodyH {
-		lines = lines[:bodyH]
+	pad := strings.Repeat(" ", inset)
+	lines := strings.Split(m.statsBody(p, report, l.w-inset-rightMargin), "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = pad + line
+		}
 	}
-	for len(lines) < bodyH {
-		lines = append(lines, "")
-	}
-	ruleTop, ruleBot := strings.Repeat("─", w), strings.Repeat("─", w)
-	keys := m.keyLine(p, w)
-	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
-		strings.Join(lines, "\n") + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
+	lines = p.clipLines(lines, 0, l.bodyHeight(1), pad)
+	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, m.statusRow(p, l.w, m.keyLine(p, l.w)))
 }
 
 // statsBody renders the report top to bottom. The per-track table is hidden when

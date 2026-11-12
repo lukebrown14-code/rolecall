@@ -17,13 +17,6 @@ import (
 const (
 	fallbackWidth  = 100
 	fallbackHeight = 30
-	minTermWidth   = 50 // below this, or minTermHeight, a "too small" notice replaces the layout
-	minTermHeight  = 12
-	splitWidth     = 100 // the preview pane appears from this width
-	listShare      = 55  // percent of the width the list takes beside the preview
-	minListWidth   = 56
-	chromeLines    = 6 // top bar, gap, views, rule … feedback/rule, keys
-	rightMargin    = 2
 	rowPad         = 1 // keeps the last label off the edge of the selection bar
 	soonDays       = 7 // "closes in Nd" turns amber at or below this
 	labelWidth     = 13
@@ -35,9 +28,10 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedRolecall   = 1 // topBar detail levels: drop the word "rolecall"…
-	shedCounts     = 2 // …then other screens' counts…
-	shedNames      = 3 // …then abbreviate screen names and drop the active count
+	shedCounts     = 1 // topBar detail levels: drop other screens' counts…
+	shedWordmark   = 2 // …then the word "rolecall"…
+	shedNames      = 3 // …then other screens' names, keeping their digits…
+	shedMark       = 4 // …then the ◆
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -127,21 +121,13 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 func (m model) View() tea.View {
 	p := basePal
 	var body string
-	switch {
+	switch box := m.overlayView(p); {
 	case m.tooSmall():
 		body = m.tooSmallView(p)
-	case m.detail != nil:
-		body = m.detailView(p)
+	case box != "":
+		body = m.overlayBody(p, m.screenView(dimmedPal), box)
 	default:
-		body = m.listView(p)
-	}
-	if box := m.overlayView(p); box != "" && !m.tooSmall() {
-		base := m.listView(dimmedPal)
-		if m.detail != nil {
-			base = m.detailView(dimmedPal)
-		}
-		x0 := m.overlayLeft()
-		body = overlayIn(base, box, x0, m.viewWidth()-x0)
+		body = m.screenView(p)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
 	// Dark only: paint the terminal background so the palette reads the same on a light
@@ -154,19 +140,12 @@ func (m model) View() tea.View {
 	return v
 }
 
-// tooSmall reports a terminal below the smallest size the layout supports. Before the
-// first size message the fallback size applies, which is never too small.
-func (m model) tooSmall() bool {
-	return m.width > 0 && (m.width < minTermWidth || m.height < minTermHeight)
-}
-
-// tooSmallView says so, in place of a layout that would spill off the screen.
-func (m model) tooSmallView(p pal) string {
-	msg := p.text(p.fg).Bold(true).Render("Terminal too small") + "\n" +
-		p.text(p.dim).Render(fmt.Sprintf("%d×%d, needs %d×%d", m.width, m.height, minTermWidth, minTermHeight))
-	lines := strings.Split(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.NewStyle().Width(m.width).Align(lipgloss.Center).Render(msg)), "\n")
-	return strings.Join(lines[:min(len(lines), m.height)], "\n")
+// screenView is the open detail view, or the current screen.
+func (m model) screenView(p pal) string {
+	if m.detail != nil {
+		return m.detailView(p)
+	}
+	return m.listView(p)
 }
 
 // listView is a screen: a screen without Application tables draws its own view;
@@ -176,19 +155,16 @@ func (m model) listView(p pal) string {
 	if !m.hasTables() {
 		return screenDefs[m.screen].render(m, p)
 	}
-	w, bodyH := m.viewWidth(), max(minBody, m.viewHeight()-chromeLines)
+	l := m.layout()
+	w, bodyH := l.w, l.bodyHeight(1)
 	rows := m.rows()
-	split := w >= splitWidth && len(rows) > 0
-	listW := w
+	split := l.wide() && len(rows) > 0
+	listW, divider := w, 0
 	if split {
-		listW = max(minListWidth, w*listShare/percent)
+		listW = w - l.panel(previewShare, previewMin, previewMax) - 1
+		divider = listW
 	}
 	previewW := w - listW - 1
-	ruleTop, ruleBot := strings.Repeat("─", w), strings.Repeat("─", w)
-	if split {
-		ruleTop = strings.Repeat("─", listW) + "┬" + strings.Repeat("─", previewW)
-		ruleBot = strings.Repeat("─", listW) + "┴" + strings.Repeat("─", previewW)
-	}
 	var body string
 	if len(rows) == 0 {
 		title, hint := emptyMessage(m.views()[m.table])
@@ -201,8 +177,7 @@ func (m model) listView(p pal) string {
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
 		body = list
 		if split {
-			sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", bodyH), "\n"))
-			body = lipgloss.JoinHorizontal(lipgloss.Top, list, sep, m.preview(p, rows[m.cursor], previewW, bodyH))
+			body = lipgloss.JoinHorizontal(lipgloss.Top, list, p.divider(bodyH), m.preview(p, rows[m.cursor], previewW, bodyH))
 		}
 	}
 	keys := m.keyLine(p, w)
@@ -212,8 +187,7 @@ func (m model) listView(p pal) string {
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.
-	return m.topBar(p) + "\n\n" + m.viewRow(p) + "\n" + p.text(p.rule).Render(ruleTop) + "\n" +
-		body + "\n" + p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, keys)
+	return m.frame(p, []string{m.viewRow(p)}, body, divider, m.statusRow(p, w, keys))
 }
 
 // statusRow is the frame's last line: what just happened (a toast or error) when there is
@@ -287,65 +261,121 @@ func (m model) screenCountLabel(si int) string {
 	return fmt.Sprintf("%d/%d", m.screenCount(si), total)
 }
 
-// topBar: app mark and screens on the left, the track filter on the right. On narrow
-// terminals it sheds the app word and counts before abbreviating screen names.
+// topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
+// the pipeline summary on the right. Every tab keeps the same padding whether active
+// or not, so nothing moves between screens. As it narrows it sheds, in order, other
+// screens' counts, the word "rolecall", other screens' names (their digits stay) and
+// the ◆; the active screen keeps its name and count at every width.
 func (m model) topBar(p pal) string {
-	w := m.viewWidth()
+	l := m.layout()
+	room := l.w - rightMargin
 	on := lipgloss.NewStyle().Background(p.accent).Foreground(p.onFill).Bold(true)
 	build := func(level int) string {
-		out := p.text(p.accent).Bold(true).Render(" ◆ rolecall ")
-		if level >= shedRolecall {
-			out = p.text(p.accent).Bold(true).Render(" ◆ ")
+		mark := " ◆ rolecall "
+		switch {
+		case level >= shedMark:
+			mark = ""
+		case level >= shedWordmark:
+			mark = " ◆ "
 		}
+		out := p.text(p.accent).Bold(true).Render(mark)
 		for si, d := range screenDefs {
-			s := d.name
-			n := m.screenCountLabel(si)
-			if level >= shedNames {
-				s = []string{"Lead", "Draft", "Appl", "Stat", "Prof", "Set"}[si]
+			digit, name, count := fmt.Sprintf("%d", si+1), " "+d.name, ""
+			if d.hasTables {
+				count = " " + m.screenCountLabel(si)
 			}
 			if si == m.screen {
-				if !d.hasTables || level >= shedNames {
-					out += " " + on.Render(fmt.Sprintf("%d %s", si+1, s))
-				} else {
-					out += "  " + on.Render(fmt.Sprintf(" %d %s %s ", si+1, s, n))
-				}
+				out += on.Render(" " + digit + name + count + " ")
 				continue
 			}
-			out += " " + p.text(p.accent).Render(fmt.Sprintf("%d", si+1))
-			out += " " + p.text(p.fg).Render(s)
-			if level < shedCounts && d.hasTables {
-				out += p.text(p.dim).Render(fmt.Sprintf(" %s", n))
+			if level >= shedCounts {
+				count = ""
 			}
-			out += " " // the same padding as the highlighted entry, so nothing shifts
+			if level >= shedNames {
+				name = ""
+			}
+			out += " " + p.text(p.accent).Render(digit) + p.text(p.fg).Render(name) + p.text(p.dim).Render(count) + " "
 		}
 		return out
 	}
-	minTrack := xansi.StringWidth(m.trackSelector(p, 0))
 	out := build(0)
-	for level := shedRolecall; level <= shedNames && xansi.StringWidth(out)+minTrack+rightMargin+gutter > w; level++ {
+	for level := shedCounts; level <= shedMark && xansi.StringWidth(out) > room; level++ {
 		out = build(level)
 	}
-	if len(m.tracks) == 0 {
+	out = xansi.Truncate(out, room, "")
+	if !l.wide() {
 		return out
 	}
-	available := max(0, w-xansi.StringWidth(out)-rightMargin-gutter)
-	track := xansi.Truncate(m.trackSelector(p, available), available, "…")
-	if track == "" {
-		return xansi.Truncate(out, w, "")
+	// The pulse fills the free right-hand side, dropping its later parts to fit.
+	const pulseGap = 4
+	parts := m.pulse(p)
+	for len(parts) > 0 {
+		pulse := strings.Join(parts, p.text(p.dim).Render(" · "))
+		if xansi.StringWidth(out)+pulseGap+xansi.StringWidth(pulse) <= room {
+			return spread(out, pulse, room)
+		}
+		parts = parts[:len(parts)-1]
 	}
-	return out + strings.Repeat(" ", max(gutter, w-xansi.StringWidth(out)-xansi.StringWidth(track)-rightMargin)) + track
+	return out
 }
 
-// trackSelector is a labelled field, "track  All  SWE  Platform  t track", collapsing
-// in steps — "track  All +2  t track", then "All +2  t track", "All  t track", "All" —
-// so the header never spills on a narrow terminal.
-func (m model) trackSelector(p pal, w int) string {
-	opts := append([]string{"All"}, m.tracks...)
+// pulseSoonDays is how close a close date counts in the pulse.
+const pulseSoonDays = 2
+
+// pulse is the one-glance pipeline summary: Applications still live, follow-ups due and
+// Leads or Drafts closing within pulseSoonDays. It counts every Track, whatever the
+// filter, and leaves out a part that is zero.
+func (m model) pulse(p pal) []string {
+	live, due, closing := 0, 0, 0
+	for _, a := range m.apps {
+		t := tableOf(a)
+		if a.Malformed != nil || t == tableDismissed || t == tableClosed {
+			continue
+		}
+		live++
+		if _, flag, _ := m.slotText(a); flag != "" {
+			due++
+		}
+		if _, days := ago(a.Closes, m.now()); beforeApplied(t) && a.Closes != "" && days >= 0 && days <= pulseSoonDays {
+			closing++
+		}
+	}
+	parts := []string{p.text(p.dim).Render(fmt.Sprintf("%d live", live))}
+	if due > 0 {
+		parts = append(parts, p.text(p.warn).Render(fmt.Sprintf("%d due", due)))
+	}
+	if closing > 0 {
+		parts = append(parts, p.text(p.warn).Render(fmt.Sprintf("%d closes ≤%dd", closing, pulseSoonDays)))
+	}
+	return parts
+}
+
+// trackApplies reports whether the track filter changes the current screen: the
+// Application screens and Stats. Profile and Settings ignore it, so they do not show it.
+func (m model) trackApplies() bool {
+	return len(m.tracks) > 0 && (m.hasTables() || screenDefs[m.screen].name == screenStats)
+}
+
+// trackSelector is the track filter on the context row, "t  [All]  SWE  Platform", or
+// compact, "t [All]▸", where the full one does not fit. The key reads once, as "t".
+func (m model) trackSelector(p pal, compact bool) string {
+	if !m.trackApplies() {
+		return ""
+	}
 	on := p.text(p.accent).Bold(true).Underline(true)
 	// The active track is bracketed as well as underlined, so it is marked without colour.
 	mark := func(name string) string {
 		return p.text(p.accent).Render("[") + on.Render(name) + p.text(p.accent).Render("]")
 	}
+	key := p.text(p.accent).Bold(true).Render("t")
+	if compact {
+		name := "All"
+		if m.track > 0 {
+			name = m.tracks[m.track-1]
+		}
+		return key + " " + mark(name) + p.text(p.dim).Render("▸")
+	}
+	opts := append([]string{"All"}, m.tracks...)
 	parts := make([]string, len(opts))
 	for i, t := range opts {
 		parts[i] = p.text(p.dim).Render(t)
@@ -353,42 +383,25 @@ func (m model) trackSelector(p pal, w int) string {
 			parts[i] = mark(t)
 		}
 	}
-	key := p.text(p.accent).Bold(true).Render("  t track")
-	label := p.text(p.dim).Render("track  ")
-	name := "All"
-	if m.track > 0 {
-		name = m.tracks[m.track-1]
-	}
-	plus := p.text(p.dim).Render(fmt.Sprintf(" +%d", len(opts)-1))
-	activeName := mark(name)
-	// Longest to shortest; the last always fits any terminal the layout supports. The
-	// label goes before any track name, so a filtered count elsewhere never hides them.
-	for _, cand := range []string{
-		label + strings.Join(parts, "  ") + key,
-		strings.Join(parts, "  ") + key,
-		label + activeName + plus + key,
-		activeName + plus + key,
-		activeName + key,
-		activeName,
-	} {
-		if xansi.StringWidth(cand) <= w {
-			return cand
-		}
-	}
-	return activeName
+	return key + "  " + strings.Join(parts, "  ")
 }
 
-// viewRow is the frame's context row: the screen's views (cycled with Tab), or the one
-// view's name, plus the scope line on the right when a filter is on. The row is always
-// present, so the layout never jumps between screens.
+// viewRow is the frame's context row: the screen's views (cycled with Tab) on the left;
+// on the right what a filter hides, then the track filter where it applies. As the row
+// narrows the views drop their counts, the track filter goes compact, and then only
+// the current view is named. The row is always present, so the layout never jumps.
 func (m model) viewRow(p pal) string {
-	if !m.hasTables() {
-		return ""
-	}
 	w := m.viewWidth()
-	ts := m.views()
-	row := "   " + p.text(p.dim).Render(ts[0])
-	if len(ts) > 1 {
+	pad := strings.Repeat(" ", inset)
+	var lefts []string
+	if !m.hasTables() {
+		lefts = []string{pad + p.heading(screenDefs[m.screen].name)}
+	} else {
+		ts := m.views()
+		current := func(label string) string {
+			// Bracketed as well as bold and underlined: marked without colour.
+			return p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(label) + p.text(p.accent).Render("]")
+		}
 		for _, f := range []struct {
 			gap    string
 			counts bool
@@ -400,47 +413,59 @@ func (m model) viewRow(p pal) string {
 					label = fmt.Sprintf("%s %s", t, m.countLabel(m.screen, t))
 				}
 				parts[i] = p.text(p.dim).Render(label)
-				if i == m.table {
-					// Bracketed as well as bold and underlined: marked without colour.
-					parts[i] = p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(label) + p.text(p.accent).Render("]")
+				if i == m.table && len(ts) > 1 {
+					parts[i] = current(label)
 				}
 			}
-			row = "   " + strings.Join(parts, f.gap)
-			if xansi.StringWidth(row) <= w {
-				break
+			lefts = append(lefts, pad+strings.Join(parts, f.gap))
+		}
+		if len(ts) > 1 {
+			lefts = append(lefts, pad+current(ts[m.table]))
+		}
+	}
+	scope := m.scopeLine(p)
+	right := func(compact bool) string {
+		var parts []string
+		for _, s := range []string{scope, m.trackSelector(p, compact)} {
+			if s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, "   ")
+	}
+	fits := func(left, right string) bool {
+		return xansi.StringWidth(left)+gutter+xansi.StringWidth(right) <= w-rightMargin
+	}
+	for _, left := range lefts {
+		for _, compact := range []bool{false, true} {
+			if fits(left, right(compact)) {
+				return contextRow(left, right(compact), w)
 			}
 		}
 	}
-	if scope := m.scopeLine(p); scope != "" {
-		if xansi.StringWidth(row)+gutter+xansi.StringWidth(scope)+rightMargin > w {
-			row = "   " + p.text(p.accent).Render("[") + p.text(p.fg).Bold(true).Underline(true).Render(ts[m.table]) + p.text(p.accent).Render("]")
-		}
-		// Keep the frame one line wide: the scope truncates to what the row leaves.
-		avail := max(0, w-rightMargin-xansi.StringWidth(row)-gutter)
-		row = spread(row, xansi.Truncate(scope, avail, "…"), w-rightMargin)
+	// Still too wide: the scope gives way, so the track filter always shows whole.
+	left, sel := lefts[len(lefts)-1], m.trackSelector(p, true)
+	if sel == "" {
+		return contextRow(left, scope, w)
 	}
-	return row
+	avail := w - rightMargin - xansi.StringWidth(left) - xansi.StringWidth(sel) - gutter - len("   ")
+	if scope = xansi.Truncate(scope, max(0, avail), "…"); xansi.StringWidth(scope) > 1 {
+		sel = scope + "   " + sel
+	}
+	return contextRow(left, sel, w)
 }
 
-// scopeLine names what is filtered, when anything is: the screen and view, the track, the
-// search text and the shown-of-total count. Empty when no filter is on.
+// scopeLine names what a filter hides, when one is on: the search text and the
+// shown-of-total count. The track is named by the track filter beside it.
 func (m model) scopeLine(p pal) string {
-	if m.track == 0 && m.text == "" {
+	if !m.hasTables() || (m.track == 0 && m.text == "") {
 		return ""
 	}
-	label := screenDefs[m.screen].name
-	if view := m.views()[m.table]; view != label {
-		label += " › " + view
-	}
-	parts := []string{}
-	if m.track > 0 {
-		parts = append(parts, "track "+m.tracks[m.track-1])
-	}
+	var parts []string
 	if m.text != "" {
 		parts = append(parts, "search "+m.text)
 	}
 	parts = append(parts, fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
-	parts = append(parts, label)
 	return p.text(p.dim).Render(strings.Join(parts, " · "))
 }
 
@@ -579,6 +604,10 @@ func scroll(p pal, blocks []block, cur, h int) string {
 		start++
 		end = fit(start)
 	}
+	// A section heading never sits alone above the "more" cue.
+	for end < len(blocks) && end-1 > start && !blocks[end-1].row {
+		end--
+	}
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -588,15 +617,21 @@ func scroll(p pal, blocks []block, cur, h int) string {
 		}
 		return n
 	}
+	// The cues sit at the rows' text column, past the selection bar.
+	const cueIndent = "  "
 	var out []string
 	if start > 0 {
-		out = append(out, p.text(p.dim).Render(fmt.Sprintf(" ↑ %d more", count(blocks[:start]))))
+		out = append(out, cueIndent+p.moreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
 		out = append(out, b.lines...)
 	}
+	// The ↓ cue sits on the body's last line, where it is on every screen.
+	for len(out) < h-1 {
+		out = append(out, "")
+	}
 	if end < len(blocks) {
-		out = append(out, p.text(p.dim).Render(fmt.Sprintf(" ↓ %d more", count(blocks[end:]))))
+		out = append(out, cueIndent+p.moreCue(false, count(blocks[end:])))
 	}
 	for len(out) < h {
 		out = append(out, "")
@@ -792,7 +827,7 @@ func entryAt(e *store.StatusEntry) string {
 func (m model) preview(p pal, a store.Application, w, h int) string {
 	inner := w - previewInset
 	wrap := func(s string, c color.Color, maxLines int) string {
-		lines := strings.Split(lipgloss.NewStyle().Width(inner).Render(s), "\n")
+		lines := wrapWords(s, inner)
 		if len(lines) > maxLines {
 			lines = append(lines[:maxLines-1], "…")
 		}
@@ -804,7 +839,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
 		label, c := p.docsLabel(a)
-		b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n")
+		b.WriteString(keepTogether(inner, "", p.statusChip(a.Status), p.fitText(a)) + "\n")
 		b.WriteString(m.fileMarks(p, a) + "   " + p.text(c).Render(label) + "\n\n")
 		b.WriteString(p.heading("Timeline") + "\n" + m.timeline(p, a, true) + "\n")
 		b.WriteString(p.heading("Fit") + "\n")

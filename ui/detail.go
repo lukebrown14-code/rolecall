@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -156,28 +157,43 @@ func (m model) closeDetail() model {
 
 // Detail view sizing.
 const (
-	cardWidth     = 34 // the left card, from splitWidth up
 	minBodyHeight = 3
-	detailChrome  = 10 // top bar, gap, title, facts, rule, tabs, gap … cue, rule, keys
-	detailFrame   = 7  // the lines around the panes: top bar, gap, title, facts, rule … rule, keys
+	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
+	stripLines    = 2         // the strip that stands in for the card: timeline track, then documents
+	cardPadding   = inset + 1 // the card's padding: the text column on the left, one cell on the right
 )
 
-// cardShown reports whether the detail view has room for the left card.
-func (m model) cardShown() bool { return m.viewWidth() >= splitWidth }
+// cardShown reports whether the detail view has room for the left card: the wide size
+// class. Below it the card folds into a strip under the title.
+func (m model) cardShown() bool { return m.layout().wide() }
+
+// cardWidth is the left card's column, divider excluded.
+func (m model) cardWidth() int { return m.layout().panel(cardShare, cardMin, cardMax) }
+
+// detailContextLines is the lines between the tab bar and the body: the title row, then
+// the facts line beside the card or the strip in its place.
+func (m model) detailContextLines() int {
+	if m.cardShown() {
+		return 2 //nolint:mnd // title and facts
+	}
+	return 1 + stripLines
+}
 
 // paneWidth is the right-hand pane: everything beside the card.
 func (m model) paneWidth() int {
 	if m.cardShown() {
-		return m.viewWidth() - cardWidth - 1
+		return m.viewWidth() - m.cardWidth() - 1
 	}
 	return m.viewWidth()
 }
 
 // bodyHeight is the lines of tab content shown at once.
-func (m model) bodyHeight() int { return max(minBodyHeight, m.viewHeight()-detailChrome) }
+func (m model) bodyHeight() int {
+	return max(minBodyHeight, m.layout().bodyHeight(m.detailContextLines())-paneChrome)
+}
 
 // bodyWidth is the wrap width of tab content: capped for comfortable reading.
 func (m model) bodyWidth() int { return max(minWrapWidth, min(maxReadWidth, m.paneWidth()-paneMargin)) }
@@ -351,20 +367,23 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 }
 
 // detailView keeps the preview's card on the left and gives the right side to the
-// tabs: "open" reads as the same card with room to read. Below splitWidth the card
-// is hidden and the tabs take the full width.
+// tabs: "open" reads as the same card with room to read. Below the wide size class the
+// card folds into a two-line strip under the title (detailStrip) and the tabs take the
+// full width.
 func (m model) detailView(p pal) string {
 	a, ok := m.application(m.detail.folder)
 	if !ok {
 		return ""
 	}
 	w, paneW := m.viewWidth(), m.paneWidth()
-	h := max(minBodyHeight, m.viewHeight()-detailFrame)
-	title := "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.dim).Render(a.Company+" · ") + p.text(p.fg).Bold(true).Render(a.Title)
+	h := m.layout().bodyHeight(m.detailContextLines())
+	pad := strings.Repeat(" ", inset)
+	// Title first, then Company, as the list reads.
+	title := pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.fg).Bold(true).Render(a.Title) + p.text(p.dim).Render(" · "+a.Company)
 	when := ""
 	switch r, days := ago(a.Closes, m.now()); {
 	case a.Malformed != nil:
-		title = "  " + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+filepath.Join(a.Folder, "meta.yml"))
+		title = pad + p.text(p.dim).Render("‹ esc  ") + p.text(p.bad).Bold(true).Render("⚠ "+filepath.Join(a.Folder, "meta.yml"))
 	case a.Closes != "" && beforeApplied(tableOf(a)):
 		c := p.dim
 		if days == 0 {
@@ -382,18 +401,26 @@ func (m model) detailView(p pal) string {
 	}
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
-	// The facts line: Status · Track · closes · applied, with exact dates.
-	closes, applied := a.Closes, entryDate(a.AppliedDate)
-	if closes == "" {
-		closes = "—"
+	// Beside the card, the facts line: Status · Track, and the exact close date before
+	// Applied. The applied date is on the title row and in the card's timeline, so it is
+	// not repeated here. Without the card, the strip stands in for both.
+	facts := pad + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track)
+	if beforeApplied(tableOf(a)) {
+		closes := a.Closes
+		if closes == "" {
+			closes = "—"
+		}
+		facts += p.text(p.dim).Render(" · closes " + closes)
 	}
-	if applied == "" {
-		applied = "—"
+	ctx := []string{title, facts}
+	if !m.cardShown() {
+		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)
 	}
-	facts := "  " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status) + p.text(p.dim).Render(" · "+a.Track+" · closes "+closes+" · applied "+applied)
 	var pane string
 	if a.Malformed != nil {
-		facts = ""
+		for i := 1; i < len(ctx); i++ {
+			ctx[i] = ""
+		}
 		path := filepath.Join(a.Folder, "meta.yml")
 		// The error repeats the path; the line above already shows it in full.
 		msg := strings.Replace(a.Malformed.Error(), path, "meta.yml", 1)
@@ -402,16 +429,110 @@ func (m model) detailView(p pal) string {
 		pane = m.detailTabsRow(p, a) + "\n\n" + m.detailContent(p, a, paneW)
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
-	body, ruleTop, ruleBot := pane, strings.Repeat("─", w), strings.Repeat("─", w)
+	body, split := pane, 0
 	if m.cardShown() {
-		sep := p.text(p.rule).Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
-		card := lipgloss.NewStyle().Width(cardWidth).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
-		body = lipgloss.JoinHorizontal(lipgloss.Top, card, sep, pane)
-		ruleTop = strings.Repeat("─", cardWidth) + "┬" + strings.Repeat("─", paneW)
-		ruleBot = strings.Repeat("─", cardWidth) + "┴" + strings.Repeat("─", paneW)
+		cardW := m.cardWidth()
+		card := lipgloss.NewStyle().Width(cardW).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
+		body, split = lipgloss.JoinHorizontal(lipgloss.Top, card, p.divider(h), pane), cardW
 	}
-	return m.topBar(p) + "\n\n" + title + "\n" + facts + "\n" + p.text(p.rule).Render(ruleTop) + "\n" + body + "\n" +
-		p.text(p.rule).Render(ruleBot) + "\n" + m.statusRow(p, w, m.keyLine(p, w))
+	return m.frame(p, ctx, body, split, m.statusRow(p, w, m.keyLine(p, w)))
+}
+
+// pipeline is the forward run of Statuses a timeline track looks ahead along.
+var pipeline = []string{store.StatusLead, store.StatusDraft, store.StatusApplied, store.StatusInterviewing, store.StatusOffer}
+
+// detailStrip is the card folded into two lines for the medium and narrow size classes:
+// the timeline as a track, then documents · Fit · close date · Track. Each line sheds
+// detail to fit w rather than wrapping.
+func (m model) detailStrip(p pal, a store.Application, w int) []string {
+	pad := strings.Repeat(" ", inset)
+	if a.Malformed != nil {
+		return make([]string, stripLines)
+	}
+	fit := a.Fit
+	if fit == "" {
+		fit = fitNone
+	}
+	parts := []string{m.fileMarks(p, a), p.text(p.dim).Render("fit ") + p.text(p.fitColor(a.Fit)).Render(fit)}
+	if beforeApplied(tableOf(a)) || a.Closes != "" {
+		closes := a.Closes
+		if closes == "" {
+			closes = "—"
+		}
+		parts = append(parts, p.text(p.dim).Render("closes "+closes))
+	}
+	parts = append(parts, p.text(p.dim).Render(a.Track))
+	sep := p.text(p.dim).Render("  ·  ")
+	for len(parts) > 1 && xansi.StringWidth(strings.Join(parts, sep)) > w {
+		parts = parts[:len(parts)-1]
+	}
+	return []string{pad + m.timelineTrack(p, a, w), pad + xansi.Truncate(strings.Join(parts, sep), w, "…")}
+}
+
+// timelineTrack is the Status log as one line, oldest first, then the Statuses still
+// ahead: "○ Lead 24 Sep ─ ● Applied 25 Sep ─ ◌ Interviewing ─ ◌ Offer". ● is the current
+// Status, ○ an earlier one and ◌ one not reached. To fit w it drops the earlier dates,
+// then all but the next Status ahead, then the earlier Statuses.
+func (m model) timelineTrack(p pal, a store.Application, w int) string {
+	date := func(e store.StatusEntry) string {
+		if m.futureDate(&e) {
+			return p.text(p.warn).Render(" " + futureFlag)
+		}
+		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
+		if err != nil {
+			return ""
+		}
+		d := t.Format("2 Jan")
+		if e.Approx {
+			d = "~" + d
+		}
+		return p.text(p.dim).Render(" " + d)
+	}
+	var past []string
+	var pastDated []string
+	current := ""
+	for i, e := range a.StatusLog {
+		if i == len(a.StatusLog)-1 {
+			current = p.text(p.accent).Render("●") + " " + p.text(p.statusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
+			continue
+		}
+		name := p.text(p.faint).Render("○") + " " + p.text(p.dim).Render(e.Status)
+		past = append(past, name)
+		pastDated = append(pastDated, name+date(e))
+	}
+	if current == "" {
+		current = p.text(p.accent).Render("●") + " " + p.text(p.statusColor(a.Status)).Bold(true).Render(a.Status)
+	}
+	var ahead []string
+	if i := slices.Index(pipeline, a.Status); i >= 0 {
+		for _, s := range pipeline[i+1:] {
+			ahead = append(ahead, p.text(p.faint).Render("◌")+" "+p.text(p.dim).Render(s))
+		}
+	}
+	join := func(stops ...[]string) string {
+		var all []string
+		for _, s := range stops {
+			all = append(all, s...)
+		}
+		return strings.Join(all, p.text(p.rule).Render(" ─ "))
+	}
+	next := ahead[:min(1, len(ahead))]
+	var more []string
+	if len(past) > 0 {
+		more = []string{p.text(p.dim).Render("…")}
+	}
+	for _, cand := range []string{
+		join(pastDated, []string{current}, ahead),
+		join(past, []string{current}, ahead),
+		join(past, []string{current}, next),
+		join(more, []string{current}, next),
+		join([]string{current}, next),
+	} {
+		if xansi.StringWidth(cand) <= w {
+			return cand
+		}
+	}
+	return xansi.Truncate(current, w, "…")
 }
 
 func (m model) detailTabsRow(p pal, a store.Application) string {
@@ -479,7 +600,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	}
 	var b strings.Builder
 	label, c := p.docsLabel(a)
-	b.WriteString(p.statusChip(a.Status) + p.fitText(a) + "\n\n")
+	b.WriteString(keepTogether(m.cardWidth()-cardPadding, "", p.statusChip(a.Status), p.fitText(a)) + "\n\n")
 	b.WriteString(p.heading("Docs") + "  " + p.text(c).Render(strings.TrimLeft(label, "●○ ")) + "\n")
 	for _, e := range docEntries(a) {
 		status, ready := e.displayStatus(a)
@@ -497,7 +618,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	}
 	b.WriteString("\n" + p.heading("Timeline") + "\n" + m.timeline(p, a, false))
 	if a.URL != "" {
-		b.WriteString("\n" + p.heading("Link") + "\n" + p.text(p.info).Render(xansi.Truncate(a.URL, cardWidth-ellipsis, "…")))
+		b.WriteString("\n" + p.heading("Link") + "\n" + p.text(p.info).Render(xansi.Truncate(a.URL, m.cardWidth()-cardPadding, "…")))
 	}
-	return lipgloss.NewStyle().Width(cardWidth).Padding(0, 1, 0, gutter).Render(strings.TrimSuffix(b.String(), "\n"))
+	return lipgloss.NewStyle().Width(m.cardWidth()).Padding(0, 1, 0, inset).Render(strings.TrimSuffix(b.String(), "\n"))
 }
