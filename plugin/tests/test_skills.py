@@ -5,10 +5,7 @@ catch two kinds of regression: personal data leaking into the code repo, and the
 tone-layering / writer-rules promises drifting while the documents still build.
 """
 
-import re
 from pathlib import Path
-
-from test_personal_data import PERSONAL
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugin"
@@ -35,15 +32,6 @@ RETIRED = [
 
 def read(path):
     return path.read_text()
-
-
-def test_prose_carries_no_personal_data():
-    for path in PROSE:
-        text = read(path)
-        for pattern in PERSONAL:
-            assert not re.search(pattern, text, re.IGNORECASE), (
-                f"{path.relative_to(ROOT)} contains {pattern!r}"
-            )
 
 
 def test_writing_rules_drops_the_dashboard_contract():
