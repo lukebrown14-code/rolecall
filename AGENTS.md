@@ -4,7 +4,8 @@
 
 ### Issue tracker
 
-GitHub Issues on lukebrown14-code/rolecall (via `gh`). See `docs/agents/issue-tracker.md`.
+GitHub Issues and the public v1 repository are under `lukebrown14-code` (`rolecall`); the
+Go module is `github.com/lukebrown14-code/rolecall`. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 

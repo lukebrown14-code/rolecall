@@ -4,6 +4,14 @@ Follow this once, after the v1.0 implementation is complete. This cut publishes 
 tree without its history; it does not make the private archive public. Keep the archive private
 throughout.
 
+## v1 repository ownership
+
+Keep the v1 repositories under the personal GitHub account `lukebrown14-code`. Rename this
+private repository to `lukebrown14-code/rolecall-archive`, then create the fresh public
+repository as `lukebrown14-code/rolecall`. Keep the Go module path
+`github.com/lukebrown14-code/rolecall` and publish Homebrew formula updates to
+`lukebrown14-code/homebrew-tap`. No transfer to `Archipelago-Software` is part of the v1 cut.
+
 ## 1. Confirm release blockers
 
 - [ ] Fetch and merge the latest integration branch containing this checklist.
@@ -59,10 +67,10 @@ do not add those terms to repository files.
 ## 5. Rename this repository and keep it private
 
 - [ ] In GitHub repository settings, rename the current private repository to
-  `rolecall-archive`.
+  `lukebrown14-code/rolecall-archive`.
 - [ ] Verify its visibility is **Private** after the rename. Do not change its visibility or
   delete its history.
-- [ ] Confirm the `rolecall` repository name is now available under the intended owner.
+- [ ] Confirm `lukebrown14-code/rolecall` is available for the fresh public repository.
 
 ## 6. Create a fresh public repository with one squashed commit
 
@@ -76,16 +84,17 @@ cd /tmp/rolecall-public
 git init -b main
 git add -A
 git commit -m "Release rolecall v1.0"
-git remote add origin <new-public-rolecall-url>
+git remote add origin https://github.com/lukebrown14-code/rolecall.git
 git push -u origin main
 ```
 
-- [ ] Create the new GitHub repository named `rolecall` as **Public**, without initializing it
+- [ ] Create `lukebrown14-code/rolecall` as **Public**, without initializing it
   with a README, license, or other files.
 - [ ] Substitute the reviewed commit and the new repository URL above, then create and push the
   single initial commit.
 - [ ] Verify the public repository has exactly one commit on `main`, contains the reviewed tree,
   and has no branches or tags copied from the private archive.
+- [ ] Confirm the release workflow publishes formula updates to `lukebrown14-code/homebrew-tap`.
 - [ ] Confirm the Owner-terms file was not included in the export.
 
 ## 7. Configure CI and repository settings
