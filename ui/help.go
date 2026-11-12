@@ -157,11 +157,13 @@ func (m model) contextKeys() []helpKey {
 	usable := !onRow || a.Malformed == nil
 	var keys []helpKey
 	if m.detail != nil {
-		if m.detail.tab == tabDocs {
+		if m.detail.tab == tabDocs && usable {
 			keys = append(keys, help(groupAction, "enter", "open").at(prioCore))
 		}
 		if usable {
 			keys = append(keys, help(groupAction, "e", "edit"))
+		} else {
+			keys = append(keys, help(groupAction, "e", "fix in editor").at(prioCore))
 		}
 	} else if onRow {
 		keys = append(keys, help(groupAction, "enter", "open").at(prioCore))
@@ -341,7 +343,7 @@ func glyphLegend(p pal, followUpDays int) string {
 		row("Timeline", "● current status", "○ earlier status") + "\n" +
 		row("Docs", "✓ ready", "○ missing") + "\n" +
 		row("Flags", "⚠ needs attention", "✕ rejected", "↩ withdrawn") + "\n" +
-		row("", fmt.Sprintf("⚑ quiet: no reply in %d+ days", followUpDays)) + "\n" +
+		row("", fmt.Sprintf("⚑ quiet: no Status change in %d+ days", followUpDays)) + "\n" +
 		row("Fit", store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor+" · — not assessed")
 }
 

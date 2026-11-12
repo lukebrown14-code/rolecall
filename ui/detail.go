@@ -289,6 +289,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	if a.Malformed != nil {
+		if pe, ok := parseError(a.Malformed); ok && key == "e" {
+			return m, m.editAt(pe), true
+		}
 		return m, nil, true
 	}
 	if d.tab == tabDocs {

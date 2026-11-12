@@ -136,33 +136,6 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	}
 }
 
-func TestEditMalformedShowsStoreErrorAndWritesNothing(t *testing.T) {
-	h := newAddHarness(t)
-	apps, err := h.store.Scan()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var want string
-	for _, a := range apps {
-		if a.Malformed != nil && strings.HasSuffix(a.Folder, "/malformed") {
-			want = strings.TrimPrefix(a.Malformed.Error(), h.root+string(filepath.Separator)) // shown relative to the Workspace
-		}
-	}
-	if want == "" {
-		t.Fatal("fixture has no malformed Application")
-	}
-	before := h.snapshot()
-	h.tm.Type("G") // the malformed row sorts last on Leads
-	h.tm.Type("e")
-	view := h.quit()
-	if !strings.Contains(ansi.Strip(view), want) || strings.Contains(view, "Resume only") {
-		t.Fatalf("want store error %q and no form:\n%s", want, view)
-	}
-	if !sameSnapshot(before, h.snapshot()) {
-		t.Fatal("refused edit wrote to the Workspace")
-	}
-}
-
 func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 	onRow := newAddHarness(t).quit()
 	h := newAddHarness(t)

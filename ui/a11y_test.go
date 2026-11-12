@@ -54,7 +54,7 @@ func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
 // the frame is unchanged. Every state leaves only ASCII.
 func TestAsciiGlyphsFallBack(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "e"}, {"5"},
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "m", "d"}, {"5"},
 		{"6"}, {"6", "j", "tab", "enter"}, {"6", "j", "j", "tab", "r"}, {"6", "j", "j", "j", "tab", "j", "enter"}} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
 		for _, r := range view {
@@ -127,7 +127,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 // The ? pop-up explains the glyphs.
 func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
-	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "● current status") || !strings.Contains(view, "⚑ quiet: no reply in 14+ days") || !strings.Contains(view, "— not assessed") {
+	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "● current status") || !strings.Contains(view, "⚑ quiet: no Status change in 14+ days") || !strings.Contains(view, "— not assessed") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
 	}
 }

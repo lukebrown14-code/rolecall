@@ -48,11 +48,11 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 
 // An error stays on the status row through other keys until esc dismisses it.
 func TestErrorsStayUntilEsc(t *testing.T) {
-	const want = "invalid status_log entry"
-	if view := ansi.Strip(finalView(t, "G", "e", "j")); !strings.Contains(view, want) {
+	const want = "Can't read SWE/malformed ·"
+	if view := ansi.Strip(finalView(t, "G", "m", "d", "j")); !strings.Contains(view, want) {
 		t.Fatalf("error cleared by another key:\n%s", view)
 	}
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), selectionWidth, "G", "e", "esc"))
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), selectionWidth, "G", "m", "d", "esc"))
 	if strings.Contains(view, want) {
 		t.Fatalf("esc did not dismiss the error:\n%s", view)
 	}
@@ -126,7 +126,7 @@ func fixtureCopy(t *testing.T, edit func(root string)) string {
 func TestEverySizeFitsTheTerminal(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	sizes := [][2]int{{1, 1}, {10, 3}, {49, 30}, {120, 11}, {50, 12}, {64, 13}}
-	states := [][]string{{"1"}, {"3"}, {"5"}, {"6"}, {"m"}, {"a"}, {"?"}, {"3", "enter"}, {"G", "e"}}
+	states := [][]string{{"1"}, {"3"}, {"5"}, {"6"}, {"m"}, {"a"}, {"?"}, {"3", "enter"}, {"G", "m", "d"}}
 	for _, size := range sizes {
 		for _, keys := range states {
 			w, h := size[0], size[1]

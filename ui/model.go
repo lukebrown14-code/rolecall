@@ -252,6 +252,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = nil
 			return m, nil
 		}
+		if pe, ok := parseError(m.err); ok && k.String() == "e" {
+			// The error on show names a meta.yml the store cannot read: e opens it there.
+			m.err = nil
+			return m, m.editAt(pe)
+		}
 		if k.String() == "," && m.screen != settingsScreen {
 			// Settings opens from anywhere, over the detail view and Stats too.
 			return m.openSettings(), nil

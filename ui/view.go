@@ -444,40 +444,6 @@ func (m model) scopeLine(p pal) string {
 	return p.text(p.dim).Render(strings.Join(parts, " · "))
 }
 
-// feedbackLine is the status row when something just happened: a toast (successes clear
-// on the next key), an error (stays until esc), or a build in flight (a spinner until it
-// finishes). It never replaces the bottom rule.
-func (m model) feedbackLine(p pal, w int) string {
-	icon, c, msg, hint := "✓", p.ok, m.toast, m.toastHint
-	raw := false
-	switch {
-	case m.err != nil:
-		msg = m.rel(m.err.Error())
-		icon, c, hint = "✕", p.bad, "enter inspect · esc hide"
-	case m.building != nil && m.toast == "":
-		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.accent, true
-	}
-	if msg == "" {
-		return ""
-	}
-	bg := lipgloss.NewStyle().Background(colorPanel)
-	var left string
-	if raw {
-		left = bg.Render(" ") + icon + bg.Foreground(p.fg).Render(msg)
-	} else {
-		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.fg).Render(msg)
-	}
-	right := ""
-	if hint != "" {
-		k, d, _ := strings.Cut(hint, " ")
-		right = bg.Foreground(p.accent).Bold(true).Render(k) + bg.Foreground(p.dim).Render(" "+d+" ")
-	}
-	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-1), "…")
-	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
-	gap := bg.Render(strings.Repeat(" ", n))
-	return xansi.Truncate(left+gap+right, w, "")
-}
-
 // listBody lays out the rows with section dividers. Rows get a blank line between them
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
@@ -691,8 +657,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		titleC, dimC = p.accent, p.sub
 	}
 	if a.Malformed != nil {
-		return []string{line.Render(bar + st(p.bad).Bold(true).Render("⚠ "+filepath.Base(a.Folder))),
-			line.Render(bar + st(dimC).Render(xansi.Truncate(m.rel(a.Malformed.Error()), w-ellipsis, "…")))}
+		return []string{line.Render(bar + st(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
+			line.Render(bar + st(dimC).Render(xansi.Truncate(m.malformedReason(a), w-ellipsis, "…")))}
 	}
 	state, flag, fit := m.slotText(a)
 	stateC := p.stateColor(a, dimC)
@@ -800,7 +766,8 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 	}
 	var b strings.Builder
 	if a.Malformed != nil {
-		b.WriteString(p.text(p.bad).Bold(true).Render("⚠ malformed meta.yml") + "\n\n" + wrap(m.rel(a.Malformed.Error()), p.dim, errorLines))
+		b.WriteString(p.text(p.bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.fg, errorLines) +
+			"\n\n" + p.text(p.accent).Render("e") + p.text(p.dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.fg, titleLines) + "\n" + p.text(p.dim).Render(a.Company+" · "+a.Track) + "\n\n")
 		label, c := p.docsLabel(a)

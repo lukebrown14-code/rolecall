@@ -239,7 +239,7 @@ func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	m = runMsg(t, m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = driveModel(t, m, "2", "ma", "q") // the broken row still carries its logged Status, Draft
 	view := m.View().Content
-	if !strings.Contains(view, "missing track") || strings.Contains(view, "Docs not Ready") {
+	if !strings.Contains(view, "add a track: line") || strings.Contains(view, "Docs not Ready") {
 		t.Fatalf("want the store error and no prompt, got:\n%s", view)
 	}
 

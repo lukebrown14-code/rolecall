@@ -11,8 +11,8 @@
    Platform Engineer                                           —  │ TIMELINE                                            
    Fern Systems · Platform · no close date                        │                                                     
                                                                   │ FIT                                                 
-   ⚠ malformed                                                    │ No fit.md yet                                       
-   jobs/SWE/malformed/meta.yml:4: invalid status_log entry or …   │                                                     
+   ⚠ Can't read SWE/malformed                                     │ No fit.md yet                                       
+   meta.yml line 4: indented lines must be status_log entries:…   │                                                     
                                                                   │ NOTES                                               
                                                                   │ No notes · n to add                                 
                                                                   │                                                     

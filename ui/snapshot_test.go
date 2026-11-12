@@ -27,7 +27,7 @@ var snapshotStates = []struct {
 	{"10-help", []string{"?"}},
 	{"11-search-typing", []string{"/", "p", "l"}},
 	{"12-search-no-match", []string{"/", "z", "z", "q", "enter"}},
-	{"13-error", []string{"G", "e"}},
+	{"13-error", []string{"G", "m", "d"}},
 	{"14-track-cycled", []string{"1", "t"}},
 	{"15-stats", []string{"4"}},
 	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "right", "right"}},

@@ -26,9 +26,9 @@ func TestFutureStatusDatesAreFlagged(t *testing.T) {
 }
 
 // e on a malformed row names the next step as well as the parse error.
-func TestMalformedEditShowsTheNextStep(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "e"))
-	if !strings.Contains(view, "invalid status_log entry") || !strings.Contains(view, "enter inspect") {
+func TestMalformedErrorShowsTheNextStep(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "m", "d"))
+	if !strings.Contains(view, "Can't read SWE/malformed · meta.yml line 4: indented lines must be status_log entries") || !strings.Contains(view, "e fix in editor") {
 		t.Fatalf("malformed edit lacks its next step:\n%s", view)
 	}
 }

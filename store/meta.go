@@ -15,10 +15,22 @@ var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var entryPattern = regexp.MustCompile(`^  - \{status: ([A-Za-z]+), at: ([^,}]+)(, approx: (true|false))?\}([ \t]+#.*)?$`)
 
 func validStatus(s string) bool { return slices.Contains(Statuses, s) }
+
+// ParseError is a meta.yml the store cannot read: the file, the first line it failed
+// on, and why. Its text is "path:line: reason".
+type ParseError struct {
+	Path   string
+	Line   int
+	Reason error
+}
+
+func (e *ParseError) Error() string { return fmt.Sprintf("%s:%d: %v", e.Path, e.Line, e.Reason) }
+
+func (e *ParseError) Unwrap() error { return e.Reason }
 func readApplication(dir string, b []byte) Application {
 	a := Application{Folder: dir, Schema: 1, Status: StatusLead}
 	fail := func(n int, err error) Application {
-		a.Malformed = fmt.Errorf("%s:%d: %w", filepath.Join(dir, "meta.yml"), n, err)
+		a.Malformed = &ParseError{Path: filepath.Join(dir, "meta.yml"), Line: n, Reason: err}
 		return a
 	}
 	if !utf8.Valid(b) || strings.Contains(string(b), "\r") || !strings.HasSuffix(string(b), "\n") {

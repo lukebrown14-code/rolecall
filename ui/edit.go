@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -9,12 +8,12 @@ import (
 	"github.com/lukebrown14-code/rolecall/store"
 )
 
-// openEdit starts the Edit form prefilled from an Application. A malformed Application is
-// refused with the store's own parse error, plus the next step.
+// openEdit starts the Edit form prefilled from an Application. A malformed Application has
+// no fields to fill, so its meta.yml opens in the Editor at the failing line instead.
 func (m *model) openEdit(a store.Application) tea.Cmd {
-	if a.Malformed != nil {
-		m.err = fmt.Errorf("%w · enter to see the file", a.Malformed)
-		return nil
+	if pe, ok := parseError(a.Malformed); ok {
+		m.err = nil
+		return m.editAt(pe)
 	}
 	m.err = nil
 	tracks := m.tracks

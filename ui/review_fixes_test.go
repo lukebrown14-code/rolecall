@@ -66,11 +66,11 @@ func TestBackspaceRemovesWholeCharacters(t *testing.T) {
 
 // With the help pop-up open over an error, esc closes the pop-up and leaves the error.
 func TestEscClosesHelpOverAnError(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "e", "?", "esc"))
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "m", "d", "?", "esc"))
 	if strings.Contains(view, "─ Keys ") {
 		t.Fatalf("esc left the help pop-up open:\n%s", view)
 	}
-	if !strings.Contains(view, "invalid status_log entry") {
+	if !strings.Contains(view, "indented lines must be status_log entries") {
 		t.Fatalf("esc cleared the error instead of closing help:\n%s", view)
 	}
 }
@@ -136,7 +136,7 @@ func TestNarrowKeyLineKeepsAddAndSearch(t *testing.T) {
 // the status row never replaces the bottom rule.
 func TestEveryScreenFillsTheTerminal(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"m"}, {"a"}, {"?"}, {"/pl"}, {"1", "t"}, {"G", "e"}, {"1", "x"}} {
+	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"m"}, {"a"}, {"?"}, {"/pl"}, {"1", "t"}, {"G", "m", "d"}, {"1", "x"}} {
 		view := runKeys(t, root, 120, keys...)
 		if n := strings.Count(view, "\n") + 1; n != termHeight {
 			t.Fatalf("keys %q: %d lines on a %d-line terminal", keys, n, termHeight)
@@ -222,9 +222,9 @@ func TestCompactAddExplainsEmptyTitle(t *testing.T) {
 
 func TestCompactMalformedErrorKeepsRecoveryKeys(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
-	m = driveModel(t, m, "G", "e")
+	m = driveModel(t, m, "G", "m", "d")
 	view := ansi.Strip(m.View().Content)
-	for _, hint := range []string{"enter inspect", "esc hide"} {
+	for _, hint := range []string{"e fix in editor", "esc hide"} {
 		if !strings.Contains(view, hint) {
 			t.Fatalf("missing %s: %s", hint, view)
 		}
