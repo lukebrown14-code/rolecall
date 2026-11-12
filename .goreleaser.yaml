@@ -6,6 +6,8 @@ builds:
   - id: rolecall
     main: ./cmd/rolecall
     binary: rolecall
+    ldflags:
+      - -X main.version={{ .Version }}
     goos:
       - darwin
       - linux

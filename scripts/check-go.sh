@@ -21,8 +21,11 @@ if [ -n "$colours" ]; then
 fi
 
 go vet ./...
-if command -v golangci-lint >/dev/null; then
+# CI installs golangci-lint and runs it as its own step; skip the second pass.
+if [ -n "${CI:-}" ]; then
+  echo "golangci-lint runs as its own CI step; skipping here"
+elif command -v golangci-lint >/dev/null; then
   golangci-lint run ./...
 else
-  echo "golangci-lint not installed; skipping (CI runs it)"
+  echo "golangci-lint not installed; skipping"
 fi
