@@ -56,7 +56,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 			os.RemoveAll(created)
 		}
 	}()
-	if err = os.WriteFile(filepath.Join(folder, "jd.md"), nil, privateFileMode); err != nil {
+	if err = s.atomicWrite(filepath.Join(folder, "jd.md"), nil, privateFileMode); err != nil {
 		return "", err
 	}
 	if err = s.atomicWrite(filepath.Join(folder, "meta.yml"), []byte(text), privateFileMode); err != nil {

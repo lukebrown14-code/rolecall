@@ -1,21 +1,21 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 )
 
 // EnsureNotes creates an empty notes file without changing existing notes.
 func (s *Store) EnsureNotes(folder string) error {
-	if _, err := s.Rescan(folder); err != nil {
+	if _, err := s.applicationRecord(folder); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(folder, "notes.md"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, privateFileMode)
-	if os.IsExist(err) {
+	path := filepath.Join(folder, "notes.md")
+	if _, err := os.Stat(path); err == nil {
 		return nil
-	}
-	if err != nil {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	return f.Close()
+	return s.atomicWrite(path, nil, privateFileMode)
 }

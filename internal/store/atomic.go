@@ -28,7 +28,12 @@ func (osFiles) CreateTemp(dir, pattern string) (AtomicFile, error) {
 func (osFiles) Rename(a, b string) error { return os.Rename(a, b) }
 func (osFiles) Remove(path string) error { return os.Remove(path) }
 func (s *Store) atomicWrite(path string, data []byte, mode os.FileMode) error {
-	fs := s.files
+	return atomicWrite(s.files, path, data, mode)
+}
+
+// atomicWrite publishes data through the injected filesystem. Nil uses the OS.
+func atomicWrite(files FileSystem, path string, data []byte, mode os.FileMode) error {
+	fs := files
 	if fs == nil {
 		fs = osFiles{}
 	}

@@ -30,8 +30,10 @@ func (f failingFS) Rename(a, b string) error {
 func (f failingFS) Remove(p string) error { return os.Remove(p) }
 func (f failingFile) Write(b []byte) (int, error) {
 	if f.stage == "write" {
-		f.File.Write(b[:1])
-		return 1, errors.New("injected write")
+		if len(b) > 0 {
+			f.File.Write(b[:1])
+		}
+		return 0, errors.New("injected write")
 	}
 	return f.File.Write(b)
 }

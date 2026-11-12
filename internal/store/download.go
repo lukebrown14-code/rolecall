@@ -1,7 +1,6 @@
 package store
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -11,25 +10,28 @@ import (
 // error satisfying errors.Is(err, os.ErrExist) and leaves it untouched, unless
 // overwrite is set.
 func (s *Store) CopyPDF(folder, name, dir string, overwrite bool) error {
+	if _, err := s.applicationRecord(folder); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(filepath.Join(folder, "out", name))
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dir, sharedDirMode); err != nil {
 		return err
 	}
-	in, err := os.Open(filepath.Join(folder, "out", name))
-	if err != nil {
+	dest := filepath.Join(dir, name)
+	mode := sharedFileMode
+	if !overwrite {
+		if _, err := os.Stat(dest); err == nil {
+			return &os.PathError{Op: "open", Path: dest, Err: os.ErrExist}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	} else if info, err := os.Stat(dest); err == nil {
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
 		return err
 	}
-	defer in.Close()
-	flags := os.O_CREATE | os.O_WRONLY | os.O_EXCL
-	if overwrite {
-		flags = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	}
-	out, err := os.OpenFile(filepath.Join(dir, name), flags, sharedFileMode)
-	if err != nil {
-		return err
-	}
-	if _, err = io.Copy(out, in); err != nil {
-		out.Close()
-		return err
-	}
-	return out.Close()
+	return s.atomicWrite(dest, data, mode)
 }
