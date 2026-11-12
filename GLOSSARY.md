@@ -19,7 +19,7 @@ _Avoid_: category, stream, career path
 
 **Profile**:
 The locked fact set every document is written from: career facts plus the rules for using them. Nothing goes in a document that is not in the Profile.
-_Avoid_: personal details, master profile (for the whole set), CV
+_Avoid_: personal details, master profile (for the whole set)
 
 **Contact**:
 The Owner's name and how to reach them, printed on every document. Part of the Profile.
@@ -86,7 +86,7 @@ _Avoid_: score, match
 
 **Resume**:
 The resume tailored for one Application, written from the Profile. It is one of the Application's documents, beside the cover letter.
-_Avoid_: CV
+The Owner may call their general, untailored resume a CV.
 
 **Written**:
 The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists.

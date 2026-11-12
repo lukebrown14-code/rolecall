@@ -195,7 +195,7 @@ func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init failed: %s %v", out, err)
 	}
-	for _, text := range []string{"Harness", "AI service", "private"} {
+	for _, text := range []string{"Harness", "AI service", "Profile", "resume", "job text", "private"} {
 		if !strings.Contains(strings.ToLower(string(out)), strings.ToLower(text)) {
 			t.Errorf("init output %q does not mention %q", out, text)
 		}

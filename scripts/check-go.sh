@@ -8,10 +8,10 @@ if [ -n "$unformatted" ]; then
   echo "gofmt needed:"; echo "$unformatted"; exit 1
 fi
 
-# ADR-0003: only ui/external.go may launch processes.
-launches=$(grep -rln 'os/exec\|ExecProcess' --include='*.go' . | grep -v '_test\.go$' | grep -v '^\./ui/external\.go$' || true)
+# ADR-0003: process/process.go is the only process launch boundary.
+launches=$(grep -rln 'exec.Command\|tea.ExecProcess\|CombinedOutput\|c.Run()' --include='*.go' . | grep -v '_test\.go$' | grep -v '^\./process/process\.go$' || true)
 if [ -n "$launches" ]; then
-  echo "process launch outside ui/external.go (ADR-0003):"; echo "$launches"; exit 1
+  echo "process launch outside process/process.go (ADR-0003):"; echo "$launches"; exit 1
 fi
 
 # Every colour lives in ui/styles.go: no colour or escape literals anywhere else.
