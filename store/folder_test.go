@@ -119,6 +119,35 @@ func TestWorkspaceReads(t *testing.T) {
 	}
 }
 
+func TestNewerWorkspaceSchemaIsRejectedWithUpgradeGuidance(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "workspace.json")
+	if err := os.WriteFile(path, []byte(`{"schema":2,"tracks":[]}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Tracks(); err == nil || !strings.Contains(err.Error(), "upgrade rolecall") {
+		t.Fatalf("newer schema should be rejected with upgrade guidance: %v", err)
+	}
+}
+
+func TestNullWorkspaceSchemaIsRejected(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "workspace.json"), []byte(`{"schema":null}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Tracks(); err == nil || !strings.Contains(err.Error(), "invalid Workspace schema") {
+		t.Fatalf("null schema should be rejected: %v", err)
+	}
+}
+
 func TestDocumentText(t *testing.T) {
 	for _, name := range []string{"resume.md", "cover-letter.md", "gaps.md"} {
 		for _, content := range []string{"absent", "", " \n\t", "Written text"} {

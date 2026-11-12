@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -72,7 +73,11 @@ func readApplication(dir string, b []byte) Application {
 		}
 		switch k {
 		case "schema":
-			if v != "1" {
+			version, err := strconv.Atoi(v)
+			if err == nil && version > 1 {
+				return fail(n+1, fmt.Errorf("schema %d is newer than this version; upgrade rolecall", version))
+			}
+			if err != nil || version != 1 {
 				return fail(n+1, fmt.Errorf("unsupported schema"))
 			}
 		case keyTitle:

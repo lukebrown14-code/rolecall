@@ -304,7 +304,15 @@ def _read_meta(folder, data):
         except MetaError as error:
             return fail(number, str(error))
         if key == "schema":
-            if value != "1":
+            if not re.fullmatch(r"[0-9]+", value):
+                return fail(number, "unsupported schema")
+            version = int(value)
+            if version > 1:
+                return fail(
+                    number,
+                    f"schema {version} is newer than this version; upgrade rolecall",
+                )
+            if version != 1:
                 return fail(number, "unsupported schema")
         elif key == "title":
             app.title = value
