@@ -236,15 +236,17 @@ func StripColor(s string) string {
 	})
 }
 
-// asciiGlyphs maps every glyph the layout draws to an ASCII stand-in.
+// asciiGlyphs maps every glyph the layout draws to an ASCII stand-in. Glyphs that mean
+// different things get different stand-ins: a Status keeps the one its palette draws, a
+// warning (!) is not the follow-up flag (?), and a missing document (0) is not a Lead (o).
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "*", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
+	"◆", "@", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "?", "↩", "<",
 	"●", "*", "○", "0", "✓", "v", "⚠", "!", "✕", "x", "✗", "X", "✘", "X", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
 	"◐", "=", "★", "$", "⊘", "-",
-	// the wordmark's mark, distinct from every Status stand-in
-	"▞", "#",
+	// the wordmark's mark, distinct from every Status stand-in and from a data block
+	"▞", "R",
 	// the documents' ready meter and an urgent close date
 	"▰", "#", "▱", "-", "▲", "^",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
