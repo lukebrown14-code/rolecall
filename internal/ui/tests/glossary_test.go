@@ -91,6 +91,10 @@ func TestStringsAvoidGlossaryAvoidTerms(t *testing.T) {
 				return true
 			}
 			s, _ := strconv.Unquote(lit.Value)
+			// SCHEMA.md fixes this filename; it is not the Settings screen's label.
+			if s == "writing-preferences.md" || s == "profile/writing-preferences.md" {
+				return true
+			}
 			for _, re := range avoid {
 				if re.MatchString(s) {
 					t.Errorf("%s: %q uses %q, which GLOSSARY.md avoids", fs.Position(lit.Pos()), s, re.String()[6:len(re.String())-2])
