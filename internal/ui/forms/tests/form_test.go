@@ -7,6 +7,22 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui/forms"
 )
 
+// Editing a URL-role field invalidates a fetch's result; editing any other field does
+// not. The engine matches the role, never a label.
+func TestEditingURLRoleFieldClearsTheFetch(t *testing.T) {
+	f := forms.New("Add", forms.Field{Label: "URL", Role: forms.RoleURL}, forms.Field{Label: "Title"})
+	f.Fetched, f.Jd, f.Signals = true, "ad text", []string{"signal"}
+	f.Edited(&f.Fields[0])
+	if f.Fetched || f.Jd != "" || f.Signals != nil {
+		t.Fatalf("editing the URL field left fetch state: %+v", f)
+	}
+	f.Fetched, f.Jd = true, "ad text"
+	f.Edited(&f.Fields[1])
+	if !f.Fetched || f.Jd != "ad text" {
+		t.Fatalf("editing a plain field cleared the fetch: %+v", f)
+	}
+}
+
 func TestSubmitValidatesAllFieldsAndFocusesFirstError(t *testing.T) {
 	f := forms.New("Contact", forms.Field{Label: "Name", Required: true}, forms.Field{Label: "Email", Required: true})
 	save := tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}

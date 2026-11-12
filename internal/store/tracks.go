@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // SetTracks writes tracks to workspace.json. Only the tracks key changes: every other key
@@ -25,20 +24,27 @@ func (s *Store) SetTracks(tracks []string) error {
 
 // setWorkspaceKey replaces one top-level key of workspace.json, appending it when absent.
 func (s *Store) setWorkspaceKey(key string, value json.RawMessage) error {
-	path := filepath.Join(s.root, "workspace.json")
-	mode := os.FileMode(privateFileMode)
-	var keys []string
-	values := map[string]json.RawMessage{}
-	switch b, err := os.ReadFile(path); {
-	case os.IsNotExist(err):
-	case err != nil:
+	w, err := readWorkspace(s.root)
+	if err != nil {
 		return err
-	default:
-		if info, e := os.Stat(path); e == nil {
+	}
+	mode := os.FileMode(privateFileMode)
+	keys, values := w.Keys, w.Values
+	if w.Raw == nil {
+		keys, values = nil, map[string]json.RawMessage{}
+	} else {
+		if w.ParseErr != nil {
+			return fmt.Errorf("%s is not valid JSON, not writing: %w", w.Path, w.ParseErr)
+		}
+		if info, e := os.Stat(w.Path); e == nil {
 			mode = info.Mode().Perm()
 		}
-		if keys, values, err = orderedObject(b); err != nil {
-			return fmt.Errorf("%s is not valid JSON, not writing: %w", path, err)
+	}
+	// A schema this build does not know is never written over: the Owner may be on a
+	// newer rolecall, and rewriting would drop keys it added.
+	if raw, ok := values["schema"]; ok {
+		if _, err := workspaceSchemaVersion(w.Path, raw); err != nil {
+			return err
 		}
 	}
 	if _, ok := values[key]; !ok {
@@ -62,7 +68,7 @@ func (s *Store) setWorkspaceKey(key string, value json.RawMessage) error {
 		return err
 	}
 	pretty.WriteByte('\n')
-	return s.atomicWrite(path, pretty.Bytes(), mode)
+	return s.atomicWrite(w.Path, pretty.Bytes(), mode)
 }
 
 // orderedObject parses a JSON object keeping the order of its keys.

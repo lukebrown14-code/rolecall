@@ -141,28 +141,41 @@ func LaunchHarness(template, workspace, skill, resume string) error {
 	return process.RunShell(command)
 }
 
-// editFile opens a file of the Application folder in the Owner's editor. The editor
-// preference may include flags or quoted executable paths, so the filename is passed
-// as a shell positional argument and Application paths remain literal.
-func (m model) editFile(folder, name string) tea.Cmd {
-	return m.runExternal(folder, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", filepath.Join(folder, name))
+// runEditor opens path in the Owner's Editor, at line when line > 0 and the Editor takes
+// one. The editor preference may include flags or quoted executable paths, so the
+// filename is passed as a shell positional argument and the path stays literal.
+func (m model) runEditor(folder, path string, line int) tea.Cmd {
+	editor := ResolveEditor(m.editor)
+	before, after := editorLineArgs(firstWord(editor), line)
+	return m.runExternal(folder, "/bin/sh", "-c", "exec "+editor+before+" \"$1\""+after, "rolecall-editor", path)
 }
 
-// editFileAt is editFile at a line, for an Editor known to take one: +N for the vi and
-// Emacs families and nano, path:N for Sublime Text, Zed and Helix, -g path:N for VS Code.
-// Any other Editor opens the file at the top.
-func (m model) editFileAt(folder, name string, line int) tea.Cmd {
-	editor := ResolveEditor(m.editor)
-	before, after := "", ""
-	switch filepath.Base(firstWord(editor)) {
-	case "vi", "vim", "nvim", "view", "nano", "pico", "emacs", "emacsclient", "micro", "kak", "joe", "mg", "ne":
-		before = fmt.Sprintf(" +%d", line)
-	case "subl", "zed", "hx", "helix":
-		after = fmt.Sprintf(":%d", line)
-	case "code", "codium", "cursor":
-		before, after = " -g", fmt.Sprintf(":%d", line)
+// editorLineArgs is how an Editor is told to open at a line: +N for the vi and Emacs
+// families and nano, path:N for Sublime Text, Zed and Helix, -g path:N for VS Code.
+// Any other Editor, or line 0, opens at the top.
+func editorLineArgs(editor string, line int) (before, after string) {
+	if line <= 0 {
+		return "", ""
 	}
-	return m.runExternal(folder, "/bin/sh", "-c", "exec "+editor+before+" \"$1\""+after, "rolecall-editor", filepath.Join(folder, name))
+	switch filepath.Base(editor) {
+	case "vi", "vim", "nvim", "view", "nano", "pico", "emacs", "emacsclient", "micro", "kak", "joe", "mg", "ne":
+		return fmt.Sprintf(" +%d", line), ""
+	case "subl", "zed", "hx", "helix":
+		return "", fmt.Sprintf(":%d", line)
+	case "code", "codium", "cursor":
+		return " -g", fmt.Sprintf(":%d", line)
+	}
+	return "", ""
+}
+
+// editFile opens a file of the Application folder in the Owner's editor.
+func (m model) editFile(folder, name string) tea.Cmd {
+	return m.runEditor(folder, filepath.Join(folder, name), 0)
+}
+
+// editFileAt is editFile at a line, for an Editor known to take one.
+func (m model) editFileAt(folder, name string, line int) tea.Cmd {
+	return m.runEditor(folder, filepath.Join(folder, name), line)
 }
 
 func (m model) editNotes(folder string) tea.Cmd {
@@ -185,7 +198,7 @@ func (m model) editConfig() tea.Cmd {
 		if err := config.Ensure(path); err != nil {
 			return externalFinished{root, err}
 		}
-		return m.runExternal(root, "/bin/sh", "-c", "exec "+ResolveEditor(m.editor)+" \"$1\"", "rolecall-editor", path)()
+		return m.runEditor(root, path, 0)()
 	}
 }
 

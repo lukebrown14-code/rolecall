@@ -133,11 +133,7 @@ func (m model) current() (store.Application, bool) {
 	if m.detail != nil {
 		return m.application(m.detail.folder)
 	}
-	rows := m.rows()
-	if len(rows) == 0 {
-		return store.Application{}, false
-	}
-	return rows[m.cursor], true
+	return m.selected()
 }
 
 func (m *model) openDetail(folder string) {

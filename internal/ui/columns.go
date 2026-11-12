@@ -49,7 +49,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	}
 	if beforeApplied(table) {
 		closes := a.Closes
-		if closes != "" && closes < now.Format("2006-01-02") {
+		if t, ok := parseDay(closes); ok && t.Before(day(now)) {
 			closes = "past"
 		}
 		out = append(out, closes, fit)
@@ -59,14 +59,8 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		return out
 	}
 	flag := ""
-	if (a.Status == store.StatusApplied || a.Status == store.StatusInterviewing) && a.LastChange != nil {
-		at, err := time.Parse(time.RFC3339, a.LastChange.At)
-		if err != nil {
-			at, err = time.Parse("2006-01-02", a.LastChange.At)
-		}
-		if err == nil && now.After(at.AddDate(0, 0, followUpDays)) {
-			flag = followUpFlag
-		}
+	if followUpDue(a, now, followUpDays) {
+		flag = followUpFlag
 	}
 	return append(out, entryDate(a.AppliedDate), fit, docs, flag)
 }

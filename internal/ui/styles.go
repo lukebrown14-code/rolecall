@@ -66,6 +66,10 @@ func (m model) dimmedPal() pal {
 	return p
 }
 
+// glyph is s with its ASCII stand-in when the frame draws ASCII glyphs, so a match on a
+// drawn character — hit-testing a rule or the search chip — uses what the renderer wrote.
+func (m model) glyph(s string) string { return asciiFold(s, m.ascii) }
+
 // wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "#").
 const wordmark = "▞"
 

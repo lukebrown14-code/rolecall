@@ -60,7 +60,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 				row += "\n" + indent + p.Text(p.Bad).Render(l)
 			}
 		}
-		if fld.Label == fieldURL {
+		if fld.Role == forms.RoleURL {
 			// Fetch failures and visa/clearance signals sit under the URL; signals are
 			// shown for the Owner's eyes only and never written to the Application.
 			for _, s := range f.Signals {
@@ -113,7 +113,7 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 			}
 		}
 		return p.Text(arrow).Render("‹ ") + p.Text(valC).Bold(focused).Render(label) + p.Text(arrow).Render(" ›") + aside
-	case fld.Label == fieldURL && f.Fetching:
+	case fld.Role == forms.RoleURL && f.Fetching:
 		return p.Text(p.Accent).Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
 	case fld.Value == "":
 		if fld.Placeholder != "" {

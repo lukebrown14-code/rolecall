@@ -38,6 +38,11 @@ func Check(root string, lookup VisibilityLookup) ([]string, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		// Hidden directories are not Workspace data. .git alone holds thousands of files
+		// whose modes git manages, and the chmod advice for them would be wrong.
+		if path != root && entry.IsDir() && strings.HasPrefix(entry.Name(), ".") {
+			return fs.SkipDir
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err

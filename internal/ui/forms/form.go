@@ -21,9 +21,20 @@ import (
 // Choice is one value of a Choice field and how it reads on screen.
 type Choice struct{ Value, Label string }
 
+// FieldRole names behaviour a field carries beyond editing, so the engine never matches
+// on a label.
+type FieldRole int
+
+const (
+	RoleNone FieldRole = iota
+	// RoleURL is a field whose edits invalidate a fetch's result.
+	RoleURL
+)
+
 // Field is one row of a Form: a text input, or a Choice cycled with ←→ (or ↑↓).
 type Field struct {
 	Label       string
+	Role        FieldRole
 	Required    bool
 	Value       string
 	Orig        string   // the value the Form opened with, so an edit shows and esc asks
@@ -128,10 +139,10 @@ func (f *Form) ClearFetch() {
 	f.Fetched, f.Jd, f.FetchErr, f.Signals = false, "", "", nil
 }
 
-// edited notes a text field changed. Editing the URL invalidates any fetch, so a
+// edited notes a text field changed. Editing a URL field invalidates any fetch, so a
 // stale ad, signals or failure never linger over a new URL.
 func (f *Form) Edited(fld *Field) {
-	if fld.Label == fieldURL {
+	if fld.Role == RoleURL {
 		f.ClearFetch()
 	}
 }
@@ -318,7 +329,6 @@ func (f *Form) LabelWidth() int {
 }
 
 const (
-	fieldURL     = "URL"
 	keyBackspace = "backspace"
 	hintSave     = "save"
 	hintNext     = "next"

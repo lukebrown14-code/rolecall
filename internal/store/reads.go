@@ -8,39 +8,97 @@ import (
 	"path/filepath"
 )
 
-// Tracks returns configured tracks in display order; absent tracks mean no filter.
-func (s *Store) Tracks() ([]string, error) {
-	path := filepath.Join(s.root, "workspace.json")
-	b, err := os.ReadFile(path)
+// workspace is workspace.json read once. Keys and Values are the ordered top-level keys
+// and their raw values, so a writer can preserve every key it does not know; ParseErr is
+// set when the file is present but is not a JSON object; Raw is nil when the file is
+// absent. Readers project their fields from Values, so the file is read and parsed in one
+// place.
+type workspace struct {
+	Path     string
+	Raw      []byte
+	Keys     []string
+	Values   map[string]json.RawMessage
+	ParseErr error
+}
+
+// readWorkspace reads workspace.json. A missing file returns a zero Raw with no error; an
+// unreadable file returns the error. Every reader and writer goes through it.
+func readWorkspace(root string) (workspace, error) {
+	w := workspace{Path: filepath.Join(root, "workspace.json")}
+	b, err := os.ReadFile(w.Path)
 	if os.IsNotExist(err) {
-		return nil, nil
+		return w, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return w, err
 	}
-	var config struct {
-		Schema json.RawMessage `json:"schema"`
-		Tracks []string        `json:"tracks"`
-	}
-	if err = json.Unmarshal(b, &config); err != nil {
-		return nil, fmt.Errorf("%s: invalid Workspace settings", path)
-	}
-	if config.Schema != nil {
-		if bytes.Equal(config.Schema, []byte("null")) {
-			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
+	w.Raw = b
+	keys, values, err := orderedObject(b)
+	if err != nil {
+		// Report the message json.Unmarshal gives: it is the one the Settings screen has
+		// always shown for a broken file.
+		var probe map[string]json.RawMessage
+		if perr := json.Unmarshal(b, &probe); perr != nil {
+			err = perr
 		}
-		var version int
-		if err := json.Unmarshal(config.Schema, &version); err != nil {
-			return nil, fmt.Errorf("%s: invalid Workspace schema", path)
-		}
-		if version != 1 {
-			if version > 1 {
-				return nil, fmt.Errorf("%s: Workspace schema %d is newer than this version; upgrade rolecall", path, version)
-			}
-			return nil, fmt.Errorf("%s: unsupported Workspace schema %d", path, version)
+		w.ParseErr = err
+		return w, nil
+	}
+	w.Keys, w.Values = keys, values
+	return w, nil
+}
+
+// schema is the Workspace schema, 1 when the key is absent, or an error naming the path.
+func (w workspace) schema() (int, error) {
+	return workspaceSchemaVersion(w.Path, w.Values["schema"])
+}
+
+// Tracks returns configured tracks in display order; absent tracks mean no filter.
+func (s *Store) Tracks() ([]string, error) {
+	w, err := readWorkspace(s.root)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", w.Path, err)
+	}
+	if w.Raw == nil {
+		return nil, nil
+	}
+	if w.ParseErr != nil {
+		return nil, fmt.Errorf("%s: invalid Workspace settings", w.Path)
+	}
+	if _, err := w.schema(); err != nil {
+		return nil, err
+	}
+	var tracks []string
+	if raw, ok := w.Values["tracks"]; ok {
+		if err := json.Unmarshal(raw, &tracks); err != nil {
+			return nil, fmt.Errorf("%s: invalid Workspace settings", w.Path)
 		}
 	}
-	return config.Tracks, nil
+	return tracks, nil
+}
+
+// workspaceSchemaVersion reads the schema key of workspace.json. Absent or 1 is accepted;
+// null, a non-number, or any other version is an error naming the path, so a reader or
+// writer can refuse a Workspace this build does not understand.
+func workspaceSchemaVersion(path string, raw json.RawMessage) (int, error) {
+	if raw == nil {
+		return 1, nil
+	}
+	if bytes.Equal(raw, []byte("null")) {
+		return 0, fmt.Errorf("%s: invalid Workspace schema", path)
+	}
+	var version int
+	if err := json.Unmarshal(raw, &version); err != nil {
+		return 0, fmt.Errorf("%s: invalid Workspace schema", path)
+	}
+	switch {
+	case version == 1:
+		return 1, nil
+	case version > 1:
+		return version, fmt.Errorf("%s: Workspace schema %d is newer than this version; upgrade rolecall", path, version)
+	default:
+		return version, fmt.Errorf("%s: unsupported Workspace schema %d", path, version)
+	}
 }
 
 // FindByURL returns every exact URL match, regardless of Status.

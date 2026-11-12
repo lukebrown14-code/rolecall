@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
-	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // groupTracking is the Settings group that holds the Tracks.
@@ -223,4 +222,4 @@ func (rb *removeBlockedMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return rb, nil
 }
 
-var validTrackName = settings.ValidTrackName
+var validTrackName = store.ValidTrackName

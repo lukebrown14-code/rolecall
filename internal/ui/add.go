@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/forms"
 )
 
 // addValues holds the Add/Edit form's answers.
@@ -51,7 +52,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	for i, t := range tracks {
 		trackChoices[i] = choice{Value: t, Label: t}
 	}
-	url := formField{Label: fieldURL, Value: v.url, Placeholder: "https://…", Note: "optional"}
+	url := formField{Label: fieldURL, Role: forms.RoleURL, Value: v.url, Placeholder: "https://…", Note: "optional"}
 	titleField := formField{Label: "Title", Required: true, Value: v.title}
 	company := formField{Label: "Company", Required: true, Value: v.company}
 	track := formField{Label: "Track", Value: v.track, Choices: trackChoices}

@@ -266,6 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.overlay != nil {
 		next, cmd := m.overlay.Update(&m, msg)
 		m.overlay = next
+		m.clampCursor()
 		return m, cmd
 	}
 	if done, ok := msg.(flashDone); ok {
@@ -307,8 +308,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch k.String() {
 		case "v", "enter":
-			if rows := m.rows(); len(rows) > 0 {
-				m.openDetail(rows[m.cursor].Folder)
+			if a, ok := m.selected(); ok {
+				m.openDetail(a.Folder)
 			}
 		case "m":
 			if a, ok := m.current(); ok {
@@ -395,13 +396,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m = m.syncDetail()
 	m = m.syncProfile()
-	n := len(m.rows())
-	if m.cursor >= n {
-		m.cursor = n - 1
-	}
-	if m.cursor < 0 {
-		m.cursor = 0
-	}
+	m.clampCursor()
 	return m, flash
 }
 
@@ -426,6 +421,32 @@ func (m model) cursorFolder() string {
 		return rows[m.cursor].Folder
 	}
 	return ""
+}
+
+// selected is the row under the cursor with the cursor clamped into range, so a change
+// that removed or reordered rows can never make a read panic. ok is false when the
+// active view has no rows.
+func (m model) selected() (store.Application, bool) {
+	rows := m.rows()
+	if len(rows) == 0 {
+		return store.Application{}, false
+	}
+	i := min(max(m.cursor, 0), len(rows)-1)
+	return rows[i], true
+}
+
+// clampCursor keeps the cursor inside the active view after a change that may have
+// removed or reordered rows, so the cursor is never left out of range.
+func (m *model) clampCursor() {
+	n := len(m.rows())
+	switch {
+	case n == 0:
+		m.cursor = 0
+	case m.cursor >= n:
+		m.cursor = n - 1
+	case m.cursor < 0:
+		m.cursor = 0
+	}
 }
 
 // keepCursor puts the cursor on folder's row when the active table still shows it.

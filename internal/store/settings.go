@@ -2,7 +2,7 @@ package store
 
 import (
 	"encoding/json"
-	"os"
+	"fmt"
 	"path/filepath"
 )
 
@@ -18,7 +18,7 @@ const (
 // key means the default. An unreadable file sets Err and leaves the rest at defaults.
 type WorkspaceSettings struct {
 	Path          string
-	Err           error // parse error for an invalid workspace.json
+	Err           error // parse or schema error for a workspace.json this build cannot use
 	Tracks        []string
 	Places        []string
 	Remote        string
@@ -28,6 +28,10 @@ type WorkspaceSettings struct {
 	KeySkillsMax  int
 	Sources       int // entries in sources
 	Blockers      int // entries in blockers
+	// Schema is the workspace.json schema, 1 when the key is absent. NewerSchema marks a
+	// schema above 1, so the screen can say the file is from a newer rolecall.
+	Schema      int
+	NewerSchema bool
 	// Set names the gate keys workspace.json sets itself; the rest are the defaults.
 	Set map[string]bool
 }
@@ -37,48 +41,68 @@ type WorkspaceSettings struct {
 func (s *Store) Settings() (WorkspaceSettings, error) {
 	out := WorkspaceSettings{
 		Path:          filepath.Join(s.root, "workspace.json"),
+		Schema:        1,
 		LetterWordCap: DefaultLetterWordCap, LetterWordMin: DefaultLetterWordMin,
 		KeySkillsMin: DefaultKeySkillsMin, KeySkillsMax: DefaultKeySkillsMax,
 	}
-	b, err := os.ReadFile(out.Path)
-	if os.IsNotExist(err) {
-		return out, nil
-	}
+	w, err := readWorkspace(s.root)
 	if err != nil {
 		return out, err
 	}
-	var raw struct {
-		Tracks     []string `json:"tracks"`
-		SearchArea struct {
-			Places []string `json:"places"`
-			Remote string   `json:"remote"`
-		} `json:"search_area"`
-		LetterWordCap *int            `json:"letterWordCap"`
-		LetterWordMin *int            `json:"letterWordMin"`
-		KeySkillsMin  *int            `json:"keySkillsMin"`
-		KeySkillsMax  *int            `json:"keySkillsMax"`
-		Sources       json.RawMessage `json:"sources"`
-		Blockers      json.RawMessage `json:"blockers"`
-	}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		out.Err = err
+	if w.Raw == nil {
 		return out, nil
 	}
-	out.Tracks, out.Places, out.Remote = raw.Tracks, raw.SearchArea.Places, raw.SearchArea.Remote
+	if w.ParseErr != nil {
+		out.Err = w.ParseErr
+		return out, nil
+	}
+	// A schema this build cannot use stops the screen: it must not offer edits that would
+	// be refused, and the Owner needs to see why.
+	if version, err := w.schema(); err != nil {
+		out.Schema, out.Err, out.NewerSchema = version, err, version > 1
+		return out, nil
+	} else {
+		out.Schema = version
+	}
+	// decode reads one top-level key; a key present but of the wrong shape is a file error.
+	decode := func(key string, dst any) bool {
+		raw, ok := w.Values[key]
+		if !ok {
+			return true
+		}
+		if err := json.Unmarshal(raw, dst); err != nil {
+			out.Err = fmt.Errorf("%s: %w", w.Path, err)
+			return false
+		}
+		return true
+	}
+	if !decode("tracks", &out.Tracks) {
+		return out, nil
+	}
+	var area struct {
+		Places []string `json:"places"`
+		Remote string   `json:"remote"`
+	}
+	if !decode("search_area", &area) {
+		return out, nil
+	}
+	out.Places, out.Remote = area.Places, area.Remote
 	out.Set = map[string]bool{}
 	for _, g := range []struct {
-		key      string
-		dst, src *int
+		key string
+		dst *int
 	}{
-		{GateLetterCap, &out.LetterWordCap, raw.LetterWordCap}, {GateLetterMin, &out.LetterWordMin, raw.LetterWordMin},
-		{GateSkillsMin, &out.KeySkillsMin, raw.KeySkillsMin}, {GateSkillsMax, &out.KeySkillsMax, raw.KeySkillsMax},
+		{GateLetterCap, &out.LetterWordCap}, {GateLetterMin, &out.LetterWordMin},
+		{GateSkillsMin, &out.KeySkillsMin}, {GateSkillsMax, &out.KeySkillsMax},
 	} {
-		if g.src != nil {
-			*g.dst = *g.src
+		if !decode(g.key, g.dst) {
+			return out, nil
+		}
+		if _, ok := w.Values[g.key]; ok {
 			out.Set[g.key] = true
 		}
 	}
-	out.Sources, out.Blockers = entryCount(raw.Sources), entryCount(raw.Blockers)
+	out.Sources, out.Blockers = entryCount(w.Values["sources"]), entryCount(w.Values["blockers"])
 	return out, nil
 }
 

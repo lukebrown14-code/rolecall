@@ -25,7 +25,7 @@ func (s *Store) SetGate(key, text string) error {
 		return err
 	}
 	if ws.Err != nil {
-		return fmt.Errorf("%s is not valid JSON, not writing", ws.Path)
+		return ws.Err
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(text))
 	if err != nil || n < 0 {
