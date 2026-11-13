@@ -122,7 +122,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	}
 	h.tm.Type("/docs-partial")
 	h.enter()
-	h.wait("docs-partial", "of 4 ready")
+	h.wait("docs-partial", "/4")
 	h.tm.Type("e")
 	h.wait("Resume only", "No")
 	h.saveForm(6)
@@ -133,7 +133,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {
 		t.Fatalf("resume_only not set:\n%s", meta)
 	}
-	if plain := ansi.Strip(view); !strings.Contains(plain, "✓ PDF") || !strings.Contains(plain, "of 3 ready") {
+	if plain := ansi.Strip(view); !strings.Contains(plain, "● PDF") || !strings.Contains(plain, "2/3") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
 	}
 }

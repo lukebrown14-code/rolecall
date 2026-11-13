@@ -3,13 +3,13 @@
    ◌ [Leads 4]    ⊘ Dismissed 2                                                                 t  [All]  SWE  Platform
    Leads › Leads · All tracks · 1/4 · list
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ◌ Empty                                                    ·  │ Empty                                                
+ ▌ ◌ Empty                          ▱▱▱▱                      ·  │ Empty                                                
      Example · SWE · —                                           │ Example · SWE                                        
                                                                  │                                                      
-   ◌ Empty log                                                ·  │ ◌ Lead   Fit: not assessed                           
+   ◌ Empty log                      ▱▱▱▱                      ·  │ ◌ Lead   Fit: not assessed                           
      Fictional Labs · SWE · —                                    │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
-                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
-   ◌ Platform Engineer                            Lead 7d     ·  │                                                      
+                                                                 │ ▱▱▱▱ 0/4                                             
+   ◌ Platform Engineer              ▱▱▱▱          Lead 7d     ·  │                                                      
      Fern Systems · Platform · —                                 │ NEXT  add the JD   enter open                        
                                                                  │                                                      
    ⚠ Can't read SWE/malformed                                    │ TIMELINE                                             

@@ -457,7 +457,7 @@ func (m model) pulse(p pal) []string {
 	live, due, closing := 0, 0, 0
 	for _, a := range m.apps {
 		t := tableOf(a)
-		if a.Malformed != nil || t == tableDismissed || t == tableClosed {
+		if !isActive(a) {
 			continue
 		}
 		live++
@@ -1019,6 +1019,12 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 			st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
 	right := buildRight()
+	// The ready meter sits between the title and the fixed columns, and goes first when
+	// the title would shrink below meterTitleMin.
+	if room := w - xansi.StringWidth(bar) - statusMarkWidth - xansi.StringWidth(right) - 1; room-meterGap() >= meterTitleMin {
+		_, total := readyCount(a)
+		right = st(p.Fg).Render(" ") + p.meterCells(a, st) + st(p.Fg).Render(strings.Repeat(" ", meterWidth-total)) + right
+	}
 	// The Status glyph leads the title; the second line lines up under the title.
 	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
