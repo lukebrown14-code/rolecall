@@ -48,8 +48,19 @@ type detailMode int
 const (
 	// detailPane shows the detail beside the list (wide).
 	detailPane detailMode = iota + 1
-	// detailFull opens the detail as its own full-screen view on enter (medium and narrow).
+	// detailFull opens the detail as its own full-screen view on enter (narrow, and
+	// medium when the height cannot hold a sheet).
 	detailFull
+	// detailSheet opens the detail as a bottom sheet under the list's top part (medium).
+	detailSheet
+)
+
+// The bottom sheet: the least lines the list keeps above it and the least the detail
+// needs; below that total the detail opens full-screen instead.
+const (
+	sheetListMin   = 5
+	sheetDetailMin = 8
+	sheetRule      = 1 // the rule between the list and the sheet
 )
 
 // The list row's fixed right columns, in cells.
@@ -98,7 +109,7 @@ func (m model) layout() layout {
 // sizeLayout is the pure layout for a terminal of w by h: no rendering, no model, no clock.
 func sizeLayout(w, h int) layout {
 	l := layout{w: w, h: h, short: h <= shortHeight, detail: detailFull, filterLines: filtersFull, listW: w,
-		flagCol: flagColumn, stageCol: stageColumn, fitCol: fitColumn, footerRow: max(0, h-1)}
+		flagCol: flagColumn, stageCol: stageColumn, fitCol: fitColumn, footerRow: max(0, h-1), status: statusAreaPlain}
 	switch {
 	case w >= wideWidth:
 		l.class = classWide
@@ -107,6 +118,7 @@ func sizeLayout(w, h int) layout {
 		l.listW = w - l.detailW - 1
 	case w >= mediumWidth:
 		l.class = classMedium
+		l.detail = detailSheet
 	}
 	if w < mediumWidth {
 		l.filterLines = filtersCollapsed
@@ -116,6 +128,22 @@ func sizeLayout(w, h int) layout {
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
 	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
+}
+
+// sheetHeights splits a body of the given context lines into the list part and the
+// detail sheet under it, and reports whether a sheet fits at all. Whether it fits is
+// decided with the plain one-line status area, so a toast cannot flip an open detail
+// between sheet and full-screen; the split itself uses the actual status lines.
+func (l layout) sheetHeights(ctx int) (list, detail int, ok bool) {
+	if l.detail != detailSheet {
+		return 0, 0, false
+	}
+	plain := l
+	plain.status = statusAreaPlain
+	ok = plain.bodyHeight(ctx) >= sheetListMin+sheetRule+sheetDetailMin
+	body := l.bodyHeight(ctx)
+	list = min(max(body*2/5, sheetListMin), max(1, body-sheetRule-sheetDetailMin)) //nolint:mnd // two fifths for the list
+	return list, max(1, body-sheetRule-list), ok
 }
 
 func (l layout) wide() bool { return l.class == classWide }
@@ -150,10 +178,35 @@ const (
 
 // contextLines is how many context lines the current screen draws under the tab bar.
 func (m model) contextLines() int {
-	if m.detail != nil {
+	if m.detail != nil && !m.sheetShown() {
 		return m.detailContextLines()
 	}
+	if m.hasTables() {
+		return tableContext
+	}
 	return 1
+}
+
+// tableContext is a table screen's context lines: the filters, then the breadcrumb.
+const tableContext = 2
+
+// sheetShown reports whether the open detail is a bottom sheet under the list.
+func (m model) sheetShown() bool {
+	if m.detail == nil || !m.hasTables() {
+		return false
+	}
+	_, _, ok := m.layout().sheetHeights(tableContext)
+	return ok
+}
+
+// listHeight is the lines the list gets: the whole body, or the top part above a sheet.
+func (m model) listHeight() int {
+	l := m.layout()
+	if m.sheetShown() {
+		list, _, _ := l.sheetHeights(tableContext)
+		return list
+	}
+	return l.bodyHeight(tableContext)
 }
 
 // frame stacks one screen: tab bar, gap, context lines, rule, body, rule, status row.
@@ -173,8 +226,21 @@ func (m model) frame(p pal, ctx []string, body string, split int, focus paneFocu
 		parts = append(parts, "")
 	}
 	parts = append(parts, ctx...)
-	parts = append(parts, top, body, bot, status)
+	parts = append(parts, top, fitLines(body, l.bodyHeight(len(ctx))), bot, status)
 	return strings.Join(parts, "\n")
+}
+
+// fitLines makes body exactly h lines: padded with blanks or cut, so the status rows
+// always land on the terminal's last rows.
+func fitLines(body string, h int) string {
+	lines := strings.Split(body, "\n")
+	if len(lines) > h {
+		lines = lines[:h]
+	}
+	for len(lines) < h {
+		lines = append(lines, "")
+	}
+	return strings.Join(lines, "\n")
 }
 
 // paneFocus is which of two panes has focus, for the frame's top rule: the focused

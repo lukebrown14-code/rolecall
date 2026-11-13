@@ -42,6 +42,9 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[All") {
 			t.Fatalf("%v: tab click did not open Applied:\n%s", size, view)
 		}
+		if size[0] < 80 {
+			continue // narrow, the filters collapse to s:/t: and the view tabs go with tab
+		}
 		m = clickOn(t, m, lineOf(t, m, "Interviewing"), "Interviewing")
 		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[Interviewing") {
 			t.Fatalf("%v: view click did not switch:\n%s", size, view)

@@ -156,6 +156,7 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	minBodyHeight = 3
+	sheetChrome   = 3  // the sheet's title and tabs rows and the scroll cue
 	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
@@ -191,6 +192,10 @@ func (m model) paneWidth() int {
 
 // bodyHeight is the lines of tab content shown at once.
 func (m model) bodyHeight() int {
+	if m.sheetShown() {
+		_, detail, _ := m.layout().sheetHeights(tableContext)
+		return max(minBodyHeight, detail-sheetChrome)
+	}
 	return max(minBodyHeight, m.layout().bodyHeight(m.detailContextLines())-paneChrome)
 }
 

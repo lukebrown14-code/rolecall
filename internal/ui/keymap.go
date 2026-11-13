@@ -64,7 +64,14 @@ func leadOrDraft(m model) bool {
 // lists them. The dispatcher and the help both read it.
 var listActions = []listAction{
 	{
-		keys: []string{"enter", "v"}, keyLabel: "enter", desc: text("open"),
+		keys: []string{"enter", "v"}, keyLabel: "enter",
+		desc: func(m model) string {
+			// Without the detail pane beside the list, the footer says the detail exists.
+			if m.detail == nil && m.layout().detail != detailPane {
+				return "detail"
+			}
+			return descOpen
+		},
 		group: groupAction, prio: fixed(prioCore),
 		listed: func(m model) bool {
 			a, ok := m.current()

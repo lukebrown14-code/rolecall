@@ -141,7 +141,7 @@ func (m model) View() tea.View {
 
 // screenView is the open detail view, or the current screen.
 func (m model) screenView(p pal) string {
-	if m.detail != nil {
+	if m.detail != nil && !m.sheetShown() {
 		return m.detailView(p)
 	}
 	return m.listView(p)
@@ -155,7 +155,7 @@ func (m model) listView(p pal) string {
 		return screenDefs[m.screen].render(m, p)
 	}
 	l := m.layout()
-	w, bodyH := l.w, l.bodyHeight(1)
+	w, bodyH := l.w, m.listHeight()
 	rows := m.rows()
 	listW, split := m.listPane(len(rows))
 	divider := 0
@@ -201,7 +201,11 @@ func (m model) listView(p pal) string {
 	if divider > 0 {
 		focus = focusLeft
 	}
-	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.statusRow(p, w, keys))
+	if m.sheetShown() {
+		body = m.withSheet(p, body)
+		focus = focusNone
+	}
+	return m.frame(p, []string{m.viewRow(p), m.breadcrumbRow(p)}, body, divider, focus, m.statusRow(p, w, keys))
 }
 
 // listPane is the list's width and whether the preview pane sits beside it, for a view
@@ -488,6 +492,9 @@ func (m model) trackApplies() bool {
 // trackSelector is the track filter on the context row, "t  [All]  SWE  Platform", or
 // compact, "t [All]▸", where the full one does not fit. The key reads once, as "t".
 func (m model) trackSelector(p pal, compact bool) string {
+	if compact && m.hasTables() && m.layout().filterLines == filtersCollapsed {
+		return m.collapsedFilters(p)
+	}
 	if !m.trackApplies() {
 		return ""
 	}
@@ -498,7 +505,7 @@ func (m model) trackSelector(p pal, compact bool) string {
 	}
 	key := p.Key().Render("t")
 	if compact {
-		name := "All"
+		name := allView
 		if m.track > 0 {
 			name = m.tracks[m.track-1]
 		}
@@ -514,6 +521,130 @@ func (m model) trackSelector(p pal, compact bool) string {
 	}
 	return key + "  " + strings.Join(parts, "  ")
 }
+
+// collapsedFilters is the status and Track filters on one short piece, "s:All  t:All",
+// for the widths where they do not each get a line.
+func (m model) collapsedFilters(p pal) string {
+	one := func(key, val string) string { return p.Key().Render(key) + p.Text(p.Dim).Render(":"+val) }
+	out := one("s", m.views()[m.table])
+	if m.trackApplies() {
+		out += "  " + one("t", m.trackName())
+	}
+	return out
+}
+
+// trackName is the Track filter's name: All, or the Track.
+func (m model) trackName() string {
+	if m.track > 0 && m.track <= len(m.tracks) {
+		return m.tracks[m.track-1]
+	}
+	return allView
+}
+
+// breadcrumbRow is the line under the filters: where the Owner is, as
+// "Applied › All · All tracks · 1/9 · list". Narrow, the focus goes first, then the Track
+// is abbreviated.
+func (m model) breadcrumbRow(p pal) string {
+	if !m.hasTables() {
+		return ""
+	}
+	l := m.layout()
+	rows := m.rows()
+	pos := 0
+	if len(rows) > 0 {
+		pos = m.cursor + 1
+	}
+	if m.detail != nil {
+		for i, r := range rows {
+			if r.Folder == m.detail.folder {
+				pos = i + 1
+			}
+		}
+	}
+	focus := "list"
+	if m.detail != nil {
+		focus = "detail"
+	}
+	track := "All tracks"
+	if m.track > 0 {
+		track = m.trackName()
+	}
+	where := fmt.Sprintf("%d/%d", pos, len(rows))
+	build := func(track string, withFocus bool) string {
+		parts := []string{m.views()[m.table], track, where}
+		if withFocus {
+			parts = append(parts, focus)
+		}
+		return p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+	}
+	short := track
+	if m.track == 0 {
+		short = "All"
+	} else if r := []rune(track); len(r) > abbrevTrack {
+		short = string(r[:abbrevTrack])
+	}
+	narrow := l.class != classMedium && l.class != classWide
+	pad := strings.Repeat(" ", inset)
+	for _, c := range []struct {
+		track string
+		focus bool
+	}{{track, !narrow}, {track, false}, {short, false}} {
+		if s := pad + build(c.track, c.focus); xansi.StringWidth(s) <= l.w-rightMargin {
+			return s
+		}
+	}
+	return xansi.Truncate(pad+build(short, false), l.w-rightMargin, "…")
+}
+
+// abbrevTrack is how many letters of a Track name a narrow breadcrumb keeps.
+const abbrevTrack = 3
+
+// withSheet stacks the detail sheet under the list part: a rule in the accent, then the
+// detail, together exactly the body's height.
+func (m model) withSheet(p pal, list string) string {
+	a, ok := m.application(m.detail.folder)
+	if !ok {
+		return list
+	}
+	l := m.layout()
+	listH, detailH, _ := l.sheetHeights(tableContext)
+	rule := p.PaneRule(true).Render(strings.Repeat("─", l.w))
+	return strings.Join([]string{fitLines(list, listH), rule, strings.Join(m.sheetLines(p, a, l.w, detailH), "\n")}, "\n")
+}
+
+// sheetLines is the detail sheet: a title line, the tabs, then the tab's content, h lines.
+func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
+	pad := strings.Repeat(" ", inset)
+	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(" · "+a.Company)
+	if a.Malformed != nil {
+		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
+	} else {
+		title = spread(xansi.Truncate(title, max(0, w-rightMargin-gutter-xansi.StringWidth(a.Status)-markWidth), "…"), p.StatusChip(a.Status), w-rightMargin)
+	}
+	out := []string{title}
+	var content []string
+	if a.Malformed != nil {
+		content = []string{p.Text(p.Fg).Render(m.malformedReason(a)), "", p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")}
+		out = append(out, "")
+	} else {
+		out = append(out, " "+m.detailTabsRow(p, a))
+		content = strings.Split(m.detailContent(p, a, w), "\n")
+	}
+	for i, line := range content {
+		content[i] = " " + line
+	}
+	from := 0
+	for i, line := range content {
+		if strings.Contains(xansi.Strip(line), "▌") {
+			from = i - (h-len(out))/bothSides
+		}
+	}
+	out = append(out, p.ClipLines(content, from, max(0, h-len(out)), " ")...)
+	return append(out[:min(len(out), h)], make([]string, max(0, h-len(out)))...)
+}
+
+// markWidth is the cells a Status chip takes beyond its name: the glyph and its space.
+const markWidth = 2
 
 // viewRow is the frame's context row: the screen's views (cycled with Tab) on the left;
 // on the right what a filter hides, then the track filter where it applies. As the row
@@ -559,7 +690,9 @@ func (m model) viewRow(p pal) string {
 		}
 	}
 	scope := m.withChip(p, m.scopeLine(p))
+	collapsed := m.layout().filterLines == filtersCollapsed && m.hasTables()
 	right := func(compact bool) string {
+		compact = compact || collapsed
 		var parts []string
 		for _, s := range []string{scope, m.trackSelector(p, compact)} {
 			if s != "" {
