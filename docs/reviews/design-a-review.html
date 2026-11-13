@@ -1,0 +1,326 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design A Review</title>
+<style>
+:root{--bg:#0b1016;--panel:#121a22;--line:#26323d;--fg:#e4e9ee;--mut:#a1acb9;--acc:#9ad5cf;--term:#10161d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,sans-serif}
+main{max-width:1500px;margin:auto;padding:28px 16px 80px}
+h1{font-size:28px;margin:0 0 4px}h2{font-size:20px;margin:0 0 2px}h3{font-size:15px;margin:0 0 8px}
+.sub,.lede{color:var(--mut);margin:0 0 14px}.lede{max-width:860px}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--acc)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:20px;margin:26px 0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.srow{display:grid;grid-template-columns:150px 1fr 40px 150px;gap:10px;align-items:center;padding:5px 0;font-size:14px}
+.bar{height:10px;background:#1c2730;border-radius:5px;overflow:hidden}.fill{display:block;height:100%;border-radius:5px}
+.fill.lo{background:#f47067}.fill.mid{background:#f2cc60}.fill.hi{background:#7ee2a8}
+.avg{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}.dots{display:flex;gap:4px}
+.dots i{font-style:normal;font:11px ui-monospace,monospace;color:var(--mut);background:#1c2730;border-radius:4px;width:24px;text-align:center}
+.legend{color:var(--mut);font-size:12px;margin-top:10px}
+.overall{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}.overall b{font-size:44px;color:#f2cc60}
+ol.defects{list-style:none;padding:0;margin:0}ol.defects li{display:grid;grid-template-columns:86px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+ol.defects p{margin:2px 0 0;color:var(--mut);font-size:13.5px}.file{font:11px ui-monospace,monospace;color:#758593;margin-left:8px}
+.agree{font:12px ui-monospace,monospace;text-align:center;border:1px solid #465361;border-radius:5px;padding:2px 0;height:fit-content;color:var(--mut)}
+.agree.c{border-color:#f47067;color:#f47067}
+.ba{margin:46px 0}.pair{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:16px;align-items:start}
+figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
+figcaption{font-size:13px;color:var(--mut);margin-bottom:8px}figure img{width:100%;display:block;border-radius:6px}
+.tag{font:700 11px ui-monospace,monospace;padding:2px 7px;border-radius:4px;margin-right:6px}.before{background:#3a2326;color:#f47067}.after{background:#1d3a2c;color:#7ee2a8}
+.scroll{overflow-x:auto}
+.changes{columns:2;column-gap:28px;color:var(--mut);font-size:14px;margin:14px 0 0;padding-left:18px}.changes li{margin-bottom:6px;break-inside:avoid}
+.changes b{color:var(--fg)}
+pre.term{background:var(--term);color:#e4e9ee;margin:0;padding:12px 10px;border-radius:6px;font:11.5px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;white-space:pre;width:max-content;min-width:100%}
+pre.term.small{font-size:12.5px}
+.k{color:#9ad5cf;font-weight:700}.m{color:#a1acb9}.w{color:#e4e9ee}.a{color:#9ad5cf}.r{color:#5a6878}.b{font-weight:700}.dim{opacity:.55}
+.bl{color:#58a6ff}.pk{color:#f778ba}.y{color:#f2cc60}.o{color:#f0883e}.g{color:#7ee2a8}
+.selc{background:#2f5560;color:#ffffff}.selr{background:#1f3a42}
+.toast{background:#1d3a2c;color:#7ee2a8;font-weight:700}
+.chip{background:#9ad5cf;color:#10161d;font-weight:700}
+.input{background:#1c2932;color:#ffffff;outline:1px solid #9ad5cf}
+.overlay{position:relative;width:max-content;min-width:100%}.dimbg{opacity:.38}
+.menu{position:absolute;top:20px;right:14px;box-shadow:0 14px 30px #000a}
+pre.menu-term{background:#1b252e;padding:4px 6px;min-width:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}.card p{color:var(--mut);font-size:13.5px;margin:10px 0 0}
+.card.wide{grid-column:1/-1}
+table.pal{border-collapse:collapse;width:100%;font-size:13px}table.pal th{text-align:left;color:var(--mut);font-weight:600;padding:6px 8px}
+table.pal td{padding:5px 8px;border-top:1px solid var(--line)}td.note{color:var(--mut);font-size:12px}
+.sw{display:inline-flex;align-items:center;gap:7px;font:12px ui-monospace,monospace;padding:4px 9px;border-radius:5px;border:1px solid #2a3540}
+.sw b{width:12px;height:12px;border-radius:3px;display:inline-block}
+.cvd{display:grid;grid-template-columns:150px 1fr 1fr;gap:10px;align-items:center;font-size:13px}.cvd .h{color:var(--mut)}
+.cvd-row{display:flex;gap:8px;flex-wrap:wrap;background:var(--term);padding:10px;border-radius:6px}
+.cvd-chip{font:700 12px ui-monospace,monospace;border:1px solid;border-radius:5px;padding:3px 8px}
+.deut{filter:url(#deut)}
+.bigs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.bigs div{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:8px;padding:12px 14px;font-size:14px}
+.bigs b{display:block;color:var(--acc);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.reco{display:grid;grid-template-columns:1fr 1fr;gap:16px}.reco ol{margin:0;padding-left:20px}.reco li{margin:5px 0}
+.flash{animation:flash 2.4s ease-out infinite}@keyframes flash{0%{background:#2f5560}25%{background:#3f7a70}100%{background:transparent}}
+@media(max-width:900px){.grid2,.pair,.reco{grid-template-columns:1fr}.changes{columns:1}.srow{grid-template-columns:110px 1fr 34px}.dots{display:none}.cvd{grid-template-columns:1fr}}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><filter id="deut"><feColorMatrix type="matrix" values="0.367 0.861 -0.228 0 0  0.280 0.673 0.047 0 0  -0.012 0.043 0.969 0 0  0 0 0 1 0"/></filter></svg>
+<main>
+<h1>Design A — five independent reviews</h1>
+<p class="lede">Five reviewers read the same 18 screenshots cold, each through a different lens: hierarchy, interaction, colour &amp; accessibility, layout, and polish. None saw the code or any earlier review. Each <b>After</b> panel below combines the fixes they agreed on into one terminal-grid mock-up, using real cell widths and no web layout.</p>
+
+<div class="grid2">
+  <div class="panel">
+    <div class="overall"><b>4.6</b><span class="sub">/ 10 overall (average of 4.5, 4.5, 5, 4, 5)</span></div>
+    <div class="srow"><span class="sname">Top nav</span><span class="bar"><span class="fill hi" style="width:60%"></span></span><span class="avg">6.0</span><span class="dots"><i title="Hierarchy: 6">6</i><i title="Interaction: 6">6</i><i title="Colour & a11y: 6">6</i><i title="Layout: 6">6</i><i title="Polish: 6">6</i></span></div><div class="srow"><span class="sname">Group headers</span><span class="bar"><span class="fill hi" style="width:64%"></span></span><span class="avg">6.4</span><span class="dots"><i title="Hierarchy: 6">6</i><i title="Interaction: 7">7</i><i title="Colour & a11y: 6">6</i><i title="Layout: 6">6</i><i title="Polish: 7">7</i></span></div><div class="srow"><span class="sname">List rows</span><span class="bar"><span class="fill mid" style="width:54%"></span></span><span class="avg">5.4</span><span class="dots"><i title="Hierarchy: 5">5</i><i title="Interaction: 6">6</i><i title="Colour & a11y: 5">5</i><i title="Layout: 5">5</i><i title="Polish: 6">6</i></span></div><div class="srow"><span class="sname">Menu overlay</span><span class="bar"><span class="fill mid" style="width:48%"></span></span><span class="avg">4.8</span><span class="dots"><i title="Hierarchy: 4">4</i><i title="Interaction: 4">4</i><i title="Colour & a11y: 6">6</i><i title="Layout: 4">4</i><i title="Polish: 6">6</i></span></div><div class="srow"><span class="sname">Footer key hints</span><span class="bar"><span class="fill mid" style="width:48%"></span></span><span class="avg">4.8</span><span class="dots"><i title="Hierarchy: 5">5</i><i title="Interaction: 4">4</i><i title="Colour & a11y: 6">6</i><i title="Layout: 4">4</i><i title="Polish: 5">5</i></span></div><div class="srow"><span class="sname">Status / track bar</span><span class="bar"><span class="fill mid" style="width:46%"></span></span><span class="avg">4.6</span><span class="dots"><i title="Hierarchy: 4">4</i><i title="Interaction: 4">4</i><i title="Colour & a11y: 5">5</i><i title="Layout: 5">5</i><i title="Polish: 5">5</i></span></div><div class="srow"><span class="sname">Detail pane</span><span class="bar"><span class="fill mid" style="width:46%"></span></span><span class="avg">4.6</span><span class="dots"><i title="Hierarchy: 4">4</i><i title="Interaction: 5">5</i><i title="Colour & a11y: 5">5</i><i title="Layout: 4">4</i><i title="Polish: 5">5</i></span></div><div class="srow"><span class="sname">Profile</span><span class="bar"><span class="fill mid" style="width:36%"></span></span><span class="avg">3.6</span><span class="dots"><i title="Hierarchy: 4">4</i><i title="Interaction: 3">3</i><i title="Colour & a11y: 5">5</i><i title="Layout: 3">3</i><i title="Polish: 3">3</i></span></div><div class="srow"><span class="sname">Narrow width</span><span class="bar"><span class="fill lo" style="width:34%"></span></span><span class="avg">3.4</span><span class="dots"><i title="Hierarchy: 3">3</i><i title="Interaction: 3">3</i><i title="Colour & a11y: 4">4</i><i title="Layout: 3">3</i><i title="Polish: 4">4</i></span></div><div class="srow"><span class="sname">Settings</span><span class="bar"><span class="fill lo" style="width:32%"></span></span><span class="avg">3.2</span><span class="dots"><i title="Hierarchy: 3">3</i><i title="Interaction: 3">3</i><i title="Colour & a11y: 4">4</i><i title="Layout: 3">3</i><i title="Polish: 3">3</i></span></div><div class="srow"><span class="sname">Help</span><span class="bar"><span class="fill lo" style="width:22%"></span></span><span class="avg">2.2</span><span class="dots"><i title="Hierarchy: 2">2</i><i title="Interaction: 2">2</i><i title="Colour & a11y: 3">3</i><i title="Layout: 2">2</i><i title="Polish: 2">2</i></span></div>
+    <p class="legend">Bar = average. Chips = individual scores in lens order: Hierarchy · Interaction · Colour & a11y · Layout · Polish.</p>
+  </div>
+  <div class="panel">
+    <h2>What they found</h2><p class="sub">Most severe first. Red = 4+ reviewers agree, or I reproduced or measured it.</p>
+    <ol class="defects"><li><span class="agree c">5/5</span><div><b>Help is incomplete and leaks prototype text</b><span class="file">06-help</span><p>Lists 5 bindings and leaves out Enter, e, m, n, a, /, :, t and s. Says “← / → Compare prototype variants” while the footer says “←→ view”.</p></div></li><li><span class="agree c">5/5</span><div><b>The detail pane disappears silently at narrow width</b><span class="file">01-applied-530</span><p>At 530px (≈63 cols) the pane is gone and nothing tells you how to reach it.</p></div></li><li><span class="agree c">5/5</span><div><b>Wrapping and truncation at 80–88 cols</b><span class="file">01-applied-728 · 530</span><p>“○ PDF” wraps alone, the timeline orphans “◆ / Interviewing”, row meta cuts the stage date (“interv…”), and “⚑ quiet / 9mo” breaks across two lines.</p></div></li><li><span class="agree c">5/5</span><div><b>The fit column is noise and uses inconsistent words</b><span class="file">01-applied-1000</span><p>“fit” repeats on every row, “fit —” leaves a ragged gap, and the detail pane says it three ways: “fit not assessed”, “No fit assessment yet”, “fit —”.</p></div></li><li><span class="agree c">5/5</span><div><b>Menu overlay: no cursor, covers state</b><span class="file">02-menu-*</span><p>No item is highlighted, “Close Esc” is used up as a menu row, it covers the Track filter, and at 530 it also covers rows.</p></div></li><li><span class="agree c">4/5</span><div><b>Three different selection styles</b><span class="file">01-applied-1000</span><p>The nav uses a filled block, status uses fill plus underline, track uses underline only. They read as three different kinds of control.</p></div></li><li><span class="agree c">4/5</span><div><b>Supporting screens are placeholders</b><span class="file">04 · 05</span><p>The footer says “Supporting screen”. Settings is a web form (220px input for 2 digits, “Preview save” has no key). “SWE 10” doesn’t match “Applied 9” and nothing explains why.</p></div></li><li><span class="agree ">3/5</span><div><b>M menu vs m move</b><span class="file">01 footer + nav</span><p>Only Shift separates opening the menu from moving an application, so a wrong-case press moves something.</p></div></li><li><span class="agree ">3/5</span><div><b>Footer floats instead of sitting on the last row</b><span class="file">03 · 04 · 05 · 06</span><p>The bottom 40–60% of the screen is dead (partly a prototype-fidelity issue: HTML content height).</p></div></li><li><span class="agree c">Reproduced</span><div><b>Status filter has no key</b><span class="file">01-applied-1000</span><p>TRACK shows <code>t</code>, STATUS shows nothing, and no footer hint covers it. Offer can’t be reached from the keyboard.</p></div></li><li><span class="agree c">Measured</span><div><b>Blue/violet collapse for colour-blind users; light theme fails</b><span class="file">all</span><p>#58a6ff and #bc8cff differ only in red channel (lum 7.20 vs 7.22). On white, accent is 1.64:1 and Offer is 1.55:1.</p></div></li><li><span class="agree c">Measured</span><div><b>Selection is weak</b><span class="file">01-applied-1000</span><p>Selected fill #263e46 is 1.61:1 against the page, and the selected title barely changes colour.</p></div></li><li><span class="agree ">2/5</span><div><b>Glyphs that render badly</b><span class="file">01 detail</span><p>▱ is missing from Menlo, Consolas and DejaVu and looks like tofu. ◌ renders as a dotted placeholder. ⚑ and ↩ can turn into emoji or double width.</p></div></li><li><span class="agree ">2/5</span><div><b>Closed group has no glyph; Offer rule changes colour between states</b><span class="file">01 vs 03</span><p>Every other group has a glyph and colour; Closed has neither.</p></div></li></ol>
+  </div>
+</div>
+
+<h2>Each reviewer’s one big change</h2><p class="sub">They overlap. Three of five say the same thing: treat it as a terminal grid that owns every row.</p>
+<div class="bigs"><div><b>Hierarchy</b>Lay it out on a real cell grid: one font size, box-drawing borders, footer on the last row. Most defects come from treating it like a web page.</div><div><b>Interaction</b>Contextual footer plus a <code>?</code> overlay, lazygit-style: the footer shows only keys valid for the focused pane, starting with <code>s status · t track</code>.</div><div><b>Colour & a11y</b>Inherit the terminal’s ANSI palette, don’t paint a background, and always pair each colour with a glyph or word. That covers light, dark and high-contrast themes in one step.</div><div><b>Layout</b>Column breakpoints: two panes from 100 cols up, full-width list plus a detail sheet from 72 to 99 cols, and a single filter line below 72. The frame fills the full height.</div><div><b>Polish</b>A pipeline strip under the nav (Leads → Drafts → Applied → Interviewing → Offer) that also acts as the status filter. It shows progress, not just rows.</div></div>
+
+
+<section class="ba">
+  <h2>1 · Main list, wide (≈106 cols)</h2><p class="sub">The screen people live in. Most of the agreed fixes land here.</p>
+  <div class="pair">
+    <figure><figcaption><span class="tag before">Before</span> Design A</figcaption>
+      <img src="design-a-review/01-applied-1000.png" alt="Before: 1 · Main list, wide (≈106 cols)" loading="lazy"></figure>
+    <figure><figcaption><span class="tag after">After</span> suggested</figcaption>
+      <div class="scroll"><pre class="term "><span class="a b"> ▞ rolecall </span>   <span class="k">1</span> Leads<span class="m"> 4</span>   <span class="k">2</span> Drafts<span class="m"> 2</span>  <span class="selc b"> 3 Applied 9 </span>  <span class="k">4</span> Stats<span class="m"></span> <span class="a dim">▁▂▅▃▇▂▁▄</span>                     <span class="k">g</span><span class="m"> menu  </span><span class="k">?</span><span class="m"> help </span>
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="m"> STATUS </span><span class="k">s</span><span class="selc b"> All 9 </span> Applied <span class="m">1</span> Interviewing <span class="m">2</span> Offer <span class="m">2</span> Closed <span class="m">4</span><span class="r">│</span><span class="m"> TRACK </span><span class="k">t</span>  <span class="selc b"> All 9 </span>  SWE <span class="m">8</span>  Platform <span class="m">1</span>           
+<span class="r">──────────────────────────────────────────────────────────┬───────────────────────────────────────────────</span>
+<span class="bl b"> ● Applied · 1 </span><span class="bl dim">──────────────────────────────────────────</span> <span class="r">│</span> <span class="w b">Software Engineer</span>                             
+<span class="selr"><span class="a">▌</span><span class="bl">●</span> <span class="w b">Software Engineer</span>                                    <span class="m">·</span> </span><span class="r">│</span> <span class="m">Orbit Labs · SWE · applied 6d ago</span>             
+<span class="selr"><span class="a">▌</span><span class="m">   Orbit Labs · SWE · applied 6d ago</span>                     </span><span class="r">│</span>                                               
+                                                          <span class="r">│</span> <span class="bl">● </span><span class="bl b">Applied</span>                     <span class="m">fit </span><span class="m">not assessed</span>
+<span class="pk b"> ◆ Interviewing · 2 </span><span class="pk dim">──────────────────────────</span><span class="m"> 1 quiet </span><span class="r">──</span> <span class="r">│</span>                                               
+ <span class="pk">◆</span> <span class="w">Engineer #1</span>                      <span class="o">⚑9mo</span>             <span class="g">Good</span> <span class="r">│</span> <span class="m">DOCS  </span><span class="m">▱▱▱▱</span><span class="m"> 0/4</span>                      <span class="k">d</span><span class="m"> generate</span>
+ <span class="m">   Example · Unknown · interviewing ~Jan 2026</span>            <span class="r">│</span> <span class="m">  ○ JD   ○ Resume   ○ Cover letter   ○ PDF</span>    
+ <span class="pk">◆</span> <span class="w">docs-written</span>                                         <span class="m">·</span> <span class="r">│</span>                                               
+ <span class="m">   Fictional Labs · SWE · interviewing ~7d ago</span>           <span class="r">│</span> <span class="m">NEXT  </span><span class="w">Wait to hear back</span>                 <span class="k">m</span><span class="m"> move</span>
+                                                          <span class="r">│</span>                                               
+<span class="y b"> ★ Offer · 2 </span><span class="y dim">────────────────────────────────────────────</span> <span class="r">│</span> <span class="m">TIMELINE</span>                                      
+ <span class="y">★</span> <span class="w">Engineer #1</span>                                       <span class="g">Good</span> <span class="r">│</span> <span class="m">  ○ </span><span class="m">Lead</span>                                      
+ <span class="m">   Example · Unknown · offer ~Jan 2026</span>                   <span class="r">│</span> <span class="bl">  ● </span><span class="w">Applied</span>                             <span class="m">25 Sep</span>
+ <span class="y">★</span> <span class="w">docs-partial</span>                                         <span class="m">·</span> <span class="r">│</span> <span class="pk dim">  ◇ </span><span class="m">Interviewing</span>                          <span class="m">next</span>
+ <span class="m">   Fictional Labs · SWE · offer ~7d ago</span>                  <span class="r">│</span>                                               
+                                                          <span class="r">│</span> <span class="m">NOTES  </span><span class="m">none yet</span>                          <span class="k">n</span><span class="m"> add</span>
+<span class="m b"> ✕ Closed · 4 </span><span class="m dim">───────────────────────────────────────────</span> <span class="r">│</span>                                               
+ <span class="m">✕</span> <span class="w">Engineer #1</span>                             <span class="m">rejected</span>  <span class="g">Good</span> <span class="r">│</span>                                               
+ <span class="m">   Example · Unknown · closed ~Jan 2026</span>                  <span class="r">│</span>                                               
+ <span class="m">–</span> <span class="w">Engineer #1</span>                            <span class="m">withdrawn</span>  <span class="g">Good</span> <span class="r">│</span>                                               
+ <span class="m">   Example · Unknown · closed ~Jan 2026</span>                  <span class="r">│</span>                                               
+ <span class="m">✕</span> <span class="w">docs-ready</span>                              <span class="m">rejected</span>     <span class="m">·</span> <span class="r">│</span>                                               
+ <span class="m">   Fictional Labs · SWE · closed ~7d ago</span>                 <span class="r">│</span>                                               
+<span class="r">──────────────────────────────────────────────────────────┴───────────────────────────────────────────────</span>
+<span class="m"> Applied › </span><span class="w">All</span><span class="m"> · All tracks · </span><span class="w">1</span><span class="m">/9 · </span><span class="a b">list</span>                    <span class="toast"> ✓ Moved docs-written → Interviewing </span><span class="m">  </span><span class="k">u</span><span class="m"> undo </span>
+ <span class="k">Enter</span><span class="m"> open  </span><span class="k">e</span><span class="m"> edit  </span><span class="k">m</span><span class="m"> move  </span><span class="k">n</span><span class="m"> notes  </span><span class="k">a</span><span class="m"> add  </span><span class="k">/</span><span class="m"> search  </span><span class="k">s</span><span class="m"> status  </span><span class="k">t</span><span class="m"> track  </span>             <span class="k">:</span><span class="m"> commands  </span><span class="k">?</span><span class="m"> help </span></pre></div></figure>
+  </div>
+  <ul class="changes"><li><b>One selection style</b> everywhere: filled #2f5560 block with bright bold text, plus a <code>▌</code> gutter on the selected row.</li><li><b>Status gets a key</b> (<code>s</code>), matching <code>t</code> for track. Track options get counts.</li><li><b>Fixed right columns</b>: flag 6 · stage 11 · fit 6. <code>⚑9mo</code> never wraps. The word “fit” is gone: <code>Good</code> in green, <code>·</code> when unassessed.</li><li><b>Group rollups</b> in the rule (<code>1 quiet</code>). Closed gets a <code>✕</code> glyph. Withdrawn uses <code>–</code> instead of the emoji-risk <code>↩</code>.</li><li><b>Detail pane</b>: one type size. Every section uses <code>LABEL … value … [key] action</code>. The timeline is vertical, so it can’t orphan a glyph. Docs gets a generate key.</li><li><b>Breadcrumb line</b> (<code>Applied › All · All tracks · 1/9 · list</code>) shows where you are and what’s focused. An <b>undo toast</b> sits on the same row.</li><li><b>Footer on the last row</b>; <code>g menu</code> replaces <code>M</code>, so it can’t collide with <code>m move</code>.</li><li><b>Stats sparkline</b> in the nav, as a small daily reason to look.</li></ul>
+</section>
+
+
+<section class="ba">
+  <h2>2 · Narrow (≈64 cols)</h2><p class="sub">The detail pane used to vanish without a word. Now it becomes a bottom sheet.</p>
+  <div class="pair">
+    <figure><figcaption><span class="tag before">Before</span> Design A</figcaption>
+      <img src="design-a-review/01-applied-530.png" alt="Before: 2 · Narrow (≈64 cols)" loading="lazy"></figure>
+    <figure><figcaption><span class="tag after">After</span> suggested</figcaption>
+      <div class="scroll"><pre class="term "><span class="a b"> ▞ </span> <span class="k">1</span> Leads<span class="m"> 4</span>   <span class="k">2</span> Drafts<span class="m"> 2</span>  <span class="selc b"> 3 Applied 9 </span>  <span class="k">4</span> Stats<span class="m"></span>       <span class="k">g</span><span class="m"> menu </span>
+<span class="r">────────────────────────────────────────────────────────────────</span>
+<span class="k"> s </span><span class="selc b"> All 9 </span> Applied <span class="m">1</span> Interv <span class="m">2</span> Offer <span class="m">2</span> Closed <span class="m">4</span>          <span class="r">│ </span><span class="k">t</span><span class="m">:</span><span class="a">All</span> 
+<span class="r">────────────────────────────────────────────────────────────────</span>
+<span class="bl b"> ● Applied · 1 </span><span class="bl dim">────────────────────────────────────────────────</span> 
+<span class="selr"><span class="a">▌</span><span class="bl">●</span> <span class="w b">Software Engineer</span>                                          <span class="m">·</span> </span>
+<span class="selr"><span class="a">▌</span><span class="m">   Orbit Labs · SWE · 6d</span>                                       </span>
+<span class="pk b"> ◆ Interviewing · 2 </span><span class="pk dim">─────────────────────────────────</span><span class="m"> 1 quiet </span><span class="r">─</span> 
+ <span class="pk">◆</span> <span class="w">Engineer #1</span>                                       <span class="o">⚑9mo</span><span class="m">  </span><span class="g">Good</span> 
+ <span class="m">   Example · interviewing ~Jan 2026</span>                            
+ <span class="pk">◆</span> <span class="w">docs-written</span>                                               <span class="m">·</span> 
+ <span class="m">   Fictional Labs · interviewing ~7d</span>                           
+<span class="y b"> ★ Offer · 2 </span><span class="y dim">──────────────────────────────────────────────────</span> 
+ <span class="y">★</span> <span class="w">Engineer #1</span>                                             <span class="g">Good</span> 
+ <span class="m">   Example · offer ~Jan 2026</span>                                   
+<span class="m b"> ✕ Closed · 4 </span><span class="m dim">─────────────────────────────────────────────────</span> 
+ <span class="m">✕</span> <span class="w">Engineer #1</span>                                   <span class="m">rejected  </span><span class="g">Good</span> 
+<span class="r">╭─ </span><span class="w b">Software Engineer</span><span class="r"> ──────────────────────────────────────────╮</span>
+<span class="r">│ </span><span class="bl">● Applied</span><span class="m"> · Orbit Labs · SWE</span>                   <span class="m">docs </span><span class="m">▱▱▱▱</span><span class="m"> 0/4</span><span class="r"> │</span>
+<span class="r">│ </span><span class="m">Next </span><span class="w">wait to hear back</span>                    <span class="k">m</span><span class="m"> move  </span><span class="k">Enter</span><span class="m"> full</span><span class="r"> │</span>
+<span class="r">╰──────────────────────────────────────────────────────────────╯</span>
+ <span class="k">Enter</span><span class="m"> detail  </span><span class="k">m</span><span class="m"> move  </span><span class="k">/</span><span class="m"> search  </span><span class="k">s t</span><span class="m"> filter</span>              <span class="k">?</span><span class="m"> help </span></pre></div></figure>
+  </div>
+  <ul class="changes"><li><b>Bottom sheet</b> (4 lines, rounded border) with status, docs, next action and <code>Enter full</code>.</li><li><b>One filter line</b>: status chips, then <code>│ t:All</code> collapsed on the right. Saves a row.</li><li><b>Meta drops company/track first</b> and keeps the stage date, the one fact that differs between rows.</li><li><b>Footer collapses to one line</b> and leads with <code>Enter detail</code>.</li></ul>
+</section>
+
+
+<section class="ba">
+  <h2>3 · Workspace menu</h2><p class="sub">Anchored, with a cursor, without covering the state you need.</p>
+  <div class="pair">
+    <figure><figcaption><span class="tag before">Before</span> Design A</figcaption>
+      <img src="design-a-review/02-menu-1000.png" alt="Before: 3 · Workspace menu" loading="lazy"></figure>
+    <figure><figcaption><span class="tag after">After</span> suggested</figcaption>
+      <div class="scroll"><div class="overlay"><pre class="term dimbg"><span class="a b"> ▞ rolecall </span>   <span class="k">1</span> Leads<span class="m"> 4</span>   <span class="k">2</span> Drafts<span class="m"> 2</span>  <span class="selc b"> 3 Applied 9 </span>  <span class="k">4</span> Stats<span class="m"></span> <span class="a dim">▁▂▅▃▇▂▁▄</span>                     <span class="k">g</span><span class="m"> menu  </span><span class="k">?</span><span class="m"> help </span>
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="m"> STATUS </span><span class="k">s</span><span class="selc b"> All 9 </span> Applied <span class="m">1</span> Interviewing <span class="m">2</span> Offer <span class="m">2</span> Closed <span class="m">4</span><span class="r">│</span><span class="m"> TRACK </span><span class="k">t</span>  <span class="selc b"> All 9 </span>  SWE <span class="m">8</span>  Platform <span class="m">1</span>           
+<span class="r">──────────────────────────────────────────────────────────┬───────────────────────────────────────────────</span>
+<span class="bl b"> ● Applied · 1 </span><span class="bl dim">──────────────────────────────────────────</span> <span class="r">│</span> <span class="w b">Software Engineer</span>                             
+<span class="selr"><span class="a">▌</span><span class="bl">●</span> <span class="w b">Software Engineer</span>                                    <span class="m">·</span> </span><span class="r">│</span> <span class="m">Orbit Labs · SWE · applied 6d ago</span>             
+<span class="selr"><span class="a">▌</span><span class="m">   Orbit Labs · SWE · applied 6d ago</span>                     </span><span class="r">│</span>                                               
+                                                          <span class="r">│</span> <span class="bl">● </span><span class="bl b">Applied</span>                     <span class="m">fit </span><span class="m">not assessed</span>
+<span class="pk b"> ◆ Interviewing · 2 </span><span class="pk dim">──────────────────────────</span><span class="m"> 1 quiet </span><span class="r">──</span> <span class="r">│</span>                                               
+ <span class="pk">◆</span> <span class="w">Engineer #1</span>                      <span class="o">⚑9mo</span>             <span class="g">Good</span> <span class="r">│</span> <span class="m">DOCS  </span><span class="m">▱▱▱▱</span><span class="m"> 0/4</span>                      <span class="k">d</span><span class="m"> generate</span>
+ <span class="m">   Example · Unknown · interviewing ~Jan 2026</span>            <span class="r">│</span> <span class="m">  ○ JD   ○ Resume   ○ Cover letter   ○ PDF</span>    
+ <span class="pk">◆</span> <span class="w">docs-written</span>                                         <span class="m">·</span> <span class="r">│</span>                                               
+ <span class="m">   Fictional Labs · SWE · interviewing ~7d ago</span>           <span class="r">│</span> <span class="m">NEXT  </span><span class="w">Wait to hear back</span>                 <span class="k">m</span><span class="m"> move</span>
+                                                          <span class="r">│</span>                                               
+<span class="y b"> ★ Offer · 2 </span><span class="y dim">────────────────────────────────────────────</span> <span class="r">│</span> <span class="m">TIMELINE</span>                                      
+ <span class="y">★</span> <span class="w">Engineer #1</span>                                       <span class="g">Good</span> <span class="r">│</span> <span class="m">  ○ </span><span class="m">Lead</span>                                      
+ <span class="m">   Example · Unknown · offer ~Jan 2026</span>                   <span class="r">│</span> <span class="bl">  ● </span><span class="w">Applied</span>                             <span class="m">25 Sep</span>
+ <span class="y">★</span> <span class="w">docs-partial</span>                                         <span class="m">·</span> <span class="r">│</span> <span class="pk dim">  ◇ </span><span class="m">Interviewing</span>                          <span class="m">next</span>
+ <span class="m">   Fictional Labs · SWE · offer ~7d ago</span>                  <span class="r">│</span>                                               
+                                                          <span class="r">│</span> <span class="m">NOTES  </span><span class="m">none yet</span>                          <span class="k">n</span><span class="m"> add</span>
+<span class="m b"> ✕ Closed · 4 </span><span class="m dim">───────────────────────────────────────────</span> <span class="r">│</span>                                               
+ <span class="m">✕</span> <span class="w">Engineer #1</span>                             <span class="m">rejected</span>  <span class="g">Good</span> <span class="r">│</span>                                               
+ <span class="m">   Example · Unknown · closed ~Jan 2026</span>                  <span class="r">│</span>                                               
+ <span class="m">–</span> <span class="w">Engineer #1</span>                            <span class="m">withdrawn</span>  <span class="g">Good</span> <span class="r">│</span>                                               
+ <span class="m">   Example · Unknown · closed ~Jan 2026</span>                  <span class="r">│</span>                                               
+ <span class="m">✕</span> <span class="w">docs-ready</span>                              <span class="m">rejected</span>     <span class="m">·</span> <span class="r">│</span>                                               
+ <span class="m">   Fictional Labs · SWE · closed ~7d ago</span>                 <span class="r">│</span>                                               
+<span class="r">──────────────────────────────────────────────────────────┴───────────────────────────────────────────────</span>
+<span class="m"> Applied › </span><span class="w">All</span><span class="m"> · All tracks · </span><span class="w">1</span><span class="m">/9 · </span><span class="a b">list</span>                                                                  
+ <span class="k">Enter</span><span class="m"> open  </span><span class="k">e</span><span class="m"> edit  </span><span class="k">m</span><span class="m"> move  </span><span class="k">n</span><span class="m"> notes  </span><span class="k">a</span><span class="m"> add  </span><span class="k">/</span><span class="m"> search  </span><span class="k">s</span><span class="m"> status  </span><span class="k">t</span><span class="m"> track  </span>             <span class="k">:</span><span class="m"> commands  </span><span class="k">?</span><span class="m"> help </span></pre>
+<div class="menu"><pre class="term menu-term"><span class="r">╭─ </span><span class="a b">Workspace</span><span class="r"> ────────────╮</span>
+<span class="r">│ </span><span class="selr"><span class="a">▸ </span><span class="w b">Profile</span>            <span class="k">5</span></span><span class="r"> │</span>
+<span class="r">│ </span><span class="a">  </span>Settings           <span class="k">6</span><span class="r"> │</span>
+<span class="r">│ </span><span class="a">  </span>Help               <span class="k">?</span><span class="r"> │</span>
+<span class="r">│ </span><span class="a">  </span>Command palette    <span class="k">:</span><span class="r"> │</span>
+<span class="r">╰──────────── </span><span class="k">Esc</span><span class="m"> close </span><span class="r">─╯</span></pre></div></div></div></figure>
+  </div>
+  <ul class="changes"><li><b>Backdrop dims</b> so focus is obvious. The menu sits under <code>g menu</code>, not over the filters.</li><li><b><code>▸</code> cursor plus a highlighted row</b>. ↑↓ moves, Enter opens.</li><li><b>Esc lives in the border</b> instead of using up a row. That row now holds the command palette (<code>:</code>).</li><li>Below 72 cols, the same box renders as a bottom sheet above the footer.</li></ul>
+</section>
+
+
+<section class="ba">
+  <h2>4 · Help</h2><p class="sub">Lowest score in the review (2.2). It should be the most complete screen, not the least.</p>
+  <div class="pair">
+    <figure><figcaption><span class="tag before">Before</span> Design A</figcaption>
+      <img src="design-a-review/06-help-1000.png" alt="Before: 4 · Help" loading="lazy"></figure>
+    <figure><figcaption><span class="tag after">After</span> suggested</figcaption>
+      <div class="scroll"><pre class="term "><span class="a b"> ▞ rolecall </span>   <span class="k">1</span> Leads<span class="m"> 4</span>   <span class="k">2</span> Drafts<span class="m"> 2</span>  <span class="selc b"> 3 Applied 9 </span>  <span class="k">4</span> Stats<span class="m"></span> <span class="a dim">▁▂▅▃▇▂▁▄</span>                     <span class="k">g</span><span class="m"> menu  </span><span class="k">?</span><span class="m"> help </span>
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+
+<span class="a b">  NAVIGATE</span>                        <span class="a b">  ACT</span>                             <span class="a b">  FILTER &amp; FIND</span>                   
+<span class="r">  ──────────────────────────────    ──────────────────────────────    ──────────────────────────────</span>
+  <span class="chip"> ↑↓ j k </span> move cursor              <span class="chip"> e </span>      edit application         <span class="chip"> s </span>      cycle status           
+  <span class="chip"> ← → </span>    list ⇄ detail            <span class="chip"> m </span>      move stage…              <span class="chip"> S </span>      status back            
+  <span class="chip"> Enter </span>  open detail              <span class="chip"> n </span>      notes                    <span class="chip"> t </span>      cycle track            
+  <span class="chip"> 1–4 </span>    switch tab               <span class="chip"> a </span>      add application          <span class="chip"> / </span>      search                 
+  <span class="chip"> 5  6 </span>   Profile · Settings       <span class="chip"> d </span>      generate docs            <span class="chip"> Esc </span>    clear search           
+  <span class="chip"> g </span>      workspace menu           <span class="chip"> u </span>      undo last change         <span class="chip"> ? </span>      this sheet             
+  <span class="chip"> Esc </span>    back / close             <span class="chip"> : </span>      command palette                                          
+
+<span class="m">  Keys shown in the footer change with focus. Press </span><span class="chip"> ? </span><span class="m"> anywhere to return here.</span>
+
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="k">/</span><span class="m"> filter keys  </span><span class="k">Esc</span><span class="m"> close</span>                                   <span class="m">rolecall 0.9 · keymap generated from bindings </span></pre></div></figure>
+  </div>
+  <ul class="changes"><li><b>Generated from the real keymap</b>, so it can never drift from the footer again.</li><li><b>Three groups</b>: Navigate / Act / Filter &amp; find, with every key the footer mentions.</li><li><b>Key chips</b> in reverse video, scannable at a glance.</li><li>Prototype-only text (“Compare prototype variants”, “Supporting screen”) removed.</li></ul>
+</section>
+
+
+<section class="ba">
+  <h2>5 · Settings</h2><p class="sub">From a web form to a keyboard form.</p>
+  <div class="pair">
+    <figure><figcaption><span class="tag before">Before</span> Design A</figcaption>
+      <img src="design-a-review/04-settings-1000.png" alt="Before: 5 · Settings" loading="lazy"></figure>
+    <figure><figcaption><span class="tag after">After</span> suggested</figcaption>
+      <div class="scroll"><pre class="term "><span class="a b"> ▞ rolecall </span>   <span class="k">1</span> Leads<span class="m"> 4</span>   <span class="k">2</span> Drafts<span class="m"> 2</span>  <span class="selc b"> 3 Applied 9 </span>  <span class="k">4</span> Stats<span class="m"></span> <span class="a dim">▁▂▅▃▇▂▁▄</span>                     <span class="k">g</span><span class="m"> menu  </span><span class="k">?</span><span class="m"> help </span>
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="m"> SETTINGS   </span><span class="k">[</span>  Search   Documents  <span class="selc b"> Tracking </span>  This machine  <span class="k">]</span>                         <span class="y">● 1 unsaved change </span>
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+                                                                                                          
+<span class="m">  TRACKS</span>                                                                                                  
+    SWE                    <span class="w">10</span><span class="m"> applications   9 active · 1 closed</span>                                          
+    Platform               <span class="w"> 1</span><span class="m"> application    1 active</span>                                                     
+                                                                                                          
+<span class="m">  FOLLOW-UP</span>                                                                                               
+<span class="selr"><span class="a">▌</span><span class="w b">   Mark due after         </span><span class="input"> 14▏ </span><span class="m"> days  </span><span class="y">was 7</span><span class="m">        </span><span class="k">Enter</span><span class="m"> edit  </span><span class="k">-/+</span><span class="m"> adjust</span>                                </span>
+    Flag as quiet after    <span class="w">30</span><span class="m"> days   shows ⚑ on the row</span>                                                   
+                                                                                                          
+<span class="m">  Changes save to </span><span class="w">workspace/settings.toml</span><span class="m"> — nothing is written until </span><span class="k">ctrl+s</span><span class="m">.</span>                              
+                                                                                                          
+<span class="r">──────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+ <span class="k">↑↓</span><span class="m"> field  </span><span class="k">Enter</span><span class="m"> edit  </span><span class="k">[ ]</span><span class="m"> tab  </span><span class="k">ctrl+s</span><span class="m"> save  </span><span class="k">ctrl+z</span><span class="m"> revert</span>                    <span class="k">Esc</span><span class="m"> back to Applied  </span><span class="k">?</span><span class="m"> help </span></pre></div></figure>
+  </div>
+  <ul class="changes"><li><b><code>[ ]</code> switch tabs</b>; the active tab uses the same selection style as everywhere else.</li><li><b>Field cursor</b> (<code>▌</code> plus a row tint) and an inline 3-cell input instead of a 220px box.</li><li><b>Dirty state is visible</b>: <code>● 1 unsaved change</code> plus <code>was 7</code> on the field. <code>ctrl+s</code> saves and <code>ctrl+z</code> reverts.</li><li><b>Explains the count mismatch</b>: <code>10 applications · 9 active · 1 closed</code>.</li></ul>
+</section>
+
+<section class="ba">
+  <h2>6 · Colour &amp; accessibility</h2>
+  <p class="sub">Every status colour is a fixed hex tuned for one dark background. Below: the proposed adaptive pairs, and what red-green colour-blind users actually see.</p>
+  <div class="pair">
+    <figure><figcaption>Adaptive palette (lipgloss <code>AdaptiveColor</code>)</figcaption><table class="pal"><tr><th>Role</th><th>Now</th><th>Dark (new)</th><th>Light (new)</th><th></th></tr><tr><td>Accent / keys</td><td><span class="sw" style="background:#10161d;color:#9ad5cf"><b style="background:#9ad5cf"></b>#9ad5cf</span></td><td><span class="sw" style="background:#10161d;color:#9ad5cf"><b style="background:#9ad5cf"></b>#9ad5cf</span></td><td><span class="sw" style="background:#ffffff;color:#0f766e"><b style="background:#0f766e"></b>#0f766e</span></td><td class='note'>teal is reserved for pressable keys only</td></tr><tr><td>Applied</td><td><span class="sw" style="background:#10161d;color:#58a6ff"><b style="background:#58a6ff"></b>#58a6ff</span></td><td><span class="sw" style="background:#10161d;color:#58a6ff"><b style="background:#58a6ff"></b>#58a6ff</span></td><td><span class="sw" style="background:#ffffff;color:#0550ae"><b style="background:#0550ae"></b>#0550ae</span></td><td class='note'></td></tr><tr><td>Interviewing</td><td><span class="sw" style="background:#10161d;color:#bc8cff"><b style="background:#bc8cff"></b>#bc8cff</span></td><td><span class="sw" style="background:#10161d;color:#f778ba"><b style="background:#f778ba"></b>#f778ba</span></td><td><span class="sw" style="background:#ffffff;color:#bf3989"><b style="background:#bf3989"></b>#bf3989</span></td><td class='note'>blue and violet merge for red-green colour blindness</td></tr><tr><td>Offer</td><td><span class="sw" style="background:#10161d;color:#f2cc60"><b style="background:#f2cc60"></b>#f2cc60</span></td><td><span class="sw" style="background:#10161d;color:#f2cc60"><b style="background:#f2cc60"></b>#f2cc60</span></td><td><span class="sw" style="background:#ffffff;color:#9a6700"><b style="background:#9a6700"></b>#9a6700</span></td><td class='note'>1.55:1 on white today</td></tr><tr><td>Quiet flag</td><td><span class="sw" style="background:#10161d;color:#f0883e"><b style="background:#f0883e"></b>#f0883e</span></td><td><span class="sw" style="background:#10161d;color:#f0883e"><b style="background:#f0883e"></b>#f0883e</span></td><td><span class="sw" style="background:#ffffff;color:#bc4c00"><b style="background:#bc4c00"></b>#bc4c00</span></td><td class='note'></td></tr><tr><td>Metadata</td><td><span class="sw" style="background:#10161d;color:#a1acb9"><b style="background:#a1acb9"></b>#a1acb9</span></td><td><span class="sw" style="background:#10161d;color:#a1acb9"><b style="background:#a1acb9"></b>#a1acb9</span></td><td><span class="sw" style="background:#ffffff;color:#57606a"><b style="background:#57606a"></b>#57606a</span></td><td class='note'></td></tr><tr><td>Dividers</td><td><span class="sw" style="background:#10161d;color:#465361"><b style="background:#465361"></b>#465361</span></td><td><span class="sw" style="background:#10161d;color:#5a6878"><b style="background:#5a6878"></b>#5a6878</span></td><td><span class="sw" style="background:#ffffff;color:#d0d7de"><b style="background:#d0d7de"></b>#d0d7de</span></td><td class='note'>2.3:1 → 3.1:1</td></tr><tr><td>Selected row</td><td><span class="sw" style="background:#10161d;color:#263e46"><b style="background:#263e46"></b>#263e46</span></td><td><span class="sw" style="background:#10161d;color:#2f5560"><b style="background:#2f5560"></b>#2f5560</span></td><td><span class="sw" style="background:#ffffff;color:#ddf4ff"><b style="background:#ddf4ff"></b>#ddf4ff</span></td><td class='note'>+ ▌ gutter so it survives 16-colour terminals</td></tr></table></figure>
+    <figure><figcaption>Simulated deuteranopia</figcaption>
+      <div class="cvd">
+        <span class="h"></span><span class="h">Normal vision</span><span class="h">Deuteranopia</span>
+        <span>Now</span><div class="cvd-row"><span class="cvd-chip" style="color:#58a6ff;border-color:#58a6ff">● Applied</span><span class="cvd-chip" style="color:#bc8cff;border-color:#bc8cff">◆ Interviewing</span><span class="cvd-chip" style="color:#f2cc60;border-color:#f2cc60">★ Offer</span><span class="cvd-chip" style="color:#f0883e;border-color:#f0883e">⚑ Quiet</span></div><div class="cvd-row deut"><span class="cvd-chip" style="color:#58a6ff;border-color:#58a6ff">● Applied</span><span class="cvd-chip" style="color:#bc8cff;border-color:#bc8cff">◆ Interviewing</span><span class="cvd-chip" style="color:#f2cc60;border-color:#f2cc60">★ Offer</span><span class="cvd-chip" style="color:#f0883e;border-color:#f0883e">⚑ Quiet</span></div>
+        <span>Proposed</span><div class="cvd-row"><span class="cvd-chip" style="color:#58a6ff;border-color:#58a6ff">● Applied</span><span class="cvd-chip" style="color:#f778ba;border-color:#f778ba">◆ Interviewing</span><span class="cvd-chip" style="color:#f2cc60;border-color:#f2cc60">★ Offer</span><span class="cvd-chip" style="color:#f0883e;border-color:#f0883e">⚑ Quiet</span></div><div class="cvd-row deut"><span class="cvd-chip" style="color:#58a6ff;border-color:#58a6ff">● Applied</span><span class="cvd-chip" style="color:#f778ba;border-color:#f778ba">◆ Interviewing</span><span class="cvd-chip" style="color:#f2cc60;border-color:#f2cc60">★ Offer</span><span class="cvd-chip" style="color:#f0883e;border-color:#f0883e">⚑ Quiet</span></div>
+      </div>
+      <ul class="changes" style="columns:1">
+        <li><b>Interviewing → magenta #f778ba.</b> Blue and violet collapse into the same blue today. Magenta stays distinct.</li>
+        <li><b>Glyph is always present</b> (● ◆ ★ ✕), so colour is never the only signal.</li>
+        <li><b>Safer glyphs</b>: <code>▱</code>/<code>▰</code> only with a <code>0/4</code> text fallback. <code>◌</code> → <code>○</code>. <code>↩</code> → <code>–</code>. Status glyphs get a fixed one-cell slot.</li>
+        <li><b>Bolder option:</b> map to the user’s ANSI-16 palette and stop painting the background at all.</li>
+      </ul>
+    </figure>
+  </div>
+</section>
+
+<section class="ba">
+  <h2>7 · Polish ideas</h2>
+  <p class="sub">The “flat but organised” verdict is the opportunity here. Each idea works in a real terminal: plain cells, no images.</p>
+  <div class="cards">
+    <div class="card wide"><h3>Pipeline strip, replacing the status bar</h3><div class="scroll"><pre class="term small"><span class="m"> ◌ Leads </span><span class="w">4</span><span class="r"> ──▶ </span><span class="m">✎ Drafts </span><span class="w">2</span><span class="r"> ──▶ </span><span class="bl">● Applied </span><span class="w">1</span><span class="r"> ──▶ </span><span class="pk">◆ Interviewing </span><span class="w">2</span><span class="r"> ──▶ </span><span class="y">★ Offer </span><span class="w">2</span><span class="m">    ✕ closed 4   ·   </span><span class="o">⚑ 1 quiet</span><span class="m">   ·   docs </span><span class="g">▰▰▱▱</span><span class="m"> 48% </span></pre></div>
+      <p>The polish reviewer’s big idea. Each segment is the status filter (<code>s</code> cycles it). It removes the triple meaning of “Applied” (tab, filter and group), shows progress at a glance, and frees a row at narrow widths.</p></div>
+    <div class="card"><h3>Doc-readiness meter</h3><div class="scroll"><pre class="term small"><span class="m">DOCS  </span><span class="g">▰▰▰</span><span class="m">▱</span><span class="m"> 3/4   </span><span class="g">● JD</span><span class="m">  </span><span class="g">● Resume</span><span class="m">  </span><span class="g">● Cover</span><span class="m">  </span><span class="m">○ PDF</span><span class="m">   </span><span class="k">d</span><span class="m"> build PDF</span>
+
+<span class="m">row:  </span><span class="pk">◆</span><span class="w"> Engineer #1          </span><span class="g">▰▰▰▱</span><span class="m">  </span><span class="g">Good</span></pre></div><p>The most actionable signal on the screen, which is currently a tiny dim <code>▱▱▱▱</code>. Green = done; the same 4-cell meter repeats on each row.</p></div>
+    <div class="card"><h3>Staleness heat</h3><div class="scroll"><pre class="term small"><span class="pk">◆</span><span class="w"> Platform Eng       </span><span class="m">·</span><span class="m">   last touch 3d</span>
+<span class="pk">◆</span><span class="w"> Backend @ Kite     </span><span class="y">◦</span><span class="m">   last touch 16d</span>
+<span class="pk">◆</span><span class="w"> Engineer #1        </span><span class="o">●</span><span class="m">   quiet 9mo — </span><span class="k">f</span><span class="m"> draft a nudge</span></pre></div><p>Replaces “⚑ quiet 9mo” with <code>·</code> → <code>◦</code> → <code>●</code> after the title, which reads in one column. The detail pane turns it into an action: <code>f</code> drafts a follow-up.</p></div>
+    <div class="card"><h3>Undo toast and row flash</h3><div class="scroll"><pre class="term small"><span class="flash"><span class="a">▌</span><span class="w b">◆ docs-written                 ·</span></span>
+<span class="flash"><span class="a">▌</span><span class="m">   Fictional Labs · interviewing now</span></span>
+
+<span class="m"> Applied › All · 2/9</span>      <span class="toast"> ✓ Moved to Interviewing </span><span class="m">  </span><span class="k">u</span><span class="m"> undo </span></pre></div><p>After <code>m</code> moves a row, it flashes once (about 300 ms in a real TUI, looped here) and a one-line toast offers <code>u undo</code> for 4 s, then dims away.</p></div>
+    <div class="card"><h3>Empty states with a point of view</h3><div class="scroll"><pre class="term small">
+<span class="a b">                    ▞</span>
+<span class="m">            No offers yet — keep going.</span>
+<span class="m">        2 interviewing · 1 waiting on a reply</span>
+
+<span class="m">           </span><span class="k">s</span><span class="m"> next status   </span><span class="k">a</span><span class="m"> add application</span>
+</pre></div><p>Instead of a blank list. It says where you stand and offers the next key to press.</p></div>
+    <div class="card"><h3>Group rollups</h3><div class="scroll"><pre class="term small"><span class="pk b"> ◆ Interviewing · 2 </span><span class="pk dim">──────────</span><span class="m"> 1 quiet · 1 offer likely </span><span class="r">──</span>
+<span class="y b"> ★ Offer · 2 </span><span class="y dim">─────────────────</span><span class="m"> 1 expires in 4d </span><span class="r">──────────</span></pre></div><p>Small facts in the group rule, so you can triage without opening rows.</p></div>
+  </div>
+</section>
+
+<section class="ba">
+  <h2>Recommendation</h2>
+  <div class="reco">
+    <div class="panel"><h3>Fix in Design A now (before building it)</h3><ol>
+      <li>One selection style across nav, status, track, menu and settings.</li>
+      <li><code>s</code> for status, counts on track. Menu moves off <code>M</code> to <code>g</code>.</li>
+      <li>Fixed right columns in rows; never wrap the flag; drop the word “fit”.</li>
+      <li>Help generated from the keymap; remove every prototype string.</li>
+      <li>Width breakpoints: detail becomes a sheet below 100 cols, filters go on one line below 72.</li>
+      <li>Interviewing → magenta, plus a light-theme pair for every colour.</li>
+      <li>Breadcrumb line and footer pinned to the last row.</li></ol></div>
+    <div class="panel"><h3>File as issues (polish)</h3><ol>
+      <li>Pipeline strip as the status filter.</li>
+      <li>Doc-readiness meter on rows and in the detail pane.</li>
+      <li>Undo toast and row flash after move and edit.</li>
+      <li>Staleness heat plus a follow-up action.</li>
+      <li>Empty states and group rollups.</li>
+      <li>Stats sparkline in the nav.</li>
+      <li>Keyboard-driven Settings with dirty state.</li></ol></div>
+  </div>
+</section>
+</main></body></html>
