@@ -39,14 +39,14 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 			label = " 3 " // a narrow tab bar keeps only the other screens' digits
 		}
 		m = clickOn(t, m, 0, label)
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[All") {
+		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied › All") {
 			t.Fatalf("%v: tab click did not open Applied:\n%s", size, view)
 		}
 		if size[0] < 80 {
 			continue // narrow, the filters collapse to s:/t: and the view tabs go with tab
 		}
-		m = clickOn(t, m, lineOf(t, m, "Interviewing"), "Interviewing")
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[Interviewing") {
+		m = clickOn(t, m, lineOf(t, m, "Interviewing 2"), "Interviewing")
+		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied › Interviewing") {
 			t.Fatalf("%v: view click did not switch:\n%s", size, view)
 		}
 	}
@@ -63,8 +63,8 @@ func TestClickTargetsAsciiGlyphs(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "3")
-	m = clickOn(t, m, lineOf(t, m, "Interviewing"), "Interviewing")
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "[Interviewing") {
+	m = clickOn(t, m, lineOf(t, m, "Interviewing 2"), "Interviewing")
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied > Interviewing") {
 		t.Fatalf("ASCII view click did not switch:\n%s", view)
 	}
 	m = driveModel(t, m, "/pl", "enter")

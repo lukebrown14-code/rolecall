@@ -311,16 +311,6 @@ func (m model) screenCount(si int) int {
 // filtered reports whether a track or text filter is in force.
 func (m model) filtered() bool { return m.track > 0 || m.text != "" }
 
-// countLabel is a view's count: the total, or "shown/total" while a filter hides rows,
-// so a filtered number is never read as the total.
-func (m model) countLabel(screen int, table string) string {
-	total := m.totalCount(screen, table)
-	if !m.filtered() {
-		return fmt.Sprintf("%d", total)
-	}
-	return fmt.Sprintf("%d/%d", m.count(screen, table), total)
-}
-
 // screenCountLabel is a screen's count over its views, filtered the same way.
 func (m model) screenCountLabel(si int) string {
 	total := 0
@@ -405,61 +395,13 @@ func (m model) tabs(p pal) (string, []int) {
 	return build(level, m.screen)
 }
 
-// topBar is the tab bar: the wordmark and the screens on the left and, at wide sizes,
-// the pipeline summary on the right. Every tab keeps the same padding whether active
-// or not, so nothing moves between screens. As it narrows it sheds, in order, other
-// screens' counts, the word "rolecall", other screens' names (their digits stay) and
-// the wordmark's mark; the active screen keeps its name and count at every width.
+// topBar is the tab bar: the wordmark and the screens. Every tab keeps the same padding
+// whether active or not, so nothing moves between screens. As it narrows it sheds, in
+// order, other screens' counts, the word "rolecall", other screens' names (their digits
+// stay) and the wordmark's mark; the active screen keeps its name and count at every width.
 func (m model) topBar(p pal) string {
-	l := m.layout()
-	room := l.w - rightMargin
 	out, _ := m.tabs(p)
-	out = xansi.Truncate(out, room, "")
-	if !l.wide() {
-		return out
-	}
-	// The pulse fills the free right-hand side, dropping its later parts to fit.
-	const pulseGap = 4
-	parts := m.pulse(p)
-	for len(parts) > 0 {
-		pulse := strings.Join(parts, p.Text(p.Dim).Render(" · "))
-		if xansi.StringWidth(out)+pulseGap+xansi.StringWidth(pulse) <= room {
-			return spread(out, pulse, room)
-		}
-		parts = parts[:len(parts)-1]
-	}
-	return out
-}
-
-// pulseSoonDays is how close a close date counts in the pulse.
-const pulseSoonDays = 2
-
-// pulse is the one-glance pipeline summary: Applications still live, follow-ups due and
-// Leads or Drafts closing within pulseSoonDays. It counts every Track, whatever the
-// filter, and leaves out a part that is zero.
-func (m model) pulse(p pal) []string {
-	live, due, closing := 0, 0, 0
-	for _, a := range m.apps {
-		t := tableOf(a)
-		if !isActive(a) {
-			continue
-		}
-		live++
-		if _, flag, _ := m.slotText(a); flag != "" {
-			due++
-		}
-		if _, days := ago(a.Closes, m.now()); beforeApplied(t) && a.Closes != "" && days >= 0 && days <= pulseSoonDays {
-			closing++
-		}
-	}
-	parts := []string{p.Text(p.Dim).Render(fmt.Sprintf("%d live", live))}
-	if due > 0 {
-		parts = append(parts, p.Text(p.Warn).Render(fmt.Sprintf("%d due", due)))
-	}
-	if closing > 0 {
-		parts = append(parts, p.Text(p.Warn).Render(fmt.Sprintf("%d closes ≤%dd", closing, pulseSoonDays)))
-	}
-	return parts
+	return xansi.Truncate(out, m.layout().w-rightMargin, "")
 }
 
 // trackApplies reports whether the track filter changes the current screen: the
@@ -468,48 +410,97 @@ func (m model) trackApplies() bool {
 	return len(m.tracks) > 0 && (m.hasTables() || screenDefs[m.screen].name == screenStats)
 }
 
-// trackSelector is the track filter on the context row, "t  [All]  SWE  Platform", or
-// compact, "t [All]▸", where the full one does not fit. The key reads once, as "t".
-func (m model) trackSelector(p pal, compact bool) string {
-	if compact && m.hasTables() && m.layout().filterLines == filtersCollapsed {
-		return m.collapsedFilters(p)
-	}
+// trackForm is how much of the Track filter a row has room for.
+type trackForm int
+
+const (
+	trackExplained trackForm = iota // every option with its count, then what the count is made of
+	trackFull                       // every option with its count
+	trackCompact                    // the active option only
+	trackCollapsed                  // "t:All"
+)
+
+// trackSelector is the track filter on the context row, "t  [All 15]  SWE 10  Platform 5",
+// or compact, "t [All 15]▸", or collapsed, "t:All", where the full one does not fit. The
+// key reads once, as "t". Each option carries how many Applications are on it.
+func (m model) trackSelector(p pal, form trackForm) string {
 	if !m.trackApplies() {
 		return ""
+	}
+	key := p.Key().Render("t")
+	if form == trackCollapsed {
+		return key + p.Text(p.Dim).Render(":"+m.trackName())
 	}
 	on := p.Text(p.Accent).Bold(true).Underline(true)
 	// The active track is bracketed as well as underlined, so it is marked without colour.
 	mark := func(name string) string {
 		return p.Text(p.Accent).Render("[") + on.Render(name) + p.Text(p.Accent).Render("]")
 	}
-	key := p.Key().Render("t")
-	if compact {
+	label := func(i int) string {
 		name := allView
-		if m.track > 0 {
-			name = m.tracks[m.track-1]
+		if i > 0 {
+			name = m.tracks[i-1]
 		}
-		return key + " " + mark(name) + p.Text(p.Dim).Render("▸")
+		return fmt.Sprintf("%s %d", name, m.trackTotal(i))
 	}
-	opts := append([]string{"All"}, m.tracks...)
-	parts := make([]string, len(opts))
-	for i, t := range opts {
-		parts[i] = p.Text(p.Dim).Render(t)
+	if form == trackCompact {
+		return key + " " + mark(label(m.track)) + p.Text(p.Dim).Render("▸")
+	}
+	parts := make([]string, len(m.tracks)+1)
+	for i := range parts {
+		parts[i] = p.Text(p.Dim).Render(label(i))
 		if i == m.track {
-			parts[i] = mark(t)
+			parts[i] = mark(label(i))
 		}
 	}
-	return key + "  " + strings.Join(parts, "  ")
-}
-
-// collapsedFilters is the status and Track filters on one short piece, "s:All  t:All",
-// for the widths where they do not each get a line.
-func (m model) collapsedFilters(p pal) string {
-	one := func(key, val string) string { return p.Key().Render(key) + p.Text(p.Dim).Render(":"+val) }
-	out := one("s", m.views()[m.table])
-	if m.trackApplies() {
-		out += "  " + one("t", m.trackName())
+	out := key + "  " + strings.Join(parts, "  ")
+	if form == trackExplained {
+		if why := m.explainCounts(m.track); why != "" {
+			out += "   " + p.Text(p.Dim).Render(why)
+		}
 	}
 	return out
+}
+
+// trackTotal is the Applications on a Track (0 is All): every one the Workspace lists,
+// whatever the text filter.
+func (m model) trackTotal(track int) int {
+	if track == 0 {
+		return len(m.apps)
+	}
+	n := 0
+	for _, a := range m.apps {
+		if a.Track == m.tracks[track-1] {
+			n++
+		}
+	}
+	return n
+}
+
+// explainCounts is what a Track's count is made of, "10 applications · 9 active · 1 closed",
+// so it adds up beside the status counts. It is empty unless both parts are non-zero,
+// where the numbers could not disagree.
+func (m model) explainCounts(track int) string {
+	active, closed := 0, 0
+	for _, a := range m.apps {
+		if track > 0 && a.Track != m.tracks[track-1] {
+			continue
+		}
+		if t := tableOf(a); a.Malformed == nil && (t == tableDismissed || t == tableClosed) {
+			closed++
+		} else {
+			active++
+		}
+	}
+	if active == 0 || closed == 0 {
+		return ""
+	}
+	return explainText(active+closed, active, closed)
+}
+
+// explainText is the breakdown line Track counts share with Settings.
+func explainText(total, active, closed int) string {
+	return fmt.Sprintf("%d applications · %d active · %d closed", total, active, closed)
 }
 
 // trackName is the Track filter's name: All, or the Track.
@@ -520,14 +511,45 @@ func (m model) trackName() string {
 	return allView
 }
 
-// breadcrumbRow is the line under the filters: where the Owner is, as
-// "Applied › All · All tracks · 1/9 · list". Narrow, the focus goes first, then the Track
-// is abbreviated.
+// breadcrumbRow is the line under the strip: where the Owner is, as
+// "Applied › All · All tracks · 1/9 · list", and at the right the search chip, what a filter
+// hides and the Track filter. Narrow, the breadcrumb's focus goes first, then the Track is
+// abbreviated; the right side gives way before the breadcrumb is cut.
 func (m model) breadcrumbRow(p pal) string {
 	if !m.hasTables() {
 		return ""
 	}
-	l := m.layout()
+	w := m.layout().w
+	pad := strings.Repeat(" ", inset)
+	leastLeft := xansi.StringWidth(pad + m.breadcrumb(p, true, true))
+	var right string
+	for _, form := range []trackForm{trackExplained, trackFull, trackCompact, trackCollapsed} {
+		right = m.withChip(p, joinNonEmpty("   ", m.scopeLine(p), m.trackSelector(p, form)))
+		if leastLeft+gutter+xansi.StringWidth(right) <= w-rightMargin {
+			break
+		}
+	}
+	room := w - rightMargin - gutter - xansi.StringWidth(right)
+	if right == "" {
+		room = w - rightMargin
+	}
+	return contextRow(m.breadcrumbLeft(p, room), right, w)
+}
+
+// joinNonEmpty joins the parts that have text.
+func joinNonEmpty(sep string, parts ...string) string {
+	var keep []string
+	for _, s := range parts {
+		if s != "" {
+			keep = append(keep, s)
+		}
+	}
+	return strings.Join(keep, sep)
+}
+
+// breadcrumb is "Applied › All · All tracks · 1/9 · list", the Track abbreviated when short
+// and the focus left off when noFocus.
+func (m model) breadcrumb(p pal, short, noFocus bool) string {
 	rows := m.rows()
 	pos := 0
 	if len(rows) > 0 {
@@ -548,31 +570,33 @@ func (m model) breadcrumbRow(p pal) string {
 	if m.track > 0 {
 		track = m.trackName()
 	}
-	where := fmt.Sprintf("%d/%d", pos, len(rows))
-	build := func(track string, withFocus bool) string {
-		parts := []string{m.views()[m.table], track, where}
-		if withFocus {
-			parts = append(parts, focus)
+	if short {
+		track = "All"
+		if m.track > 0 {
+			track = m.trackName()
+			if r := []rune(track); len(r) > abbrevTrack {
+				track = string(r[:abbrevTrack])
+			}
 		}
-		return p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
 	}
-	short := track
-	if m.track == 0 {
-		short = "All"
-	} else if r := []rune(track); len(r) > abbrevTrack {
-		short = string(r[:abbrevTrack])
+	parts := []string{m.views()[m.table], track, fmt.Sprintf("%d/%d", pos, len(rows))}
+	if !noFocus {
+		parts = append(parts, focus)
 	}
-	narrow := l.class != classMedium && l.class != classWide
+	return p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+}
+
+// breadcrumbLeft is the fullest breadcrumb that fits room cells after the inset.
+func (m model) breadcrumbLeft(p pal, room int) string {
+	l := m.layout()
 	pad := strings.Repeat(" ", inset)
-	for _, c := range []struct {
-		track string
-		focus bool
-	}{{track, !narrow}, {track, false}, {short, false}} {
-		if s := pad + build(c.track, c.focus); xansi.StringWidth(s) <= l.w-rightMargin {
+	narrow := l.class != classMedium && l.class != classWide
+	for _, c := range []struct{ short, noFocus bool }{{false, narrow}, {false, true}, {true, true}} {
+		if s := pad + m.breadcrumb(p, c.short, c.noFocus); xansi.StringWidth(s) <= room {
 			return s
 		}
 	}
-	return xansi.Truncate(pad+build(short, false), l.w-rightMargin, "…")
+	return xansi.Truncate(pad+m.breadcrumb(p, true, true), max(0, room), "…")
 }
 
 // abbrevTrack is how many letters of a Track name a narrow breadcrumb keeps.
@@ -625,81 +649,23 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 // markWidth is the cells a Status chip takes beyond its name: the glyph and its space.
 const markWidth = 2
 
-// viewRow is the frame's context row: the screen's views (cycled with Tab) on the left;
-// on the right what a filter hides, then the track filter where it applies. As the row
-// narrows the views drop their counts, the track filter goes compact, and then only
-// the current view is named. The row is always present, so the layout never jumps.
+// viewRow is the frame's first context row. On an Application screen it is the pipeline
+// strip, which is also the status filter (s, or ← → to move it). Elsewhere it is the
+// screen's heading, with the search chip and the Track filter on the right where they
+// apply. The row is always present, so the layout never jumps.
 func (m model) viewRow(p pal) string {
 	w := m.viewWidth()
-	pad := strings.Repeat(" ", inset)
-	var lefts []string
-	if !m.hasTables() {
-		lefts = []string{pad + p.Heading(screenDefs[m.screen].name)}
-	} else {
-		ts := m.views()
-		current := func(label string) string {
-			// Bracketed as well as bold and underlined: marked without colour.
-			return p.Text(p.Accent).Render("[") + p.Text(p.Fg).Bold(true).Underline(true).Render(label) + p.Text(p.Accent).Render("]")
-		}
-		for _, f := range []struct {
-			gap    string
-			counts bool
-			glyphs bool
-		}{{"    ", true, true}, {"  ", true, true}, {"  ", false, true}, {"  ", false, false}} {
-			parts := make([]string, len(ts))
-			for i, t := range ts {
-				label := t
-				if f.counts {
-					label = fmt.Sprintf("%s %s", t, m.countLabel(m.screen, t))
-				}
-				// A view of one Status leads with its glyph, in its colour.
-				glyph := ""
-				if s := tableStatus(t); s != "" && f.glyphs {
-					glyph = p.StatusMark(s) + " "
-				}
-				parts[i] = glyph + p.Text(p.Dim).Render(label)
-				if i == m.table {
-					parts[i] = glyph + current(label)
-				}
-			}
-			lefts = append(lefts, pad+strings.Join(parts, f.gap))
-		}
-		if len(ts) > 1 {
-			lefts = append(lefts, pad+current(ts[m.table]))
+	if m.hasTables() {
+		return m.pipelineStrip(p, w)
+	}
+	left := strings.Repeat(" ", inset) + p.Heading(screenDefs[m.screen].name)
+	for _, form := range []trackForm{trackFull, trackCompact, trackCollapsed} {
+		right := m.withChip(p, m.trackSelector(p, form))
+		if xansi.StringWidth(left)+gutter+xansi.StringWidth(right) <= w-rightMargin || form == trackCollapsed {
+			return contextRow(left, right, w)
 		}
 	}
-	scope := m.withChip(p, m.scopeLine(p))
-	collapsed := m.layout().filterLines == filtersCollapsed && m.hasTables()
-	right := func(compact bool) string {
-		compact = compact || collapsed
-		var parts []string
-		for _, s := range []string{scope, m.trackSelector(p, compact)} {
-			if s != "" {
-				parts = append(parts, s)
-			}
-		}
-		return strings.Join(parts, "   ")
-	}
-	fits := func(left, right string) bool {
-		return xansi.StringWidth(left)+gutter+xansi.StringWidth(right) <= w-rightMargin
-	}
-	for _, left := range lefts {
-		for _, compact := range []bool{false, true} {
-			if fits(left, right(compact)) {
-				return contextRow(left, right(compact), w)
-			}
-		}
-	}
-	// Still too wide: the scope gives way, so the track filter always shows whole.
-	left, sel := lefts[len(lefts)-1], m.trackSelector(p, true)
-	if sel == "" {
-		return contextRow(left, scope, w)
-	}
-	avail := w - rightMargin - xansi.StringWidth(left) - xansi.StringWidth(sel) - gutter - len("   ")
-	if scope = xansi.Truncate(scope, max(0, avail), "…"); xansi.StringWidth(scope) > 1 {
-		sel = scope + "   " + sel
-	}
-	return contextRow(left, sel, w)
+	return left
 }
 
 // scopeLine is the shown-of-total count when a filter is on. The search chip beside it
@@ -752,7 +718,7 @@ func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 	cur := 0
 	for i := range rows {
 		if d, ok := dividers[i]; ok {
-			blocks = append(blocks, block{height: dividerHeight(i), padTop: i > 0, label: d.label, n: d.n})
+			blocks = append(blocks, block{height: dividerHeight(i), padTop: i > 0, label: d.label, n: d.n, rollup: d.rollup})
 		}
 		if i == m.cursor {
 			cur = len(blocks)
@@ -769,7 +735,7 @@ var renderBlock = func(m model, p pal, b block, rows []store.Application, show s
 	if b.row {
 		return m.row(p, rows[b.idx], b.idx == m.cursor, show, w)
 	}
-	return []string{p.GroupHeader(b.label, tableStatus(b.label), b.n, w)}
+	return []string{p.GroupHeader(b.label, tableStatus(b.label), b.n, b.rollup, w)}
 }
 
 type block struct {
@@ -779,11 +745,13 @@ type block struct {
 	idx    int    // the row's index in the view, when row is set
 	label  string // the divider's label, when row is false
 	n      int    // the divider's count, when row is false
+	rollup string // the divider's rollups, " · 1 follow-up due", when row is false
 }
 
 type divider struct {
-	label string
-	n     int
+	label  string
+	n      int
+	rollup string
 }
 
 // dividers are the section headings drawn before a row: one per Status in the Applied
@@ -794,7 +762,7 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 	case allView:
 		for i, a := range rows {
 			if _, t := StatusLocation(a.Status); i == 0 || t != tableOf(rows[i-1]) {
-				div[i] = divider{t, m.count(m.screen, t)}
+				div[i] = divider{label: t, n: m.count(m.screen, t)}
 			}
 		}
 	case tableLeads, tableDraft:
@@ -803,12 +771,53 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 		}
 		for i, a := range rows {
 			if m.expired(a) {
-				div[i] = divider{"Expired", len(rows) - i}
+				div[i] = divider{label: "Expired", n: len(rows) - i}
 				break
 			}
 		}
 	}
+	for i, d := range div {
+		d.rollup = m.rollup(d.label, rows[i:groupEnd(div, i, len(rows))])
+		div[i] = d
+	}
 	return div
+}
+
+// groupEnd is the index after the group that starts at row i: the next divider's row, or the end.
+func groupEnd(div map[int]divider, i, n int) int {
+	end := n
+	for j := range div {
+		if j > i && j < end {
+			end = j
+		}
+	}
+	return end
+}
+
+// rollup is what a group's rule adds after its count when non-zero: the Follow-ups due and
+// the Applications whose documents are Ready, " · 1 follow-up due · 2 Ready". Closed and
+// Expired groups have nothing left to nudge or send, so they carry none.
+func (m model) rollup(label string, group []store.Application) string {
+	if label == tableClosed || label == "Expired" {
+		return ""
+	}
+	due, ready := 0, 0
+	for _, a := range group {
+		if _, flag, _ := m.slotText(a); flag != "" {
+			due++
+		}
+		if a.Malformed == nil && a.Documents == store.DocsReady {
+			ready++
+		}
+	}
+	out := ""
+	if due > 0 {
+		out += fmt.Sprintf(" · %d follow-up due", due)
+	}
+	if ready > 0 {
+		out += fmt.Sprintf(" · %d Ready", ready)
+	}
+	return out
 }
 
 func tableOf(a store.Application) string { _, t := StatusLocation(a.Status); return t }

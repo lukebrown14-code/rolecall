@@ -268,7 +268,7 @@ func TestAddURLFetchSkippedWhenDuplicate(t *testing.T) {
 		t.Fatalf("duplicate URL still fetched: %v", calls)
 	}
 	h.tm.Type("o") // open the existing Application
-	h.wait("Dismissed 2")
+	h.wait("Leads › Dismissed")
 	if row := selectedRow(t, h.tm.plain()); !strings.HasPrefix(row, "Engineer #1") {
 		t.Fatalf("selected row = %q", row)
 	}

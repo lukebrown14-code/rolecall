@@ -97,9 +97,9 @@ func tableStatus(table string) string {
 }
 
 // groupHeader is a list section divider, "● Applied · 2 ────", label and rule in the
-// Status's colour. A section of several Statuses (Closed, Expired) is muted and keeps the
+// Status's colour, then its rollups when non-zero ("· 1 follow-up due"). A section of several Statuses (Closed, Expired) is muted and keeps the
 // glyph's column blank so the labels line up.
-func (p pal) GroupHeader(label, status string, n, w int) string {
+func (p pal) GroupHeader(label, status string, n int, rollup string, w int) string {
 	c, glyph := p.Dim, " "
 	switch {
 	case status != "":
@@ -108,7 +108,7 @@ func (p pal) GroupHeader(label, status string, n, w int) string {
 		glyph = p.ClosedGroupGlyph()
 	}
 	s := p.Text(c)
-	head := "  " + glyph + " " + label + " · " + fmt.Sprint(n) + " "
+	head := xansi.Truncate("  "+glyph+" "+label+" · "+fmt.Sprint(n)+rollup, max(0, w-1), "…") + " "
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 

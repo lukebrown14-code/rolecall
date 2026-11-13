@@ -272,7 +272,7 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 		t.Fatalf("editor opened: %v", h.edited)
 	}
 	// Engineer #1 is only on the Dismissed table, so selecting it proves the table switch.
-	if !strings.Contains(ansi.Strip(view), "Dismissed 2") {
+	if !strings.Contains(ansi.Strip(view), "Leads › Dismissed") {
 		t.Fatalf("Dismissed table not shown:\n%s", view)
 	}
 	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") {

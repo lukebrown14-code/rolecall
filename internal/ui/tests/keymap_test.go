@@ -52,15 +52,15 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 // ←→ switch views on a table screen; T cycles the track filter backwards.
 func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "right"))
-	if !strings.Contains(view, "[Dismissed") {
+	if !strings.Contains(view, "Leads › Dismissed") {
 		t.Fatalf("→ did not switch to Dismissed:\n%s", view)
 	}
 	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "right", "left"))
-	if !strings.Contains(view, "[Leads") {
+	if !strings.Contains(view, "Leads › Leads") {
 		t.Fatalf("← did not switch back to Leads:\n%s", view)
 	}
 	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
-	if !strings.Contains(view, "[Platform]") {
+	if !strings.Contains(view, "[Platform 1]") {
 		t.Fatalf("T did not cycle back to the last track:\n%s", view)
 	}
 }

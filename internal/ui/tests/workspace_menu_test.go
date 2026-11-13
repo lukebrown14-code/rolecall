@@ -64,7 +64,7 @@ func TestSpaceOpensTheWorkspaceMenuWithoutCoveringTheFilters(t *testing.T) {
 			if strings.Contains(ansi.Strip(open), "Close") {
 				t.Fatalf("menu has a Close row:\n%s", ansi.Strip(open))
 			}
-			if got := markedLines(open, "▸"); len(got) != 1 {
+			if got := markedLines(strings.ReplaceAll(ansi.Strip(open), breadcrumbLine(open), ""), "▸"); len(got) != 1 {
 				t.Fatalf("want one ▸ cursor, got %d:\n%s", len(got), ansi.Strip(open))
 			}
 			if driveModel(t, m, " ", "esc").View().Content != before {

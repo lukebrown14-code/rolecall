@@ -22,7 +22,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				if keys[0] == "/" && !strings.Contains(view, "/Orbit ×") {
 					t.Errorf("missing search context: %s", view)
 				}
-				if keys[0] == "t" && !strings.Contains(view, "[SWE]") && !strings.Contains(view, "t:SWE") {
+				if keys[0] == "t" && !strings.Contains(view, "[SWE") && !strings.Contains(view, "t:SWE") {
 					t.Errorf("missing track context: %s", view)
 				}
 				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], "/9") {
@@ -67,20 +67,21 @@ func TestTabBarDoesNotMoveBetweenScreens(t *testing.T) {
 func TestTrackFilterOnlyWhereItApplies(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for screen, want := range map[string]bool{"1": true, "2": true, "3": true, "4": true, "5": false, "6": false} {
-		ctx := strings.Split(ansi.Strip(runKeysSized(t, root, 120, 36, screen)), "\n")[2]
-		if got := strings.Contains(ctx, "[All]"); got != want {
+		lines := strings.Split(ansi.Strip(runKeysSized(t, root, 120, 36, screen)), "\n")
+		ctx := lines[2] + "\n" + lines[3]
+		if got := strings.Contains(ctx, "[All"); got != want {
 			t.Errorf("screen %s: track filter shown = %v, want %v: %q", screen, got, want, ctx)
 		}
 	}
 }
 
-// At wide sizes the tab bar's free right side carries the pipeline at a glance; below
-// that it goes, and the wordmark stays down to the medium class.
+// The tab bar carries no pipeline pulse (the pipeline strip owns the counts), and the
+// wordmark stays down to the medium class.
 func TestHeaderPulseAndWordmark(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	top := func(w, h int) string { return strings.Split(ansi.Strip(runKeysSized(t, root, w, h, "1")), "\n")[0] }
-	if wide := top(120, 36); !strings.Contains(wide, "10 live · 1 due") {
-		t.Errorf("wide tab bar lacks the pulse: %q", wide)
+	if wide := top(120, 36); strings.Contains(wide, "live") {
+		t.Errorf("wide tab bar still carries the pulse: %q", wide)
 	}
 	if medium := top(80, 24); strings.Contains(medium, "live") || strings.Contains(medium, "▞") {
 		t.Errorf("medium tab bar: %q, want no brand mark and no pulse", medium)
