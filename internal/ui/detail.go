@@ -308,9 +308,9 @@ func (m model) emptyDocument(a store.Application, tab detailTab, name string) st
 		return "No JD saved · e to open " + name
 	case tabFit:
 		if m.harness != "" {
-			return "No fit assessment yet · f to assess fit"
+			return "f to assess fit"
 		}
-		return "No fit assessment yet"
+		return "No reasoning saved"
 	case tabNotes:
 		return "No notes yet · e to write some"
 	}
@@ -536,7 +536,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	if fit == "" {
 		fit = fitNone
 	}
-	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("fit ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
+	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
 	if beforeApplied(tableOf(a)) {
 		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
 			parts = append(parts, p.CloseStyle(s, p.Text, p.Dim).Render(text))
@@ -699,9 +699,8 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Faint).Render(file)
 		if i == m.detail.docs {
-			row = lipgloss.NewStyle().Background(p.Sel).Width(paneW - paneMargin).Render(
-				p.Text(p.Accent).Background(p.Sel).Render("▌ ") + p.Text(p.Accent).Background(p.Sel).Bold(true).Render(xansi.Strip(mark)+name) +
-					p.Text(p.Sub).Background(p.Sel).Render(file))
+			row = p.SelLine(true, paneW-paneMargin, p.SelGutter(true)+p.SelText(true).Render(xansi.Strip(mark)+name)+
+				p.SelBase(true).Foreground(p.Sub).Render(file))
 		}
 		lines = append(lines, row)
 	}

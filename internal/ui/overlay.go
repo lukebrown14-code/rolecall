@@ -43,12 +43,12 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 		}
 		row := "  " + p.Key().Render(statusLetters[s]) + "  " + p.StatusMark(s) + " " + p.Text(nameC).Render(padRight(s, statusColumn)) + p.Text(p.Warn).Render(hint)
 		if i == mv.sel {
-			sel := lipgloss.NewStyle().Background(p.Sel)
-			row = sel.Width(cw + gutter).Render(p.Text(p.Accent).Background(p.Sel).Render("▌ ") +
-				p.Key().Background(p.Sel).Render(statusLetters[s]) + p.Text(p.Fg).Background(p.Sel).Render("  ") +
-				p.Text(p.StatusColor(s)).Background(p.Sel).Render(p.StatusGlyph(s)) +
-				p.Text(p.Fg).Background(p.Sel).Bold(true).Render(" "+padRight(s, statusColumn)) +
-				p.Text(p.Warn).Background(p.Sel).Render(hint))
+			bg := p.SelBase(true)
+			row = p.SelLine(true, cw+gutter, p.SelGutter(true)+
+				p.Key().Background(p.Sel).Render(statusLetters[s])+bg.Render("  ")+
+				bg.Foreground(p.StatusColor(s)).Render(p.StatusGlyph(s))+
+				p.SelText(true).Render(" "+padRight(s, statusColumn))+
+				bg.Foreground(p.Warn).Render(hint))
 		}
 		b.WriteString(row + "\n")
 	}

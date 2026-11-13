@@ -185,7 +185,7 @@ func TestSettingsWorkspaceRowIsReadOnly(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
 	selectRow(d, 3, 0)
 	d.Type("k")
-	if l := rowWith(strings.Split(d.plain(), "\n"), "Editor"); !strings.Contains(l, "▸ Editor") {
+	if l := rowWith(strings.Split(d.plain(), "\n"), "Editor"); !strings.Contains(l, "▌ Editor") {
 		t.Fatalf("cursor left the Editor row: %q\n%s", l, d.plain())
 	}
 	d.Type("enter")

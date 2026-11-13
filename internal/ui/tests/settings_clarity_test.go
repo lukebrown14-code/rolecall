@@ -38,7 +38,7 @@ func TestSettingsRefusalCountAddsUp(t *testing.T) {
 func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "tab", "j", "j")
-		if l := rowWith(lines, "Remote roles"); !strings.Contains(l, "▸ Remote roles") {
+		if l := rowWith(lines, "Remote roles"); !strings.Contains(l, "▌ Remote roles") {
 			t.Errorf("%dx%d the cursor left Remote roles for a read-only row: %q", size[0], size[1], l)
 		}
 		if l := rowWith(lines, "Sources"); !strings.Contains(l, "read-only") {

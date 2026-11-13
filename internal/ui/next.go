@@ -58,7 +58,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
 		if _, flag, _ := m.slotText(a); flag != "" {
-			return nextStep{what: "follow up", why: strings.TrimPrefix(flag, followUpFlag+" "), key: "n", desc: "note"}, true
+			return nextStep{what: "follow up", why: "quiet " + strings.TrimPrefix(flag, followUpFlag+" "), key: "n", desc: "note"}, true
 		}
 		if a.Status == store.StatusInterviewing {
 			return nextStep{what: "prepare for the interview", key: "n", desc: "note"}, true

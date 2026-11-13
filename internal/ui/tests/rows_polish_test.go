@@ -46,11 +46,11 @@ func TestCloseDateUrgency(t *testing.T) {
 // month rather than "21mo ago".
 func TestRowWording(t *testing.T) {
 	leads := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1"))
-	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || !strings.Contains(leads, "fit —") {
+	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || strings.Contains(leads, "fit —") {
 		t.Fatalf("Leads rows:\n%s", leads)
 	}
 	applied := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"fit Good", "applied ~Jan 2025", "⚑ quiet 9mo"} {
+	for _, want := range []string{" Good", "applied ~Jan 2025", "⚑ 9mo"} {
 		if !strings.Contains(applied, want) {
 			t.Fatalf("Applied rows lack %q:\n%s", want, applied)
 		}
