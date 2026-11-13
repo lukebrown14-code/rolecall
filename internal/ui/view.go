@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -265,24 +266,8 @@ func (m model) welcome(p pal) string {
 	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
-// movedStatus is the destination Status named by a move's toast, or "" for any other
-// feedback, so the empty view can tell a move apart from a first-run or a search.
-func movedStatus(toast string) string {
-	if strings.HasPrefix(toast, offerPrefix) {
-		return store.StatusOffer
-	}
-	switch {
-	case strings.HasPrefix(toast, "Moved to "):
-		status, _, _ := strings.Cut(strings.TrimPrefix(toast, "Moved to "), " ·")
-		return status
-	case strings.HasPrefix(toast, "Dismissed · "):
-		return store.StatusDismissed
-	}
-	return ""
-}
-
 // movedOut reports that a move just took the last row out of this view.
-func (m model) movedOut() bool { return movedStatus(m.toast) != "" }
+func (m model) movedOut() bool { return m.movedTo != "" }
 
 // viewHoldsStatus reports whether a Status lives in a view of the current screen, so the
 // empty state can say which key follows the moved row.
@@ -303,11 +288,11 @@ func (m model) viewHoldsStatus(status string) bool {
 // line naming where the Application went, and how to follow it.
 func (m model) movedOutView(p pal) string {
 	line := p.Text(p.Fg).Bold(true).Render(m.toast)
-	if movedStatus(m.toast) == store.StatusOffer {
+	if m.movedTo == store.StatusOffer {
 		line = p.Text(p.Gold).Bold(true).Render(m.toast)
 	}
 	hint := "press ← → to follow it"
-	if !m.viewHoldsStatus(movedStatus(m.toast)) {
+	if !m.viewHoldsStatus(m.movedTo) {
 		hint = "press 1-6 to find it"
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
@@ -378,18 +363,25 @@ func (m model) screenCountLabel(si int) string {
 // switching screens never sheds or restores a count.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
+	wide := m.layout().wide()
 	on := p.ActiveTab()
+	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
+	// short of room.
+	spark := " " + p.Text(p.Dim).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
 	build := func(level, active int) (string, []int) {
-		mark := " " + wordmark + " rolecall "
-		switch {
-		case level >= shedMark:
-			mark = ""
-		case level >= shedWordmark:
-			mark = " " + wordmark + " "
-		case level >= shedEdge:
-			mark = wordmark + " rolecall "
+		// The brand mark leads the bar at wide sizes only, muted (eleven cells with its
+		// trailing space); below that the bar is the tabs alone.
+		mark := ""
+		if wide {
+			switch {
+			case level >= shedMark:
+			case level >= shedWordmark:
+				mark = wordmark + " "
+			default:
+				mark = wordmark + " rolecall "
+			}
 		}
-		out := p.Text(p.Accent).Bold(true).Render(mark)
+		out := p.Text(p.Dim).Render(mark)
 		starts := make([]int, len(screenDefs))
 		for si, d := range screenDefs {
 			starts[si] = xansi.StringWidth(out) + 1
@@ -397,8 +389,12 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
+			tail := ""
+			if wide && level < shedCounts && d.name == screenStats {
+				tail = spark
+			}
 			if si == active {
-				out += on.Render("[" + digit + name + count + "]")
+				out += on.Render("["+digit+name+count+"]") + tail
 				continue
 			}
 			if level >= shedCounts {
@@ -411,7 +407,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep
+			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + tail + sep
 		}
 		return out, starts
 	}

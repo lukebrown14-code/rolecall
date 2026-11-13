@@ -25,7 +25,7 @@ func TestCommandPaletteRunsTheChosenAction(t *testing.T) {
 		t.Fatalf("palette did not filter to dismiss:\n%s", view)
 	}
 	m = driveModel(t, m, "enter")
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Dismissed · ") || strings.Contains(view, "enter run") {
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "✓ Dismissed ") || strings.Contains(view, "enter run") {
 		t.Fatalf("palette did not run dismiss and close:\n%s", view)
 	}
 }
