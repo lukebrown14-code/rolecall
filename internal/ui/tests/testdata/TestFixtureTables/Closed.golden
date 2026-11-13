@@ -1,17 +1,17 @@
  ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ◌ Leads 4 ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · [✕ closed 6] · ⚑ 1 due · docs ▱▱▱▱ 8%
+   ◌ Leads 4 ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · [✕ closed 6] · ⚑ 1 due · docs □□□□ 8%
    Applied › Closed · All tracks · 1/4 · list                                        TRACK t [All 17] SWE 10 Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✕ Closed · 4 ──────────────────────────────────────────────── │ Engineer #1                                          
- ▌ ✕ Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ Example · Unknown                                    
+ ▌ ✕ Engineer #1                    □□□         ~Jan 2026  Good  │ Example · Unknown                                    
  ▌   Example · Unknown · closed ~Jan 2026                        │                                                      
-   – Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ STATUS  ✕ Rejected                         [m] move  
+   – Engineer #1                    □□□         ~Jan 2026  Good  │ STATUS  ✕ Rejected                         [m] move  
      Example · Unknown · closed ~Jan 2026                        │ FIT     Good                             [f] assess  
-   ✕ docs-ready                     ▰▰▰▱         Rej. ~7d     ·  │ TRACK   Unknown                            [e] edit  
+   ✕ docs-ready                     ■■■□         Rej. ~7d     ·  │ TRACK   Unknown                            [e] edit  
      Fictional Labs · SWE · closed ~7d ago                       │ NOTES   —                                 [n] notes  
-   – docs-resume-only               ▰▰▱       Withdr. ~7d     ·  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │ DOCS    ▱▱▱ 0/3                                      
+   – docs-resume-only               ■■□       Withdr. ~7d     ·  │                                                      
+     Fictional Labs · SWE · closed ~7d ago                       │ DOCS    □□□ 0/3                                      
                                                                  │         ○ JD                                         
                                                                  │         ○ Resume                                     
                                                                  │         ○ PDF                                        

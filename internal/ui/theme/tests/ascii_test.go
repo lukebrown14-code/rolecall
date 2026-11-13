@@ -43,7 +43,7 @@ func TestStatusGlyphsAndASCIIStandIns(t *testing.T) {
 // The frame-wide fold maps each glyph to the stand-in the design names.
 func TestASCIIFoldTable(t *testing.T) {
 	for glyph, want := range map[string]string{
-		"▰": "#", "▱": "-", "◌": "o", "⚑": "!", "↩": "<", "▌": ">", "▶": ">", "✕": "x", "◦": "o",
+		"■": "#", "□": "-", "◌": "o", "⚑": "!", "↩": "<", "▌": ">", "▶": ">", "✕": "x", "◦": "o",
 		"●": "*", "★": "*", "◆": "@", "▁": "_", "▃": ".", "▅": "-", "▆": "=", "█": "#", "–": "-", "✎": "=",
 	} {
 		if got := theme.ASCIIFold(glyph, true); got != want {

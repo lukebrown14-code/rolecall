@@ -8,11 +8,11 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// meterRun is a run of meter cells: ▰ ready, ▱ missing.
+// meterRun is a run of meter cells: ■ ready, □ missing.
 func meterRun(line string) string {
 	var b strings.Builder
 	for _, r := range line {
-		if r == '▰' || r == '▱' {
+		if r == '■' || r == '□' {
 			b.WriteRune(r)
 		}
 	}
@@ -41,8 +41,8 @@ func TestRowMeterNeverSqueezesTheTitle(t *testing.T) {
 			if runs == "" {
 				continue
 			}
-			i := strings.IndexRune(r, '▰')
-			if j := strings.IndexRune(r, '▱'); i < 0 || (j >= 0 && j < i) {
+			i := strings.IndexRune(r, '■')
+			if j := strings.IndexRune(r, '□'); i < 0 || (j >= 0 && j < i) {
 				i = j
 			}
 			title := strings.TrimLeft(r[:i], " ▌")
@@ -58,7 +58,7 @@ func TestRowMeterNeverSqueezesTheTitle(t *testing.T) {
 func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	view := chipped(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
-	for _, want := range []string{"○ JD", "● Resume", "● Cover letter", "○ PDF", "▰▰▱▱ 2/4"} {
+	for _, want := range []string{"○ JD", "● Resume", "● Cover letter", "○ PDF", "■■□□ 2/4"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}

@@ -278,7 +278,7 @@ var asciiGlyphs = strings.NewReplacer(
 	// the wordmark's mark, distinct from every Status stand-in and from a data block
 	"▞", "R",
 	// the documents' ready meter and an urgent close date
-	"▰", "#", "▱", "-", "▲", "^",
+	"■", "#", "□", "-", "▲", "^",
 	// the Stats sparkline's eight steps fold onto five: _ . - = #
 	"▁", "_", "▂", "_", "▃", ".", "▄", ".", "▅", "-", "▆", "=", "▇", "=",
 	"░", ".", "▕", "|", "“", `"`, "”", `"`, "≤", "<",

@@ -109,11 +109,11 @@ func (p pal) DocsLabel(a store.Application) (string, color.Color) {
 
 // meterGlyphs are the ready meter's filled and empty cells.
 const (
-	meterOn  = "▰"
-	meterOff = "▱"
+	meterOn  = "■"
+	meterOff = "□"
 )
 
-// meterCells is the meter's cells, one per needed document: ▰▰▱▱ for two ready of four.
+// meterCells is the meter's cells, one per needed document: ■■□□ for two ready of four.
 // st styles each run, so a selected row keeps its fill under the cells.
 func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style) string {
 	n, total := readyCount(a)
@@ -124,7 +124,7 @@ func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style
 	return st(c).Render(strings.Repeat(meterOn, n)) + st(p.Faint).Render(strings.Repeat(meterOff, total-n))
 }
 
-// DocsMeter is the detail's "▰▰▰▱ 3/4": the cells, then how many documents are ready.
+// DocsMeter is the detail's "■■■□ 3/4": the cells, then how many documents are ready.
 func (p pal) DocsMeter(a store.Application) string {
 	n, total := readyCount(a)
 	c := p.Dim

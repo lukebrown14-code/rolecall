@@ -88,7 +88,7 @@ type stripForm struct {
 	short   bool // the labels are abbreviated, "Interv."
 	compact bool // two spaces between the labelled cells; the closed, due and docs parts glyph-tight after them
 	words   int  // wordsFull spells "N follow-up due", wordsShort "N due", 0 just the count
-	docs    int  // docsMeter "docs ▰▱▱▱ 8%", docsShare "docs 8%", 0 none
+	docs    int  // docsMeter "docs ■□□□ 8%", docsShare "docs 8%", 0 none
 	closed  bool // the closed cell keeps its word
 }
 
@@ -269,7 +269,7 @@ func (m model) stripCellText(p pal, c stripCell, f stripForm, label bool) string
 }
 
 // stripDocs is the Workspace's document readiness: the meter and the share of ready
-// documents, "docs ▰▰▱▱ 48%", or the share alone, "docs 48%".
+// documents, "docs ■■□□ 48%", or the share alone, "docs 48%".
 func (m model) stripDocs(p pal, meter bool) string {
 	pct := readyPercent(m.apps)
 	on := (pct*docsMeterCells + percentFull/2) / percentFull

@@ -283,7 +283,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   detail view. `⚑ quiet` orange. Documents are named JD · Resume ·
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
   `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
-  detail card add a meter, `▰▰▱▱ 2 of 4 ready` (GLOSSARY avoids "built").
+  detail card add a meter, `■■□□ 2 of 4 ready` (GLOSSARY avoids "built").
 - **Size classes (`internal/ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a
