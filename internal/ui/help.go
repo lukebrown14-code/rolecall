@@ -327,7 +327,7 @@ func glyphLegend(p pal, followUpDays int) string {
 		row("Timeline", current, earlier, dim("~ approximate date")) + "\n" +
 		row("Docs", dim("✓ ready"), dim("○ missing"), dim(meterOn+meterOff+" N of M ready")) + "\n" +
 		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
-		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("⚑ quiet %d+ days", followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
+		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("%s %s %s due %d+ days", heatLow, heatMid, heatHigh, followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
 		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor), dim(fitDot+" not assessed"))
 }
 

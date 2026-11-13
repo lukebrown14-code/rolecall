@@ -50,7 +50,7 @@ func TestRowWording(t *testing.T) {
 		t.Fatalf("Leads rows:\n%s", leads)
 	}
 	applied := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{" Good", "applied ~Jan 2025", "⚑ 9mo"} {
+	for _, want := range []string{" Good", "applied ~Jan 2025", "● 9mo"} {
 		if !strings.Contains(applied, want) {
 			t.Fatalf("Applied rows lack %q:\n%s", want, applied)
 		}
@@ -69,7 +69,7 @@ func TestNextActionLine(t *testing.T) {
 	}{
 		{"lead without a JD", []string{"1"}, "NEXT  add the JD   enter open"},
 		{"applied", []string{"3"}, "NEXT  wait to hear back   m move"},
-		{"quiet", []string{"3", "/Example", "enter"}, "NEXT  follow up · quiet 9mo   n note"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago   n note"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT  decide on the offer   m move"},
 		{"detail on the JD tab", []string{"1", "enter"}, "e open jd.md"},
 	} {
