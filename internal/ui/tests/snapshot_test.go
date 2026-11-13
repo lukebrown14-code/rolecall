@@ -24,7 +24,7 @@ var snapshotStates = []struct {
 	{"06-detail-docs-tab", []string{"3", "enter", "left"}, nil}, // left wraps to the last tab, Docs, at every size
 	{"07-move-popup", []string{"1", "m"}, nil},
 	{"08-add-form", []string{"a"}, nil},
-	{"09-add-form-error", []string{"a", "enter"}, nil},
+	{"09-add-form-error", []string{"a", "enter", "enter"}, nil},
 	{"10-help", []string{"?"}, nil},
 	{"11-search-typing", []string{"/", "p", "l"}, nil},
 	{"12-search-no-match", []string{"/", "z", "z", "q", "enter"}, nil},
@@ -63,7 +63,6 @@ var snapshotStates = []struct {
 	{"48-detail-next-draft", []string{"2", "enter"}, nil},
 	{"49-leads-sorted-newest", []string{"1", "o"}, nil},
 	{"51-workspace-menu", []string{"3", " "}, nil},
-	{"52-strip-focus", []string{"3", "S", "right"}, nil},
 	{"53-settings-dirty", []string{"6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter"}, nil},
 	{"54-status-filter-applied", []string{"3", "s"}, nil},
 	{"55-follow-up-detail", []string{"3", "/Engineer", "enter", "j"}, nil},

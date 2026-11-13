@@ -171,7 +171,7 @@ func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent,
 // Side panels: share of the width, then the least and most cells.
 const (
 	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list
-	cardShare, cardMin, cardMax          = 28, 30, 40 // the detail view's card
+	cardShare, cardMin, cardMax          = 37, 34, 48 // the detail view's card: 44 at 120 columns, room for a row and its key
 	profileShare, profileMin, profileMax = 28, 26, 36 // Profile's section list: short names whole from 80 columns
 	groupsShare, groupsMin, groupsMax    = 18, 18, 24 // Settings' group list
 )
@@ -407,12 +407,12 @@ func (m model) overlayBody(p pal, base, box string) string {
 	rows := strings.Split(base, "\n")
 	blank := strings.Repeat(" ", l.w)
 	if am, ok := m.overlay.(anchoredMode); ok && am.anchored() {
-		// Top-left under the tab bar, over the body only: the rows behind stay in view.
+		// Top-left under the tab bar, over the body only. The rows it covers are blanked
+		// like any pop-up's, so no word is cut off against its border.
 		y, x = top, 1
-		blank = ""
 	}
 	for i := range lines {
-		if y+i < len(rows) && blank != "" {
+		if y+i < len(rows) {
 			rows[y+i] = blank
 		}
 	}

@@ -596,8 +596,9 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 		}
 	}
 	parts := []string{track, fmt.Sprintf("%d/%d", pos, len(rows))}
-	// A view named like its screen (Leads › Leads) says nothing twice.
-	if v := m.views()[m.table]; v != screenDefs[m.screen].name {
+	// The screen's own first view (Leads › Leads) says nothing twice; a status filter named
+	// like its screen (Applied › Applied) is still a filter, so it shows.
+	if v := m.views()[m.table]; m.table > 0 || v != screenDefs[m.screen].name {
 		parts = append([]string{v}, parts...)
 	}
 	out := p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
@@ -657,7 +658,7 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
 		out = append(out, "")
 	} else {
-		out = append(out, " "+m.detailTabsRow(p, a))
+		out = append(out, " "+m.detailTabsRow(p, a, w-1-rightMargin))
 		content = strings.Split(m.detailContent(p, a, w), "\n")
 	}
 	for i, line := range content {
@@ -957,6 +958,10 @@ func (m model) stageText(a store.Application) string {
 	if text := name + " " + date; xansi.StringWidth(text) <= stageColumn {
 		return text
 	}
+	// "today" is the one date word long enough to push the stage out; "0d" keeps both.
+	if text := name + " " + strings.Replace(date, "today", "0d", 1); xansi.StringWidth(text) <= stageColumn {
+		return text
+	}
 	if xansi.StringWidth(date) <= stageColumn {
 		return date
 	}
@@ -1016,13 +1021,22 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		titleC, dimC = p.Fg, p.Sub
 	}
 	if a.Malformed != nil {
-		return []string{line.Render(bar + st(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
+		title := st(p.Bad).Bold(true).Render("⚠ ") + st(p.Bad).Bold(true).Render(m.malformedTitle(a))
+		if fill {
+			title = st(p.Bad).Bold(true).Render("⚠ ") + st(p.Fg).Bold(true).Render(m.malformedTitle(a)) // the words clear 4.5:1 on the fill
+		}
+		return []string{line.Render(bar + title),
 			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))} // the bar spans both lines, like any row
 	}
 	state, flag, fit := m.slotText(a)
-	fitC := p.FitColor(a.Fit)
+	fitC, heatC := p.FitColor(a.Fit), p.Warn
 	if fitC == p.Dim {
 		fitC = dimC
+	}
+	if fill {
+		// Coloured text on the selection fill falls below 4.5:1, so the selected row's
+		// words take the secondary colour; its Status glyph keeps the colour.
+		fitC, heatC = p.Sub, p.Sub
 	}
 	slot := func(width int, c color.Color, s string) string {
 		return st(c).Width(width).Align(lipgloss.Right).Render(s)
@@ -1030,9 +1044,9 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// The right-hand columns are fixed: a row without a value holds the column blank, so
 	// every column starts at the same cell on every row.
 	buildRight := func() string {
-		heat := slot(show.flagW, p.Warn, flag)
+		heat := slot(show.flagW, heatC, flag)
 		if strings.HasPrefix(flag, heatHigh) {
-			heat = st(p.Warn).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
+			heat = st(heatC).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
 		}
 		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
 			st(p.Fg).Render(strings.Repeat(" ", rowPad))

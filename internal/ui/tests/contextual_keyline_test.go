@@ -101,8 +101,8 @@ func TestKeyLineInMoveOverlayShowsOverlayKeysOnly(t *testing.T) {
 // With the detail pane hidden the key line says Enter opens it.
 func TestKeyLineOffersEnterDetailWhenPaneHidden(t *testing.T) {
 	for _, sz := range [][2]int{{80, 24}, {60, 16}} {
-		if line := lastLine(t, sz[0], sz[1], "1"); !strings.Contains(line, "Enter detail") {
-			t.Errorf("%dx%d lacks enter detail: %q", sz[0], sz[1], line)
+		if line := lastLine(t, sz[0], sz[1], "1"); !strings.Contains(line, "Enter open") {
+			t.Errorf("%dx%d lacks enter open: %q", sz[0], sz[1], line)
 		}
 	}
 }

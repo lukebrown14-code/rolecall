@@ -542,7 +542,7 @@ func (m model) detailView(p pal) string {
 		if !m.cardShown() && m.detail.tab != tabOverview {
 			gap = " " + m.nextLine(p, a, paneW-gutter-1-rightMargin, false)
 		}
-		pane = m.detailTabsRow(p, a) + "\n" + gap + "\n" + strings.Join(content, "\n")
+		pane = m.detailTabsRow(p, a, paneW-gutter) + "\n" + gap + "\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
@@ -654,7 +654,7 @@ func (m model) trackStops(p pal, a store.Application) (past, pastDated []string,
 	return past, pastDated, current, ahead
 }
 
-func (m model) detailTabsRow(p pal, a store.Application) string {
+func (m model) detailTabsRow(p pal, a store.Application, w int) string {
 	visible := m.detailTabs(a)
 	tabs := make([]string, len(visible))
 	for i, t := range visible {
@@ -664,7 +664,51 @@ func (m model) detailTabsRow(p pal, a store.Application) string {
 			tabs[i] = p.SelChip(string(t))
 		}
 	}
-	return strings.Join(tabs, " ")
+	return fitTabs(p, tabs, active(visible, m.detail.tab), w)
+}
+
+// active is the index of tab in tabs, or 0.
+func active(tabs []detailTab, tab detailTab) int {
+	if i := slices.Index(tabs, tab); i >= 0 {
+		return i
+	}
+	return 0
+}
+
+// fitTabs joins tabs into one line of at most w cells. Where they do not all fit, it keeps
+// a run around the active tab and marks the hidden ends with ‹ and ›: the row never wraps.
+func fitTabs(p pal, tabs []string, at, w int) string {
+	if line := strings.Join(tabs, " "); xansi.StringWidth(line) <= w {
+		return line
+	}
+	from, to := at, at+1
+	width := func(f, t int) int {
+		n := xansi.StringWidth(strings.Join(tabs[f:t], " "))
+		if f > 0 {
+			n += markWidth
+		}
+		if t < len(tabs) {
+			n += markWidth
+		}
+		return n
+	}
+	for grew := true; grew; {
+		grew = false
+		if to < len(tabs) && width(from, to+1) <= w {
+			to, grew = to+1, true
+		}
+		if from > 0 && width(from-1, to) <= w {
+			from, grew = from-1, true
+		}
+	}
+	line := strings.Join(tabs[from:to], " ")
+	if from > 0 {
+		line = p.Text(p.Dim).Render("‹ ") + line
+	}
+	if to < len(tabs) {
+		line += p.Text(p.Dim).Render(" ›")
+	}
+	return line
 }
 
 // detailContent is the current tab: rendered Markdown with a scroll cue, or the

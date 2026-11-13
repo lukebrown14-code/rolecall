@@ -118,13 +118,14 @@ func TestFiltersCollapseToOneLineWhenNarrow(t *testing.T) {
 	}
 }
 
-func TestEnterDetailHintOnlyWithoutThePane(t *testing.T) {
+// Enter has one label at every width: "open", never "detail" where the pane is hidden.
+func TestEnterHasOneLabel(t *testing.T) {
 	for _, sz := range footerSizes {
-		lines := plainAt(t, sz[0], sz[1], "3")
-		last := lines[len(lines)-1]
-		has := strings.Contains(last, "Enter detail")
-		if want := sz[0] < 100; has != want {
-			t.Errorf("%dx%d: enter detail hint = %v; want %v (%q)", sz[0], sz[1], has, want, last)
+		for _, keys := range [][]string{{"1"}, {"3"}} {
+			lines := plainAt(t, sz[0], sz[1], keys...)
+			if last := lines[len(lines)-1]; strings.Contains(last, "Enter detail") {
+				t.Errorf("%dx%d keys %q: Enter labelled detail: %q", sz[0], sz[1], keys, last)
+			}
 		}
 	}
 }

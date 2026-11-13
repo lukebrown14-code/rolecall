@@ -114,12 +114,22 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 	case fld.Role == forms.RoleURL && f.Fetching:
 		return p.SpinnerStyle().Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
 	case fld.Value == "":
+		// The cursor takes the first cell of an empty field rather than pushing it right,
+		// so an empty field starts in the same column focused or not.
 		if fld.Placeholder != "" {
-			return cursor + p.Text(p.Dim).Italic(true).Render(fld.Placeholder) + aside
+			ph := p.Text(p.Dim).Italic(true)
+			if !focused {
+				return ph.Render(fld.Placeholder) + aside
+			}
+			first, _ := xansi.FirstGraphemeCluster(fld.Placeholder, xansi.GraphemeWidth)
+			return ph.Reverse(true).Render(first) + ph.Render(strings.TrimPrefix(fld.Placeholder, first)) + aside
 		}
 		// A faint underline shows where to type, apart from the labels and examples.
 		line := min(formUnderline, max(1, avail-xansi.StringWidth(fld.Note)-gutter-1))
-		return cursor + p.Text(p.Faint).Render(strings.Repeat("_", line)) + aside
+		if focused {
+			return cursor + p.Text(p.Faint).Render(strings.Repeat("_", line-1)) + aside
+		}
+		return p.Text(p.Faint).Render(strings.Repeat("_", line)) + aside
 	}
 	// Long text shows its end, where the typing happens.
 	shown := fld.Value

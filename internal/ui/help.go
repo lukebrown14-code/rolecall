@@ -184,6 +184,11 @@ func (m model) trackFilterApplies() bool {
 // globalKeys is the keys that work on every screen. A context key with the same key
 // wins (Settings' r renames a Track), so a key is never listed twice.
 func (m model) globalKeys(ctx []helpKey) []helpKey {
+	if m.fieldOpen() {
+		// An open field takes every printable key as text: 1-6, : and ? type into it, so
+		// the key line offers only the field's own keys.
+		return nil
+	}
 	keys := []helpKey{help(groupGlobal, "1-6", "screen").at(prioScreen)}
 	if m.trackFilterApplies() {
 		keys = append(keys, help(groupFilter, "t", "track").at(prioMinor), help(groupFilter, "T", "previous track"))
@@ -196,15 +201,12 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 	}
 	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioMinor), help(groupFilter, "ctrl+k", "commands"),
 		help(groupGlobal, "?", "help").at(prioPinned))
-	if !m.fieldOpen() {
-		// An open Settings field takes space as text. The tab bar shows it, so the key
-		// line leaves it to the help.
-		menu := help(groupGlobal, "space", "menu").at(prioPinned)
-		if m.barKeys(m.pal()) != "" {
-			menu = menu.at(prioHelpOnly)
-		}
-		keys = append(keys, menu)
+	// The tab bar shows the menu key where it has room, so the key line leaves it to the help.
+	menu := help(groupGlobal, "space", "menu").at(prioPinned)
+	if m.barKeys(m.pal()) != "" {
+		menu = menu.at(prioHelpOnly)
 	}
+	keys = append(keys, menu)
 	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {

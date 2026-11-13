@@ -74,13 +74,9 @@ func followUpRow(m model) bool {
 var listActions = []listAction{
 	{
 		keys: []string{"enter", "v"}, keyLabel: "enter",
-		desc: func(m model) string {
-			// Without the detail pane beside the list, the footer says the detail exists.
-			if m.detail == nil && m.layout().detail != detailPane {
-				return "detail"
-			}
-			return descOpen
-		},
+		// One label at every width: "open" opens the detail, or the Document under the
+		// cursor on the Docs tab.
+		desc:  func(model) string { return descOpen },
 		group: groupAction, prio: fixed(prioCore),
 		listed: func(m model) bool {
 			a, ok := m.current()

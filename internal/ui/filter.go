@@ -63,7 +63,11 @@ func (m model) options(p pal, label, key string, names []string, counts []int, c
 		f.add(k+" ", false, -1)
 	}
 	for i, name := range names {
-		if i > 0 {
+		// Options sit two cells apart, as on the tab bar. The chip's fill takes one of
+		// them, so the chosen option keeps the same gap as the rest.
+		if i > 0 && i != chosen && i-1 != chosen {
+			f.add("  ", false, -1)
+		} else if i > 0 {
 			f.add(" ", false, -1)
 		}
 		text := fmt.Sprintf("%s %d", name, counts[i])

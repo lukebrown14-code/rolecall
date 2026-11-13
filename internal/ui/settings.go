@@ -113,7 +113,7 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, h.help(m)...)
 	}
 	if m.settings != nil && m.settings.Undo != nil {
-		keys = append(keys, help(groupAction, "u", "undo").at(prioMinor))
+		keys = append(keys, help(groupAction, "u", "undo").at(prioPinned)) // the toast's offer stays reachable
 	}
 	if m.settings != nil && settingsGroups[m.settings.Group] == groupMachineName {
 		if m.configHome != "" {
@@ -123,8 +123,14 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
 	if m.settings != nil && m.settings.Ws.Err == nil {
-		keys = append(keys, help(groupAction, "ctrl+s", "save").at(prioMain), help(groupAction, "ctrl+z", "revert").at(prioMinor),
-			help(groupNav, "[ ]", "section").at(prioMain), help(groupNav, "j k", "move"))
+		// Save and revert are pinned while there is something to save: the header's
+		// "● 1 unsaved change" never shows without the key that writes it.
+		save, revert := prioMain, prioMinor
+		if m.settings.Dirty() > 0 {
+			save, revert = prioPinned, prioCore
+		}
+		keys = append(keys, help(groupAction, "ctrl+s", "save").at(save), help(groupAction, "ctrl+z", "revert").at(revert),
+			help(groupNav, "[ ]", "section").at(prioCore), help(groupNav, "j k", "move"))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -345,10 +351,16 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			continue
 		}
 		bg := p.SelBase(selected)
+		// Muted text on the selection fill is below 4.5:1, so a selected row's quiet parts
+		// take the secondary colour, as a selected list row's do.
+		quiet := p.Dim
+		if selected {
+			quiet = p.Sub
+		}
 		pad := bg.Render(strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label))))
 		var value string
 		if r.Value == "" {
-			value = bg.Foreground(p.Dim).Italic(true).Render("not set")
+			value = bg.Foreground(quiet).Italic(true).Render("not set")
 		} else {
 			value = bg.Foreground(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
@@ -359,7 +371,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			colW = xansi.StringWidth(value)
 		}
 		value += bg.Render(strings.Repeat(" ", max(0, colW-xansi.StringWidth(value))))
-		tail := bg.Foreground(p.Dim).Render(r.Note())
+		tail := bg.Foreground(quiet).Render(r.Note())
 		if editing != nil && isSetting && editing.Key == set.key {
 			colW = valueW
 			// The field opens where the value sits, narrow, with the end of what is typed.
@@ -367,7 +379,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			shown := xansi.TruncateLeft(editing.Buf, max(0, xansi.StringWidth(editing.Buf)-(fw-1)), "…")
 			value = bg.Foreground(p.Fg).Underline(true).Render(shown) + bg.Foreground(p.Fg).Render("▏")
 			value += bg.Render(strings.Repeat(" ", max(0, fw-xansi.StringWidth(shown)-1)))
-			tail = bg.Foreground(p.Dim).Render(r.Unit)
+			tail = bg.Foreground(quiet).Render(r.Unit)
 			if editing.Err != "" {
 				tail = bg.Foreground(p.Bad).Render(errorMark + " " + editing.Err)
 			}
