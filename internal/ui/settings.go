@@ -31,7 +31,7 @@ const (
 )
 
 // settingsListWidth is the group list's column, divider excluded.
-func (m model) settingsListWidth() int { return m.layout().panel(groupsShare, groupsMin, groupsMax) }
+func (m model) settingsListWidth() int { return m.layout().groupsW }
 
 // editorExamples is the help line for the Editor setting: values for editor in config.toml.
 // GUI Editors need their wait flag, or rolecall rescans before editing finishes.

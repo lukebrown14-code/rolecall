@@ -61,7 +61,7 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	rule := ruleLine(view, m.glyph("─"))
-	if y == rule-1 {
+	if y == rule-tableContext {
 		if v, ok := labelAt(line, x, m.views()); ok {
 			m.table, m.cursor = v, 0
 			return m, nil, true
@@ -160,7 +160,7 @@ func (m model) rowAt(x, y int) (int, bool) {
 	if len(rows) == 0 || x >= listW || y < 0 {
 		return 0, false
 	}
-	h := m.layout().bodyHeight(1)
+	h := m.listHeight()
 	blocks, cur := m.listBlocks(rows, h)
 	start, end := scrollWindow(blocks, cur, h)
 	line := 0

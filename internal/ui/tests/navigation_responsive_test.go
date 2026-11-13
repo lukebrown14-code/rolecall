@@ -22,7 +22,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				if keys[0] == "/" && !strings.Contains(view, "/Orbit ×") {
 					t.Errorf("missing search context: %s", view)
 				}
-				if keys[0] == "t" && !strings.Contains(view, "[SWE]") {
+				if keys[0] == "t" && !strings.Contains(view, "[SWE]") && !strings.Contains(view, "t:SWE") {
 					t.Errorf("missing track context: %s", view)
 				}
 				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], "/9") {
@@ -82,10 +82,45 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 	if wide := top(120, 36); !strings.Contains(wide, "10 live · 1 due") {
 		t.Errorf("wide tab bar lacks the pulse: %q", wide)
 	}
-	if medium := top(80, 24); strings.Contains(medium, "live") || !strings.Contains(medium, "▞ rolecall") {
-		t.Errorf("medium tab bar: %q, want the wordmark and no pulse", medium)
+	if medium := top(80, 24); strings.Contains(medium, "live") || strings.Contains(medium, "▞") {
+		t.Errorf("medium tab bar: %q, want no brand mark and no pulse", medium)
 	}
 	if narrow := top(60, 16); strings.Contains(narrow, "rolecall") || !strings.Contains(narrow, "1 Leads 4") {
 		t.Errorf("narrow tab bar: %q, want the active tab whole and no wordmark", narrow)
+	}
+}
+
+// At wide sizes the brand mark leads the tab bar and the Stats tab carries an 8-cell
+// sparkline of weekly Status activity: the fixtures have eight entries on 2026-09-24
+// (the seventh week) and one the day after (the last) inside eight weeks of the held
+// clock. Below the wide class neither shows, and the tab bar keeps the active screen.
+func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	top := func(w, h int) string { return strings.Split(ansi.Strip(runKeysSized(t, root, w, h, "1")), "\n")[0] }
+	wide := top(120, 36)
+	if !strings.HasPrefix(wide, "▞ rolecall") {
+		t.Errorf("wide tab bar does not lead with the brand mark: %q", wide)
+	}
+	if !strings.Contains(wide, "Stats ▁▁▁▁▁▁█▂") {
+		t.Errorf("wide tab bar lacks the sparkline beside Stats: %q", wide)
+	}
+	for _, size := range [][2]int{{80, 24}, {60, 16}} {
+		bar := top(size[0], size[1])
+		if strings.ContainsAny(bar, "▞▁▂▃▄▅▆▇█") || strings.Contains(bar, "rolecall") {
+			t.Errorf("%dx%d tab bar shows the mark or sparkline: %q", size[0], size[1], bar)
+		}
+		if !strings.Contains(bar, "1 Leads 4") {
+			t.Errorf("%dx%d tab bar lost the active tab: %q", size[0], size[1], bar)
+		}
+	}
+	t.Setenv("ROLECALL_ASCII", "1")
+	bar := top(120, 36)
+	for _, r := range bar {
+		if r > 126 {
+			t.Fatalf("ASCII tab bar has non-ASCII %q: %q", r, bar)
+		}
+	}
+	if !strings.Contains(bar, "Stats ______#.") {
+		t.Errorf("ASCII tab bar lacks the sparkline: %q", bar)
 	}
 }

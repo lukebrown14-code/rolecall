@@ -156,6 +156,7 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	minBodyHeight = 3
+	sheetChrome   = 3  // the sheet's title and tabs rows and the scroll cue
 	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
@@ -170,7 +171,7 @@ const (
 func (m model) cardShown() bool { return m.layout().wide() }
 
 // cardWidth is the left card's column, divider excluded.
-func (m model) cardWidth() int { return m.layout().panel(cardShare, cardMin, cardMax) }
+func (m model) cardWidth() int { return m.layout().cardW }
 
 // detailContextLines is the lines between the tab bar and the body: the title row, then
 // the facts line beside the card or the strip in its place.
@@ -191,6 +192,10 @@ func (m model) paneWidth() int {
 
 // bodyHeight is the lines of tab content shown at once.
 func (m model) bodyHeight() int {
+	if m.sheetShown() {
+		_, detail, _ := m.layout().sheetHeights(tableContext)
+		return max(minBodyHeight, detail-sheetChrome)
+	}
 	return max(minBodyHeight, m.layout().bodyHeight(m.detailContextLines())-paneChrome)
 }
 

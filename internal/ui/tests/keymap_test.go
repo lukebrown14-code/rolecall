@@ -22,8 +22,8 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 		keys           []string
 		want, unwanted []string
 	}{
-		{"leads 80", 80, 24, []string{"1"}, []string{"enter open", "m move", "n notes", "a add", "/ search", "? help"}, []string{"1-6 screen"}},
-		{"leads 60", 60, 16, []string{"1"}, []string{"enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
+		{"leads 80", 80, 24, []string{"1"}, []string{"enter detail", "m move", "n notes", "a add", "/ search", "? help"}, []string{"1-6 screen"}},
+		{"leads 60", 60, 16, []string{"1"}, []string{"enter detail", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
 		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right"}, []string{"←→ tab", "esc back", "enter open"}, []string{"1-6 screen"}},
 		{"settings 60", 60, 16, []string{"6"}, []string{"e edit workspace.json", "? help"}, []string{"1-6 screen"}},
 	} {

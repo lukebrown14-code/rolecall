@@ -67,7 +67,10 @@ func TestTrackFilterReadsItsKeyOnce(t *testing.T) {
 		if size[0] < 120 {
 			want = "t [All]▸"
 		}
-		if !strings.HasSuffix(strings.TrimRight(ctx, " "), want) || strings.Count(ctx, " t ") != 1 {
+		if size[2] == 1 {
+			want = "s:All  t:All" // collapsed to one piece when narrow
+		}
+		if !strings.HasSuffix(strings.TrimRight(ctx, " "), want) || strings.Count(ctx, " t ") > 1 {
 			t.Errorf("%dx%d: context row %q, want it to end %q", size[0], size[1], ctx, want)
 		}
 		if strings.Contains(lines[0], "All") || strings.Contains(lines[0], "track") {

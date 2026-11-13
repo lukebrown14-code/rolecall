@@ -187,7 +187,7 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 	for _, tc := range []struct {
 		w, h           int
 		preview, lists bool
-	}{{120, 36, true, true}, {110, 30, true, true}, {109, 30, false, true}, {80, 24, false, true}, {79, 24, false, false}, {60, 16, false, false}} {
+	}{{120, 36, true, true}, {100, 30, true, true}, {99, 30, false, true}, {72, 24, false, true}, {71, 24, false, false}, {60, 16, false, false}} {
 		short := tc.h <= 20
 		for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"5"}, {"6"}, {"4"}} {
 			lines := strings.Split(ansi.Strip(runKeysSized(t, root, tc.w, tc.h, keys...)), "\n")
@@ -200,6 +200,10 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 				if strings.HasPrefix(l, "──") {
 					rules = append(rules, i)
 				}
+			}
+			// A bottom sheet adds a third rule between the list and the detail.
+			if sheet := tc.w < 100 && tc.w >= 72 && len(keys) > 1; len(rules) == 3 && sheet {
+				rules = []int{rules[0], rules[2]}
 			}
 			if len(rules) != 2 || rules[1] != len(lines)-2 {
 				t.Fatalf("%dx%d keys %q: rules at %v:\n%s", tc.w, tc.h, keys, rules, strings.Join(lines, "\n"))
@@ -220,7 +224,7 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 				if ansi.StringWidth(strings.TrimRight(l, " ")) > tc.w-1 && !strings.HasPrefix(l, "──") {
 					t.Errorf("%dx%d keys %q: line %d reaches the right edge: %q", tc.w, tc.h, keys, i, l)
 				}
-				if i > rules[0] && i < rules[1] && l != "" && l[0] != ' ' {
+				if i > rules[0] && i < rules[1] && l != "" && l[0] != ' ' && !strings.HasPrefix(l, "──") {
 					t.Errorf("%dx%d keys %q: line %d starts at column 0: %q", tc.w, tc.h, keys, i, l)
 				}
 			}

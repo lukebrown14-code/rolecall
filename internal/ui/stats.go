@@ -372,3 +372,29 @@ func sparkline(p pal, weeks []reporting.Week) string {
 	}
 	return b.String()
 }
+
+// activityWeeks is how many weeks the nav's activity sparkline covers.
+const activityWeeks = 8
+
+// activitySparkline draws one cell per week of Status log activity, scaled to the busiest
+// week. Unlike the Applied chart, an empty week is the lowest bar, not blank.
+func activitySparkline(p pal, counts []int) string {
+	levels := sparkLevels[0]
+	if p.Ascii {
+		levels = sparkLevels[1]
+	}
+	most := 0
+	for _, c := range counts {
+		most = max(most, c)
+	}
+	top := len(levels) - 1
+	var b strings.Builder
+	for _, c := range counts {
+		i := 0
+		if c > 0 {
+			i = max(1, int(math.Ceil(float64(c)*float64(top)/float64(most))))
+		}
+		b.WriteString(levels[i])
+	}
+	return b.String()
+}

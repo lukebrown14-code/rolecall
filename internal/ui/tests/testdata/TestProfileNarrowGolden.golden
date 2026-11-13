@@ -1,24 +1,24 @@
-▞ rolecall  1 Leads  2 Drafts  3 Applied  4 Stats [5 Profile] 6 Settings 
+ 1 Leads 4  2 Drafts 2  3 Applied 9  4 Stats [5 Profile] 6 Settings 
 
-   Experience 3/6                                    profile/master-profile.md
-───────────────────────────────────────────────────────────────────────────────
-   Acme — Brisbane, AU                                                         
-                                                                               
-   Dates: 2023 – Ongoing Canonical title: Developer                            
-                                                                               
-   • Built services in Python with Docker, SQL and REST.                       
-   • Moved the team's CI from Jenkins to GitHub Actions.                       
-                                                                               
-   Globex — Sydney, AU                                                         
-                                                                               
-   Dates: 2020 – 2023 Canonical title: Junior Software Engineer                
-                                                                               
-   • Lifted unit coverage from 70% to 80%.                                     
-                                                                               
-                                                                               
-                                                                               
-                                                                               
-                                                                               
-                                                                               
-───────────────────────────────────────────────────────────────────────────────
- e edit file        j k section · tab focus · 1-6 screen · : commands · ? help
+   Experience 3/6                            profile/master-profile.md
+───────────────────────────────────────────────────────────────────────
+   Acme — Brisbane, AU                                                 
+                                                                       
+   Dates: 2023 – Ongoing Canonical title: Developer                    
+                                                                       
+   • Built services in Python with Docker, SQL and REST.               
+   • Moved the team's CI from Jenkins to GitHub Actions.               
+                                                                       
+   Globex — Sydney, AU                                                 
+                                                                       
+   Dates: 2020 – 2023 Canonical title: Junior Software Engineer        
+                                                                       
+   • Lifted unit coverage from 70% to 80%.                             
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+                                                                       
+───────────────────────────────────────────────────────────────────────
+ e edit file             j k section · tab focus · 1-6 screen · ? help
