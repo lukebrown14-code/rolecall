@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -318,5 +319,30 @@ func TestStripCountsAreBright(t *testing.T) {
 	i := strings.Index(strip, "Interviewing")
 	if i < 0 || !strings.Contains(strip[i:min(len(strip), i+60)], fg) {
 		t.Errorf("Interviewing's count is not in the text colour: %q", strip)
+	}
+}
+
+// Opened with a relative --dir such as ./fixtures/workspace, a malformed row still names
+// its folder under jobs/, "SWE/malformed", not the whole path.
+func TestMalformedRowNamesTheFolderWithARelativeDir(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	t.Chdir(filepath.Dir(root))
+	view := chipped(runKeysSized(t, "./"+filepath.Base(root), 120, 36, "G"))
+	if !strings.Contains(view, "⚠ Can't read SWE/malformed") {
+		t.Errorf("malformed row is not named under jobs/:\n%s", view)
+	}
+}
+
+// The detail's rows carry the key that changes them even before a Harness or Plugin is
+// set (#177): pressing one then says which setting turns it on.
+func TestDetailRowsShowTheirKeysWithoutAHarness(t *testing.T) {
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1"))
+	for _, want := range []string{"[f] assess fit", "[p] prepare docs", "[b] build"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("detail lacks %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "read-only") {
+		t.Errorf("FIT still reads read-only:\n%s", view)
 	}
 }

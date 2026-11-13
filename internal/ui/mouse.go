@@ -61,7 +61,7 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	if !m.hasTables() || m.detail != nil {
 		return m, nil, false
 	}
-	rule := ruleLine(view, m.glyph("─"))
+	rule := ruleLine(view, m.glyph("─"), m.layout().headerLines())
 	if y == rule-tableContext {
 		if c, ok := m.stripCellAt(x, xansi.StringWidth(line)); ok {
 			return m.showStripCell(c), nil, true
@@ -90,11 +90,12 @@ func (m model) showStripCell(c stripCell) model {
 	return m
 }
 
-// ruleLine is the index of the frame's top rule: the first line drawn with rule, the
-// horizontal character the renderer drew (─, or - in ASCII mode).
-func ruleLine(view []string, rule string) int {
+// ruleLine is the index of the frame's top rule: the first line at or after from (past
+// the header and the rule under the tab bar) drawn with rule, the horizontal character the
+// renderer drew (─, or - in ASCII mode).
+func ruleLine(view []string, rule string, from int) int {
 	for i, l := range view {
-		if strings.HasPrefix(l, rule) {
+		if i >= from && strings.HasPrefix(l, rule) {
 			return i
 		}
 	}

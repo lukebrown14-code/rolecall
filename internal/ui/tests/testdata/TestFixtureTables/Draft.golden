@@ -1,5 +1,5 @@
 ▞ rolecall  1 Leads 4 [2 Drafts 2] 3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
-
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    ◌ Leads 4 ──▶ [✎ Drafts 2] ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · ✕ closed 6 · ⚑ 1 due · docs ▱▱▱▱ 8%
    Drafts › Drafts · All tracks · 1/2 · list   t  [All 17]  SWE 10  Platform 1   17 applications · 11 active · 6 closed
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
@@ -7,17 +7,17 @@
      Fictional Labs · SWE · — · ○ 0/4 ready                      │ Fictional Labs · SWE                                 
                                                                  │                                                      
    ✎ Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ STATUS  ✎ Draft                            [m] move  
-     Example · Unknown · — · ○ 0/3 ready                         │ FIT     ·                                 read-only  
+     Example · Unknown · — · ○ 0/3 ready                         │ FIT     ·                            [f] assess fit  
                                                                  │ TRACK   SWE                                [e] edit  
                                                                  │ NOTES   —                                 [n] notes  
                                                                  │                                                      
                                                                  │ NEXT    add the JD                     [enter] open  
                                                                  │                                                      
                                                                  │ DOCS    ▱▱▱▱ 0/4                                     
-                                                                 │         ○ JD                                         
-                                                                 │         ○ Resume                                     
-                                                                 │         ○ Cover letter                               
-                                                                 │         ○ PDF                                        
+                                                                 │         ○ JD                       [p] prepare docs  
+                                                                 │         ○ Resume                   [p] prepare docs  
+                                                                 │         ○ Cover letter             [p] prepare docs  
+                                                                 │         ○ PDF                             [b] build  
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │ ✎ Draft         ~24 Sep                              

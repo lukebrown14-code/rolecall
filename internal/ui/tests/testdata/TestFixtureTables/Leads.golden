@@ -1,5 +1,5 @@
 ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
-
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    [◌ Leads 4] ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · ✕ closed 6 · ⚑ 1 due · docs ▱▱▱▱ 8%
    Leads › Leads · All tracks · 1/4 · list     t  [All 17]  SWE 10  Platform 1   17 applications · 11 active · 6 closed
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
@@ -7,17 +7,17 @@
      Example · SWE · —                                           │ Example · SWE                                        
                                                                  │                                                      
    ◌ Empty log                      ▱▱▱▱                      ·  │ STATUS  ◌ Lead                             [m] move  
-     Fictional Labs · SWE · —                                    │ FIT     ·                                 read-only  
+     Fictional Labs · SWE · —                                    │ FIT     ·                            [f] assess fit  
                                                                  │ TRACK   SWE                                [e] edit  
    ◌ Platform Engineer              ▱▱▱▱          Lead 7d     ·  │ NOTES   —                                 [n] notes  
      Fern Systems · Platform · —                                 │                                                      
                                                                  │ NEXT    add the JD                     [enter] open  
    ⚠ Can't read SWE/malformed                                    │                                                      
      meta.yml line 4: indented lines must be status_log entri…   │ DOCS    ▱▱▱▱ 0/4                                     
-                                                                 │         ○ JD                                         
-                                                                 │         ○ Resume                                     
-                                                                 │         ○ Cover letter                               
-                                                                 │         ○ PDF                                        
+                                                                 │         ○ JD                       [p] prepare docs  
+                                                                 │         ○ Resume                   [p] prepare docs  
+                                                                 │         ○ Cover letter             [p] prepare docs  
+                                                                 │         ○ PDF                             [b] build  
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │ Not moved yet · [m] move                             

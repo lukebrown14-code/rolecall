@@ -13,7 +13,7 @@ import (
 // the panes and the pop-ups make one decision per size instead of solving overflow on
 // their own.
 //
-// A frame is, top to bottom: the tab bar, a blank line (dropped when short), the
+// A frame is, top to bottom: the tab bar, a rule (dropped when short), the
 // context lines, a rule, the body, a rule and the status row. Width falls into one of
 // three size classes; height is short or not.
 
@@ -33,7 +33,7 @@ const (
 const (
 	wideWidth     = 100
 	mediumWidth   = 72
-	shortHeight   = 20 // at or below this the blank line under the tab bar goes
+	shortHeight   = 20 // at or below this the rule under the tab bar goes
 	minTermWidth  = 56 // below this, or minTermHeight, a "needs" notice replaces the layout
 	minTermHeight = 14
 	edge          = 1 // the chrome column: tab bar mark, selection bar, list markers, key line
@@ -148,12 +148,12 @@ func (l layout) sheetHeights(ctx int) (list, detail int, ok bool) {
 
 func (l layout) wide() bool { return l.class == classWide }
 
-// headerLines is the tab bar and, unless short, the blank line under it.
+// headerLines is the tab bar and, unless short, the rule under it.
 func (l layout) headerLines() int {
 	if l.short {
 		return 1
 	}
-	return 2 //nolint:mnd // tab bar and the blank line
+	return 2 //nolint:mnd // tab bar and the rule under it
 }
 
 // bodyTop is the first body line under ctx context lines.
@@ -209,7 +209,7 @@ func (m model) listHeight() int {
 	return l.bodyHeight(tableContext)
 }
 
-// frame stacks one screen: tab bar, gap, context lines, rule, body, rule, status row.
+// frame stacks one screen: tab bar, rule, context lines, rule, body, rule, status row.
 // split is the column of the body's vertical divider, 0 for none; the rules meet it
 // with ┬ and ┴.
 func (m model) frame(p pal, ctx []string, body string, split int, focus paneFocus, status string) string {
@@ -223,7 +223,7 @@ func (m model) frame(p pal, ctx []string, body string, split int, focus paneFocu
 	}
 	parts := []string{m.topBar(p)}
 	if !l.short {
-		parts = append(parts, "")
+		parts = append(parts, rule.Render(strings.Repeat("─", l.w)))
 	}
 	parts = append(parts, ctx...)
 	parts = append(parts, top, fitLines(body, l.bodyHeight(len(ctx))), bot, status)

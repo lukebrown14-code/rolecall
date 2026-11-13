@@ -23,9 +23,6 @@ const notAssessed = "·"
 // The em dash is the frame's "none", as an empty NOTES row shows it.
 const notNeededMark = "—"
 
-// readOnly stands where a row has no key.
-const readOnly = "read-only"
-
 // keyChip is "[m]" in the Keys colour.
 func (p pal) keyChip(key string) string { return p.Key().Render("[" + key + "]") }
 
@@ -86,15 +83,16 @@ func (p pal) fitValue(a store.Application) string {
 }
 
 // needsPrepare reports whether a missing Document is one prepare-documents writes, which
-// only a Lead or Draft is offered, and only once a Harness is set (the key is not listed
-// before).
+// only a Lead or Draft is offered. The key shows before a Harness is set too: pressing it
+// then names the setting that turns it on.
 func (m model) needsPrepare(a store.Application, c docChip) bool {
-	return !c.ready && c.name != docPDF && m.harness != "" && m.handoffAllowed(a, skillPrepareDocuments)
+	return !c.ready && c.name != docPDF && m.handoffAllowed(a, skillPrepareDocuments)
 }
 
-// needsBuild reports whether a missing PDF can be built: a Lead or Draft, with a Plugin set.
+// needsBuild reports whether a missing PDF can be built: a Lead or Draft. Without a Plugin
+// set, b names the setting.
 func (m model) needsBuild(a store.Application, c docChip) bool {
-	return !c.ready && c.name == docPDF && m.plugin != "" && a.Malformed == nil && a.Unsent()
+	return !c.ready && c.name == docPDF && a.Malformed == nil && a.Unsent()
 }
 
 // docRow is one Document: ● ready or ○ missing, with the key that fixes a missing one.
@@ -156,12 +154,10 @@ func (m model) fieldBlock(p pal, a store.Application, w int) []string {
 	if t := m.docText(a, notesFile); t != "" {
 		notes = p.Text(p.Fg).Render(markdownMarks.Replace(t))
 	}
-	fitKey, fitAction := "", readOnly // without a Harness there is nothing to assess it with
-	if m.harness != "" {
-		fitKey, fitAction = "f", "assess"
-		if a.Fit == "" {
-			fitAction = "assess fit"
-		}
+	// Without a Harness f names the setting that turns it on, so the key always shows.
+	fitKey, fitAction := "f", "assess"
+	if a.Fit == "" {
+		fitAction = "assess fit"
 	}
 	rows := []string{
 		p.fieldRow("STATUS", p.StatusChip(a.Status), "m", "move", w),

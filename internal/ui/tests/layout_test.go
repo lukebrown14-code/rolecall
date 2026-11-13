@@ -181,7 +181,7 @@ func abs(n int) int { return max(n, -n) }
 
 // Each size class makes its own layout choices, and every screen shares them: the
 // preview and detail card are wide-only, the side lists stay down to medium, the short
-// class drops the gap under the tab bar, and rules join every pane divider.
+// class drops the rule under the tab bar, and rules join every pane divider.
 func TestSizeClassesShareOneLayout(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for _, tc := range []struct {
@@ -191,12 +191,16 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 		short := tc.h <= 20
 		for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"5"}, {"6"}, {"4"}} {
 			lines := strings.Split(chipped(runKeysSized(t, root, tc.w, tc.h, keys...)), "\n")
-			if gap := strings.TrimSpace(lines[1]) == ""; gap == short {
-				t.Errorf("%dx%d keys %q: gap under the tab bar = %v, short = %v", tc.w, tc.h, keys, gap, short)
+			if under := strings.HasPrefix(lines[1], "──"); under == short {
+				t.Errorf("%dx%d keys %q: rule under the tab bar = %v, short = %v", tc.w, tc.h, keys, under, short)
 			}
-			// The body sits between the first two rules; the status row is last.
+			// The body sits between the frame's two rules (after the one under the tab
+			// bar); the status row is last.
 			var rules []int
 			for i, l := range lines {
+				if i == 1 && !short {
+					continue
+				}
 				if strings.HasPrefix(l, "──") {
 					rules = append(rules, i)
 				}

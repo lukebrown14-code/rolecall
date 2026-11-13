@@ -151,8 +151,11 @@ func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	d, _ := machineDriver(t, 120)
 	d.Type("1")
-	if v := d.plain(); strings.Contains(v, "assess fit") || strings.Contains(v, "build") {
-		t.Fatalf("keys shown before they are set:\n%s", v)
+	// The detail rows show f and b all along (pressing one names the setting); the key
+	// line lists them only once they work.
+	lines := strings.Split(strings.TrimRight(d.plain(), "\n"), "\n")
+	if keyLine := lines[len(lines)-1]; strings.Contains(keyLine, "assess fit") || strings.Contains(keyLine, "build") {
+		t.Fatalf("key line lists keys before they are set: %q", keyLine)
 	}
 	selectRow(d, 3, 2)
 	d.Type("enter")
