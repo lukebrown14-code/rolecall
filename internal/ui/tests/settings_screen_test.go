@@ -92,27 +92,24 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 	requireAll(t, h.tm.plain(), "Search", "Documents", "Tracking", "This machine",
 		"Places", "Australia, APAC", "Remote roles", "count if in my Places")
 	requireAll(t, squash(h.tm.plain()), "Sources 3 read-only", "Blockers 2 read-only")
-	h.tm.Type("j")
+	h.tm.Type("]")
 	requireAll(t, h.tm.plain(), "Cover letter maximum", "300 words", "Cover letter minimum", "150",
 		"Key Skills minimum", "8", "Key Skills maximum", "12")
-	h.tm.Type("j")
+	h.tm.Type("]")
 	requireAll(t, h.tm.plain(), "TRACKS", "SWE", "Follow-up due after", "21 days")
-	h.tm.Type("j")
+	h.tm.Type("]")
 	requireAll(t, h.tm.plain(), "Workspace", h.root[len(h.root)-40:], "Editor", "myeditor", "Downloads", "/dl",
 		"Harness", "claude {prompt}", "Plugin", "/opt/plugin")
 }
 
-func TestSettingsTabAndJKMoveRowsInTheSettingsPane(t *testing.T) {
+func TestSettingsJKMoveTheFieldCursorWithinASection(t *testing.T) {
 	h := newSettingsHarness(t, 120, "", nil)
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "SETTINGS", "▌ Search")
-	h.tm.Type("tab")
-	requireAll(t, h.tm.plain(), "SETTINGS")
+	requireAll(t, h.tm.plain(), "SETTINGS", "[ Search ]", "▌ Places")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	// Only the row carries the ▌; the group stays named without a second cursor.
-	requireAll(t, v, "Search", "▌ Remote")
-	if strings.Contains(v, "▌ Places") || strings.Contains(v, "▌ Search") {
+	requireAll(t, v, "[ Search ]", "▌ Remote")
+	if strings.Contains(v, "▌ Places") {
 		t.Fatalf("marker wrong after j:\n%s", v)
 	}
 }
@@ -150,8 +147,7 @@ func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T)
 	h.tm.Type("6")
 	v := h.tm.plain()
 	requireAll(t, v, filepath.Join(h.root, "workspace.json"), "unexpected end of JSON input", "e", "edit")
-	h.tm.Type("j")
-	h.tm.Type("tab")
+	h.tm.Type("]")
 	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
 		t.Fatalf("settings are shown for an invalid file:\n%s", h.tm.plain())
 	}
@@ -175,8 +171,7 @@ func TestSettingsNewerSchemaIsReportedAndWritesNothing(t *testing.T) {
 	h.tm.Type("1")
 	h.tm.Type("6")
 	requireAll(t, h.tm.plain(), "schema 2", filepath.Join(h.root, "workspace.json"), "newer rolecall")
-	h.tm.Type("j")
-	h.tm.Type("tab")
+	h.tm.Type("]")
 	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
 		t.Fatalf("settings shown for a newer-schema file:\n%s", h.tm.plain())
 	}
@@ -190,16 +185,17 @@ func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 	h := newSettingsHarness(t, 70, "", nil)
 	h.tm.Type("6")
 	v := h.tm.plain()
-	requireAll(t, v, "Search 1/4", "Places")
+	requireAll(t, v, "[ Search ] 1/4", "Places")
 	if strings.Contains(v, "This machine") {
 		t.Fatalf("group list still shown below 80 columns:\n%s", v)
 	}
-	h.tm.Type("j")
-	requireAll(t, h.tm.plain(), "Documents 2/4", "Cover letter maximum")
+	h.tm.Type("]")
+	requireAll(t, h.tm.plain(), "[ Documents ] 2/4", "Cover letter maximum")
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {
-	h := newSettingsHarness(t, 120, "", nil)
+	// Wide enough that the new ctrl+s and ctrl+z keys leave room: 1-6 is dropped first.
+	h := newSettingsHarness(t, 160, "", nil)
 	h.tm.Type("6")
 	requireAll(t, h.tm.plain(), "1-6", "screen", "e", "edit workspace.json")
 }

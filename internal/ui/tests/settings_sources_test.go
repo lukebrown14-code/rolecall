@@ -68,7 +68,7 @@ func newSourcesHarness(t *testing.T, width int, initial string, edit func(path s
 func (h *sourcesHarness) machine() string {
 	h.d.Type("6")
 	for range 3 {
-		h.d.Type("j")
+		h.d.Type("]")
 	}
 	return squash(h.d.plain())
 }
@@ -104,12 +104,13 @@ func TestSettingsNamesEachMachineSettingsSource(t *testing.T) {
 func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 	h := newSourcesHarness(t, 140, "follow_up_days = 7\n", nil)
 	h.d.Type("6")
-	h.d.Type("j")
-	h.d.Type("j")
+	h.d.Type("]")
+	h.d.Type("]")
 	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 7 days config.toml") {
 		t.Fatalf("Follow-up source missing:\n%s", h.d.plain())
 	}
-	if v := h.machine(); !strings.Contains(v, "from --dir") {
+	h.d.Type("]")
+	if v := squash(h.d.plain()); !strings.Contains(v, "from --dir") {
 		t.Fatalf("Workspace source missing:\n%s", h.d.plain())
 	}
 }
@@ -117,8 +118,8 @@ func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 func TestSettingsExplicitZeroFollowUpDaysIsKept(t *testing.T) {
 	h := newSourcesHarness(t, 140, "follow_up_days = 0\n", nil)
 	h.d.Type("6")
-	h.d.Type("j")
-	h.d.Type("j")
+	h.d.Type("]")
+	h.d.Type("]")
 	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 0 days config.toml") {
 		t.Fatalf("explicit 0 lost:\n%s", h.d.plain())
 	}

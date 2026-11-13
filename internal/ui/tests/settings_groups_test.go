@@ -28,6 +28,6 @@ func TestEverySettingsGroupShowsItsRows(t *testing.T) {
 		if view := ansi.Strip(m.View().Content); !strings.Contains(view, want[i]) {
 			t.Fatalf("group %q (%d) does not show %q:\n%s", name, i, want[i], view)
 		}
-		m = driveModel(t, m, "j") // the group list has focus on entry, so j steps the group
+		m = driveModel(t, m, "]") // ] steps to the next section
 	}
 }
