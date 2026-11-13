@@ -82,10 +82,10 @@ func TestSelectionBarSpansTheListColumnInEveryView(t *testing.T) {
 	}
 }
 
-// The ⚑ glyph is ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
+// A heat glyph can be ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
 func TestFlaggedSelectedRowKeepsPaddingAfterFlag(t *testing.T) {
 	bar := barText(selectedLine(t, finalViewAt(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), "3")))
-	if !strings.Contains(bar, "⚑ quiet") || !strings.HasSuffix(bar, " ") {
+	if !strings.Contains(bar, "● 3mo") || !strings.HasSuffix(bar, " ") {
 		t.Fatalf("flagged row is not padded after its last label: %q", bar)
 	}
 }

@@ -60,6 +60,12 @@ func leadOrDraft(m model) bool {
 	return ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft)
 }
 
+// followUpRow reports whether the current row is Follow-up due.
+func followUpRow(m model) bool {
+	a, ok := m.current()
+	return ok && followUpDue(a, m.now(), m.followUpDays)
+}
+
 // listActions is every row action the list and detail views accept, in the order the help
 // lists them. The dispatcher and the help both read it.
 var listActions = []listAction{
@@ -210,6 +216,14 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return onRow(m) && m.harness != "" },
 		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillAssessFit) },
+	},
+	{
+		// Only on a Follow-up due Application; elsewhere r is the global rescan.
+		keys: []string{"r"}, keyLabel: "r", desc: text(descNudge),
+		group: groupAction, prio: fixed(prioNav),
+		listed:  func(m model) bool { return followUpRow(m) && usable(m) && m.harness != "" },
+		enabled: followUpRow,
+		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillDraftFollowUp) },
 	},
 	{
 		keys: []string{"p"}, keyLabel: "p", desc: text("prepare docs"),

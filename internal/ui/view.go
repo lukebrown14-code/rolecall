@@ -40,11 +40,6 @@ const (
 	monthsUntil    = 60 // …and from weeks to months here
 )
 
-// Right-hand columns, the same on every view: state · flag · Fit, Fit flush right. Each
-// column is only as wide as its widest value in the view, and a row that has nothing in
-// a column drops it, so a truncated title is never followed by blank cells.
-const fitLabel = "fit "
-
 func (m model) viewWidth() int {
 	if m.width == 0 {
 		return fallbackWidth
@@ -93,9 +88,9 @@ func ago(date string, now time.Time) (string, int) {
 	return span(n) + " ago", days
 }
 
-// quiet is how long an Application has gone without a change, "9mo", for the follow-up
+// since is how long an Application has gone without a change, "9mo", for the follow-up
 // flag: always a span, since "quiet Feb 2026" would read as a date.
-func (m model) quiet(e *store.StatusEntry) string {
+func (m model) since(e *store.StatusEntry) string {
 	_, days, ok := daysFrom(e.At, m.now())
 	if !ok {
 		return ""
@@ -170,16 +165,15 @@ func (m model) listView(p pal) string {
 	case len(rows) == 0:
 		switch {
 		case m.text != "":
-			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
-				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render("No matches for “"+m.text+"”"), "", p.Text(p.Dim).Render("esc clears the search")))
+			msg, hints := m.emptySearchLine()
+			body = m.emptyBody(p, w, bodyH, msg, hints)
 		case m.movedOut():
 			// A move just took this view's last row elsewhere: say where it went and keep
 			// a celebration whole, rather than showing "nothing here" under a toast.
 			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.movedOutView(p))
 		default:
-			title, hint := emptyMessage(m.views()[m.table])
-			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
-				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render(title), "", p.Text(p.Dim).Render(hint)))
+			msg, hints := m.emptyViewLine(m.views()[m.table])
+			body = m.emptyBody(p, w, bodyH, msg, hints)
 		}
 	default:
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
@@ -257,13 +251,16 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 // welcome is the first-run screen, for a Workspace with no Applications at all: the
 // first three moves instead of empty panes.
 func (m model) welcome(p pal) string {
-	title := p.Text(p.Fg).Bold(true).Render(wordmark+" rolecall") + p.Text(p.Dim).Render(" · no Applications yet")
+	title := p.Text(p.Fg).Bold(true).Render(wordmark + " rolecall")
+	msg, _ := m.emptyViewLine(m.views()[m.table])
+	hints := m.availableHints(addLeadHint)
 	step := func(k, desc string) string {
 		return p.Key().Render(padRight(k, gutter+1)) + p.Text(p.Fg).Render(desc)
 	}
-	steps := lipgloss.JoinVertical(lipgloss.Left, step("a", "add your first Lead"),
+	steps := lipgloss.JoinVertical(lipgloss.Left,
 		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
-	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
+	line := strings.Join(m.emptyLines(p, m.layout().w-2*gutter, msg, hints), "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, title, "", line, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
 // movedOut reports that a move just took the last row out of this view.
@@ -296,27 +293,6 @@ func (m model) movedOutView(p pal) string {
 		hint = "press 1-6 to find it"
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
-}
-
-// emptyMessage says how Applications reach an empty view.
-func emptyMessage(table string) (string, string) {
-	switch table {
-	case tableLeads:
-		return "No Leads yet", "Press a to add one, or run capture-job from your harness."
-	case tableDismissed:
-		return "Nothing dismissed", "Press x on a Lead to dismiss it."
-	case tableDraft:
-		return "No Drafts", "Move a Lead here with m → d."
-	case allView, tableApplied:
-		return "Nothing applied for yet", "Mark a Draft as sent with m → a."
-	case tableInterviewing:
-		return "No interviews", "Move an Application here with m → i from Applied."
-	case tableOffer:
-		return "No offers yet", "Move an Application here with m → o from Interviewing."
-	case tableClosed:
-		return "Nothing closed", "Rejected and Withdrawn Applications land here (m → r / w)."
-	}
-	return "Nothing here", ""
 }
 
 func (m model) screenCount(si int) int {
@@ -462,7 +438,7 @@ func (m model) pulse(p pal) []string {
 	live, due, closing := 0, 0, 0
 	for _, a := range m.apps {
 		t := tableOf(a)
-		if a.Malformed != nil || t == tableDismissed || t == tableClosed {
+		if !isActive(a) {
 			continue
 		}
 		live++
@@ -736,8 +712,7 @@ func (m model) scopeLine(p pal) string {
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 	blocks, cur := m.listBlocks(rows, h)
-	show := m.columns(rows)
-	return scroll(p, m, rows, show, w, blocks, cur, h)
+	return scroll(p, m, rows, fixedSlots, w, blocks, cur, h)
 }
 
 // listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
@@ -919,60 +894,66 @@ func scrollWindow(blocks []block, cur, h int) (start, end int) {
 	return start, end
 }
 
-// slotSet is the width of each right-hand column, measured from the values the current
-// view actually shows. A width of zero means no row has that column.
+// slotSet is the width of each right-hand column. The columns are fixed (see the layout
+// constants), so every row's columns start at the same cell and nothing wraps.
 type slotSet struct{ stateW, flagW, fitW int }
 
-// slotText is an Application's right-hand column text: state (docs on Draft, outcome
-// on Closed), follow-up flag and Fit.
+// fixedSlots are the list row's right-hand columns: stage and date, Follow-up due flag, Fit.
+var fixedSlots = slotSet{stateW: stageColumn, flagW: flagColumn, fitW: fitColumn}
+
+// stageNames are the Status names short enough to leave room for a date in the stage column.
+var stageNames = map[string]string{store.StatusInterviewing: "Interv.", store.StatusRejected: "Rej.", store.StatusWithdrawn: "Withdr.", store.StatusDismissed: "Dism."}
+
+// stageText is the latest stage and its date, "Applied 3d", cut back to the date alone
+// (or the stage alone) when both do not fit the column: it is never truncated.
+func (m model) stageText(a store.Application) string {
+	e := a.LastChange
+	if e == nil {
+		return ""
+	}
+	date, _ := ago(e.At, m.now())
+	date = strings.TrimSuffix(strings.TrimPrefix(date, "in "), " ago")
+	if e.Approx {
+		date = "~" + date
+	}
+	name := e.Status
+	if short, ok := stageNames[name]; ok && xansi.StringWidth(name+" "+date) > stageColumn {
+		name = short
+	}
+	if text := name + " " + date; xansi.StringWidth(text) <= stageColumn {
+		return text
+	}
+	if xansi.StringWidth(date) <= stageColumn {
+		return date
+	}
+	return name
+}
+
+// fitDot is the empty Fit in the list.
+const fitDot = "·"
+
+// fitCell is a Fit in the six-cell column: the value, Marginal abbreviated, or · when it
+// has not been assessed.
+func fitCell(fit string) string {
+	switch fit {
+	case "":
+		return fitDot
+	case store.FitMarginal:
+		return "Marg."
+	}
+	return fit
+}
+
+// slotText is an Application's right-hand column text: stage and date, follow-up flag
+// and Fit.
 func (m model) slotText(a store.Application) (state, flag, fit string) {
 	if a.Malformed != nil {
 		return "", "", ""
 	}
-	t := tableOf(a)
-	if followUpDue(a, m.now(), m.followUpDays) && a.LastChange != nil {
-		flag = followUpFlag + " quiet " + m.quiet(a.LastChange)
+	if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		flag = followUpHeat(past) + " " + m.since(a.LastChange)
 	}
-	switch {
-	case t == tableDraft:
-		state, _ = basePal.DocsLabel(a)
-	case a.Status == store.StatusRejected:
-		state = "rejected"
-	case a.Status == store.StatusWithdrawn:
-		state = "withdrawn"
-	}
-	if t != tableDismissed {
-		fit = a.Fit
-		if fit == "" {
-			fit = "—"
-		}
-	}
-	return state, flag, fit
-}
-
-// stateColor is the colour of a row's state slot.
-func (p pal) StateColor(a store.Application, dimC color.Color) color.Color {
-	switch {
-	case tableOf(a) == tableDraft:
-		if _, c := p.DocsLabel(a); c != p.Dim {
-			return c
-		}
-	}
-	return dimC
-}
-
-func (m model) columns(rows []store.Application) slotSet {
-	var s slotSet
-	for _, a := range rows {
-		st, f, ft := m.slotText(a)
-		s.stateW = max(s.stateW, xansi.StringWidth(st))
-		s.flagW = max(s.flagW, xansi.StringWidth(f))
-		if ft != "" {
-			// Only the value is measured: the shared "fit " label sits at a fixed column.
-			s.fitW = max(s.fitW, xansi.StringWidth(ft))
-		}
-	}
-	return s
+	return m.stageText(a), flag, fitCell(a.Fit)
 }
 
 // row is one Application as two lines: title and right-hand columns, then company ·
@@ -1005,7 +986,6 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))}
 	}
 	state, flag, fit := m.slotText(a)
-	stateC := p.StateColor(a, dimC)
 	fitC := p.FitColor(a.Fit)
 	if fitC == p.Dim {
 		fitC = dimC
@@ -1013,46 +993,26 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	slot := func(width int, c color.Color, s string) string {
 		return st(c).Width(width).Align(lipgloss.Right).Render(s)
 	}
-	// Right-hand columns are aligned across the view so Fit scans as one column: a row
-	// without a value still holds that column blank. When holding the blanks would cut the
-	// title, the row drops the columns it does not use and the title keeps the room, so a
-	// truncated title is never followed by empty cells.
-	buildRight := func(compact bool) string {
-		var cells []string
-		empty := func(w int) string { return st(p.Fg).Render(strings.Repeat(" ", w)) }
-		if show.stateW > 0 {
-			switch {
-			case state != "":
-				cells = append(cells, slot(show.stateW, stateC, state))
-			case !compact:
-				cells = append(cells, empty(show.stateW))
-			}
+	// The right-hand columns are fixed: a row without a value holds the column blank, so
+	// every column starts at the same cell on every row.
+	buildRight := func() string {
+		heat := slot(show.flagW, p.Warn, flag)
+		if strings.HasPrefix(flag, heatHigh) {
+			heat = st(p.Warn).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
 		}
-		if show.flagW > 0 {
-			switch {
-			case flag != "":
-				cells = append(cells, slot(show.flagW, p.Warn, flag))
-			case !compact:
-				cells = append(cells, empty(show.flagW))
-			}
-		}
-		if show.fitW > 0 && fit != "" {
-			// The "fit" label stays at a fixed column and the value right-aligns under it,
-			// so "fit Good" and "fit —" read as one scannable column.
-			cell := st(dimC).Render(fitLabel) +
-				st(p.Fg).Render(strings.Repeat(" ", show.fitW-xansi.StringWidth(fit))) +
-				st(fitC).Render(fit)
-			cells = append(cells, cell)
-		}
-		return strings.Join(cells, st(p.Fg).Render("  ")) + st(p.Fg).Render(strings.Repeat(" ", rowPad))
+		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
+			st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
-	right := buildRight(false)
+	right := buildRight()
+	// The ready meter sits between the title and the fixed columns, and goes first when
+	// the title would shrink below meterTitleMin.
+	if room := w - xansi.StringWidth(bar) - statusMarkWidth - xansi.StringWidth(right) - 1; room-meterGap() >= meterTitleMin {
+		_, total := readyCount(a)
+		right = st(p.Fg).Render(" ") + p.meterCells(a, st) + st(p.Fg).Render(strings.Repeat(" ", meterWidth-total)) + right
+	}
 	// The Status glyph leads the title; the second line lines up under the title.
 	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
-	if xansi.StringWidth(a.Title)+xansi.StringWidth(bar)+xansi.StringWidth(mark)+xansi.StringWidth(right)+gutter > w {
-		right = buildRight(true)
-	}
-	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(minTitle, w-xansi.StringWidth(right)-ellipsis-statusMarkWidth), "…"))
+	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
 	// Only the first line carries the mark; the second keeps the fill.
@@ -1081,6 +1041,13 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 			out = append(out, dim.Render("—"))
 		} else {
 			out = append(out, p.CloseStyle(s, st, dimC).Render(text))
+		}
+		if t == tableDraft {
+			label, c := p.DocsLabel(a)
+			if c == p.Dim {
+				c = dimC
+			}
+			out = append(out, st(c).Render(label))
 		}
 	case tableDismissed:
 		if a.LastChange != nil {
@@ -1209,7 +1176,7 @@ func (m model) fitEmpty(p pal, a store.Application) string {
 	if a.Fit != "" {
 		return p.Text(p.Dim).Render(fitSummary(a, false))
 	}
-	s := p.Text(p.Dim).Render("No fit assessment yet")
+	s := p.Text(p.Dim).Render("Fit: " + fitNone)
 	if m.harness != "" {
 		s += p.Text(p.Dim).Render(" · ") + p.Key().Render("f") + p.Text(p.Dim).Render(" to assess")
 	}

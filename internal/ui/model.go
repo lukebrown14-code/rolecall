@@ -213,6 +213,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
 		m.err = done.err
+		if done.err == nil && done.toast != "" {
+			m.toast = done.toast
+		}
 		if err != nil {
 			m.err = err
 		} else if a != nil {
@@ -301,6 +304,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// The error on show names a meta.yml the store cannot read: e opens it there.
 			m.err = nil
 			return m, m.editAt(pe)
+		}
+		if k.String() == " " || k.String() == "space" {
+			m.overlay = m.openMenu()
+			return m, nil
 		}
 		if k.String() == ":" || k.String() == "ctrl+k" {
 			// The command palette lists what the keys underneath it would do.

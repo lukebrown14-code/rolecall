@@ -46,11 +46,11 @@ func TestCloseDateUrgency(t *testing.T) {
 // month rather than "21mo ago".
 func TestRowWording(t *testing.T) {
 	leads := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1"))
-	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || !strings.Contains(leads, "fit —") {
+	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || strings.Contains(leads, "fit —") {
 		t.Fatalf("Leads rows:\n%s", leads)
 	}
 	applied := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"fit Good", "applied ~Jan 2025", "⚑ quiet 9mo"} {
+	for _, want := range []string{" Good", "applied ~Jan 2025", "● 9mo"} {
 		if !strings.Contains(applied, want) {
 			t.Fatalf("Applied rows lack %q:\n%s", want, applied)
 		}
@@ -69,7 +69,7 @@ func TestNextActionLine(t *testing.T) {
 	}{
 		{"lead without a JD", []string{"1"}, "NEXT  add the JD   enter open"},
 		{"applied", []string{"3"}, "NEXT  wait to hear back   m move"},
-		{"quiet", []string{"3", "/Example", "enter"}, "NEXT  follow up · quiet 9mo   n note"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago   n note"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT  decide on the offer   m move"},
 		{"detail on the JD tab", []string{"1", "enter"}, "e open jd.md"},
 	} {
@@ -105,7 +105,7 @@ func TestOfferCelebration(t *testing.T) {
 func TestFirstRunScreen(t *testing.T) {
 	root := fixtureCopy(t, func(root string) { _ = os.RemoveAll(filepath.Join(root, "jobs")) })
 	v := ansi.Strip(runKeys(t, root, 80, "1"))
-	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "6  pick an Editor", "?  see every key"} {
+	for _, want := range []string{"▞ rolecall", "No Leads · a add a Lead", "6  pick an Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("first run lacks %q:\n%s", want, v)
 		}

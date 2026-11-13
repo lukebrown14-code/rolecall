@@ -174,7 +174,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
-		{"fit", 1, []string{"Fit: not assessed", "No fit assessment yet"}},
+		{"fit", 1, []string{"Fit: not assessed", "No reasoning saved"}},
 		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

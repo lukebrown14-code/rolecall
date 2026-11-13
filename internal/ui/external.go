@@ -81,6 +81,7 @@ func firstWord(command string) string {
 type externalFinished struct {
 	folder string
 	err    error
+	toast  string // shown when the run succeeded
 }
 
 // runExternal is the sole process launch boundary; completion always rescans.
@@ -89,7 +90,7 @@ func (m model) runExternal(folder, command string, args ...string) tea.Cmd {
 	if runner == nil {
 		runner = process.Exec
 	}
-	return runner(process.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder, err} })
+	return runner(process.Command(command, args...), func(err error) tea.Msg { return externalFinished{folder: folder, err: err} })
 }
 
 // handoffError turns a nonzero Harness exit into the feedback line the Owner reads;
@@ -105,13 +106,13 @@ func handoffError(err error) error {
 // runHandoff is the interactive boundary for a Handoff: the TUI steps aside while
 // /bin/sh runs the Harness command, and the folder is rescanned when it exits. A
 // nonzero exit is named for the feedback line.
-func (m model) runHandoff(folder, command string) tea.Cmd {
+func (m model) runHandoff(folder, command, toast string) tea.Cmd {
 	runner := m.external
 	if runner == nil {
 		runner = process.Exec
 	}
 	return runner(process.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
-		return externalFinished{folder, handoffError(err)}
+		return externalFinished{folder: folder, err: handoffError(err), toast: toast}
 	})
 }
 
@@ -181,7 +182,7 @@ func (m model) editFileAt(folder, name string, line int) tea.Cmd {
 func (m model) editNotes(folder string) tea.Cmd {
 	return func() tea.Msg {
 		if err := m.store.EnsureNotes(folder); err != nil {
-			return externalFinished{folder, err}
+			return externalFinished{folder: folder, err: err}
 		}
 		return m.editFile(folder, "notes.md")()
 	}
@@ -196,7 +197,7 @@ func (m model) editConfig() tea.Cmd {
 	path, root := config.Path(m.configHome), m.store.Root()
 	return func() tea.Msg {
 		if err := config.Ensure(path); err != nil {
-			return externalFinished{root, err}
+			return externalFinished{folder: root, err: err}
 		}
 		return m.runEditor(root, path, 0)()
 	}

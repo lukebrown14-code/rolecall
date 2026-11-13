@@ -27,6 +27,24 @@ func (m model) statsApps() []store.Application {
 	return out
 }
 
+// statsEmptyMessage and statsEmptyHints are Stats with nothing to report. Both keys are
+// always live on Stats (a adds; t cycles the Track filter), so they are named directly:
+// asking the registry here would ask Stats for its keys again.
+func (m model) statsEmptyMessage() string {
+	if m.track > 0 {
+		return "No Applications in " + m.tracks[m.track-1]
+	}
+	return "No Applications"
+}
+
+func (m model) statsEmptyHints() []emptyHint {
+	hints := []emptyHint{addLeadHint}
+	if m.track > 0 {
+		hints = append([]emptyHint{{"t", "change Track"}}, hints...)
+	}
+	return hints
+}
+
 // statsHelpKeys is the keys only Stats accepts: add. The track filter and the rest are
 // global keys.
 func (m model) statsHelpKeys() []helpKey {
@@ -114,7 +132,7 @@ func (m model) statsLines(p pal) []string {
 	apps := m.statsApps()
 	var lines []string
 	if len(apps) == 0 {
-		lines = []string{p.Text(p.Dim).Render("No Applications yet · ") + p.Key().Render("a") + p.Text(p.Dim).Render(" to add a Lead")}
+		lines = m.emptyLines(p, l.w-inset-rightMargin, m.statsEmptyMessage(), m.statsEmptyHints())
 	} else {
 		lines = m.statsBody(p, m.statsReport(), l.w-inset-rightMargin, l.bodyHeight(1))
 	}
