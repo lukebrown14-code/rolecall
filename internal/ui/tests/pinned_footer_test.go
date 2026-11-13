@@ -106,7 +106,7 @@ func TestFiltersCollapseToOneLineWhenNarrow(t *testing.T) {
 	lines := plainAt(t, 60, 16, "3")
 	found := false
 	for _, l := range lines {
-		if strings.Contains(l, "All tracks") && strings.Contains(l, "t [All 17]▸") {
+		if strings.Contains(l, "s [All 9]▸") && strings.Contains(l, "t [All 9]▸") {
 			found = true
 		}
 	}
@@ -122,7 +122,7 @@ func TestEnterDetailHintOnlyWithoutThePane(t *testing.T) {
 	for _, sz := range footerSizes {
 		lines := plainAt(t, sz[0], sz[1], "3")
 		last := lines[len(lines)-1]
-		has := strings.Contains(last, "enter detail")
+		has := strings.Contains(last, "Enter detail")
 		if want := sz[0] < 100; has != want {
 			t.Errorf("%dx%d: enter detail hint = %v; want %v (%q)", sz[0], sz[1], has, want, last)
 		}

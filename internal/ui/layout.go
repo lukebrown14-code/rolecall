@@ -139,7 +139,7 @@ func (l layout) sheetHeights(ctx int) (list, detail int, ok bool) {
 		return 0, 0, false
 	}
 	plain := l
-	plain.status = statusAreaPlain
+	plain.status = statusAreaFeedback // a table screen's footer: the breadcrumb, then the keys
 	ok = plain.bodyHeight(ctx) >= sheetListMin+sheetRule+sheetDetailMin
 	body := l.bodyHeight(ctx)
 	list = min(max(body*2/5, sheetListMin), max(1, body-sheetRule-sheetDetailMin)) //nolint:mnd // two fifths for the list
@@ -187,15 +187,16 @@ func (m model) contextLines() int {
 	return 1
 }
 
-// tableContext is a table screen's context lines: the filters, then the breadcrumb.
-const tableContext = 2
+// tableContext is a table screen's context lines: the filter row. The breadcrumb sits in
+// the footer, over the key line.
+const tableContext = 1
 
 // sheetShown reports whether the open detail is a bottom sheet under the list.
 func (m model) sheetShown() bool {
 	if m.detail == nil || !m.hasTables() {
 		return false
 	}
-	_, _, ok := m.layout().sheetHeights(tableContext)
+	_, _, ok := sizeLayout(m.viewWidth(), m.viewHeight()).sheetHeights(tableContext)
 	return ok
 }
 

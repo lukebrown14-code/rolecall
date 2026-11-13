@@ -61,8 +61,8 @@ func TestSheetHeights(t *testing.T) {
 		listH  int
 		detail int
 	}{
-		{80, 24, true, 6, 10},
-		{80, 20, true, 5, 8},
+		{80, 24, true, 7, 10},
+		{80, 20, true, 6, 8},
 		{80, 19, false, 0, 0},
 		{80, 16, false, 0, 0},
 		{60, 36, false, 0, 0},

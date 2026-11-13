@@ -83,7 +83,7 @@ func TestFormCtrlSSavesFromAnyField(t *testing.T) {
 func TestEditFormMarksChangedFields(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
 	d.Type("e")
-	if strings.Contains(withoutStrip(d.plain()), "●") {
+	if strings.Contains(d.plain(), "●") {
 		t.Fatalf("an untouched Edit form marks a field:\n%s", d.plain())
 	}
 	d.Type("x")

@@ -49,6 +49,10 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 		if view := chipped(m.View().Content); !strings.Contains(view, "Applied › Interviewing") {
 			t.Fatalf("%v: view click did not switch:\n%s", size, view)
 		}
+		m = clickOn(t, m, lineOf(t, m, "TRACK t"), "SWE")
+		if view := chipped(m.View().Content); !strings.Contains(view, "Applied › Interviewing · SWE") {
+			t.Fatalf("%v: track click did not filter:\n%s", size, view)
+		}
 	}
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = clickOn(t, m, lineOf(t, m, "Empty log"), "Empty log")

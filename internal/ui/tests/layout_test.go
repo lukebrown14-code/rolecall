@@ -209,7 +209,8 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 			if sheet := tc.w < 100 && tc.w >= 72 && len(keys) > 1; len(rules) == 3 && sheet {
 				rules = []int{rules[0], rules[2]}
 			}
-			if len(rules) != 2 || rules[1] != len(lines)-2 {
+			// The status area is the key line, under the breadcrumb on a list.
+			if len(rules) != 2 || (rules[1] != len(lines)-2 && rules[1] != len(lines)-3) {
 				t.Fatalf("%dx%d keys %q: rules at %v:\n%s", tc.w, tc.h, keys, rules, strings.Join(lines, "\n"))
 			}
 			split := strings.Contains(lines[rules[0]], "┬")
@@ -295,11 +296,15 @@ func TestOverflowCueIsOneStyle(t *testing.T) {
 	}{{[]string{"3"}, 80, 24}, {[]string{"4"}, 60, 16}} {
 		keys := c.keys
 		lines := strings.Split(chipped(runKeysSized(t, root, c.w, c.h, keys...)), "\n")
-		cue := lines[len(lines)-3]
+		bottom := len(lines) - 1
+		for !strings.HasPrefix(lines[bottom], "──") {
+			bottom--
+		}
+		cue := lines[bottom-1]
 		if !strings.HasPrefix(cue, "   ↓ ") || !strings.HasSuffix(strings.TrimRight(cue, " "), " more") {
 			t.Errorf("keys %q: cue %q, want \"   ↓ N more\" on the body's last line", keys, cue)
 		}
-		above := strings.TrimSpace(lines[len(lines)-4])
+		above := strings.TrimSpace(lines[bottom-2])
 		if strings.Contains(above, "· ") && strings.Contains(above, "──") {
 			t.Errorf("keys %q: a section heading sits alone above the cue: %q", keys, above)
 		}

@@ -159,10 +159,6 @@ func (m model) contextKeys() []helpKey {
 	if !m.hasTables() {
 		return screenDefs[m.screen].help(m)
 	}
-	if m.stripFocus && m.detail == nil {
-		return []helpKey{help(groupNav, "←→", "status").at(prioCore), help(groupAction, "enter", "keep").at(prioCore),
-			help(groupNav, "esc", "back").at(prioPinned)}
-	}
 	keys := m.actionKeys()
 	if m.detail != nil {
 		vertical := "scroll"
@@ -174,7 +170,7 @@ func (m model) contextKeys() []helpKey {
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
 	}
 	if len(m.views()) > 1 {
-		keys = append(keys, help(groupNav, "←→", "view"))
+		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
 	}
 	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"))
 }
@@ -190,7 +186,7 @@ func (m model) trackFilterApplies() bool {
 func (m model) globalKeys(ctx []helpKey) []helpKey {
 	keys := []helpKey{help(groupGlobal, "1-6", "screen").at(prioScreen)}
 	if m.trackFilterApplies() {
-		keys = append(keys, help(groupFilter, "t", "next track"), help(groupFilter, "T", "previous track"))
+		keys = append(keys, help(groupFilter, "t", "track").at(prioMinor), help(groupFilter, "T", "previous track"))
 	}
 	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
 		keys = append(keys, help(groupFilter, "esc", "clear search"))
@@ -198,11 +194,16 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 	if m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, ",", "settings"))
 	}
-	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioScreen), help(groupFilter, "ctrl+k", "commands"),
+	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioMinor), help(groupFilter, "ctrl+k", "commands"),
 		help(groupGlobal, "?", "help").at(prioPinned))
 	if !m.fieldOpen() {
-		// An open Settings field takes space as text.
-		keys = append(keys, help(groupGlobal, "space", "menu").at(prioPinned))
+		// An open Settings field takes space as text. The tab bar shows it, so the key
+		// line leaves it to the help.
+		menu := help(groupGlobal, "space", "menu").at(prioPinned)
+		if m.barKeys(m.pal()) != "" {
+			menu = menu.at(prioHelpOnly)
+		}
+		keys = append(keys, menu)
 	}
 	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
@@ -252,9 +253,9 @@ func fitKeys(p pal, keys []helpKey, w int) (left, right string) {
 	var shown []helpKey
 	for _, k := range keys {
 		if k.prio > prioHelpOnly {
-			// The palette key is learnt once, so it sits with the footer's global keys
-			// rather than among the filters.
-			if k.group == groupFilter && k.prio == prioScreen {
+			// The palette key sits with the footer's global keys, beside help, rather than
+			// among the filters.
+			if k.group == groupFilter && k.Help().Key == ":" {
 				k.group = groupGlobal
 			}
 			shown = append(shown, k)
@@ -270,7 +271,7 @@ func fitKeys(p pal, keys []helpKey, w int) (left, right string) {
 		}
 	}
 	render := func() (string, string) {
-		return p.Keys(pairs(ordered, groupAction, groupFilter)), p.Keys(pairs(ordered, groupNav, groupGlobal))
+		return p.KeyRow(pairs(ordered, groupAction, groupFilter)), p.KeyRow(pairs(ordered, groupNav, groupGlobal))
 	}
 	for {
 		left, right = render()
@@ -424,7 +425,12 @@ func mergeAliases(keys []helpKey) [][2]string {
 	for _, k := range keys {
 		h := k.Help()
 		if i, ok := at[h.Desc]; ok {
-			rows[i][0] += " " + h.Key
+			// The shorter key leads, "[: ctrl+k]", whichever the section ranked first.
+			if len(h.Key) < len(rows[i][0]) {
+				rows[i][0] = h.Key + " " + rows[i][0]
+			} else {
+				rows[i][0] += " " + h.Key
+			}
 			continue
 		}
 		at[h.Desc] = len(rows)

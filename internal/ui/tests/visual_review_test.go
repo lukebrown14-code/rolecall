@@ -14,7 +14,8 @@ import (
 // Fixes from the visual review of the design overhaul (#166).
 
 // The key line ends with "? help" and "space menu" on every screen where space opens the
-// Workspace menu, and keeps both at every size, dropping lower-priority keys first.
+// Workspace menu, and keeps both at every size, dropping lower-priority keys first. Wide,
+// the tab bar carries "space menu  ? help" and the key line ends at help.
 func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
 	screens := map[string][]string{
 		"leads":    {"1"},
@@ -27,9 +28,18 @@ func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
 	for _, sz := range keyLineSizes {
 		for name, keys := range screens {
 			t.Run(fmt.Sprintf("%s/%dx%d", name, sz[0], sz[1]), func(t *testing.T) {
-				line := lastLine(t, sz[0], sz[1], keys...)
-				if !strings.HasSuffix(strings.TrimRight(line, " "), "? help · space menu") {
-					t.Errorf("key line does not end with ? help · space menu: %q", line)
+				view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], keys...))
+				line := keyLineOf(view)
+				// Wide, space and ? sit on the tab bar too, so the key line ends at help.
+				want := "? help  space menu"
+				if sz[0] >= 100 {
+					want = "? help"
+					if bar := strings.SplitN(view, "\n", 2)[0]; !strings.HasSuffix(strings.TrimRight(bar, " "), "space menu  ? help") {
+						t.Errorf("tab bar does not end with space menu  ? help: %q", bar)
+					}
+				}
+				if !strings.HasSuffix(strings.TrimRight(line, " "), want) {
+					t.Errorf("key line does not end with %s: %q", want, line)
 				}
 				if w := ansi.StringWidth(line); w > sz[0] {
 					t.Errorf("key line is %d wide in %d: %q", w, sz[0], line)
@@ -63,28 +73,6 @@ func TestSettingsWasSitsBesideTheEditedValue(t *testing.T) {
 			"6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter"))
 		if row := lineWith(view, "Follow-up due after"); !strings.Contains(row, "7 days  was 14") {
 			t.Errorf("%dx%d: was 14 is not beside 7 days: %q\n%s", sz[0], sz[1], row, view)
-		}
-	}
-}
-
-// At medium width the strip still names its Statuses, short where it must, and keeps the
-// docs share; only narrow drops the labels, and it keeps the share when there is room.
-func TestMediumStripKeepsLabelsAndDocs(t *testing.T) {
-	for _, tc := range []struct {
-		w, h int
-		want []string
-	}{
-		{80, 24, []string{"◌ Leads 4", "◆ Interv. 2", "★ Offer 2", "docs 8%"}},
-		{60, 16, []string{"◌4", "◆2", "docs 8%"}},
-	} {
-		line := stripLine(t, runKeysSized(t, fixtureCopy(t, nil), tc.w, tc.h, "3"))
-		for _, want := range tc.want {
-			if !strings.Contains(line, want) {
-				t.Errorf("%dx%d strip lacks %q: %q", tc.w, tc.h, want, line)
-			}
-		}
-		if w := ansi.StringWidth(line); w >= tc.w {
-			t.Errorf("%dx%d strip is %d wide: %q", tc.w, tc.h, w, line)
 		}
 	}
 }
@@ -130,7 +118,7 @@ func TestDetailOpensOnOverviewWhereTheCardIsFolded(t *testing.T) {
 		if !strings.Contains(view, tc.tabs) {
 			t.Errorf("%dx%d: tabs do not start %q:\n%s", tc.w, tc.h, tc.tabs, view)
 		}
-		if tc.w < 120 && !strings.Contains(lineWith(view, "STATUS"), "[m] move") {
+		if tc.w < 120 && !strings.Contains(lineWith(view, "STATUS  "), "[m] move") {
 			t.Errorf("%dx%d: Overview does not show the card's rows:\n%s", tc.w, tc.h, view)
 		}
 		if n := strings.Count(view, "NEXT "); n != 1 {
@@ -148,22 +136,6 @@ func TestWideningFromOverviewMovesToTheJD(t *testing.T) {
 	view := chipped(m.View().Content)
 	if !strings.Contains(view, "[JD]") || strings.Contains(view, "gone") {
 		t.Errorf("widened detail is not on the JD:\n%s", view)
-	}
-}
-
-// While the strip has the keys, its gutter mark is the only one: the list row under the
-// cursor gives up its mark until the focus comes back.
-func TestFocusedStripIsTheOnlyMarkedLine(t *testing.T) {
-	for _, sz := range keyLineSizes {
-		view := runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", "S", "right")
-		marked := markedLines(view, "▌")
-		if len(marked) != 1 || !strings.Contains(chipped(marked[0]), "[◌") {
-			t.Errorf("%dx%d: want the strip alone marked, got %d lines:\n%s", sz[0], sz[1], len(marked), chipped(strings.Join(marked, "\n")))
-		}
-		back := runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", "S", "esc")
-		if n := len(markedRows(back, "▌")); n != 1 {
-			t.Errorf("%dx%d: after esc %d lines are marked", sz[0], sz[1], n)
-		}
 	}
 }
 
@@ -222,7 +194,7 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 			if row == "" || !strings.Contains(row, tc.key) {
 				t.Fatalf("no row %q … %q:\n%s", tc.label, tc.key, view)
 			}
-			status := lineWith(view, "STATUS")
+			status := lineWith(view, "STATUS  ")
 			end := func(l, s string) int { return colOf(l, s) + ansi.StringWidth(s) }
 			if got, want := end(row, tc.key), end(status, "[m] move"); got != want {
 				t.Errorf("%q ends at %d, STATUS row's key at %d:\n%s\n%s", tc.key, got, want, status, row)
@@ -284,42 +256,24 @@ func TestMalformedDetailFitsTheWidth(t *testing.T) {
 	}
 }
 
-// The strip, the tab bar and the Track filter draw the active option as the design's
-// filled block, " ✎ Drafts 2 ", with no brackets or underline; brackets come back only
+// The tab bar and the filter row draw the active option as the design's filled block,
+// " Drafts 2 ", with no brackets or underline; brackets come back only
 // where there is no fill to see (NO_COLOR, covered in a11y_test).
 func TestBarSelectionIsAFilledBlock(t *testing.T) {
 	view := runKeysSized(t, fixtureCopy(t, nil), 120, 36, "2")
 	plain := ansi.Strip(view)
-	for _, gone := range []string{"[✎ Drafts 2]", "[All 17]", "[2 Drafts 2]"} {
+	for _, gone := range []string{"[Drafts 2]", "[All 2]", "[2 Drafts 2]"} {
 		if strings.Contains(plain, gone) {
 			t.Errorf("bar still brackets %q:\n%s", gone, plain)
 		}
 	}
-	for _, want := range []string{" ✎ Drafts 2 ", " All 17 ", " 2 Drafts 2 "} {
+	for _, want := range []string{" Drafts 2 ", " All 2 ", " 2 Drafts 2 "} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("bar lacks %q:\n%s", want, plain)
 		}
 	}
 	if strings.Contains(view, "\x1b[4m") || strings.Contains(view, "\x1b[4;") || strings.Contains(view, "\x1b[1;4;") {
 		t.Errorf("bar selection is still underlined:\n%q", view)
-	}
-}
-
-// In the strip a cell's label takes its Status colour and its count the bright text
-// colour, as in the design mock: "◆ Interviewing" pink, "2" white.
-func TestStripCountsAreBright(t *testing.T) {
-	view := runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1")
-	strip := ""
-	for _, l := range strings.Split(view, "\n") {
-		if strings.Contains(chipped(l), "Interviewing 2") {
-			strip = l
-			break
-		}
-	}
-	fg := "38;2;230;237;243m2"
-	i := strings.Index(strip, "Interviewing")
-	if i < 0 || !strings.Contains(strip[i:min(len(strip), i+60)], fg) {
-		t.Errorf("Interviewing's count is not in the text colour: %q", strip)
 	}
 }
 

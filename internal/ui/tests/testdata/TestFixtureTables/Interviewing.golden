@@ -1,7 +1,6 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
+ ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   ◌ Leads 4 ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ [◆ Interviewing 2] ──▶ ★ Offer 2 · ✕ closed 6 · ⚑ 1 due · docs □□□□ 8%
-   Applied › Interviewing · All tracks · 1/2 · list                                  TRACK t [All 17] SWE 10 Platform 1
+   STATUS s All 9 Applied 1 [Interviewing 2] Offer 2 Closed 4 │ TRACK t [All 2] SWE 1 Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ Engineer #1                                          
  ▌ ◆ Engineer #1                    □□□  ● 9mo  ~Jan 2026  Good  │ Example · Unknown                                    
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · s status filter · S focus strip · / search        ? help · space menu
+   Applied › Interviewing · All tracks · 1/2 · list
+ Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help

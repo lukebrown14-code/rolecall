@@ -428,6 +428,20 @@ func (p Palette) Keys(pairs [][2]string) string {
 	return strings.Join(parts, p.Text(p.Faint).Render(" · "))
 }
 
+// KeyRow renders the footer's key line and the tab bar's keys: Keys with two spaces
+// between pairs and Enter capitalised, as a row of hints rather than a list.
+func (p Palette) KeyRow(pairs [][2]string) string {
+	parts := make([]string, len(pairs))
+	for i, kv := range pairs {
+		k := kv[0]
+		if k == "enter" {
+			k = "Enter"
+		}
+		parts[i] = p.Key().Render(k) + p.Text(p.Dim).Render(" "+kv[1])
+	}
+	return strings.Join(parts, "  ")
+}
+
 // panelFill paints s on the palette's pop-up fill, re-applying it after inner resets so
 // the fill survives styled text inside it.
 func (p Palette) PanelFill(s string) string {

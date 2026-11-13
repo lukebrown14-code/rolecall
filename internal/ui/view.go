@@ -220,7 +220,7 @@ func (m model) listView(p pal) string {
 		body = m.withSheet(p, body)
 		focus = focusNone
 	}
-	return m.frame(p, []string{m.viewRow(p), m.breadcrumbRow(p)}, body, divider, focus, m.statusRow(p, w, keys))
+	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.breadcrumbLine(p)+"\n"+keys)
 }
 
 // listPane is the list's width and whether the preview pane sits beside it, for a view
@@ -249,6 +249,9 @@ const (
 // frameStatusLines is the lines the status area needs: the feedback line and the key line
 // when something just happened, otherwise the key line alone.
 func (m model) frameStatusLines() int {
+	if m.hasTables() && (m.detail == nil || m.sheetShown()) {
+		return statusAreaFeedback // the breadcrumb line, which holds the feedback, then the keys
+	}
 	if m.feedbackVisible() {
 		return statusAreaFeedback
 	}
@@ -350,6 +353,9 @@ func (m model) screenCountLabel(si int) string {
 // switching screens never sheds or restores a count.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
+	if r := m.barKeys(p); r != "" {
+		room -= gutter + xansi.StringWidth(r)
+	}
 	wide := m.layout().wide()
 	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
 	// short of room.
@@ -419,7 +425,20 @@ func (m model) tabs(p pal) (string, []int) {
 // stay) and the wordmark's mark; the active screen keeps its name and count at every width.
 func (m model) topBar(p pal) string {
 	out, _ := m.tabs(p)
-	return xansi.Truncate(out, m.layout().w-rightMargin, "")
+	w := m.layout().w
+	if r := m.barKeys(p); r != "" {
+		return spread(out, r, w-rightMargin)
+	}
+	return xansi.Truncate(out, w-rightMargin, "")
+}
+
+// barKeys is the tab bar's right end, "space menu  ? help", at wide sizes: the two keys
+// that work everywhere. An open Settings field takes space as text, so then it is empty.
+func (m model) barKeys(p pal) string {
+	if !m.layout().wide() || m.fieldOpen() {
+		return ""
+	}
+	return p.KeyRow([][2]string{{spaceKey, "menu"}, {"?", "help"}})
 }
 
 // trackApplies reports whether the track filter changes the current screen: the
@@ -432,8 +451,7 @@ func (m model) trackApplies() bool {
 type trackForm int
 
 const (
-	trackExplained trackForm = iota // every option with its count, then what the count is made of
-	trackFull                       // every option with its count
+	trackFull      trackForm = iota // every option with its count
 	trackCompact                    // the active option only
 	trackCollapsed                  // "t:All"
 )
@@ -467,18 +485,18 @@ func (m model) trackSelector(p pal, form trackForm) string {
 			parts[i] = mark(label(i))
 		}
 	}
-	out := p.Text(p.Dim).Render("TRACK ") + key + " " + strings.Join(parts, " ")
-	if form == trackExplained {
-		if why := m.explainCounts(m.track); why != "" {
-			out += "   " + p.Text(p.Dim).Render(why)
-		}
-	}
-	return out
+	return p.Text(p.Dim).Render("TRACK ") + key + " " + strings.Join(parts, " ")
 }
 
-// trackTotal is the Applications on a Track (0 is All): every one the Workspace lists,
-// whatever the text filter, so All adds up with the pipeline strip.
+// trackTotal is the Applications on a Track (0 is All). On a table screen it is the rows
+// the open view would show with that Track chosen, so the chosen option matches the list;
+// elsewhere it is every one the Workspace lists.
 func (m model) trackTotal(track int) int {
+	if m.hasTables() {
+		with := m
+		with.track = track
+		return len(with.rows())
+	}
 	if track == 0 {
 		return len(m.apps)
 	}
@@ -491,32 +509,6 @@ func (m model) trackTotal(track int) int {
 	return n
 }
 
-// explainCounts is what a Track's count is made of, "10 applications · 9 active · 1 closed",
-// so it adds up beside the status counts. It is empty unless both parts are non-zero,
-// where the numbers could not disagree.
-func (m model) explainCounts(track int) string {
-	active, closed := 0, 0
-	for _, a := range m.apps {
-		if track > 0 && a.Track != m.tracks[track-1] {
-			continue
-		}
-		if t := tableOf(a); a.Malformed == nil && (t == tableDismissed || t == tableClosed) {
-			closed++
-		} else {
-			active++
-		}
-	}
-	if active == 0 || closed == 0 {
-		return ""
-	}
-	return explainText(active+closed, active, closed)
-}
-
-// explainText is the breakdown line Track counts share with Settings.
-func explainText(total, active, closed int) string {
-	return fmt.Sprintf("%d applications · %d active · %d closed", total, active, closed)
-}
-
 // trackName is the Track filter's name: All, or the Track.
 func (m model) trackName() string {
 	if m.track > 0 && m.track <= len(m.tracks) {
@@ -525,42 +517,40 @@ func (m model) trackName() string {
 	return allView
 }
 
-// breadcrumbRow is the line under the strip: where the Owner is, as
-// "Applied › All · All tracks · 1/9 · list", and at the right the search chip, what a filter
-// hides and the Track filter. Narrow, the breadcrumb's focus goes first, then the Track is
-// abbreviated; the right side gives way before the breadcrumb is cut.
-func (m model) breadcrumbRow(p pal) string {
-	if !m.hasTables() {
-		return ""
-	}
+// breadcrumbLine is the footer's first line on a table screen: where the Owner is, as
+// "Applied › All · All tracks · 1/9 · list", and at the right what just happened, a toast or
+// an error with its keys. The breadcrumb gives way first: its focus, then the Track.
+func (m model) breadcrumbLine(p pal) string {
 	w := m.layout().w
-	pad := strings.Repeat(" ", inset)
-	l := m.layout()
-	narrow := l.class != classMedium && l.class != classWide
-	fullLeft := xansi.StringWidth(pad + m.breadcrumb(p, false, narrow))
-	leastLeft := xansi.StringWidth(pad + m.breadcrumb(p, true, true))
-	forms := []trackForm{trackExplained, trackFull, trackCompact, trackCollapsed}
 	right := ""
-	// The richest Track filter that leaves the whole breadcrumb its room; failing that,
-	// the richest that leaves the shortest breadcrumb its room.
-	fits := func(left int) bool {
-		for _, form := range forms {
-			right = m.withChip(p, joinNonEmpty("   ", m.scopeLine(p), m.trackSelector(p, form)))
-			if left+gutter+xansi.StringWidth(right) <= w-rightMargin {
-				return true
-			}
+	if m.feedbackVisible() {
+		msg, keys := m.feedbackParts(p)
+		// The message gives way, never the keys that recover from it.
+		// An error matters more than where the cursor is, so it may take the whole line.
+		room := max(0, w-rightMargin-gutter-inset-breadcrumbMin)
+		if m.err != nil {
+			room = max(0, w-rightMargin-inset)
 		}
-		return false
+		if keys != "" {
+			room -= len(keyGap) + xansi.StringWidth(keys)
+		}
+		right = joinNonEmpty(keyGap, xansi.Truncate(msg, max(1, room), "…"), keys)
 	}
-	if !fits(fullLeft) {
-		fits(leastLeft)
-	}
-	room := w - rightMargin - gutter - xansi.StringWidth(right)
-	if right == "" {
-		room = w - rightMargin
+	room := w - rightMargin
+	if right != "" {
+		room -= gutter + xansi.StringWidth(right)
 	}
 	return contextRow(m.breadcrumbLeft(p, room), right, w)
 }
+
+// keyGap separates the feedback from its keys, as the key line separates its keys.
+const keyGap = "  "
+
+// spaceKey is the space bar as the key line names it.
+const spaceKey = "space"
+
+// breadcrumbMin is the cells a toast leaves the breadcrumb: its screen and position.
+const breadcrumbMin = 16
 
 // joinNonEmpty joins the parts that have text.
 func joinNonEmpty(sep string, parts ...string) string {
@@ -610,10 +600,11 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 	if v := m.views()[m.table]; v != screenDefs[m.screen].name {
 		parts = append([]string{v}, parts...)
 	}
+	out := p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
 	if !noFocus {
-		parts = append(parts, focus)
+		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Accent).Bold(true).Render(focus)
 	}
-	return p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+	return out
 }
 
 // breadcrumbLeft is the fullest breadcrumb that fits room cells after the inset.
@@ -626,7 +617,10 @@ func (m model) breadcrumbLeft(p pal, room int) string {
 			return s
 		}
 	}
-	return xansi.Truncate(pad+m.breadcrumb(p, true, true), max(0, room), "…")
+	if room < inset+breadcrumbMin {
+		return "" // a stub would say nothing; the line is the error's
+	}
+	return xansi.Truncate(pad+m.breadcrumb(p, true, true), room, "…")
 }
 
 // abbrevTrack is how many letters of a Track name a narrow breadcrumb keeps.
@@ -689,7 +683,7 @@ const markWidth = 2
 func (m model) viewRow(p pal) string {
 	w := m.viewWidth()
 	if m.hasTables() {
-		return m.pipelineStrip(p, w)
+		return m.filterRow(p)
 	}
 	left := strings.Repeat(" ", inset) + p.Heading(screenDefs[m.screen].name)
 	for _, form := range []trackForm{trackFull, trackCompact, trackCollapsed} {
@@ -1018,9 +1012,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		if fill {
 			line = line.Background(p.Sel)
 		}
-		if !m.stripFocus { // the focused strip holds the one mark; the fill still shows the row
-			bar = p.SelGutter(fill)
-		}
+		bar = p.SelGutter(fill)
 		titleC, dimC = p.Fg, p.Sub
 	}
 	if a.Malformed != nil {

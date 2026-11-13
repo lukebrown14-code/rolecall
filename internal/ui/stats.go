@@ -50,7 +50,7 @@ func (m model) statsEmptyHints() []emptyHint {
 func (m model) statsHelpKeys() []helpKey {
 	keys := []helpKey{help(groupAction, "a", "add").at(prioCore)}
 	if m.statsMaxTop() > 0 {
-		keys = append(keys, help(groupNav, "↑↓", "scroll"), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
+		keys = append(keys, help(groupNav, "↑↓", "scroll").at(prioMain), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))

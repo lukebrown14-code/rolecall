@@ -75,10 +75,10 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 func TestSettingsRenamePopupSaysReviewNotNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		f := footer(settingsAt(t, size[0], size[1], "]", "]", "r"))
-		if !strings.Contains(f, "enter review") {
+		if !strings.Contains(f, "Enter review") {
 			t.Fatalf("%dx%d rename footer %q", size[0], size[1], f)
 		}
-		if strings.Contains(f, "enter next") {
+		if strings.Contains(f, "Enter next") {
 			t.Fatalf("%dx%d rename still says next: %q", size[0], size[1], f)
 		}
 	}

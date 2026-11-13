@@ -35,7 +35,6 @@ type model struct {
 	toast                 string    // feedback line: what just happened (cleared on the next key)
 	movedTo               string    // destination Status of the move the toast reports, else ""
 	toastKind             toastKind // how the feedback line draws the toast
-	stripFocus            bool      // the pipeline strip has the keys: ←→ move the status filter
 	toastHint             string    // key hint shown with it, e.g. "u undo"
 	flash                 string    // folder of the row just moved, lit until flashID's tick
 	flashID               int
@@ -308,7 +307,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = nil
 			return m, m.editAt(pe)
 		}
-		if k.String() == " " || k.String() == "space" {
+		if k.String() == " " || k.String() == spaceKey {
 			m.overlay = m.openMenu()
 			return m, nil
 		}
@@ -320,11 +319,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "," && m.screen != settingsScreen {
 			// Settings opens from anywhere, over the detail view and Stats too.
 			return m.openSettings(), nil
-		}
-		if m.stripFocus {
-			if next, ok := m.stripKey(k); ok {
-				return next, nil
-			}
 		}
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {

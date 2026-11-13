@@ -114,6 +114,42 @@ func hintPairs(hint string) [][2]string {
 // finishes). The message is on the left and is cut first; the keys are on the right and
 // are never cut. It never replaces the bottom rule.
 func (m model) feedbackLine(p pal, w int) string {
+	left, hint := m.feedbackMsg(p)
+	if left == "" {
+		return ""
+	}
+	bg := lipgloss.NewStyle().Background(p.Panel)
+	var keys []string
+	for _, kv := range hintPairs(hint) {
+		keys = append(keys, bg.Foreground(p.Fg).Bold(true).Render(kv[0])+bg.Foreground(p.Dim).Render(" "+kv[1]))
+	}
+	right := ""
+	if len(keys) > 0 {
+		right = strings.Join(keys, bg.Foreground(p.Dim).Render("  ")) + bg.Render(" ")
+	}
+	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-gutter), "…")
+	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
+	gap := bg.Render(strings.Repeat(" ", n))
+	return left + gap + right
+}
+
+// feedbackParts is the feedback as the table screens' footer shows it, beside the
+// breadcrumb: the message as a chip, then its keys.
+func (m model) feedbackParts(p pal) (msg, keys string) {
+	msg, hint := m.feedbackMsg(p)
+	if msg == "" {
+		return "", ""
+	}
+	var ks []string
+	for _, kv := range hintPairs(hint) {
+		ks = append(ks, p.Key().Render(kv[0])+p.Text(p.Dim).Render(" "+kv[1]))
+	}
+	return msg + lipgloss.NewStyle().Background(p.Panel).Render(" "), strings.Join(ks, "  ")
+}
+
+// feedbackMsg is the feedback's message on the panel colour, with its glyph, and the keys
+// that go with it; empty when nothing just happened.
+func (m model) feedbackMsg(p pal) (string, string) {
 	icon, c, msg, hint := "✓", p.Ok, m.toast, m.toastHint
 	raw := false
 	switch {
@@ -131,7 +167,7 @@ func (m model) feedbackLine(p pal, w int) string {
 		icon = "↩"
 	}
 	if msg == "" {
-		return ""
+		return "", ""
 	}
 	if icon == "✓" && p.Ascii {
 		icon = "+" // the toast's own stand-in; Profile's ✓ folds to v
@@ -143,16 +179,5 @@ func (m model) feedbackLine(p pal, w int) string {
 	} else {
 		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.Fg).Render(msg)
 	}
-	var keys []string
-	for _, kv := range hintPairs(hint) {
-		keys = append(keys, bg.Foreground(p.Fg).Bold(true).Render(kv[0])+bg.Foreground(p.Dim).Render(" "+kv[1]))
-	}
-	right := ""
-	if len(keys) > 0 {
-		right = strings.Join(keys, bg.Foreground(p.Dim).Render("  ")) + bg.Render(" ")
-	}
-	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-gutter), "…")
-	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
-	gap := bg.Render(strings.Repeat(" ", n))
-	return left + gap + right
+	return left, hint
 }

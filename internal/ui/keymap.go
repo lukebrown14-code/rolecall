@@ -236,7 +236,7 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
-		keys: []string{"s"}, keyLabel: "s", desc: text("status filter"),
+		keys: []string{"s"}, keyLabel: "s", desc: text("status"),
 		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
 		enabled: func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
@@ -244,16 +244,6 @@ var listActions = []listAction{
 			// The same cycle as ←→ and as t on the Track filter: All, each Status, Closed, All.
 			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
-			return nil
-		},
-	},
-	{
-		keys: []string{"S"}, keyLabel: "S", desc: text("focus strip"),
-		group: groupFilter, prio: fixed(prioNav),
-		listed:  func(m model) bool { return m.detail == nil },
-		enabled: func(m model) bool { return m.detail == nil },
-		run: func(m *model, _ string) tea.Cmd {
-			m.stripFocus = true
 			return nil
 		},
 	},
@@ -312,7 +302,7 @@ func (m model) actionKeys() []helpKey {
 // dormantKeys is the row actions the `?` pop-up names although they do nothing yet here,
 // help-only so they never reach the key line.
 func (m model) dormantKeys() []helpKey {
-	if !m.hasTables() || m.stripFocus {
+	if !m.hasTables() {
 		return nil
 	}
 	var keys []helpKey

@@ -38,7 +38,8 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 				h = 16
 			}
 			f := footer(settingsAt(t, w, h, tc.keys...))
-			if !strings.Contains(f, tc.want) || !strings.Contains(f, "esc cancel") {
+			// The footer spells enter "Enter"; the pop-up's border keeps it lower case.
+			if !strings.Contains(f, strings.Replace(tc.want, "enter", "Enter", 1)) || !strings.Contains(f, "esc cancel") {
 				t.Errorf("%s at %d: footer %q lacks pop-up keys", tc.name, w, f)
 			}
 		}
@@ -47,7 +48,7 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 
 func TestSettingsFooterWhileEditingAMachineSetting(t *testing.T) {
 	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "j", "enter"))
-	if !strings.Contains(f, "enter set") || !strings.Contains(f, "esc cancel") {
+	if !strings.Contains(f, "Enter set") || !strings.Contains(f, "esc cancel") {
 		t.Fatalf("footer %q lacks edit keys", f)
 	}
 }
@@ -81,21 +82,21 @@ func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 
 func TestSettingsTrackFooterKeys(t *testing.T) {
 	f := footer(settingsAt(t, 120, 36, "]", "]"))
-	if !strings.Contains(f, "a add · r rename · x remove · J/K reorder") {
+	if !strings.Contains(f, "a add  r rename  x remove  J/K reorder") {
 		t.Fatalf("footer %q", f)
 	}
 }
 
 func TestSettingsFooterOffersEnterOnEditableRowsOnly(t *testing.T) {
 	// Follow-up and a machine setting are editable; the add row adds. Read-only rows are
-	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers enter on one.
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j", "j")); !strings.Contains(f, "enter edit") {
+	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers Enter on one.
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j", "j")); !strings.Contains(f, "Enter edit") {
 		t.Errorf("Follow-up days: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "Enter edit") {
 		t.Errorf("Editor: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j")); !strings.Contains(f, "enter add a Track") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j")); !strings.Contains(f, "Enter add a Track") {
 		t.Errorf("add row: %q", f)
 	}
 }

@@ -1,7 +1,6 @@
- ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
+ ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   [◌ Leads 4] ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · ✕ closed 6 · ⚑ 1 due · docs □□□□ 8%
-   Leads › All tracks · 1/4 · list          TRACK t [All 17] SWE 10 Platform 1   17 applications · 11 active · 6 closed
+   STATUS s [Leads 4] Dismissed 2 │ TRACK t [All 4] SWE 3 Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◌ Leads · 4 ───────────────────────────────────────────────── │ Empty                                                
  ▌ ◌ Empty                          □□□□                      ·  │ Example · SWE                                        
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · a add · s status filter · / search            ? help · space menu
+   Leads › All tracks · 1/4 · list
+ Enter open  e edit  m move  x dismiss  n notes  a add  s status  o sort newest  / search  t track               ? help

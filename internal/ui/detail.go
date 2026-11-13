@@ -419,7 +419,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.ScrollDown(1)
 	case "up", "k":
 		d.body.ScrollUp(1)
-	case "pgdown", "space":
+	case "pgdown", spaceKey:
 		d.body.PageDown()
 	case "pgup":
 		d.body.PageUp()

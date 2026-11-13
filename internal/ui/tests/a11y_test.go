@@ -27,7 +27,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 		t.Fatalf("NO_COLOR dropped bold and underline as well:\n%q", view)
 	}
 	plain := ansi.Strip(view)
-	for _, want := range []string{"[◌ Leads 4]", "▞ rolecall", "t [All 17]"} {
+	for _, want := range []string{"s [Leads 4]", "▞ rolecall", "t [All 4]"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
@@ -66,7 +66,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 		}
 	}
 	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	for _, want := range []string{"[All 17]", "Move", "cancel"} {
+	for _, want := range []string{"[All 4]", "Move", "cancel"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("ASCII fallback lost %q:\n%s", want, plain)
 		}
@@ -212,11 +212,12 @@ func TestAsciiKeepsStatusesApart(t *testing.T) {
 }
 
 // Every Status shows its glyph wherever the Status shows: the view row, group headers,
-// rows, the preview, the timeline and the Move pop-up.
+// rows, the preview, the timeline and the Move pop-up. The filter row names views without
+// glyphs, as the design draws it.
 func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
-		"STATUS  ● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only", "◆ Interviewing 2"} {
+		"STATUS  ● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only"} {
 		if !strings.Contains(list, want) {
 			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
 		}

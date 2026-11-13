@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,8 +62,8 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	}
 	rule := ruleLine(view, m.glyph("─"), m.layout().headerLines())
 	if y == rule-tableContext {
-		if c, ok := m.stripCellAt(x, xansi.StringWidth(line)); ok {
-			return m.showStripCell(c), nil, true
+		if f, ok := m.filterAt(x); ok {
+			return m.pickFilter(f), nil, true
 		}
 		return m, nil, false
 	}
@@ -73,21 +72,6 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 		return m.syncDetail(), nil, true
 	}
 	return m, nil, false
-}
-
-// showStripCell shows the cell's view, on its screen when it is not the one open.
-func (m model) showStripCell(c stripCell) model {
-	v := c.views[0]
-	if c.on(m) {
-		return m
-	}
-	if si := screenIndex(v.screen); si != m.screen {
-		m, _ = m.screenKey(keyPress(fmt.Sprint(si + 1)))
-	}
-	if ti := slices.Index(m.views(), v.table); ti >= 0 {
-		m.table, m.cursor = ti, 0
-	}
-	return m
 }
 
 // ruleLine is the index of the frame's top rule: the first line at or after from (past
