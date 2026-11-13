@@ -37,11 +37,11 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40)
 
 	m = driveModel(t, m, "x")
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Dismissed · ") {
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "✓ Dismissed ") {
 		t.Fatalf("dismiss did not report:\n%s", v)
 	}
 	m = driveModel(t, m, "tab", "m", "enter") // Dismissed → restore to Lead
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Moved to Lead") {
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "✓ Moved ") {
 		t.Fatalf("restore did not report:\n%s", v)
 	}
 	driveModel(t, m, "u", "u", "u", "q")

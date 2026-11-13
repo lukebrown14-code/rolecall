@@ -262,24 +262,8 @@ func (m model) welcome(p pal) string {
 	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
-// movedStatus is the destination Status named by a move's toast, or "" for any other
-// feedback, so the empty view can tell a move apart from a first-run or a search.
-func movedStatus(toast string) string {
-	if strings.HasPrefix(toast, offerPrefix) {
-		return store.StatusOffer
-	}
-	switch {
-	case strings.HasPrefix(toast, "Moved to "):
-		status, _, _ := strings.Cut(strings.TrimPrefix(toast, "Moved to "), " ·")
-		return status
-	case strings.HasPrefix(toast, "Dismissed · "):
-		return store.StatusDismissed
-	}
-	return ""
-}
-
 // movedOut reports that a move just took the last row out of this view.
-func (m model) movedOut() bool { return movedStatus(m.toast) != "" }
+func (m model) movedOut() bool { return m.movedTo != "" }
 
 // viewHoldsStatus reports whether a Status lives in a view of the current screen, so the
 // empty state can say which key follows the moved row.
@@ -300,11 +284,11 @@ func (m model) viewHoldsStatus(status string) bool {
 // line naming where the Application went, and how to follow it.
 func (m model) movedOutView(p pal) string {
 	line := p.Text(p.Fg).Bold(true).Render(m.toast)
-	if movedStatus(m.toast) == store.StatusOffer {
+	if m.movedTo == store.StatusOffer {
 		line = p.Text(p.Gold).Bold(true).Render(m.toast)
 	}
 	hint := "press ← → to follow it"
-	if !m.viewHoldsStatus(movedStatus(m.toast)) {
+	if !m.viewHoldsStatus(m.movedTo) {
 		hint = "press 1-6 to find it"
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
