@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -358,18 +359,25 @@ func (m model) screenCountLabel(si int) string {
 // switching screens never sheds or restores a count.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
+	wide := m.layout().wide()
 	on := p.ActiveTab()
+	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
+	// short of room.
+	spark := " " + p.Text(p.Dim).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
 	build := func(level, active int) (string, []int) {
-		mark := " " + wordmark + " rolecall "
-		switch {
-		case level >= shedMark:
-			mark = ""
-		case level >= shedWordmark:
-			mark = " " + wordmark + " "
-		case level >= shedEdge:
-			mark = wordmark + " rolecall "
+		// The brand mark leads the bar at wide sizes only, muted (eleven cells with its
+		// trailing space); below that the bar is the tabs alone.
+		mark := ""
+		if wide {
+			switch {
+			case level >= shedMark:
+			case level >= shedWordmark:
+				mark = wordmark + " "
+			default:
+				mark = wordmark + " rolecall "
+			}
 		}
-		out := p.Text(p.Accent).Bold(true).Render(mark)
+		out := p.Text(p.Dim).Render(mark)
 		starts := make([]int, len(screenDefs))
 		for si, d := range screenDefs {
 			starts[si] = xansi.StringWidth(out) + 1
@@ -377,8 +385,12 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
+			tail := ""
+			if wide && level < shedCounts && d.name == screenStats {
+				tail = spark
+			}
 			if si == active {
-				out += on.Render("[" + digit + name + count + "]")
+				out += on.Render("["+digit+name+count+"]") + tail
 				continue
 			}
 			if level >= shedCounts {
@@ -391,7 +403,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep
+			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + tail + sep
 		}
 		return out, starts
 	}
