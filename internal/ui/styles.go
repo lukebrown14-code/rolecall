@@ -27,6 +27,7 @@ func themeFor(dark bool) theme    { return theme(appearance.ForBackground(dark))
 var isDark = appearance.IsDark
 var noColor = appearance.NoColor
 var asciiMode = appearance.ASCIIMode
+var inheritANSI = appearance.InheritANSI
 var stripColor = appearance.StripColor
 var asciiFold = appearance.ASCIIFold
 
@@ -52,6 +53,9 @@ var basePal = themeDark.Base()
 // pal is the palette for the model's theme and glyph setting.
 func (m model) pal() pal {
 	p := m.theme.Base()
+	if m.inherit {
+		p = pal{appearance.InheritBase()}
+	}
 	p.Ascii = m.ascii || asciiMode()
 	return p
 }
@@ -59,6 +63,9 @@ func (m model) pal() pal {
 // dimmedPal is the palette for the frame behind a pop-up.
 func (m model) dimmedPal() pal {
 	p := m.theme.Dimmed()
+	if m.inherit {
+		p = pal{appearance.InheritDimmed()}
+	}
 	p.Ascii = m.ascii || asciiMode()
 	return p
 }

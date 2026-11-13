@@ -34,6 +34,7 @@ const (
 	LabelDownloads = "Downloads"
 	LabelPlugin    = "Plugin"
 	LabelASCII     = "ASCII glyphs"
+	LabelInherit   = "Inherit colours"
 	LabelAddTrack  = "+ add a Track"
 )
 
@@ -268,6 +269,10 @@ func (st State[Undo]) Rows(group int, machine Machine) []Row {
 	if machine.ASCII {
 		ascii = configFile
 	}
+	inherit := config.SourceDefault
+	if machine.Inherit {
+		inherit = configFile
+	}
 	return []Row{
 		{Label: LabelWorkspace, Value: machine.Workspace, ReadOnly: true, Reason: "fixed this session", Source: SourceText(machine.Sources.Workspace)},
 		editorRow,
@@ -275,6 +280,7 @@ func (st State[Undo]) Rows(group int, machine Machine) []Row {
 		{Label: LabelHarness, Value: machine.Harness, Source: SourceText(machine.Sources.Harness), Example: `claude "/{skill} {dir}"`},
 		{Label: LabelPlugin, Value: machine.Plugin, Source: SourceText(machine.Sources.Plugin), Example: "path to rolecall/plugin"},
 		{Label: LabelASCII, Value: yesNo(machine.ASCII), Source: ascii},
+		{Label: LabelInherit, Value: yesNo(machine.Inherit), Source: inherit},
 	}
 }
 
@@ -358,7 +364,7 @@ type Sources struct{ Workspace, FollowUpDays, Downloads, Plugin, Harness string 
 // Machine supplies effective values from the running application.
 type Machine struct {
 	Workspace, Editor, EditorSource, Downloads, Harness, Plugin string
-	EditorAvailable, ASCII                                      bool
+	EditorAvailable, ASCII, Inherit                             bool
 	FollowUpDays                                                int
 	Sources                                                     Sources
 }

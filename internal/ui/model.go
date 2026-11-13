@@ -46,6 +46,7 @@ type model struct {
 	stats                 *statsCache // the Stats report for the current interaction; see statsReport
 	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
 	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	inherit               bool        // inherit_terminal in config.toml: ANSI-16 colours, no painted background
 	theme                 theme       // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string

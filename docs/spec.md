@@ -72,10 +72,11 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
+inherit_terminal = false  # use the terminal's ANSI-16 colours, no painted background; NO_COLOR still wins
 ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale or TERM=linux turns them on
 ```
 
-Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
+Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90), `ascii` and `inherit_terminal` in place, keeping comments and other lines; `workspace` is never written.
 
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 
