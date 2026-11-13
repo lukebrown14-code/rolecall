@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -232,8 +233,7 @@ type mdCache struct {
 	theme  theme
 	r      *glamour.TermRenderer
 	gen    int               // the Workspace generation bodies were rendered from
-	bodyW  int               // the wrap width bodies were rendered at
-	bodies map[string]string // rendered bodies, dropped when gen or bodyW changes
+	bodies map[string]string // rendered bodies, keyed by width and Document; dropped when gen changes
 }
 
 func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
@@ -252,24 +252,26 @@ func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
 
 // body returns the cached body built for one Document key at the current Workspace
 // generation and wrap width, building it with render on a miss. A new generation (the
-// file watcher or a rescan) or a resize drops the cache, so a changed Document or a new
-// width is never served stale. The cache is keyed on the Document, not its bytes, so a
-// keystroke that changes nothing reuses the render.
+// file watcher or a rescan) drops the cache, so a changed Document is never served stale.
+// The cache is keyed on the Document and the wrap width, so a resize, or a switch between
+// a screen at width 0 (the preview) and one at the body width, keeps the other's renders
+// instead of discarding them.
 func (c *mdCache) body(gen, width int, key string, render func() string) string {
 	if c == nil {
 		return render()
 	}
-	if c.gen != gen || c.bodyW != width {
-		c.gen, c.bodyW, c.bodies = gen, width, nil
+	if c.gen != gen {
+		c.gen, c.bodies = gen, nil
 	}
 	if c.bodies == nil {
 		c.bodies = map[string]string{}
 	}
-	if body, ok := c.bodies[key]; ok {
+	full := strconv.Itoa(width) + "\x00" + key
+	if body, ok := c.bodies[full]; ok {
 		return body
 	}
 	body := render()
-	c.bodies[key] = body
+	c.bodies[full] = body
 	return body
 }
 

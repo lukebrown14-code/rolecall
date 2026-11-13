@@ -118,9 +118,28 @@ func TestFailureInjectionCoversInitialize(t *testing.T) {
 	for _, stage := range []string{"write", "rename"} {
 		t.Run(stage, func(t *testing.T) {
 			root := t.TempDir()
-			if err := store.InitializeWorkspaceWithFileSystem(root, failingFS{stage}, nil, nil, store.SearchArea{}); err == nil {
+			if err := store.InitializeWorkspace(root, nil, nil, store.SearchArea{}, failingFS{stage}); err == nil {
 				t.Fatal("expected injected failure")
 			}
 		})
+	}
+}
+
+// Folder creation is injectable too: a failing Mkdir fails both Create and Initialize,
+// so no test path reaches the real OS for a folder a write needs.
+func TestFailureInjectionCoversFolderCreation(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../../../fixtures/workspace")); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.OpenWithFileSystem(root, failingFS{"mkdir"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(store.CreateFields{Title: "New", Company: "New", Track: "SWE"}, time.Now()); err == nil {
+		t.Fatal("Create ignored a failed folder creation")
+	}
+	if err := store.InitializeWorkspace(t.TempDir(), nil, nil, store.SearchArea{}, failingFS{"mkdir"}); err == nil {
+		t.Fatal("InitializeWorkspace ignored a failed folder creation")
 	}
 }

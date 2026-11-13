@@ -1,1 +1,1 @@
-{"tracks":["SWE","Platform"],"search_area":{"places":["Australia"],"remote":"in-places"}}
+{"tracks":["SWE","Platform"],"search_area":{"places":["Australia"],"remote":"in-places"},"sources":{"greenhouse":["cultureamp","buildkite"]},"blockers":[["australian citizens?(hip)?","requires Australian citizenship"],["security clearance","requires an AU security clearance"]]}

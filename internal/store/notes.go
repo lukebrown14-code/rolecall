@@ -8,7 +8,7 @@ import (
 
 // EnsureNotes creates an empty notes file without changing existing notes.
 func (s *Store) EnsureNotes(folder string) error {
-	if _, err := s.applicationRecord(folder); err != nil {
+	if err := s.applicationRecord(folder); err != nil {
 		return err
 	}
 	path := filepath.Join(folder, "notes.md")

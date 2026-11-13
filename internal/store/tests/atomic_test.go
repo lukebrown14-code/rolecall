@@ -28,6 +28,19 @@ func (f failingFS) Rename(a, b string) error {
 	return os.Rename(a, b)
 }
 func (f failingFS) Remove(p string) error { return os.Remove(p) }
+func (f failingFS) MkdirAll(p string, mode os.FileMode) error {
+	if f.stage == "mkdir" {
+		return errors.New("injected mkdir")
+	}
+	return os.MkdirAll(p, mode)
+}
+func (f failingFS) Mkdir(p string, mode os.FileMode) error {
+	if f.stage == "mkdir" {
+		return errors.New("injected mkdir")
+	}
+	return os.Mkdir(p, mode)
+}
+func (f failingFS) RemoveAll(p string) error { return os.RemoveAll(p) }
 func (f failingFile) Write(b []byte) (int, error) {
 	if f.stage == "write" {
 		if len(b) > 0 {

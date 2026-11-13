@@ -13,11 +13,11 @@ var sentFiles = []string{resumeFile, coverLetterFile, jdFile, "fit.md", gapsFile
 // whichever of resume.md, cover-letter.md, jd.md, fit.md, gaps.md and out/*.pdf exist.
 // An existing sent/ is never touched, so repeat calls are no-ops.
 func (s *Store) RecordSent(folder string) error {
-	if _, err := s.applicationRecord(folder); err != nil {
+	if err := s.applicationRecord(folder); err != nil {
 		return err
 	}
 	sent := filepath.Join(folder, "sent")
-	if err := os.Mkdir(sent, sharedDirMode); err != nil {
+	if err := s.fs().Mkdir(sent, sharedDirMode); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return nil
 		}
@@ -39,7 +39,7 @@ func (s *Store) RecordSent(folder string) error {
 		}
 	}
 	if len(pdfs) > 0 {
-		if err := os.Mkdir(filepath.Join(sent, "out"), sharedDirMode); err != nil {
+		if err := s.fs().Mkdir(filepath.Join(sent, "out"), sharedDirMode); err != nil {
 			return err
 		}
 	}
@@ -66,5 +66,5 @@ func (s *Store) copyIfPresent(from, to string) error {
 	if err != nil {
 		return err
 	}
-	return s.atomicWrite(to, data, info.Mode().Perm())
+	return s.writePreservingMode(to, data, info.Mode().Perm())
 }

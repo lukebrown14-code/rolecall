@@ -56,7 +56,7 @@ def test_trailing_editor_note_on_a_cell_is_dropped():
 
 
 def test_missing_contact_section_names_the_required_fields():
-    owner = contact.read("/nonexistent")
+    owner = contact.Contact(contact.parse_contact(""))
     assert owner.name == "" and owner.email == ""
     assert owner.missing() == ["Name", "Email"]
 
@@ -72,7 +72,7 @@ def test_contact_line_github_flag(github, expected_has_github):
     assert ("github.com/alexquinn" in owner.contact_line(github=github)) is expected_has_github
 
 
-def test_read_returns_empty_contact_when_the_profile_is_absent(tmp_path):
-    owner = contact.read(tmp_path)
+def test_an_absent_contact_section_reads_as_empty():
+    owner = contact.Contact(contact.parse_contact(""))
     assert owner.get("GitHub") == ""
     assert "github.com/" not in owner.contact_line(github=True)

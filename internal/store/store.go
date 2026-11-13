@@ -81,27 +81,27 @@ func (s *Store) Scan() ([]Application, error) {
 // application is the one gate for folder-scoped methods: a folder is an Application
 // only when it holds a meta.yml. A missing meta.yml returns os.ErrNotExist. Callers that
 // need the parsed record use applicationRecord.
-func (s *Store) application(folder string) (Application, error) {
+func (s *Store) application(folder string) error {
 	if _, err := os.Stat(filepath.Join(folder, "meta.yml")); err != nil {
-		return Application{}, err
+		return err
 	}
-	return Application{Folder: folder}, nil
+	return nil
 }
 
 // applicationRecord is the gate plus the parsed Application: a malformed meta.yml is
 // refused as an error. Every write uses it.
-func (s *Store) applicationRecord(folder string) (Application, error) {
-	if _, err := s.application(folder); err != nil {
-		return Application{}, err
+func (s *Store) applicationRecord(folder string) error {
+	if err := s.application(folder); err != nil {
+		return err
 	}
 	a, err := s.readApplicationFile(folder)
 	if err != nil {
-		return Application{}, err
+		return err
 	}
 	if a.Malformed != nil {
-		return Application{}, a.Malformed
+		return a.Malformed
 	}
-	return a, nil
+	return nil
 }
 
 // readApplicationFile reads the Application at folder without refusing a malformed

@@ -22,7 +22,7 @@ def test_skill_documents_resume_and_questionnaire_paths_and_final_approval():
 
 def test_documented_profile_shape_has_contact_readable_by_plugin():
     text = (WORKSPACE / "profile" / "master-profile.md").read_text()
-    fields = contact.read(WORKSPACE).fields
+    fields = contact.parse_contact(text)
 
     assert fields == {
         "Name": "Alex Quinn",

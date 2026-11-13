@@ -613,10 +613,11 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 
 // listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
 // spaced when they all fit in h and dense when they do not. Heights are measured without
-// rendering: a row is two lines, a divider one or two, and a gap adds a third.
+// rendering: a row is two lines, a divider one or two, and a gap adds a third. This is the
+// one place a block's height is computed; renderBlock draws content and scroll pads it.
 func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 	dividers := m.dividers(rows)
-	height := func(i int, gap bool) int {
+	rowHeight := func(i int, gap bool) int {
 		n := 2
 		if gap && i+1 < len(rows) {
 			if _, next := dividers[i+1]; !next {
@@ -625,54 +626,49 @@ func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 		}
 		return n
 	}
+	dividerHeight := func(i int) int {
+		n := 1
+		if i > 0 {
+			n++ // the air above a section
+		}
+		return n
+	}
 	total := 0
 	for i := range rows {
 		if _, ok := dividers[i]; ok {
-			total++ // the section header
-			if i > 0 {
-				total++ // air above each section
-			}
+			total += dividerHeight(i)
 		}
-		total += height(i, true)
+		total += rowHeight(i, true)
 	}
 	gap := total <= h
 	var blocks []block
 	cur := 0
 	for i := range rows {
 		if d, ok := dividers[i]; ok {
-			height := 1
-			if i > 0 {
-				height++ // air above each section
-			}
-			blocks = append(blocks, block{height: height, label: d.label, n: d.n})
+			blocks = append(blocks, block{height: dividerHeight(i), padTop: i > 0, label: d.label, n: d.n})
 		}
 		if i == m.cursor {
 			cur = len(blocks)
 		}
-		blocks = append(blocks, block{height: height(i, gap), row: true, idx: i})
+		blocks = append(blocks, block{height: rowHeight(i, gap), row: true, idx: i})
 	}
 	return blocks, cur
 }
 
-// renderBlock renders one block's lines. Only the blocks in the scroll window are drawn.
-func (m model) renderBlock(p pal, b block, rows []store.Application, show slotSet, w int) []string {
+// renderBlock renders one block's content lines, without the height padding: scroll pads
+// every block to the height listBlocks measured. It is a var so a test can count the calls
+// and assert only the visible blocks are rendered.
+var renderBlock = func(m model, p pal, b block, rows []store.Application, show slotSet, w int) []string {
 	if b.row {
-		lines := m.row(p, rows[b.idx], b.idx == m.cursor, show, w)
-		for len(lines) < b.height {
-			lines = append(lines, "") // the gap between rows
-		}
-		return lines
+		return m.row(p, rows[b.idx], b.idx == m.cursor, show, w)
 	}
-	lines := []string{p.GroupHeader(b.label, tableStatus(b.label), b.n, w)}
-	if b.height > 1 {
-		lines = append([]string{""}, lines...)
-	}
-	return lines
+	return []string{p.GroupHeader(b.label, tableStatus(b.label), b.n, w)}
 }
 
 type block struct {
 	height int    // lines the block occupies, without rendering
 	row    bool   // an Application, as opposed to a section divider
+	padTop bool   // the blank line that spaces a section goes above the header
 	idx    int    // the row's index in the view, when row is set
 	label  string // the divider's label, when row is false
 	n      int    // the divider's count, when row is false
@@ -740,7 +736,15 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 		out = append(out, cueIndent+p.MoreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
-		out = append(out, m.renderBlock(p, b, rows, show, w)...)
+		lines := renderBlock(m, p, b, rows, show, w)
+		for len(lines) < b.height {
+			if b.padTop {
+				lines = append([]string{""}, lines...)
+			} else {
+				lines = append(lines, "")
+			}
+		}
+		out = append(out, lines...)
 	}
 	// The ↓ cue sits on the body's last line, where it is on every screen.
 	for len(out) < h-1 {

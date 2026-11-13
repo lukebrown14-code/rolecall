@@ -8,7 +8,7 @@ import (
 // ReadDocument reads one file of an Application folder. A missing file returns an
 // error satisfying os.IsNotExist.
 func (s *Store) ReadDocument(folder, name string) ([]byte, error) {
-	if _, err := s.application(folder); err != nil {
+	if err := s.application(folder); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(filepath.Join(folder, name))
@@ -16,15 +16,9 @@ func (s *Store) ReadDocument(folder, name string) ([]byte, error) {
 
 // WriteDocument replaces one file of an Application folder.
 func (s *Store) WriteDocument(folder, name string, data []byte) error {
-	if _, err := s.applicationRecord(folder); err != nil {
+	if err := s.applicationRecord(folder); err != nil {
 		return err
 	}
 	path := filepath.Join(folder, name)
-	mode := privateFileMode
-	if info, err := os.Stat(path); err == nil {
-		mode = info.Mode().Perm()
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	return s.atomicWrite(path, data, mode)
+	return s.writePreservingMode(path, data, privateFileMode)
 }

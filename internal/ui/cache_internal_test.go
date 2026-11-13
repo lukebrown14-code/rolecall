@@ -81,6 +81,35 @@ func TestBodyCacheKeepsRendererWidth(t *testing.T) {
 	}
 }
 
+// Opening the detail view and returning to the list must not discard the detail body: the
+// preview renders at width 0 and the detail at the body width, so a cache that flushed on
+// a width change would re-render the Document on the way back.
+func TestBodyCacheKeepsABodyAcrossWidths(t *testing.T) {
+	m := fixtureModel(t)
+	m.width, m.height = 120, 40
+	m.screen, m.table, m.text = 2, 0, "docs-written" // Applied, docs-written is Interviewing
+
+	renders := countRenders(t)
+	_ = m.View() // the list, whose preview renders at width 0
+	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyRight}) // Fit tab, which has text
+	_ = m.View()
+	first := renders()
+	if first == 0 {
+		t.Fatal("opening the Fit tab did not render it")
+	}
+
+	// Back to the list (the preview renders at width 0), then into the same tab again.
+	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
+	_ = m.View()
+	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	_ = m.View()
+	if got := renders(); got != first {
+		t.Fatalf("a list -> detail -> list round trip re-rendered the Document: %d renders, want %d", got, first)
+	}
+}
+
 // A Document changed on disk still shows after the watcher's generation moves.
 func TestDetailDocumentFollowsChangedFile(t *testing.T) {
 	m := fixtureModel(t)

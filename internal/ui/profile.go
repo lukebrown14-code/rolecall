@@ -144,7 +144,7 @@ func (m model) loadProfile() model {
 	}
 	st.selected = min(max(st.selected, 0), max(st.entries()-1, 0))
 	m.profile = st
-	m.gen++ // the Profile was reread; drop the rendered bodies
+	m.dropBodies()
 	return m.syncProfile()
 }
 

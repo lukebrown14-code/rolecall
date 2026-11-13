@@ -222,7 +222,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.gen++ // the folder was rescanned; drop the rendered bodies
+		m.dropBodies()
 		if done.folder == m.selectAfter {
 			m.selectFolder(done.folder)
 			m.selectAfter = ""
@@ -413,6 +413,11 @@ func (m *model) keepCursor(folder string) {
 	}
 }
 
+// dropBodies invalidates the rendered-body cache: the Workspace content changed, so every
+// cached Document render is stale. Every rescan path calls this instead of bumping gen, so
+// a new path cannot forget it.
+func (m *model) dropBodies() { m.gen++ }
+
 // reload rescans the whole Workspace and keeps the cursor on folder when it is still shown.
 // A failed scan is reported through m.err and leaves the rows as they were.
 func (m *model) reload(folder string) bool {
@@ -422,7 +427,7 @@ func (m *model) reload(folder string) bool {
 		return false
 	}
 	m.apps, m.err = apps, nil
-	m.gen++
+	m.dropBodies()
 	m.keepCursor(folder)
 	return true
 }

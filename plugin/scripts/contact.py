@@ -10,9 +10,7 @@ naming the field (see build.py's contact gate).
 """
 
 import re
-from pathlib import Path
 
-PROFILE_FILE = "master-profile.md"
 REQUIRED = ("Name", "Email")
 
 # A trailing italic aside on a cell is a note to the human, not the value --
@@ -71,13 +69,3 @@ class Contact:
         if github and self.get("GitHub"):
             parts.append(self.get("GitHub"))
         return " | ".join(p for p in parts if p)
-
-
-def read(data_dir):
-    """The Contact in <data_dir>/profile/master-profile.md (empty fields if absent).
-
-    Reads the file at call time: the Workspace changes per --data run, so the
-    path must not be captured at import.
-    """
-    f = Path(data_dir) / "profile" / PROFILE_FILE
-    return Contact(parse_contact(f.read_text() if f.exists() else ""))

@@ -38,7 +38,7 @@ func ValidateWorkspacePath(root string) error {
 }
 
 // InitializeWorkspace writes the private starter files for a new Workspace. The optional
-// filesystem is the injection seam; nil uses the OS.
+// filesystem is the injection seam for the writes and folder creation; nil uses the OS.
 func InitializeWorkspace(root string, contact map[string]string, tracks []string, search SearchArea, files ...FileSystem) error {
 	var fs FileSystem
 	if len(files) > 0 {
@@ -47,24 +47,19 @@ func InitializeWorkspace(root string, contact map[string]string, tracks []string
 	return initializeWorkspace(root, fs, contact, tracks, search)
 }
 
-// InitializeWorkspaceWithFileSystem writes the private starter files for a new Workspace
-// through the injected filesystem. Nil uses the OS.
-func InitializeWorkspaceWithFileSystem(root string, files FileSystem, contact map[string]string, tracks []string, search SearchArea) error {
-	return initializeWorkspace(root, files, contact, tracks, search)
-}
-
 func initializeWorkspace(root string, files FileSystem, contact map[string]string, tracks []string, search SearchArea) error {
 	if err := ValidateWorkspacePath(root); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(root, privateDirMode); err != nil {
+	fs := fsOrOS(files)
+	if err := fs.MkdirAll(root, privateDirMode); err != nil {
 		return err
 	}
 	if err := os.Chmod(root, privateDirMode); err != nil {
 		return err
 	}
 	for _, dir := range []string{"profile", "c" + "v", "jobs"} {
-		if err := os.Mkdir(filepath.Join(root, dir), privateDirMode); err != nil {
+		if err := fs.Mkdir(filepath.Join(root, dir), privateDirMode); err != nil {
 			return err
 		}
 	}
