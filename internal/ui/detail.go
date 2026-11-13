@@ -699,9 +699,8 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Faint).Render(file)
 		if i == m.detail.docs {
-			row = lipgloss.NewStyle().Background(p.Sel).Width(paneW - paneMargin).Render(
-				p.Text(p.Accent).Background(p.Sel).Render("▌ ") + p.Text(p.Accent).Background(p.Sel).Bold(true).Render(xansi.Strip(mark)+name) +
-					p.Text(p.Sub).Background(p.Sel).Render(file))
+			row = p.SelLine(true, paneW-paneMargin, p.SelGutter(true)+p.SelText(true).Render(xansi.Strip(mark)+name)+
+				p.SelBase(true).Foreground(p.Sub).Render(file))
 		}
 		lines = append(lines, row)
 	}

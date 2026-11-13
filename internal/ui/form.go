@@ -37,7 +37,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 		focused := i == f.Focus && !f.Discarding
 		mark, label := "  ", p.Text(p.Sub).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		if focused {
-			mark = p.Text(p.Accent).Render("▌ ")
+			mark = p.SelGutter(false)
 			label = p.Text(p.Accent).Bold(true).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		}
 		req := " "

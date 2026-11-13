@@ -105,14 +105,14 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 func TestSettingsTabAndJKMoveRowsInTheSettingsPane(t *testing.T) {
 	h := newSettingsHarness(t, 120, "", nil)
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "SETTINGS", "▸ Search")
+	requireAll(t, h.tm.plain(), "SETTINGS", "▌ Search")
 	h.tm.Type("tab")
 	requireAll(t, h.tm.plain(), "SETTINGS")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	// Only the row carries the ▸; the group stays named without a second cursor.
-	requireAll(t, v, "Search", "▸ Remote")
-	if strings.Contains(v, "▸ Places") || strings.Contains(v, "▸ Search") {
+	// Only the row carries the ▌; the group stays named without a second cursor.
+	requireAll(t, v, "Search", "▌ Remote")
+	if strings.Contains(v, "▌ Places") || strings.Contains(v, "▌ Search") {
 		t.Fatalf("marker wrong after j:\n%s", v)
 	}
 }
