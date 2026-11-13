@@ -61,7 +61,7 @@ var snapshotStates = []struct {
 	{"46-settings-saved-undo", []string{"6", "j", "tab", "enter", "backspace", "backspace", "backspace", "300", "enter"}, nil},
 	{"47-offer-celebration", []string{"3", "tab", "m", "o"}, nil},
 	{"48-detail-next-draft", []string{"2", "enter"}, nil},
-	{"49-leads-sorted-newest", []string{"1", "s"}, nil},
+	{"49-leads-sorted-newest", []string{"1", "o"}, nil},
 }
 
 // editedSnapshotStates start from an edited copy of the fixture: the first-run screen

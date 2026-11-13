@@ -69,7 +69,7 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 // when there is a second page.
 func TestHelpIsContextAwareAndPagesOnlyWhenNeeded(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "?"))
-	for _, want := range []string{"Keys · Applied · JD", "EVERYWHERE", "←→ switches tab"} {
+	for _, want := range []string{"Keys · Applied · JD", "NAVIGATE", "←→ switches tab"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("detail help lacks %q:\n%s", want, view)
 		}
