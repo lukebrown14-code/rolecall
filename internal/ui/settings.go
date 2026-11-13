@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
@@ -16,22 +17,15 @@ const settingsFile = "workspace.json"
 // configFile is the machine file This machine and follow-up days are kept in.
 const configFile = "config.toml"
 
-// The two panes tab moves between.
+// Settings screen sizing.
 const (
-	settingsList = iota
-	settingsRows
-	settingsPanes
-)
-
-// Settings screen sizing mirrors Profile: a group list side panel, then the settings.
-const (
-	settingsSplitWidth = profileSplitWidth
 	// maxLabelWidth caps the label column, which is otherwise as wide as the group's longest label.
 	maxLabelWidth = 24
+	// maxFieldWidth is the widest an inline field grows: a value is edited where it sits.
+	maxFieldWidth = 30
+	// minFieldWidth is the narrowest an inline field is drawn.
+	minFieldWidth = 12
 )
-
-// settingsListWidth is the group list's column, divider excluded.
-func (m model) settingsListWidth() int { return m.layout().groupsW }
 
 // editorExamples is the help line for the Editor setting: values for editor in config.toml.
 // GUI Editors need their wait flag, or rolecall rescans before editing finishes.
@@ -89,22 +83,6 @@ func (m model) loadSettings() model {
 	return m
 }
 
-func (m model) settingsListShown(w int) bool { return w >= settingsSplitWidth }
-
-// settingsGroupFile is the file the selected group's values live in, for the context row
-// and e.
-func (m model) settingsGroupFile() string {
-	switch {
-	case m.settings == nil:
-		return settingsFile
-	case settingsGroups[m.settings.Group] == groupMachineName:
-		return configFile
-	case m.settings.Group == settings.GroupTracking:
-		return settingsFile + " · " + configFile
-	}
-	return settingsFile
-}
-
 // settingsGroupHandler is one Settings group's keys: how the help describes them and how
 // the screen dispatches them. The screen reads one table, so a group cannot be dispatched
 // without also being described, and the group order is data rather than a chain of calls.
@@ -127,6 +105,9 @@ var settingsHandlers = []settingsGroupHandler{
 // settingsHelpKeys is the keys Settings accepts. Application actions are absent, and so
 // are the global keys.
 func (m model) settingsHelpKeys() []helpKey {
+	if m.settings != nil && m.settings.Edit != nil {
+		return []helpKey{help(groupAction, "enter", "set").at(prioCore), help(groupNav, "esc", "cancel").at(prioPinned)}
+	}
 	keys := []helpKey{}
 	for _, h := range settingsHandlers {
 		keys = append(keys, h.help(m)...)
@@ -142,7 +123,8 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
 	if m.settings != nil && m.settings.Ws.Err == nil {
-		keys = append(keys, help(groupNav, "j k", "move"), help(groupNav, "tab", "focus").at(prioScreen))
+		keys = append(keys, help(groupAction, "ctrl+s", "save").at(prioMain), help(groupAction, "ctrl+z", "revert").at(prioMinor),
+			help(groupNav, "[ ]", "section").at(prioMain), help(groupNav, "j k", "move"))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -178,11 +160,17 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.editFile(m.store.Root(), settingsFile)
 	case "esc":
 		if m.back != nil {
-			return m.closeSettings(), nil
+			return m.leaveSettings(func(m model) model { return m.closeSettings() }), nil
 		}
 	}
 	if m.settings == nil || m.settings.Ws.Err != nil {
 		return m, nil // an invalid file offers e and nothing else
+	}
+	switch k.String() {
+	case "ctrl+s":
+		return m.saveSettings(), nil
+	case "ctrl+z":
+		return m.revertSettings(), nil
 	}
 	if k.String() == "u" && m.settings.Undo != nil {
 		return m.undoSetting(), nil
@@ -198,7 +186,7 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	st := *m.settings
 	switch k.String() {
 	case "enter":
-		if st.Focus == settingsRows || !m.settingsListShown(m.viewWidth()) {
+		if !st.Header {
 			return m.activateSetting()
 		}
 	default:
@@ -236,29 +224,51 @@ func (m model) undoSetting() model {
 // settingsView is the Settings screen in the same frame Profile uses.
 func (m model) settingsView(p pal) string {
 	w, h := m.viewWidth(), m.profileBodyHeight()
-	split, focus := 0, focusNone
-	if m.settings != nil && m.settings.Ws.Err == nil && m.settingsListShown(w) {
-		split, focus = m.settingsListWidth(), focusRight
-		if m.settings.Focus == settingsList {
-			focus = focusLeft
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), 0, focusNone, m.statusRow(p, w, m.keyLine(p, w)))
+}
+
+// settingsTabs is the sections as `[ Tracking ]  Tracks …`: the active one in the single
+// selection style, brackets and all, so it reads without colour. A narrow row keeps only
+// the active section and its place.
+func (m model) settingsTabs(p pal, w int) string {
+	active := func(name string) string { return p.SelText(true).Render("[ " + name + " ]") }
+	var parts []string
+	for i, name := range settingsGroups {
+		if i == m.settings.Group {
+			parts = append(parts, active(name))
+		} else {
+			parts = append(parts, p.Text(p.Dim).Render(name))
 		}
 	}
-	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
-}
-
-// settingsContextRow is one stable heading, or the group and its position when the group
-// list is hidden; the selected group's file is on the right.
-func (m model) settingsContextRow(p pal, w int) string {
-	pad := strings.Repeat(" ", inset)
-	left := pad + p.Heading("SETTINGS")
-	if m.settings != nil && m.settings.Ws.Err == nil && !m.settingsListShown(w) {
-		left = pad + p.Text(p.Fg).Bold(true).Render(settingsGroups[m.settings.Group]) +
-			p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+"/"+strconv.Itoa(len(settingsGroups)))
+	full := strings.Join(parts, "  ")
+	if w >= settingsTabsMinWidth {
+		return full
 	}
-	return contextRow(left, m.withChip(p, p.Text(p.Dim).Render(m.settingsGroupFile())), w)
+	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+"/"+strconv.Itoa(len(settingsGroups)))
 }
 
-// settingsBody is the group list beside the settings, or the invalid-file notice.
+// settingsTabsMinWidth is the width from which every section is named.
+const settingsTabsMinWidth = 84
+
+// settingsContextRow is the heading and the section tabs, with the unsaved-change count on
+// the right. The cursor rests here too (k from the first field): ctrl+z on it reverts all.
+func (m model) settingsContextRow(p pal, w int) string {
+	lead := strings.Repeat(" ", inset)
+	if m.settings == nil || m.settings.Ws.Err != nil {
+		return strings.Repeat(" ", inset) + p.Heading("SETTINGS")
+	}
+	if m.settings.Header {
+		lead = strings.Repeat(" ", edge) + p.SelGutter(true)
+	}
+	left := lead + p.Heading("SETTINGS") + "  " + m.settingsTabs(p, w)
+	right := ""
+	if n := m.settings.Dirty(); n > 0 {
+		right = p.Text(p.Warn).Bold(true).Render("● " + plural(n, "unsaved change", "unsaved changes"))
+	}
+	return contextRow(left, m.withChip(p, right), w)
+}
+
+// settingsBody is the settings of the selected section, or the invalid-file notice.
 func (m model) settingsBody(p pal, w, h int) string {
 	pad := strings.Repeat(" ", inset)
 	if m.settings != nil && m.settings.Ws.Err != nil {
@@ -274,31 +284,8 @@ func (m model) settingsBody(p pal, w, h int) string {
 	if m.settings == nil {
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "")
 	}
-	// Without the list the rows' markers sit at the chrome column, like the list's.
-	paneW, gutterW := w, edge
-	if m.settingsListShown(w) {
-		paneW, gutterW = w-m.settingsListWidth()-profileDivider, profileGutter
-	}
-	pane := lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutterW).
-		Render(m.settingsRowsView(p, paneW-gutterW-rightMargin, h))
-	if !m.settingsListShown(w) {
-		return pane
-	}
-	var groups []string
-	for i, name := range settingsGroups {
-		switch {
-		case i != m.settings.Group:
-			groups = append(groups, pad+p.Text(p.Dim).Render(name))
-		case m.settings.Focus == settingsList:
-			groups = append(groups, strings.Repeat(" ", edge)+p.SelGutter(true)+p.SelText(true).Render(name))
-		default:
-			// While the rows have focus only they carry the ▸ cursor; the selected group
-			// stays bold and indented, so two cursors never show at once.
-			groups = append(groups, strings.Repeat(" ", edge)+p.Text(p.Fg).Bold(true).Render("  "+name))
-		}
-	}
-	list := lipgloss.NewStyle().Width(m.settingsListWidth()).Height(h).MaxHeight(h).Render(strings.Join(groups, "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top, list, p.Divider(h), pane)
+	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).PaddingLeft(edge).
+		Render(m.settingsRowsView(p, w-edge-rightMargin, h))
 }
 
 // settingsRowsView lists the selected group's settings, one per line, in three columns:
@@ -321,7 +308,8 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 	labelW = min(labelW, maxLabelWidth)
 	room := width - labelW
 	valueW = min(valueW, max(minValueRoom, room-tailW-gutter))
-	marked := m.settings.Focus == settingsRows || !m.settingsListShown(m.viewWidth())
+	marked := !m.settings.Header
+	editing := m.settings.Edit
 	var lines []string
 	selLine := 0
 	for i, r := range rows {
@@ -332,6 +320,15 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Heading(r.Section))
 		}
 		selected := marked && i == m.settings.Row
+		set, isSetting := m.rowSetting(m.settings.Group, i, len(rows))
+		if isSetting {
+			if _, dirty := m.settings.Pending[set.key]; dirty {
+				r.Was = m.savedText(set)
+				if r.Was == "" {
+					r.Was = "not set"
+				}
+			}
+		}
 		if i == m.settings.Row {
 			selLine = len(lines)
 		}
@@ -356,7 +353,18 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			value = bg.Foreground(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
 		value += bg.Render(strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value))))
-		tail := bg.Foreground(p.Dim).Render(r.Provenance())
+		tail := bg.Foreground(p.Dim).Render(r.Note())
+		if editing != nil && isSetting && editing.Key == set.key {
+			// The field opens where the value sits, narrow, with the end of what is typed.
+			fw := min(maxFieldWidth, max(minFieldWidth, valueW))
+			shown := xansi.TruncateLeft(editing.Buf, max(0, xansi.StringWidth(editing.Buf)-(fw-1)), "…")
+			value = bg.Foreground(p.Fg).Underline(true).Render(shown) + bg.Foreground(p.Accent).Render("▏")
+			value += bg.Render(strings.Repeat(" ", max(0, fw-xansi.StringWidth(shown)-1)))
+			tail = bg.Foreground(p.Dim).Render(r.Unit)
+			if editing.Err != "" {
+				tail = bg.Foreground(p.Bad).Render(errorMark + " " + editing.Err)
+			}
+		}
 		if r.Warning != "" {
 			tail += bg.Foreground(p.Warn).Render(warnSep + r.Warning)
 		}
@@ -386,6 +394,10 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		for _, l := range wrapWords(editorExamples, max(1, width-profileMarkerWidth)) {
 			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Text(p.Dim).Render(l))
 		}
+	}
+	if note := m.deferredNote(); note != "" && len(lines)+2 <= h {
+		// Short terminals lose this line before they lose a field.
+		lines = append(lines, "", strings.Repeat(" ", profileMarkerWidth)+p.Text(p.Dim).Render(note))
 	}
 	return strings.Join(p.ClipLines(lines, selLine-h/bothSides, h, strings.Repeat(" ", profileMarkerWidth)), "\n")
 }
@@ -424,12 +436,62 @@ const (
 	labelASCII       = settings.LabelASCII
 )
 
+// settingsMachine is the machine settings as the screen shows them: the saved values with
+// any unsaved edit laid over them.
 func (m model) settingsMachine() settings.Machine {
-	editor := ResolveEditor(m.editor)
-	return settings.Machine{Workspace: m.store.Root(), Editor: editor, EditorSource: m.editorSource, EditorAvailable: editorOnPath(editor), Downloads: m.downloads, Harness: m.harness, Plugin: m.plugin, ASCII: m.ascii, FollowUpDays: m.followUpDays, Sources: m.sources}
+	mc := settings.Machine{Workspace: m.store.Root(), EditorSource: m.editorSource, Downloads: m.downloads, Harness: m.harness,
+		Plugin: m.plugin, ASCII: m.ascii, FollowUpDays: m.followUpDays, Sources: m.sources}
+	editor := m.editor
+	if m.settings != nil {
+		pend := m.settings.Pending
+		if v, ok := pend[keyEditor]; ok {
+			editor = v
+		}
+		if v, ok := pend["downloads"]; ok {
+			mc.Downloads = v
+		}
+		if v, ok := pend["harness"]; ok {
+			mc.Harness = v
+		}
+		if v, ok := pend["plugin"]; ok {
+			mc.Plugin = v
+		}
+		if v, ok := pend["ascii"]; ok {
+			mc.ASCII = v == yesNo(true)
+		}
+		if v, ok := pend[keyFollowUpDays]; ok {
+			mc.FollowUpDays, _ = strconv.Atoi(v)
+		}
+	}
+	mc.Editor = ResolveEditor(editor)
+	mc.EditorAvailable = editorOnPath(mc.Editor)
+	return mc
 }
 func (m model) settingsRows(group int) []settingRow {
-	return m.settings.Rows(group, m.settingsMachine())
+	st := *m.settings
+	st.Breakdown = m.trackBreakdown(st)
+	return st.Rows(group, m.settingsMachine())
+}
+
+// trackBreakdown explains each Track's count so the numbers add up: how many of its
+// Applications are active and how many closed (Rejected, Withdrawn, Dismissed).
+func (m model) trackBreakdown(st settingsState) map[string]string {
+	closed := map[string]int{}
+	for _, a := range m.apps {
+		switch a.Status {
+		case store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed:
+			closed[a.Track]++
+		}
+	}
+	out := map[string]string{}
+	for _, t := range st.Ws.Tracks {
+		c := min(closed[t], st.TrackUse[t])
+		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c) + " active"
+		if c > 0 {
+			out[t] += " · " + strconv.Itoa(c) + " closed"
+		}
+	}
+	return out
 }
 func (m model) trackingRows() []settingRow { return m.settingsRows(settings.GroupTracking) }
 func (m model) selectableRow(group, row, dir int) int {

@@ -38,9 +38,8 @@ func machineDriver(t *testing.T, width int) (*driver, string) {
 func selectRow(d *driver, group, row int) {
 	d.Type("6")
 	for range group {
-		d.Type("j")
+		d.Type("]")
 	}
-	d.Type("tab")
 	for range row {
 		d.Type("j")
 	}
@@ -55,7 +54,11 @@ func TestSettingsEditEditorSavesAndKeepsComments(t *testing.T) {
 	}
 	d.Type("nano")
 	d.Type("enter")
-	requireAll(t, d.plain(), "Editor", "nano")
+	requireAll(t, d.plain(), "Editor", "nano", "was vim", "● 1 unsaved change")
+	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
+		t.Fatalf("written before ctrl+s:\n%s", b)
+	}
+	d.Type("ctrl+s")
 	b, _ := os.ReadFile(cfg)
 	want := "# my config\nworkspace = \"/w\" # keep\n\n# my editor\neditor = \"nano\"\nfollow_up_days = 14\n"
 	if string(b) != want {
@@ -102,8 +105,9 @@ func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 	d.Type("enter")
 	d.Type("zzz")
 	d.Type("esc")
-	requireAll(t, d.plain(), "Discard changes?")
-	d.Type("y")
+	if v := d.plain(); strings.Contains(v, "Discard changes?") || strings.Contains(v, "unsaved") || strings.Contains(v, "zzz") {
+		t.Fatalf("esc keeps the edit:\n%s", v)
+	}
 	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
 		t.Fatalf("written:\n%s", b)
 	}
@@ -135,6 +139,8 @@ func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 	d.Type("backspace")
 	d.Type("30")
 	d.Type("enter")
+	requireAll(t, d.plain(), "Follow-up due after", "30 days", "was 14")
+	d.Type("ctrl+s")
 	requireAll(t, d.plain(), "Follow-up due after", "30 days")
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "follow_up_days = 30\n") {
 		t.Fatalf("config.toml:\n%s", b)
@@ -157,6 +163,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	d.Type("enter")
 	d.Type("/opt/plugin")
 	d.Type("enter")
+	d.Type("ctrl+s")
 	d.Type("2")
 	d.Type("j")
 	d.Type("?")
@@ -168,7 +175,8 @@ func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	selectRow(d, 3, 4)
 	requireAll(t, d.plain(), "ASCII glyphs", "No")
 	d.Type("enter")
-	requireAll(t, d.plain(), "ASCII glyphs", "Yes")
+	requireAll(t, d.plain(), "ASCII glyphs", "Yes", "was No")
+	d.Type("ctrl+s")
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "ascii = true\n") {
 		t.Fatalf("config.toml:\n%s", b)
 	}
@@ -185,11 +193,16 @@ func TestSettingsWorkspaceRowIsReadOnly(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
 	selectRow(d, 3, 0)
 	d.Type("k")
-	if l := rowWith(strings.Split(d.plain(), "\n"), "Editor"); !strings.Contains(l, "▌ Editor") {
-		t.Fatalf("cursor left the Editor row: %q\n%s", l, d.plain())
+	if l := rowWith(strings.Split(d.plain(), "\n"), "Workspace"); strings.Contains(l, "▌") {
+		t.Fatalf("cursor landed on the read-only Workspace row: %q\n%s", l, d.plain())
 	}
+	d.Type("enter") // on the header: nothing opens
+	if strings.Contains(d.plain(), "▏") {
+		t.Fatalf("enter on the header opened a field:\n%s", d.plain())
+	}
+	d.Type("j")
 	d.Type("enter")
-	requireAll(t, d.plain(), "Edit Editor")
+	requireAll(t, d.plain(), "▏")
 	d.Type("esc")
 	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
 		t.Fatalf("written:\n%s", b)

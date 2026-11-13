@@ -213,6 +213,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
 		m.err = done.err
+		if done.err == nil && done.toast != "" {
+			m.toast = done.toast
+		}
 		if err != nil {
 			m.err = err
 		} else if a != nil {
@@ -275,6 +278,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		m.clampCursor()
 		return m, cmd
+	}
+	if m.screen == settingsScreen && m.settings != nil && m.settings.Edit != nil {
+		// An open Settings field owns the keyboard, so typing digits or "," is text.
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			return m.editKey(msg), nil
+		case tea.PasteMsg:
+			return m.editPaste(msg.Content), nil
+		}
 	}
 	if done, ok := msg.(flashDone); ok {
 		if done.id == m.flashID {

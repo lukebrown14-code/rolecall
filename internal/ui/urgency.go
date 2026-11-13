@@ -76,11 +76,53 @@ func daysFrom(date string, now time.Time) (time.Time, int, bool) {
 // follow-up period: the whole-day rule the row's ⚑ flag and the Stats screen share, so
 // the flag and the reasoning can never disagree. The time of day never matters.
 func followUpDue(a store.Application, now time.Time, days int) bool {
+	_, ok := followUpDaysPast(a, now, days)
+	return ok
+}
+
+// Follow-up due heat: how far past its follow-up date an Application is.
+const (
+	heatMidAfter  = 3 // more than this many days past: heatMid
+	heatHighAfter = 7 // more than this many days past: heatHigh, bold
+	heatLow       = "·"
+	heatMid       = "◦"
+	heatHigh      = "●"
+)
+
+// followUpDaysPast is how many whole days past its follow-up date a sent Application is
+// (0 on the day it falls due), and whether it is Follow-up due at all.
+func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
 	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || a.LastChange == nil {
-		return false
+		return 0, false
 	}
 	t, ok := parseDay(a.LastChange.At)
-	return ok && !day(now).Before(t.AddDate(0, 0, days))
+	if !ok {
+		return 0, false
+	}
+	past := int(day(now).Sub(t.AddDate(0, 0, days)).Hours() / hoursPerDay)
+	return past, past >= 0
+}
+
+// followUpHeat is the glyph for an Application the given days past its follow-up date.
+func followUpHeat(past int) string {
+	switch {
+	case past > heatHighAfter:
+		return heatHigh
+	case past > heatMidAfter:
+		return heatMid
+	}
+	return heatLow
+}
+
+// followUpWords is "due today", "due 1 day ago" or "due 9 days ago".
+func followUpWords(past int) string {
+	switch past {
+	case 0:
+		return "due today"
+	case 1:
+		return "due 1 day ago"
+	}
+	return fmt.Sprintf("due %d days ago", past)
 }
 
 // shortDate is "3 Sep", with the year when it is not this year's.

@@ -137,6 +137,43 @@ func TestStringsAvoidGlossaryAvoidTerms(t *testing.T) {
 	}
 }
 
+// Follow-up due is the only word for an overdue follow-up: no string the UI draws calls it
+// stale, quiet or a reminder.
+func TestStringsNeverSayStaleQuietOrReminder(t *testing.T) {
+	banned := regexp.MustCompile(`(?i)\b(stale|quiet|reminder)\b`)
+	err := filepath.WalkDir("..", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() && (entry.Name() == "tests" || entry.Name() == "testdata") {
+			return filepath.SkipDir
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return err
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			if _, ok := n.(*ast.ImportSpec); ok {
+				return false
+			}
+			if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+				if s, _ := strconv.Unquote(lit.Value); banned.MatchString(s) {
+					t.Errorf("%s: %q uses a word the UI avoids for Follow-up due", fset.Position(lit.Pos()), s)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // The Plugin and skill prose is part of the product's vocabulary, so it uses
 // GLOSSARY.md's terms too: an unqualified _Avoid_ term may not appear in prose.
 // Code spans and fenced blocks are stripped first, so file names and shell

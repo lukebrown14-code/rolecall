@@ -29,7 +29,7 @@ func TestOneSelectionMarkInEverySurface(t *testing.T) {
 		"list":     {"1"},
 		"move":     {"1", "m"},
 		"palette":  {"1", ":"},
-		"settings": {"6", "tab"},
+		"settings": {"6"},
 		"profile":  {"5"},
 	}
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
@@ -55,7 +55,7 @@ func TestOneSelectionMarkInEverySurface(t *testing.T) {
 func TestSelectionMarkIsAGreaterThanInASCIIAndSurvivesNoColor(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	t.Setenv("NO_COLOR", "1")
-	for _, keys := range [][]string{{"1"}, {"1", "m"}, {"1", ":"}, {"6", "tab"}} {
+	for _, keys := range [][]string{{"1"}, {"1", "m"}, {"1", ":"}, {"6"}} {
 		m := driveStart(t, fixtureCopy(t, nil), heldNow, 100, 30)
 		v := driveModel(t, m, keys...).View().Content
 		if strings.Contains(v, "▌") || len(markedLines(v, "> ")) == 0 {

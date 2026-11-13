@@ -14,7 +14,7 @@ import (
 func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"5"},
-		{"6"}, {"6", "j", "j", "tab", "a"}, {"6", "tab", "enter"}} {
+		{"6"}, {"6", "]", "]", "a"}, {"6", "enter"}} {
 		view := runKeys(t, fixtureCopy(t, nil), 120, keys...)
 		for _, seq := range []string{"38;2;", "48;2;"} {
 			if strings.Contains(view, seq) {
@@ -44,7 +44,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 // A pop-up over Settings dims the frame behind it but leaves the values and the group
 // marker where they were, so the frame still reads while the pop-up is open.
 func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
-	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab", "a"))
+	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "]", "]", "a"))
 	for _, want := range []string{"Add a Track", "SWE", "Tracking", "Follow-up due after"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("pop-up over Settings lost %q:\n%s", want, v)
@@ -57,7 +57,7 @@ func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
 func TestAsciiGlyphsFallBack(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "m", "d"}, {"5"},
-		{"6"}, {"6", "j", "tab", "enter"}, {"6", "j", "j", "tab", "r"}, {"6", "j", "j", "j", "tab", "j", "enter"}} {
+		{"6"}, {"6", "]", "enter"}, {"6", "]", "]", "r"}, {"6", "]", "]", "]", "j", "enter"}} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
 		for _, r := range view {
 			if r > 127 {
@@ -113,7 +113,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 			t.Setenv("LC_CTYPE", "")
 			t.Setenv("LANG", tc.lang)
 			t.Setenv("TERM", "xterm-256color") // TERM=linux would turn ASCII on regardless
-			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab"))
+			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "]", "]"))
 			got := false
 			for _, r := range view {
 				if r > 127 {
@@ -130,7 +130,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 // The ? pop-up explains the glyphs.
 func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
-	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "⚑ quiet 14+ days") || !strings.Contains(view, "· not assessed") {
+	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "· ◦ ● due 14+ days") || !strings.Contains(view, "· not assessed") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
 	}
 }

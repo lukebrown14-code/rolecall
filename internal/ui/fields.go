@@ -85,7 +85,7 @@ func (p pal) fitValue(a store.Application) string {
 // only a Lead or Draft is offered, and only once a Harness is set (the key is not listed
 // before).
 func (m model) needsPrepare(a store.Application, c docChip) bool {
-	return !c.ready && c.name != docPDF && m.harness != "" && handoffAllowed(a, skillPrepareDocuments)
+	return !c.ready && c.name != docPDF && m.harness != "" && m.handoffAllowed(a, skillPrepareDocuments)
 }
 
 // needsBuild reports whether a missing PDF can be built: a Lead or Draft, with a Plugin set.
