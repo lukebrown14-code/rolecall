@@ -9,7 +9,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// A field row is "LABEL  value        [key] action": the label muted, the value plain, and
+// A field row is "LABEL  value        key action": the label muted, the value plain, and
 // the key in the Keys colour at the right edge. Detail and Profile draw every field
 // this way, so a row says how to change itself.
 const (
@@ -17,15 +17,12 @@ const (
 	fieldMinVal = 3 // the least value kept before the action words are dropped
 )
 
-// notAssessed is the Fit value of an Application with no Fit yet; the list uses it too.
-const notAssessed = "·"
-
 // notNeededMark marks a Document the Application does not need (a Resume only Cover letter).
 // The em dash is the frame's "none", as an empty NOTES row shows it.
 const notNeededMark = "—"
 
-// keyChip is "[m]" in the Keys colour.
-func (p pal) keyChip(key string) string { return p.Key().Render("[" + key + "]") }
+// keyChip is the bare key, "m", in the Keys colour.
+func (p pal) keyChip(key string) string { return p.Key().Render(key) }
 
 // fieldRow draws one row inside w cells. The value truncates first; when even that is not
 // enough the action words go, then the key. A row with an action but no key is read-only.
@@ -42,9 +39,9 @@ func (p pal) fieldRowIn(labelW int, label, value, key, action string, w int) str
 		case key == "":
 			return 0
 		case withAction && action != "":
-			return xansi.StringWidth("[" + key + "] " + action)
+			return xansi.StringWidth(key + " " + action)
 		}
-		return xansi.StringWidth("[" + key + "]")
+		return xansi.StringWidth(key)
 	}
 	withAction := w-labelW-keyW(true)-1 >= fieldMinVal
 	if key != "" && w-labelW-keyW(withAction)-1 < 1 {
@@ -75,14 +72,6 @@ func (p pal) fieldRowIn(labelW int, label, value, key, action string, w int) str
 // markdownMarks drops emphasis and code marks from a Notes line shown as plain text.
 var markdownMarks = strings.NewReplacer("**", "", "*", "", "`", "")
 
-// fitValue is the Fit as the list words it: its value, or "·" when not assessed.
-func (p pal) fitValue(a store.Application) string {
-	if a.Fit == "" {
-		return p.Text(p.Dim).Render(notAssessed)
-	}
-	return p.Text(p.FitColor(a.Fit)).Render(a.Fit)
-}
-
 // needsPrepare reports whether a missing Document is one prepare-documents writes, which
 // only a Lead or Draft is offered. The key shows before a Harness is set too: pressing it
 // then names the setting that turns it on.
@@ -94,19 +83,6 @@ func (m model) needsPrepare(a store.Application, c docChip) bool {
 // set, b names the setting.
 func (m model) needsBuild(a store.Application, c docChip) bool {
 	return !c.ready && c.name == docPDF && a.Malformed == nil && a.Unsent()
-}
-
-// docRow is one Document: ● ready or ○ missing, with the key that fixes a missing one.
-func (m model) docRow(p pal, a store.Application, c docChip, w int) string {
-	key, action := "", ""
-	switch {
-	case c.ready, m.isWriting(a, c.file):
-	case m.needsBuild(a, c):
-		key, action = "b", "build"
-	case m.needsPrepare(a, c):
-		key, action = "p", "prepare docs"
-	}
-	return p.fieldRow("", m.chipText(p, a, c), key, action, w)
 }
 
 // logDate is a Status entry's date as the timeline words it, "~" for an approximate one.
@@ -125,35 +101,32 @@ func (m model) logDate(p pal, e store.StatusEntry) string {
 	return p.Text(p.Dim).Render(d)
 }
 
-// timelineName is the Status name's column in the vertical timeline.
-const timelineName = 14
-
-// verticalTimeline is the Status log, newest first, one line per entry joined by a │
-// connector under each glyph. Above it, faint, is the Status the pipeline goes to next;
-// an empty log shows the current Status as its one stop.
+// verticalTimeline is the Status log oldest first, one indented line per entry with its
+// date at the right edge, the current Status bold. Below it, faint, is the Status the
+// pipeline goes to next; an empty log shows the current Status as its one stop.
 func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
 	var out []string
-	stop := func(status, when string, current bool) {
-		name := p.Text(p.StatusColor(status)).Bold(current).Render(padRight(status, timelineName))
-		out = append(out, xansi.Truncate(p.StatusMark(status)+" "+name+when, w, "…"))
+	line := func(left, right string) {
+		left = "  " + left
+		if xansi.StringWidth(left)+gutter+xansi.StringWidth(right) > w {
+			out = append(out, xansi.Truncate(left, w, "…"))
+			return
+		}
+		out = append(out, spread(left, right, w))
 	}
-	link := func() { out = append(out, p.Text(p.Rule).Render("│")) }
-	if next := nextStatus(a.Status); next != "" {
-		out = append(out, xansi.Truncate(p.Text(p.StatusColor(next)).Faint(true).Render(p.StatusGlyph(next)+" "+padRight(next, timelineName))+p.Text(p.Dim).Render("next"), w, "…"))
-		link()
+	stop := func(status, when string, current bool) {
+		line(p.StatusMark(status)+" "+p.Text(p.StatusColor(status)).Bold(current).Render(status), when)
 	}
 	if len(a.StatusLog) == 0 {
 		if a.Status != "" {
 			stop(a.Status, p.Text(p.Dim).Render("not logged"), true)
 		}
-		return out
 	}
-	for i := len(a.StatusLog) - 1; i >= 0; i-- {
-		e := a.StatusLog[i]
+	for i, e := range a.StatusLog {
 		stop(e.Status, m.logDate(p, e), i == len(a.StatusLog)-1)
-		if i > 0 {
-			link()
-		}
+	}
+	if next := nextStatus(a.Status); next != "" {
+		line(p.Text(p.StatusColor(next)).Faint(true).Render(p.StatusGlyph(next)+" "+next), p.Text(p.Dim).Render("next"))
 	}
 	return out
 }
@@ -167,44 +140,84 @@ func nextStatus(status string) string {
 	return pipeline[i+1]
 }
 
-// fieldBlock is an Application's detail as rows inside w cells: Status, Fit, Track,
-// close date and Notes, the next step, the Documents with the keys that fix them, and the
-// timeline. The pane, the full view's card and the Overview tab all draw it.
+// fieldBlock is an Application's detail as rows inside w cells, in the design's order: the
+// Status with the Fit, the close date while it matters, the Documents, the next step, the
+// timeline and the Notes. Each section offers at most one key. The pane, the full view's
+// card and the Overview tab all draw it.
 func (m model) fieldBlock(p pal, a store.Application, w int) []string {
-	notes := p.Text(p.Dim).Render("—")
-	if t := m.docText(a, notesFile); t != "" {
-		notes = p.Text(p.Fg).Render(markdownMarks.Replace(t))
-	}
-	// Without a Harness f names the setting that turns it on, so the key always shows.
-	fitKey, fitAction := "f", "assess"
-	if a.Fit == "" {
-		fitAction = "assess fit"
-	}
-	rows := []string{
-		p.fieldRow("STATUS", p.StatusChip(a.Status), "m", "move", w),
-		p.fieldRow("FIT", p.fitValue(a), fitKey, fitAction, w),
-		p.fieldRow("TRACK", p.Text(p.Fg).Render(a.Track), "e", "edit", w),
-	}
+	rows := m.statusLine(p, a, w)
 	if text, s := closeInfo(a.Closes, m.now()); s != closeNone && beforeApplied(tableOf(a)) {
 		rows = append(rows, p.fieldRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), "e", "edit", w))
 	}
-	rows = append(rows, p.fieldRow("NOTES", notes, "n", "notes", w))
+	rows = append(rows, "")
+	rows = append(rows, m.docsBlock(p, a, w)...)
 	if next := m.nextLine(p, a, w, true); next != "" {
 		rows = append(rows, "", next)
 	}
-	rows = append(rows, "", p.fieldRow("DOCS", p.DocsMeter(a), "", "", w))
+	rows = append(rows, "", p.Text(p.Dim).Render("TIMELINE"))
+	rows = append(rows, m.verticalTimeline(p, a, w)...)
+	return append(rows, "", m.notesRow(p, a, w))
+}
+
+// statusLine is "● Applied" with the Fit at the right edge: "fit not assessed" until one is.
+// Where both do not fit on one line, the Fit takes the line below.
+func (m model) statusLine(p pal, a store.Application, w int) []string {
+	fit := p.Text(p.Dim).Render("fit not assessed")
+	if a.Fit != "" {
+		fit = p.Text(p.Dim).Render("fit ") + p.Text(p.FitColor(a.Fit)).Render(a.Fit)
+	}
+	status := p.Text(p.StatusColor(a.Status)).Bold(true).Render(p.StatusGlyph(a.Status) + " " + a.Status)
+	if xansi.StringWidth(status)+gutter+xansi.StringWidth(fit) > w {
+		return []string{xansi.Truncate(status, w, "…"), xansi.Truncate(fit, w, "…")}
+	}
+	return []string{spread(status, fit, w)}
+}
+
+// docsBlock is "DOCS ■■□□ 2/4" with the one key that fixes the next missing Document, then
+// the Documents side by side, wrapped where they do not fit on one line.
+func (m model) docsBlock(p pal, a store.Application, w int) []string {
+	key, action := "", ""
 	for _, c := range docChips(a) {
-		rows = append(rows, m.docRow(p, a, c, w))
+		if c.ready || m.isWriting(a, c.file) {
+			continue
+		}
+		if m.needsPrepare(a, c) {
+			key, action = "p", "prepare docs"
+			break
+		}
+		if m.needsBuild(a, c) && key == "" {
+			key, action = "b", "build"
+		}
+	}
+	docs := make([]string, 0, len(docChips(a))+1)
+	for _, c := range docChips(a) {
+		docs = append(docs, m.chipText(p, a, c))
 	}
 	if a.ResumeOnly && !a.CoverLetterHasText {
 		// Marked like the other Documents: neither ready nor missing, but not needed.
-		// The state goes before the name is cut: the mark already says "none".
-		letter := m.glyph(notNeededMark) + " " + docCoverLetter
-		if full := letter + "  " + notNeeded; fieldLabelW+xansi.StringWidth(full) <= w {
-			letter = full
-		}
-		rows = append(rows, p.fieldRow("", p.Text(p.Dim).Render(letter), "", "", w))
+		docs = append(docs, p.Text(p.Dim).Render(m.glyph(notNeededMark)+" "+docCoverLetter))
 	}
-	rows = append(rows, "", p.Text(p.Dim).Render("TIMELINE"))
-	return append(rows, m.verticalTimeline(p, a, w)...)
+	rows := []string{p.fieldRow("DOCS", p.DocsMeter(a), key, action, w)}
+	const indent, sep = "  ", "   "
+	line := indent
+	for _, d := range docs {
+		switch {
+		case line == indent:
+			line += d
+		case xansi.StringWidth(line+sep+d) <= w:
+			line += sep + d
+		default:
+			rows = append(rows, line)
+			line = indent + d
+		}
+	}
+	return append(rows, xansi.Truncate(line, w, "…"))
+}
+
+// notesRow is the Notes' first line, or "none yet" with the key that adds them.
+func (m model) notesRow(p pal, a store.Application, w int) string {
+	if t := m.docText(a, notesFile); t != "" {
+		return p.fieldRow("NOTES", p.Text(p.Fg).Render(markdownMarks.Replace(t)), "n", "notes", w)
+	}
+	return p.fieldRow("NOTES", p.Text(p.Dim).Render("none yet"), "n", "add", w)
 }

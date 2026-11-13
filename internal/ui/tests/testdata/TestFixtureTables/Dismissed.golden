@@ -3,21 +3,21 @@
    STATUS s Leads 4 [Dismissed 2] │ TRACK t [All 2] SWE 1 Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
- ▌ ⊘ docs-dismissed                 □□□□        Dism. ~7d     ·  │ Fictional Labs · SWE                                 
+ ▌ ⊘ docs-dismissed                             Dism. ~7d     ·  │ Fictional Labs · SWE · dismissed ~7d ago             
  ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
-   ⊘ Engineer #1                    □□□         ~Jan 2026  Good  │ STATUS  ⊘ Dismissed                        [m] move  
-     Example · Unknown · dismissed ~Jan 2026                     │ FIT     ·                            [f] assess fit  
-                                                                 │ TRACK   SWE                                [e] edit  
-                                                                 │ NOTES   —                                 [n] notes  
-                                                                 │                                                      
+   ⊘ Engineer #1                                ~Jan 2026  Good  │ ⊘ Dismissed                        fit not assessed  
+     Example · Unknown · dismissed ~Jan 2026                     │                                                      
                                                                  │ DOCS    □□□□ 0/4                                     
-                                                                 │         ○ JD                                         
-                                                                 │         ○ Resume                                     
-                                                                 │         ○ Cover letter                               
-                                                                 │         ○ PDF                                        
+                                                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
                                                                  │ TIMELINE                                             
-                                                                 │ ⊘ Dismissed     ~24 Sep                              
+                                                                 │   ⊘ Dismissed                               ~24 Sep  
+                                                                 │                                                      
+                                                                 │ NOTES   none yet                              n add  
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

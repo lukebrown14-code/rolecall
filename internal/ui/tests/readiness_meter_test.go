@@ -4,8 +4,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 // meterRun is a run of meter cells: ■ ready, □ missing.
@@ -19,36 +17,13 @@ func meterRun(line string) string {
 	return b.String()
 }
 
-// At 120x36 every row carries its meter: one cell per needed Document.
-func TestRowMeterShowsOnEveryRowWhenWide(t *testing.T) {
-	view := listView(t, 120, 36)
-	rows := rowLines(view)
-	if len(rows) < 3 {
-		t.Fatalf("found %d rows:\n%s", len(rows), view)
-	}
-	for _, r := range rows {
-		if n := len([]rune(meterRun(r))); n < 3 || n > 4 {
-			t.Errorf("row has %d meter cells, want 3 or 4: %q", n, r)
-		}
-	}
-}
-
-// At the narrowest sizes the meter is dropped before the title shrinks below ten cells.
-func TestRowMeterNeverSqueezesTheTitle(t *testing.T) {
+// List rows carry no meter, as the design draws them: the detail's DOCS line and a Draft's
+// second line say how far the Documents are.
+func TestRowsCarryNoMeter(t *testing.T) {
 	for _, s := range columnSizes {
 		for _, r := range rowLines(listView(t, s[0], s[1])) {
-			runs := meterRun(r)
-			if runs == "" {
-				continue
-			}
-			i := strings.IndexRune(r, '■')
-			if j := strings.IndexRune(r, '□'); i < 0 || (j >= 0 && j < i) {
-				i = j
-			}
-			title := strings.TrimLeft(r[:i], " ▌")
-			// the Status glyph and a space lead the title
-			if w := ansi.StringWidth(title) - 2; w < 10 {
-				t.Errorf("%dx%d: title is %d cells beside the meter: %q", s[0], s[1], w, r)
+			if run := meterRun(r); run != "" {
+				t.Errorf("%dx%d: row carries a meter %q: %q", s[0], s[1], run, r)
 			}
 		}
 	}

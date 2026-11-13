@@ -280,8 +280,8 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 		}
 	}
 	reader := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "/docs-written", "enter", "enter", "right", "right"))
-	if !strings.Contains(reader, "FIT     ·") {
-		t.Errorf("card split the Fit row:\n%s", reader)
+	if !strings.Contains(reader, "fit not assessed") {
+		t.Errorf("card split the Fit:\n%s", reader)
 	}
 }
 

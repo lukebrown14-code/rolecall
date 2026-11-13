@@ -134,16 +134,6 @@ func (p pal) DocsMeter(a store.Application) string {
 	return p.meterCells(a, p.Text) + p.Text(c).Render(fmt.Sprintf(" %d/%d", n, total))
 }
 
-// Row meter sizing: the widest meter (JD, Resume, Cover letter, PDF), and the least title
-// the row keeps with the meter beside it. Below that the meter is dropped first.
-const (
-	meterWidth    = 4
-	meterTitleMin = 10
-)
-
-// meterGap is the cells the meter takes in a row: itself and one before the next column.
-func meterGap() int { return meterWidth + 1 }
-
 // readyTotals is the documents ready of the documents needed across the Workspace's
 // active Applications: those still live (not Dismissed, Rejected or Withdrawn, and
 // readable). It is the share the pipeline strip shows.

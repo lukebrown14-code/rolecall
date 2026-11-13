@@ -82,8 +82,8 @@ func (m model) writeStep(what string) nextStep {
 	return nextStep{what: what}
 }
 
-// nextLine is the next step as a field row, "NEXT    add the JD   [enter] open" or
-// "FOLLOW-UP  due 9 days ago   [r] draft nudge", inside w cells. The reason joins the
+// nextLine is the next step as a field row, "NEXT    add the JD   enter open" or
+// "FOLLOW-UP  due 9 days ago   r draft nudge", inside w cells. The reason joins the
 // words only when the whole row fits. When even the words and the key do not fit, wrap
 // puts the key and its action on a second line at the same right edge (the card is
 // narrow); without wrap the row cuts as every field row does.
@@ -99,7 +99,7 @@ func (m model) nextLine(p pal, a store.Application, w int, wrap bool) string {
 	labelW := max(fieldLabelW, xansi.StringWidth(name)+2) //nolint:mnd // the gap after a long label
 	what := p.Text(p.Fg).Render(s.what)
 	fits := func(value string) bool {
-		return labelW+xansi.StringWidth(value)+1+xansi.StringWidth("["+s.key+"] "+s.desc) <= w
+		return labelW+xansi.StringWidth(value)+1+xansi.StringWidth(s.key+" "+s.desc) <= w
 	}
 	if s.why != "" {
 		if full := what + p.Text(p.Dim).Render(" · "+s.why); fits(full) {

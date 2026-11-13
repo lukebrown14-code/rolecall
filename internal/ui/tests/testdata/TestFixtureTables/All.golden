@@ -3,29 +3,29 @@
    STATUS s [All 9] Applied 1 Interviewing 2 Offer 2 Closed 4 │ TRACK t [All 9] SWE 5 Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ● Applied · 1 ─────────────────────────────────────────────── │ Software Engineer                                    
- ▌ ● Software Engineer              □□□□       Applied 6d     ·  │ Orbit Labs · SWE                                     
+ ▌ ● Software Engineer                         Applied 6d     ·  │ Orbit Labs · SWE · applied 6d ago                    
  ▌   Orbit Labs · SWE · applied 6d ago                           │                                                      
-                                                                 │ STATUS  ● Applied                          [m] move  
-   ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ FIT     ·                            [f] assess fit  
-   ◆ Engineer #1                    □□□  ● 9mo  ~Jan 2026  Good  │ TRACK   SWE                                [e] edit  
-     Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │ NOTES   —                                 [n] notes  
-   ◆ docs-written                   ■■□□      Interv. ~7d     ·  │                                                      
-     Fictional Labs · SWE · interviewing ~7d ago                 │ NEXT    wait to hear back                  [m] move  
+                                                                 │ ● Applied                          fit not assessed  
+   ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │                                                      
+   ◆ Engineer #1                         ● 9mo  ~Jan 2026  Good  │ DOCS    □□□□ 0/4                                     
+     Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+   ◆ docs-written                             Interv. ~7d     ·  │                                                      
+     Fictional Labs · SWE · interviewing ~7d ago                 │ NEXT    wait to hear back                    m move  
                                                                  │                                                      
-   ★ Offer · 2 ───────────────────────────────────────────────── │ DOCS    □□□□ 0/4                                     
-   ★ Engineer #1                    □□□         ~Jan 2026  Good  │         ○ JD                                         
-     Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │         ○ Resume                                     
-   ★ docs-partial                   ■□□□        Offer ~7d     ·  │         ○ Cover letter                               
-     Fictional Labs · SWE · offer ~7d ago                        │         ○ PDF                                        
-                                                                 │                                                      
-   ✕ Closed · 4 ──────────────────────────────────────────────── │ TIMELINE                                             
-   ✕ Engineer #1                    □□□         ~Jan 2026  Good  │ ◆ Interviewing  next                                 
-     Example · Unknown · closed ~Jan 2026                        │ │                                                    
-   – Engineer #1                    □□□         ~Jan 2026  Good  │ ● Applied       25 Sep                               
-     Example · Unknown · closed ~Jan 2026                        │ │                                                    
-   ✕ docs-ready                     ■■■□         Rej. ~7d     ·  │ ◌ Lead          24 Sep                               
+   ★ Offer · 2 ───────────────────────────────────────────────── │ TIMELINE                                             
+   ★ Engineer #1                                ~Jan 2026  Good  │   ◌ Lead                                     24 Sep  
+     Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │   ● Applied                                  25 Sep  
+   ★ docs-partial                               Offer ~7d     ·  │   ◆ Interviewing                               next  
+     Fictional Labs · SWE · offer ~7d ago                        │                                                      
+                                                                 │ NOTES   none yet                              n add  
+   ✕ Closed · 4 ──────────────────────────────────────────────── │                                                      
+   ✕ Engineer #1                                ~Jan 2026  Good  │                                                      
+     Example · Unknown · closed ~Jan 2026                        │                                                      
+   – Engineer #1                                ~Jan 2026  Good  │                                                      
+     Example · Unknown · closed ~Jan 2026                        │                                                      
+   ✕ docs-ready                                  Rej. ~7d     ·  │                                                      
      Fictional Labs · SWE · closed ~7d ago                       │                                                      
-   – docs-resume-only               ■■□       Withdr. ~7d     ·  │                                                      
+   – docs-resume-only                         Withdr. ~7d     ·  │                                                      
      Fictional Labs · SWE · closed ~7d ago                       │                                                      
                                                                  │                                                      
                                                                  │                                                      

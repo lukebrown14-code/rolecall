@@ -3,25 +3,25 @@
    STATUS [Drafts 2] │ TRACK t [All 2] SWE 1 Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✎ Drafts · 2 ──────────────────────────────────────────────── │ docs-none                                            
- ▌ ✎ docs-none                      □□□□        Draft ~7d     ·  │ Fictional Labs · SWE                                 
+ ▌ ✎ docs-none                                  Draft ~7d     ·  │ Fictional Labs · SWE · ○ 0/4 ready                   
  ▌   Fictional Labs · SWE · — · ○ 0/4 ready                      │                                                      
-   ✎ Engineer #1                    □□□         ~Jan 2026  Good  │ STATUS  ✎ Draft                            [m] move  
-     Example · Unknown · — · ○ 0/3 ready                         │ FIT     ·                            [f] assess fit  
-                                                                 │ TRACK   SWE                                [e] edit  
-                                                                 │ NOTES   —                                 [n] notes  
+   ✎ Engineer #1                                ~Jan 2026  Good  │ ✎ Draft                            fit not assessed  
+     Example · Unknown · — · ○ 0/3 ready                         │                                                      
+                                                                 │ DOCS    □□□□ 0/4                     p prepare docs  
+                                                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
-                                                                 │ NEXT    add the JD                     [enter] open  
-                                                                 │                                                      
-                                                                 │ DOCS    □□□□ 0/4                                     
-                                                                 │         ○ JD                       [p] prepare docs  
-                                                                 │         ○ Resume                   [p] prepare docs  
-                                                                 │         ○ Cover letter             [p] prepare docs  
-                                                                 │         ○ PDF                             [b] build  
+                                                                 │ NEXT    add the JD                       enter open  
                                                                  │                                                      
                                                                  │ TIMELINE                                             
-                                                                 │ ● Applied       next                                 
-                                                                 │ │                                                    
-                                                                 │ ✎ Draft         ~24 Sep                              
+                                                                 │   ✎ Draft                                   ~24 Sep  
+                                                                 │   ● Applied                                    next  
+                                                                 │                                                      
+                                                                 │ NOTES   none yet                              n add  
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

@@ -118,7 +118,7 @@ func TestDetailOpensOnOverviewWhereTheCardIsFolded(t *testing.T) {
 		if !strings.Contains(view, tc.tabs) {
 			t.Errorf("%dx%d: tabs do not start %q:\n%s", tc.w, tc.h, tc.tabs, view)
 		}
-		if tc.w < 120 && !strings.Contains(lineWith(view, "STATUS  "), "[m] move") {
+		if tc.w < 120 && !strings.Contains(lineWith(view, "NEXT  "), "m move") {
 			t.Errorf("%dx%d: Overview does not show the card's rows:\n%s", tc.w, tc.h, view)
 		}
 		if n := strings.Count(view, "NEXT "); n != 1 {
@@ -178,10 +178,10 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 		label, key string
 		harness    bool
 	}{
-		{"next", []string{"3"}, "NEXT    wait to hear back", "[m] move", false},
-		{"lead next", []string{"1"}, "NEXT    add the JD", "[enter] open", false},
-		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "[n] note", false},
-		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "[r] draft nudge", true},
+		{"next", []string{"3"}, "NEXT    wait to hear back", "m move", false},
+		{"lead next", []string{"1"}, "NEXT    add the JD", "enter open", false},
+		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "n note", false},
+		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "r draft nudge", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []ui.Option
@@ -194,10 +194,12 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 			if row == "" || !strings.Contains(row, tc.key) {
 				t.Fatalf("no row %q … %q:\n%s", tc.label, tc.key, view)
 			}
-			status := lineWith(view, "STATUS  ")
+			notes := lineWith(view, "NOTES  ")
 			end := func(l, s string) int { return colOf(l, s) + ansi.StringWidth(s) }
-			if got, want := end(row, tc.key), end(status, "[m] move"); got != want {
-				t.Errorf("%q ends at %d, STATUS row's key at %d:\n%s\n%s", tc.key, got, want, status, row)
+			nk := strings.Fields(notes)
+			last := nk[len(nk)-2] + " " + nk[len(nk)-1]
+			if got, want := end(row, tc.key), end(notes, last); got != want {
+				t.Errorf("%q ends at %d, NOTES row's key at %d:\n%s\n%s", tc.key, got, want, notes, row)
 			}
 		})
 	}
@@ -208,20 +210,8 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 func TestResumeOnlyCoverLetterRowIsAligned(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-resume-only", "enter"))
 	row := lineWith(view, "Cover letter")
-	if !strings.Contains(row, "— Cover letter  not needed") {
-		t.Fatalf("Cover letter row = %q:\n%s", row, view)
-	}
-	mark := func(l string) int {
-		for _, g := range []string{"● ", "○ ", "— "} {
-			if c := colOf(l, g); c >= 0 {
-				return c
-			}
-		}
-		return -1
-	}
-	resume := lineWith(view, " Resume")
-	if mark(row) < 0 || mark(row) != mark(resume) {
-		t.Errorf("Cover letter mark at %d, Resume mark at %d:\n%s\n%s", mark(row), mark(resume), resume, row)
+	if !strings.Contains(row, "● Resume") || !strings.Contains(row, "— Cover letter") {
+		t.Fatalf("docs line = %q, want the Resume and a dashed Cover letter side by side:\n%s", row, view)
 	}
 }
 
@@ -288,11 +278,11 @@ func TestMalformedRowNamesTheFolderWithARelativeDir(t *testing.T) {
 	}
 }
 
-// The detail's rows carry the key that changes them even before a Harness or Plugin is
+// The detail's sections carry the key that changes them even before a Harness or Plugin is
 // set (#177): pressing one then says which setting turns it on.
 func TestDetailRowsShowTheirKeysWithoutAHarness(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1"))
-	for _, want := range []string{"[f] assess fit", "[p] prepare docs", "[b] build"} {
+	for _, want := range []string{"p prepare docs"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}

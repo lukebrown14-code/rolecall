@@ -1037,13 +1037,9 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
 			st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
+	// The row carries no ready meter: the detail's DOCS line and a Draft's second line say
+	// how far its Documents are.
 	right := buildRight()
-	// The ready meter sits between the title and the fixed columns, and goes first when
-	// the title would shrink below meterTitleMin.
-	if room := w - xansi.StringWidth(bar) - statusMarkWidth - xansi.StringWidth(right) - 1; room-meterGap() >= meterTitleMin {
-		_, total := readyCount(a)
-		right = st(p.Fg).Render(" ") + p.meterCells(a, st) + st(p.Fg).Render(strings.Repeat(" ", meterWidth-total)) + right
-	}
 	// The Status glyph leads the title; the second line lines up under the title.
 	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
@@ -1141,10 +1137,22 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		b.WriteString(p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
 	} else {
-		b.WriteString(wrap(a.Title, p.Fg, titleLines) + "\n" + p.Text(p.Dim).Render(a.Company+" · "+a.Track) + "\n\n")
+		b.WriteString(wrap(a.Title, p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
 		b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
+}
+
+// previewMeta is the line under the preview's title, the row's own second line: "Orbit
+// Labs · SWE · applied 6d ago". A Lead with no close date leaves off the row's dash.
+func (m model) previewMeta(p pal, a store.Application, w int) string {
+	var parts []string
+	for _, s := range m.meta(p, a, p.Text, p.Dim) {
+		if xansi.Strip(s) != "—" {
+			parts = append(parts, s)
+		}
+	}
+	return xansi.Truncate(strings.Join(parts, p.Text(p.Dim).Render(" · ")), w, "…")
 }
 
 // fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":

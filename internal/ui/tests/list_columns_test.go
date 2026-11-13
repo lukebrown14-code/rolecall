@@ -133,9 +133,10 @@ func TestListLongTitleTruncates(t *testing.T) {
 	t.Fatalf("long title row not found:\n%s", view)
 }
 
-// The old Fit phrasings appear nowhere in the screens that talk about Fit.
+// The old Fit phrasings appear nowhere in the screens that talk about Fit. The detail's
+// Status line says "fit not assessed", as the design does; the list keeps "·".
 func TestFitWordingIsConsistent(t *testing.T) {
-	banned := []string{"fit —", "fit not assessed", "no fit assessment", "score"}
+	banned := []string{"fit —", "no fit assessment", "score"}
 	screens := [][]string{{"1"}, {"2"}, {"3"}, {"3", "enter"}, {"3", "enter", "right"}, {"3", "enter", "right", "right"}, {"?"}, {"3", "/docs-written", "enter", "enter", "right", "right"}}
 	for _, w := range []int{120, 80, 60} {
 		for _, keys := range screens {
