@@ -303,7 +303,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes —", "Moved to Draft")
+	h.show("Draft · Platform · closes —", "→ Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -401,7 +401,7 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "Moved to Applied")
+	yes.show("Applied · ", "→ Applied")
 }
 
 func TestResumeReader(t *testing.T) {

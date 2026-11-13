@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +52,9 @@ func TestMalformedRowOpensTheFailingLineInTheEditor(t *testing.T) {
 	}
 }
 
+// movedToast is the toast a move to Interviewing shows: verb, company, arrow, Status.
+var movedToast = regexp.MustCompile(`✓ Moved \S.* → Interviewing\b`)
+
 // A move says what happened with an undo hint and lights the moved row until its tick
 // fires; the tick is driven by hand, so nothing sleeps.
 func TestMoveToastsAndFlashesTheRow(t *testing.T) {
@@ -63,7 +67,7 @@ func TestMoveToastsAndFlashesTheRow(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36, ui.WithTicker(ticker))
 	m = driveModel(t, m, "3", "m", "i") // the All view keeps the row in sight
 	lit := m.View().Content
-	if plain := ansi.Strip(lit); !strings.Contains(plain, "Moved to Interviewing · ") || !strings.Contains(plain, "u undo") {
+	if plain := ansi.Strip(lit); !movedToast.MatchString(plain) || !strings.Contains(plain, "u undo") {
 		t.Fatalf("move lacks its toast and undo hint:\n%s", plain)
 	}
 	if len(fire) != 1 || waits[0] < 300*time.Millisecond || waits[0] > time.Second {
@@ -78,7 +82,7 @@ func TestMoveToastsAndFlashesTheRow(t *testing.T) {
 		t.Fatal("the flash changed text, not only colour")
 	}
 	m = driveModel(t, m, "u")
-	if plain := ansi.Strip(m.View().Content); !strings.Contains(plain, "Undone · ") {
+	if plain := ansi.Strip(m.View().Content); !strings.Contains(plain, "↩ Undid move ") {
 		t.Fatalf("undo lacks its toast:\n%s", plain)
 	}
 }
@@ -96,5 +100,43 @@ func TestErrorLineCutsTheMessageNotTheKeys(t *testing.T) {
 		if !strings.HasPrefix(strings.TrimSpace(last), "✘ Can't read SWE/malformed") {
 			t.Fatalf("%d: error message missing: %q", w, last)
 		}
+	}
+}
+
+// ASCII mode swaps the toast's check mark for + and the undo arrow for <.
+func TestToastGlyphsFoldToASCII(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36, ui.WithASCII(true))
+	m = driveModel(t, m, "3", "m", "i")
+	if plain := ansi.Strip(m.View().Content); !strings.Contains(plain, "+ Moved ") {
+		t.Fatalf("ASCII toast lacks +:\n%s", plain)
+	}
+	m = driveModel(t, m, "u")
+	if plain := ansi.Strip(m.View().Content); !strings.Contains(plain, "< Undid move ") {
+		t.Fatalf("ASCII undo toast lacks <:\n%s", plain)
+	}
+}
+
+// A move that takes the row out of a filtered view says it is hidden by the filter, and
+// u still undoes it.
+func TestMoveOutOfFilteredViewSaysHiddenByFilter(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "1", "t", "m", "d")
+	plain := ansi.Strip(m.View().Content)
+	if !strings.Contains(plain, "→ Draft (hidden by filter)") || !strings.Contains(plain, "u undo") {
+		t.Fatalf("filtered move lacks its note:\n%s", plain)
+	}
+}
+
+// Dismiss confirms like a move: the company, and u undo, with the key line still last.
+func TestDismissToastOffersUndo(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "x")
+	plain := ansi.Strip(m.View().Content)
+	if !strings.Contains(plain, "✓ Dismissed ") || !strings.Contains(plain, "u undo  esc hide") {
+		t.Fatalf("dismiss toast lacks undo:\n%s", plain)
+	}
+	lines := strings.Split(strings.TrimRight(plain, "\n"), "\n")
+	if !strings.Contains(lines[len(lines)-1], "? help") {
+		t.Fatalf("key line is not the last row:\n%s", plain)
 	}
 }

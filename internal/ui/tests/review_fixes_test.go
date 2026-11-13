@@ -25,7 +25,7 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 	h.write(meta, strings.Replace(string(b), "status_log: []", "status_log:\n  - {status: Draft, at: 2026-10-01T01:00:00Z}", 1))
 	h.wait("Drafts 3") // Empty log left Leads; the cursor now sits on another row
 	h.tm.Type("x")
-	h.wait("Dismissed · ")
+	h.wait("✓ Dismissed ")
 	s, err := store.Open(h.root)
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +180,7 @@ func TestLongSearchKeepsTheFrame(t *testing.T) {
 // A success toast shows on the status row, over the key line, with the bottom rule kept.
 func TestToastKeepsTheBottomRule(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "x"))
-	if !strings.Contains(view, "Dismissed · ") || !strings.Contains(view, "┴") {
+	if !strings.Contains(view, "✓ Dismissed ") || !strings.Contains(view, "┴") {
 		t.Fatalf("toast replaced the bottom rule:\n%s", view)
 	}
 }

@@ -1,7 +1,8 @@
 package ui
 
 import (
-	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -60,14 +61,18 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.err, m.toast = sentErr, ""
 		return nil
 	}
+	name := moveName(a)
 	if undo {
-		m.toast = fmt.Sprintf("Undone · %s back to %s", appName(a.Title), status)
+		m.toast = "Undid move " + name
 		return m.startFlash(a.Folder)
 	}
 	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
-	m.toast = fmt.Sprintf("Moved to %s · %s", status, appName(a.Title))
+	m.toast, m.toastHint, m.movedTo = "Moved "+name+" → "+status, undoHint, status
+	if m.hiddenByFilter(a.Folder) {
+		m.toast += " (hidden by filter)"
+	}
 	if status == store.StatusDismissed {
-		m.toast = "Dismissed · " + appName(a.Title)
+		m.toast = "Dismissed " + name
 	}
 	if status == store.StatusOffer {
 		m.toast = m.offerToast(a)
@@ -76,6 +81,26 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.followAfterMove(a.Folder)
 	}
 	return m.startFlash(a.Folder)
+}
+
+// undoHint is the keys shown with the toast of every reversible action.
+const undoHint = "u undo · esc hide"
+
+// moveName is the company a toast names, falling back to the Application's title.
+func moveName(a store.Application) string {
+	if c := strings.TrimSpace(a.Company); c != "" {
+		return c
+	}
+	return appName(a.Title)
+}
+
+// hiddenByFilter reports that a track or text filter is in force and the row is not among
+// the rows now shown, so the toast can say where it went.
+func (m model) hiddenByFilter(folder string) bool {
+	if !m.filtered() {
+		return false
+	}
+	return !slices.ContainsFunc(m.rows(), func(r store.Application) bool { return r.Folder == folder })
 }
 
 // followAfterMove puts the selection on folder's row in whichever screen and view now
