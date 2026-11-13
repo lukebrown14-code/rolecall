@@ -63,7 +63,8 @@ func TestKeymapHasNoDuplicatesAndHelpListsEveryEntryUnderItsSection(t *testing.T
 					case strings.Contains(l, "NAVIGATE"), strings.Contains(l, "ACT") && strings.Contains(l, "│  ACT"),
 						strings.Contains(l, "FILTER & FIND"):
 						section = strings.TrimSpace(strings.Trim(l, "│ "))
-					case strings.Contains(l, chip):
+					case strings.Contains(l, chip), strings.Contains(l, "["+h.Key+" "), strings.Contains(l, " "+h.Key+"]"):
+						// a key that shares its row with an alias: "[: ctrl+k]"
 						found = found || section == want
 					}
 				}

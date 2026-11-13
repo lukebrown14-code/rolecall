@@ -11,7 +11,7 @@
                                                                  │ TRACK   SWE                                [e] edit  
                                                                  │ NOTES   —                                 [n] notes  
                                                                  │                                                      
-                                                                 │ NEXT  wait to hear back   m move                     
+                                                                 │ NEXT    wait to hear back                  [m] move  
                                                                  │                                                      
                                                                  │ DOCS    ▱▱▱▱ 0/4                                     
                                                                  │         ○ JD                                         
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · s status filter · S focus strip · / search           ←→ view · ? help
+ enter open · e edit · m move · n notes · a add · s status filter · S focus strip · / search        ? help · space menu

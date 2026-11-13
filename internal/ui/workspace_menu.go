@@ -11,6 +11,9 @@ import (
 // menuWidth is the Workspace menu's box width, in cells.
 const menuWidth = 26
 
+// menuLead is the cells before each menu label: the cursor "▌ ▸ " on the selected row.
+const menuLead = 4
+
 // menuTitle names the Workspace menu; its top border also carries "esc".
 const menuTitle = "Menu"
 
@@ -94,14 +97,16 @@ func (wm *workspaceMenu) View(m *model, p pal) string {
 	cw := popWidth(menuWidth, m.viewWidth()) - popInset + gutter
 	lines := make([]string, len(wm.items))
 	for i, it := range wm.items {
-		room := max(0, cw-gutter-1-xansi.StringWidth(it.key))
+		// "▌ ▸ " before the selected label, four spaces before the rest, so every label
+		// starts in the same column.
+		room := max(0, cw-menuLead-1-xansi.StringWidth(it.key))
 		label := padRight(xansi.Truncate(it.label, room, "…"), room)
 		if i == wm.sel {
-			mark := p.SelBase(true).Foreground(p.Accent).Bold(true).Render("▌") + p.SelText(true).Render("▸")
+			mark := p.SelBase(true).Foreground(p.Accent).Bold(true).Render("▌") + p.SelText(true).Render(" ▸ ")
 			lines[i] = p.SelLine(true, cw, mark+p.SelText(true).Render(label+" "+it.key))
 			continue
 		}
-		lines[i] = "  " + p.Text(p.Fg).Render(label) + " " + p.Key().Render(it.key)
+		lines[i] = strings.Repeat(" ", menuLead) + p.Text(p.Fg).Render(label) + " " + p.Key().Render(it.key)
 	}
 	return popupNote(p, menuTitle, "esc", false, menuWidth, m.viewWidth(), strings.Join(lines, "\n"), p.Keys([][2]string{{"↑↓", menuHintMove}, {"enter", menuHintRun}}))
 }

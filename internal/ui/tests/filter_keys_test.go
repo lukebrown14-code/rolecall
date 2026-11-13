@@ -57,7 +57,7 @@ func TestPaletteFindsStatusFilterAndSort(t *testing.T) {
 // Help has three sections, keys as chips, and no internal wording.
 func TestHelpSectionsChipsAndWording(t *testing.T) {
 	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 140, "1", "?"))
-	for _, want := range []string{"NAVIGATE", "ACT", "FILTER & FIND", "[s]", "[o]", "[t]", "[/]", "[:]", "[m]"} {
+	for _, want := range []string{"NAVIGATE", "ACT", "FILTER & FIND", "[s]", "[o]", "[t]", "[/]", "[: ctrl+k]", "[m]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("help lacks %q:\n%s", want, v)
 		}

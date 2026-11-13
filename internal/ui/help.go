@@ -61,8 +61,7 @@ const (
 const (
 	helpKeyWidth = 9
 	helpColumn   = 23 // three fit side by side from 80 columns
-	helpColumns  = 3
-	keyLineGap   = 4 // the key line's indent plus the space kept between its halves
+	keyLineGap   = 4  // the key line's indent plus the space kept between its halves
 )
 
 type helpKey struct {
@@ -200,7 +199,12 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		keys = append(keys, help(groupGlobal, ",", "settings"))
 	}
 	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioScreen), help(groupFilter, "ctrl+k", "commands"),
-		help(groupGlobal, "?", "help").at(prioPinned), help(groupGlobal, "q", "quit"))
+		help(groupGlobal, "?", "help").at(prioPinned))
+	if !m.fieldOpen() {
+		// An open Settings field takes space as text.
+		keys = append(keys, help(groupGlobal, "space", "menu").at(prioPinned))
+	}
+	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {
 		taken[k.Help().Key] = true
@@ -212,6 +216,11 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		}
 	}
 	return out
+}
+
+// fieldOpen reports whether a Settings field is being edited, so it owns the keyboard.
+func (m model) fieldOpen() bool {
+	return m.screen == settingsScreen && m.settings != nil && m.settings.Edit != nil
 }
 
 // screenIndex is a screen's position in screenDefs.
@@ -340,19 +349,23 @@ func glyphLegend(p pal, followUpDays int) string {
 func (m model) helpBox(p pal) string {
 	under := m
 	under.overlay = nil
-	keys := under.screenKeys()
+	keys := append(under.screenKeys(), under.dormantKeys()...)
 	col := func(title string, list []helpKey) string {
 		var b strings.Builder
 		b.WriteString(p.Heading(title) + "\n")
-		for _, k := range list {
-			h := k.Help()
-			b.WriteString(p.Key().Render(padRight("["+h.Key+"]", helpKeyWidth)) + p.Text(p.Fg).Render(h.Desc) + "\n")
+		rows := mergeAliases(list)
+		keyW := helpKeyWidth // widened for a merged row, "[: ctrl+k]", so the column's words line up
+		for _, k := range rows {
+			keyW = max(keyW, xansi.StringWidth("["+k[0]+"]")+1)
+		}
+		for _, k := range rows {
+			b.WriteString(p.Key().Render(padRight("["+k[0]+"]", keyW)) + p.Text(p.Fg).Render(k[1]) + "\n")
 		}
 		return strings.TrimSuffix(b.String(), "\n")
 	}
 	cols := []string{col("Navigate", section(keys, groupNav, groupCursor, groupGlobal)), col("Act", section(keys, groupAction)),
 		col("Filter & find", section(keys, groupFilter))}
-	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
+	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset)
 	if c := conventions(keys); c != "" {
 		body += "\n\n" + p.Text(p.Dim).Render(c)
 	}
@@ -401,6 +414,23 @@ func section(keys []helpKey, groups ...helpGroup) []helpKey {
 	}
 	slices.SortStableFunc(out, func(a, b helpKey) int { return rank(b) - rank(a) })
 	return out
+}
+
+// mergeAliases is the pop-up's rows: keys that do the same thing (: and ctrl+k open the
+// command palette) share one row, "[: ctrl+k] commands", at the first one's place.
+func mergeAliases(keys []helpKey) [][2]string {
+	var rows [][2]string
+	at := map[string]int{}
+	for _, k := range keys {
+		h := k.Help()
+		if i, ok := at[h.Desc]; ok {
+			rows[i][0] += " " + h.Key
+			continue
+		}
+		at[h.Desc] = len(rows)
+		rows = append(rows, [2]string{h.Key, h.Desc})
+	}
+	return rows
 }
 
 // conventions is the one line that says how the navigation keys divide the work, for the

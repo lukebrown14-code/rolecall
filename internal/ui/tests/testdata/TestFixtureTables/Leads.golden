@@ -11,7 +11,7 @@
                                                                  │ TRACK   SWE                                [e] edit  
    ◌ Platform Engineer              ▱▱▱▱          Lead 7d     ·  │ NOTES   —                                 [n] notes  
      Fern Systems · Platform · —                                 │                                                      
-                                                                 │ NEXT  add the JD   enter open                        
+                                                                 │ NEXT    add the JD                     [enter] open  
    ⚠ Can't read SWE/malformed                                    │                                                      
      meta.yml line 4: indented lines must be status_log entri…   │ DOCS    ▱▱▱▱ 0/4                                     
                                                                  │         ○ JD                                         
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · a add · s status filter · o sort newest · / search         ? help
+ enter open · e edit · m move · x dismiss · n notes · a add · s status filter · / search            ? help · space menu

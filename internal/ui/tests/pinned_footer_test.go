@@ -87,7 +87,7 @@ func TestMediumEnterOpensABottomSheet(t *testing.T) {
 	if !strings.Contains(view, "2/9") || !strings.Contains(view, "▌") {
 		t.Fatalf("sheet lost the selected row:\n%s", view)
 	}
-	if !strings.Contains(view, "[JD]") && !strings.Contains(view, "[Docs]") {
+	if !strings.Contains(view, "[Overview]") {
 		t.Fatalf("sheet shows no detail tabs:\n%s", view)
 	}
 	back := strings.Join(plainAt(t, 80, 24, "3", "j", "enter", "esc"), "\n")

@@ -11,14 +11,13 @@
                                                                  │ TRACK   Unknown                            [e] edit  
                                                                  │ NOTES   —                                 [n] notes  
                                                                  │                                                      
-                                                                 │ NEXT  decide on the offer   m move                   
+                                                                 │ NEXT    decide on the offer                [m] move  
                                                                  │                                                      
                                                                  │ DOCS    ▱▱▱ 0/3                                      
                                                                  │         ○ JD                                         
                                                                  │         ○ Resume                                     
                                                                  │         ○ PDF                                        
-                                                                 │   Cover letter                                       
-                                                                 │   not needed · Resume only                           
+                                                                 │         — Cover letter  not needed                   
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │ ★ Offer         ~1 Jan                               
@@ -36,5 +35,6 @@
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
+                                                                 │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · s status filter · S focus strip · / search           ←→ view · ? help
+ enter open · e edit · m move · n notes · a add · s status filter · S focus strip · / search        ? help · space menu

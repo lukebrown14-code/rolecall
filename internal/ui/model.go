@@ -282,7 +282,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.clampCursor()
 		return m, cmd
 	}
-	if m.screen == settingsScreen && m.settings != nil && m.settings.Edit != nil {
+	if m.fieldOpen() {
 		// An open Settings field owns the keyboard, so typing digits or "," is text.
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:

@@ -87,7 +87,7 @@ func TestFollowUpHeatGlyphs(t *testing.T) {
 func TestDetailShowsFollowUpLine(t *testing.T) {
 	m := driveStart(t, heatWorkspace(t), fixtureClock, 120, 40, ui.WithHarness("x {skill} {dir}"))
 	v := plain(driveModel(t, m, "3", "/Highco", "enter", "enter"))
-	if !strings.Contains(v, "FOLLOW-UP  due 10 days ago") || !strings.Contains(v, "r draft nudge") {
+	if !strings.Contains(v, "FOLLOW-UP  due 10 days ago") || !strings.Contains(v, "[r] draft nudge") {
 		t.Fatalf("no follow-up line:\n%s", v)
 	}
 }

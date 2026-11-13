@@ -192,10 +192,10 @@ func TestLetterAndGapsReaders(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 80, 40)
 	m = driveModel(t, m, "3", "/docs-written", "enter", "enter")
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "[JD]  Fit   Resume   Cover letter   Gaps   Notes   Docs") {
+	if !strings.Contains(v, "[Overview]  JD   Fit   Resume   Cover letter   Gaps   Notes   Docs") {
 		t.Fatalf("tabs: %s", v)
 	}
-	m = driveModel(t, m, "right", "right", "right")
+	m = driveModel(t, m, "right", "right", "right", "right")
 	if !strings.Contains(ansi.Strip(m.View().Content), "Fictional letter text") {
 		t.Fatal("letter reader missing")
 	}
@@ -222,12 +222,13 @@ func TestResumeOnlyLetterChoice(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40)
 	m = driveModel(t, m, "3", "/docs-resume-only", "enter", "enter")
 	v := ansi.Strip(m.View().Content)
-	if !strings.Contains(v, "not needed · Resume only") || strings.Contains(tabRow(v), docCoverLetter) {
+	// the card is narrow: the mark says the letter is not needed
+	if !strings.Contains(v, "— Cover letter") || strings.Contains(tabRow(v), docCoverLetter) {
 		t.Fatalf("Resume only card: %s", v)
 	}
 	m = driveModel(t, m, "left")
 	v = ansi.Strip(m.View().Content)
-	if strings.Count(v, "not needed · Resume only") != 2 {
+	if !strings.Contains(v, "not needed · Resume only") {
 		t.Fatalf("Resume only Docs: %s", v)
 	}
 }

@@ -21,7 +21,7 @@ var snapshotStates = []struct {
 	{"03-applied-all", []string{"3"}, nil},
 	{"04-applied-interviewing", []string{"3", "tab", "tab"}, nil},
 	{"05-detail", []string{"3", "enter"}, nil},
-	{"06-detail-docs-tab", []string{"3", "enter", "right", "right", "right"}, nil},
+	{"06-detail-docs-tab", []string{"3", "enter", "left"}, nil}, // left wraps to the last tab, Docs, at every size
 	{"07-move-popup", []string{"1", "m"}, nil},
 	{"08-add-form", []string{"a"}, nil},
 	{"09-add-form-error", []string{"a", "enter"}, nil},
@@ -31,7 +31,7 @@ var snapshotStates = []struct {
 	{"13-error", []string{"G", "m", "d"}, nil},
 	{"14-track-cycled", []string{"1", "t"}, nil},
 	{"15-stats", []string{"4"}, nil},
-	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "right", "right"}, nil},
+	{"16-resume-reader", []string{"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}, nil}, // wraps to Docs, then back to Resume, at every size
 	{"17-profile", []string{"5"}, nil},
 	{"18-settings-search", []string{"6"}, nil},
 	{"19-settings-documents", []string{"6", "]"}, nil},
@@ -62,6 +62,12 @@ var snapshotStates = []struct {
 	{"47-offer-celebration", []string{"3", "tab", "m", "o"}, nil},
 	{"48-detail-next-draft", []string{"2", "enter"}, nil},
 	{"49-leads-sorted-newest", []string{"1", "o"}, nil},
+	{"51-workspace-menu", []string{"3", " "}, nil},
+	{"52-strip-focus", []string{"3", "S", "right"}, nil},
+	{"53-settings-dirty", []string{"6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter"}, nil},
+	{"54-status-filter-applied", []string{"3", "s"}, nil},
+	{"55-follow-up-detail", []string{"3", "/Engineer", "enter", "j"}, nil},
+	{"56-dismiss-toast", []string{"1", "x"}, nil},
 }
 
 // editedSnapshotStates start from an edited copy of the fixture: the first-run screen
