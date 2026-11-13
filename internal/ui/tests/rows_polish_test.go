@@ -90,7 +90,7 @@ func TestOfferCelebration(t *testing.T) {
 	if !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") {
 		t.Fatalf("no celebration:\n%s", v)
 	}
-	if !strings.Contains(v, "[Offer 3]") {
+	if !strings.Contains(v, "Applied › Offer") {
 		t.Fatalf("did not land on the Offer view:\n%s", v)
 	}
 	if strings.Contains(v, "press ← → to follow it") {

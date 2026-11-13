@@ -235,7 +235,7 @@ func (st State[Undo]) Rows(group int, machine Machine) []Row {
 func (st State[Undo]) trackingRows(machine Machine) []Row {
 	var rows []Row
 	for _, t := range st.Ws.Tracks {
-		rows = append(rows, Row{Label: t, Value: plural(st.TrackUse[t], "Application", "Applications")})
+		rows = append(rows, Row{Label: t, Value: st.trackCount(t, machine)})
 	}
 	if len(rows) > 0 {
 		rows[0].Section = "Tracks"
@@ -246,6 +246,18 @@ func (st State[Undo]) trackingRows(machine Machine) []Row {
 	}
 	return append(rows, Row{Label: LabelFollowUp, Value: strconv.Itoa(machine.FollowUpDays), Unit: "days",
 		Source: machine.Sources.FollowUpDays, Section: "Follow-up"})
+}
+
+// trackCount is a Track's Application count. Where some are closed and some are live it
+// says how the count splits, "10 applications · 9 active · 1 closed", so it agrees with
+// the status counts beside it.
+func (st State[Undo]) trackCount(track string, machine Machine) string {
+	n := st.TrackUse[track]
+	active := machine.TrackActive[track]
+	if closed := n - active; active > 0 && closed > 0 {
+		return fmt.Sprintf("%d applications · %d active · %d closed", n, active, closed)
+	}
+	return plural(n, "Application", "Applications")
 }
 
 // gateRows lists the document Gates with their current values. The template choice row is
@@ -302,6 +314,7 @@ type Machine struct {
 	Workspace, Editor, EditorSource, Downloads, Harness, Plugin string
 	EditorAvailable, ASCII                                      bool
 	FollowUpDays                                                int
+	TrackActive                                                 map[string]int // live Applications on each Track, to explain its count
 	Sources                                                     Sources
 }
 

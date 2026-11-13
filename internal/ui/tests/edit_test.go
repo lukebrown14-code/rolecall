@@ -158,7 +158,7 @@ func activeTrack(view string) string {
 		if i < 0 {
 			continue
 		}
-		if m := regexp.MustCompile(`\[([^\]]+)\]`).FindStringSubmatch(line[i:]); m != nil {
+		if m := regexp.MustCompile(`\[([^\]]+?)(?: \d+)?\]`).FindStringSubmatch(line[i:]); m != nil {
 			return m[1]
 		}
 	}

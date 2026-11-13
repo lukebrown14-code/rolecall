@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -62,9 +63,8 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	}
 	rule := ruleLine(view, m.glyph("─"))
 	if y == rule-tableContext {
-		if v, ok := labelAt(line, x, m.views()); ok {
-			m.table, m.cursor = v, 0
-			return m, nil, true
+		if c, ok := m.stripCellAt(x, xansi.StringWidth(line)); ok {
+			return m.showStripCell(c), nil, true
 		}
 		return m, nil, false
 	}
@@ -73,6 +73,21 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 		return m.syncDetail(), nil, true
 	}
 	return m, nil, false
+}
+
+// showStripCell shows the cell's view, on its screen when it is not the one open.
+func (m model) showStripCell(c stripCell) model {
+	v := c.views[0]
+	if c.on(m) {
+		return m
+	}
+	if si := screenIndex(v.screen); si != m.screen {
+		m, _ = m.screenKey(keyPress(fmt.Sprint(si + 1)))
+	}
+	if ti := slices.Index(m.views(), v.table); ti >= 0 {
+		m.table, m.cursor = ti, 0
+	}
+	return m
 }
 
 // ruleLine is the index of the frame's top rule: the first line drawn with rule, the
@@ -101,30 +116,6 @@ func (m model) tabAt(x int) (int, bool) {
 	return best, best >= 0
 }
 
-// labelAt is the index of the label holding column x on a line that lists them in order.
-func labelAt(line string, x int, labels []string) (int, bool) {
-	// Each label owns the columns from its bracket to the next label's.
-	from, hit := 0, -1
-	last := 0
-	for i, l := range labels {
-		col := columnOf(line[from:], l)
-		if col < 0 {
-			break
-		}
-		col += xansi.StringWidth(line[:from])
-		if x >= col-1 {
-			hit = i
-		}
-		last = col + xansi.StringWidth(l)
-		from = byteIndexOfColumn(line, last)
-	}
-	// The last label's count and bracket follow it; the scope line further right does not count.
-	if hit < 0 || (hit == len(labels)-1 && x > last+len(" 00/00]")) {
-		return 0, false
-	}
-	return hit, true
-}
-
 // chipCloseAt reports whether column x is the search chip's ×, the close character the
 // renderer drew (×, or x in ASCII mode).
 func chipCloseAt(line string, x int, close string) bool {
@@ -139,18 +130,6 @@ func columnOf(line, sub string) int {
 		return -1
 	}
 	return xansi.StringWidth(line[:i])
-}
-
-// byteIndexOfColumn is the byte offset in line of terminal column col.
-func byteIndexOfColumn(line string, col int) int {
-	w := 0
-	for i, r := range line {
-		if w >= col {
-			return i
-		}
-		w += xansi.StringWidth(string(r))
-	}
-	return len(line)
 }
 
 // rowAt is the row drawn at column x and body line y of the list, if any.

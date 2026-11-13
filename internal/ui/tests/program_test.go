@@ -16,7 +16,7 @@ func TestNavigation(t *testing.T) {
 	}{
 		{nil, "Leads 4"},
 		{[]string{"2"}, "Drafts 2"},
-		{[]string{"3"}, "Closed 4"},
+		{[]string{"3"}, "closed 6"},
 		{[]string{"tab", "?"}, "Keys"},
 	} {
 		m = driveModel(t, m, tc.keys...)

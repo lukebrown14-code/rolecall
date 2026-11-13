@@ -108,14 +108,14 @@ func TestFiltersCollapseToOneLineWhenNarrow(t *testing.T) {
 	lines := plainAt(t, 60, 16, "3")
 	found := false
 	for _, l := range lines {
-		if strings.Contains(l, "s:All") && strings.Contains(l, "t:All") {
+		if strings.Contains(l, "All tracks") && strings.Contains(l, "t [All 17]▸") {
 			found = true
 		}
 	}
 	if !found {
 		t.Fatalf("no collapsed filter line:\n%s", strings.Join(lines, "\n"))
 	}
-	if wide := strings.Join(plainAt(t, 120, 36, "3"), "\n"); strings.Contains(wide, "s:All") {
+	if wide := strings.Join(plainAt(t, 120, 36, "3"), "\n"); strings.Contains(wide, "▸") {
 		t.Fatalf("wide filters should not collapse")
 	}
 }

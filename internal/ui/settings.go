@@ -426,7 +426,20 @@ const (
 
 func (m model) settingsMachine() settings.Machine {
 	editor := ResolveEditor(m.editor)
-	return settings.Machine{Workspace: m.store.Root(), Editor: editor, EditorSource: m.editorSource, EditorAvailable: editorOnPath(editor), Downloads: m.downloads, Harness: m.harness, Plugin: m.plugin, ASCII: m.ascii, FollowUpDays: m.followUpDays, Sources: m.sources}
+	return settings.Machine{Workspace: m.store.Root(), Editor: editor, EditorSource: m.editorSource, EditorAvailable: editorOnPath(editor), Downloads: m.downloads, Harness: m.harness, Plugin: m.plugin, ASCII: m.ascii, FollowUpDays: m.followUpDays, Sources: m.sources, TrackActive: m.trackActive()}
+}
+
+// trackActive is the Applications still live on each Track: every listed one that is not
+// Closed or Dismissed. A Track's other Applications, closed or archived, are the rest of
+// its count.
+func (m model) trackActive() map[string]int {
+	out := map[string]int{}
+	for _, a := range m.apps {
+		if t := tableOf(a); a.Malformed != nil || (t != tableDismissed && t != tableClosed) {
+			out[a.Track]++
+		}
+	}
+	return out
 }
 func (m model) settingsRows(group int) []settingRow {
 	return m.settings.Rows(group, m.settingsMachine())

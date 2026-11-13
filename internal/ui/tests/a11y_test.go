@@ -27,7 +27,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 		t.Fatalf("NO_COLOR dropped bold and underline as well:\n%q", view)
 	}
 	plain := ansi.Strip(view)
-	for _, want := range []string{"[All]", "[Leads 4]", "▞ rolecall", "t  [All]"} {
+	for _, want := range []string{"[◌ Leads 4]", "▞ rolecall", "t  [All 17]"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
@@ -66,7 +66,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 		}
 	}
 	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	for _, want := range []string{"[All]", "Move", "cancel"} {
+	for _, want := range []string{"[All 17]", "Move", "cancel"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("ASCII fallback lost %q:\n%s", want, plain)
 		}
@@ -252,7 +252,8 @@ func TestNoColorShowsAGlyphForEveryStatus(t *testing.T) {
 		keys  []string
 		wants []string
 	}{
-		{[]string{"1"}, []string{"◌ ", "⊘ Dismissed"}},
+		{[]string{"1"}, []string{"◌ "}},
+		{[]string{"1", "s"}, []string{"⊘ "}},
 		{[]string{"2"}, []string{"✎ "}},
 		{[]string{"3"}, []string{"● Applied", "◆ Interviewing", "★ Offer", "✕ Closed", "✕ docs-ready", "– docs-resume-only"}},
 	} {
