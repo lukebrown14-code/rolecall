@@ -64,7 +64,7 @@ func TestFilters(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{[]string{"/zzznomatch"}, "No matches"},
+		{[]string{"/zzznomatch"}, "No Applications match"},
 		{[]string{"enter", "2"}, "Draft"},
 		{[]string{"r", "esc"}, "Drafts 2"},
 	} {
