@@ -31,8 +31,8 @@ const (
 )
 
 const (
-	wideWidth     = 110
-	mediumWidth   = 80
+	wideWidth     = 100
+	mediumWidth   = 72
 	shortHeight   = 20 // at or below this the blank line under the tab bar goes
 	minTermWidth  = 56 // below this, or minTermHeight, a "needs" notice replaces the layout
 	minTermHeight = 14
@@ -42,11 +42,47 @@ const (
 	ruleLines     = 2 // the rules above and below the body
 )
 
-// layout is one frame's size budget.
+// detailMode is how an Application's detail is reached at a size.
+type detailMode int
+
+const (
+	// detailPane shows the detail beside the list (wide).
+	detailPane detailMode = iota + 1
+	// detailFull opens the detail as its own full-screen view on enter (medium and narrow).
+	detailFull
+)
+
+// The list row's fixed right columns, in cells.
+const (
+	filtersFull      = 2  // filter lines when the filters have room
+	filtersCollapsed = 1  // and when collapsed to one line
+	flagColumn       = 6  // the Follow-up due flag
+	stageColumn      = 11 // stage and date
+	fitColumn        = 6  // Fit
+)
+
+// layout is one frame's size budget: everything a view needs to place itself, from the
+// terminal size alone.
 type layout struct {
 	w, h  int
 	class sizeClass
 	short bool
+	// detail is how the detail is shown; listW and detailW are the list and the detail
+	// pane beside it (detailW is 0 with one pane, and the list takes the width). With a
+	// pane, listW + the divider + detailW is the width.
+	detail         detailMode
+	listW, detailW int
+	// flagCol, stageCol and fitCol are the list row's fixed right columns, and subtitleW
+	// what is left of the list for the subtitle after the marker, the inset and those.
+	flagCol, stageCol, fitCol int
+	subtitleW                 int
+	// filterLines is the lines the status and Track filters take: two, or one collapsed.
+	filterLines int
+	// footerRow is the row the footer sits on: always the last.
+	footerRow int
+	// cardW, profileW and groupsW are the detail card, Profile's section list and
+	// Settings' group list.
+	cardW, profileW, groupsW int
 	// status is the lines the status area needs: one for the key line, or two while the
 	// feedback line sits above it, so the key line is never wiped by a toast or an error.
 	status int
@@ -59,14 +95,26 @@ func (m model) layout() layout {
 	return l
 }
 
+// sizeLayout is the pure layout for a terminal of w by h: no rendering, no model, no clock.
 func sizeLayout(w, h int) layout {
-	l := layout{w: w, h: h, short: h <= shortHeight}
+	l := layout{w: w, h: h, short: h <= shortHeight, detail: detailFull, filterLines: filtersFull, listW: w,
+		flagCol: flagColumn, stageCol: stageColumn, fitCol: fitColumn, footerRow: max(0, h-1)}
 	switch {
 	case w >= wideWidth:
 		l.class = classWide
+		l.detail = detailPane
+		l.detailW = l.panel(previewShare, previewMin, previewMax)
+		l.listW = w - l.detailW - 1
 	case w >= mediumWidth:
 		l.class = classMedium
 	}
+	if w < mediumWidth {
+		l.filterLines = filtersCollapsed
+	}
+	l.subtitleW = max(0, l.listW-edge-inset-l.flagCol-l.stageCol-l.fitCol)
+	l.cardW = l.panel(cardShare, cardMin, cardMax)
+	l.profileW = l.panel(profileShare, profileMin, profileMax)
+	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
 }
 
@@ -88,7 +136,8 @@ func (l layout) bodyHeight(ctx int) int {
 	return max(minBody, l.h-l.headerLines()-ctx-ruleLines-l.status)
 }
 
-// panel is a side panel's width: share percent of the width, held between lo and hi.
+// panel is a side panel's width: share percent of the width, held between lo and hi. Only
+// sizeLayout calls it; views read the finished widths.
 func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent, lo), hi) }
 
 // Side panels: share of the width, then the least and most cells.

@@ -170,7 +170,7 @@ const (
 func (m model) cardShown() bool { return m.layout().wide() }
 
 // cardWidth is the left card's column, divider excluded.
-func (m model) cardWidth() int { return m.layout().panel(cardShare, cardMin, cardMax) }
+func (m model) cardWidth() int { return m.layout().cardW }
 
 // detailContextLines is the lines between the tab bar and the body: the title row, then
 // the facts line beside the card or the strip in its place.
