@@ -216,7 +216,7 @@ func TestAsciiKeepsStatusesApart(t *testing.T) {
 func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
-		"● Applied   Fit:", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only", "◆ Interviewing 2"} {
+		"STATUS  ● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only", "◆ Interviewing 2"} {
 		if !strings.Contains(list, want) {
 			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
 		}

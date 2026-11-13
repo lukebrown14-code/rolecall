@@ -1104,33 +1104,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.Fg, titleLines) + "\n" + p.Text(p.Dim).Render(a.Company+" · "+a.Track) + "\n\n")
-		b.WriteString(keepTogether(inner, "", p.StatusChip(a.Status), p.FitText(a)) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "\n" + p.DocsMeter(a) + "\n")
-		if next := m.nextLine(p, a, inner); next != "" {
-			b.WriteString("\n" + next + "\n")
-		}
-		b.WriteString("\n" + p.Heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, false) + "\n\n")
-		b.WriteString(p.Heading("Fit") + "\n")
-		if t := m.docText(a, fitFile); t != "" {
-			if a.Fit == "" {
-				b.WriteString(p.Text(p.Dim).Render(fitSummary(a, true)) + "\n")
-			}
-			b.WriteString(wrap(t, p.Fg, docLines) + "\n")
-		} else {
-			b.WriteString(m.fitEmpty(p, a) + "\n")
-		}
-		if beforeApplied(tableOf(a)) {
-			if jd := m.docText(a, jdFile); jd != "" {
-				b.WriteString("\n" + p.Heading("JD") + "\n" + wrap(jd, p.Sub, previewLines) + "\n" +
-					p.Key().Render("enter") + p.Text(p.Dim).Render(" full JD") + "\n")
-			}
-		}
-		b.WriteString("\n" + p.Heading("Notes") + "\n")
-		if t := m.docText(a, notesFile); t != "" {
-			b.WriteString(wrap(t, p.Fg, docLines))
-		} else {
-			b.WriteString(p.Text(p.Dim).Render("No notes yet · ") + p.Key().Render("n") + p.Text(p.Dim).Render(" to add"))
-		}
+		b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
@@ -1143,40 +1117,6 @@ func (m model) fileMarks(p pal, a store.Application) string {
 		parts = append(parts, m.chipText(p, a, c))
 	}
 	return strings.Join(parts, "  ")
-}
-
-// timelineBlock is the Timeline section: the Status log as a one-line track, then the
-// close date for Leads and Drafts by its urgency. An empty log says how to start it.
-// flow lets the track run onto more lines, for a column too narrow for one.
-func (m model) timelineBlock(p pal, a store.Application, w int, flow bool) string {
-	var lines []string
-	switch {
-	case len(a.StatusLog) == 0:
-		lines = append(lines, p.Text(p.Dim).Render("Not moved yet · ")+p.Key().Render("m")+p.Text(p.Dim).Render(" to move"))
-	case flow:
-		lines = append(lines, m.timelineFlow(p, a, w))
-	default:
-		lines = append(lines, m.timelineTrack(p, a, w))
-	}
-	if beforeApplied(tableOf(a)) {
-		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
-			lines = append(lines, p.Text(p.Faint).Render("→ ")+p.CloseStyle(s, p.Text, p.Dim).Render(text))
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// fitEmpty is the Fit section without reasoning: the verdict and where it came from, or
-// that there is none yet and the key that assesses it.
-func (m model) fitEmpty(p pal, a store.Application) string {
-	if a.Fit != "" {
-		return p.Text(p.Dim).Render(fitSummary(a, false))
-	}
-	s := p.Text(p.Dim).Render("Fit: " + fitNone)
-	if m.harness != "" {
-		s += p.Text(p.Dim).Render(" · ") + p.Key().Render("f") + p.Text(p.Dim).Render(" to assess")
-	}
-	return s
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for
