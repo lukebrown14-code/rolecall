@@ -36,7 +36,7 @@ func selectedLine(t *testing.T, view string) string {
 }
 
 // selectionBg is the selection bar's background as it appears in an SGR sequence.
-const selectionBg = "48;2;31;61;61"
+const selectionBg = "48;2;47;85;96" // #2F5560
 
 // barText is the text drawn on the selection background in a styled line.
 func barText(line string) string {
