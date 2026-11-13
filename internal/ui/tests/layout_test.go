@@ -224,7 +224,7 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 				if ansi.StringWidth(strings.TrimRight(l, " ")) > tc.w-1 && !strings.HasPrefix(l, "──") {
 					t.Errorf("%dx%d keys %q: line %d reaches the right edge: %q", tc.w, tc.h, keys, i, l)
 				}
-				if i > rules[0] && i < rules[1] && l != "" && l[0] != ' ' {
+				if i > rules[0] && i < rules[1] && l != "" && l[0] != ' ' && !strings.HasPrefix(l, "──") {
 					t.Errorf("%dx%d keys %q: line %d starts at column 0: %q", tc.w, tc.h, keys, i, l)
 				}
 			}
