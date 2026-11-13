@@ -16,7 +16,7 @@ func buildable(a store.Application) bool {
 	if a.Malformed != nil {
 		return false
 	}
-	if a.Status != store.StatusLead && a.Status != store.StatusDraft {
+	if !a.Unsent() {
 		return false
 	}
 	return a.Documents == store.DocsWritten || a.Documents == store.DocsReady

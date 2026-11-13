@@ -38,7 +38,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 		mark, label := "  ", p.Text(p.Sub).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		if focused {
 			mark = p.SelGutter(false)
-			label = p.Text(p.Accent).Bold(true).Width(lw).Align(lipgloss.Right).Render(fld.Label)
+			label = p.Text(p.Sub).Bold(true).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		}
 		req := " "
 		if fld.Required {
@@ -88,7 +88,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int) string {
 	cursor := ""
 	if focused {
-		cursor = p.Text(p.Accent).Render("▏")
+		cursor = p.Text(p.Fg).Render("▏")
 	}
 	valC := p.Sub
 	if focused {
@@ -102,7 +102,7 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 	case fld.Choices != nil:
 		arrow := p.Dim
 		if focused {
-			arrow = p.Accent
+			arrow = p.Fg
 		}
 		label := fld.Value
 		for _, c := range fld.Choices {
@@ -112,7 +112,7 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 		}
 		return p.Text(arrow).Render("‹ ") + p.Text(valC).Bold(focused).Render(label) + p.Text(arrow).Render(" ›") + aside
 	case fld.Role == forms.RoleURL && f.Fetching:
-		return p.Text(p.Accent).Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
+		return p.SpinnerStyle().Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
 	case fld.Value == "":
 		if fld.Placeholder != "" {
 			return cursor + p.Text(p.Dim).Italic(true).Render(fld.Placeholder) + aside

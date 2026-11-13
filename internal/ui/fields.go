@@ -90,8 +90,7 @@ func (m model) needsPrepare(a store.Application, c docChip) bool {
 
 // needsBuild reports whether a missing PDF can be built: a Lead or Draft, with a Plugin set.
 func (m model) needsBuild(a store.Application, c docChip) bool {
-	return !c.ready && c.name == docPDF && m.plugin != "" && a.Malformed == nil &&
-		(a.Status == store.StatusLead || a.Status == store.StatusDraft)
+	return !c.ready && c.name == docPDF && m.plugin != "" && a.Malformed == nil && a.Unsent()
 }
 
 // docRow is one Document: ● ready or ○ missing, with the key that fixes a missing one.

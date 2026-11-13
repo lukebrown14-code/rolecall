@@ -164,7 +164,7 @@ func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hin
 	if termWidth > 0 {
 		w = min(w, popWidth(w, termWidth))
 	}
-	border := p.Accent
+	border := p.Sub
 	if warn {
 		border, title = p.Warn, "⚠ "+title
 	}

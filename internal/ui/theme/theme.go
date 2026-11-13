@@ -334,10 +334,10 @@ func (p Palette) SelLine(filled bool, w int, content string) string {
 
 func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
 
-// activeTab is the selected tab's fill: the accent and bold, so it is marked by more
-// than the fill; behind a pop-up its text stays at the text floor on the dimmed fill.
+// activeTab is the selected tab: the selection fill with bold, underlined text, so it is
+// marked by more than the fill; behind a pop-up its text stays at the text floor.
 func (p Palette) ActiveTab() lipgloss.Style {
-	return lipgloss.NewStyle().Background(p.Accent).Foreground(p.OnFill).Bold(true)
+	return p.SelText(true).Underline(true)
 }
 
 // paneRule colours a pane's rule or divider: the accent while the pane has focus, the

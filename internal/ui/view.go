@@ -188,7 +188,7 @@ func (m model) listView(p pal) string {
 	}
 	keys := m.keyLine(p, w)
 	if m.searching() {
-		in := p.Text(p.Accent).Bold(true).Render(" / ") + p.Text(p.Fg).Render(m.text) + p.Text(p.Accent).Render("▏")
+		in := p.Text(p.Fg).Bold(true).Render(" / ") + p.Text(p.Fg).Render(m.text) + p.Text(p.Fg).Render("▏")
 		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupFilter, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
@@ -431,10 +431,10 @@ func (m model) trackSelector(p pal, form trackForm) string {
 	if form == trackCollapsed {
 		return key + p.Text(p.Dim).Render(":"+m.trackName())
 	}
-	on := p.Text(p.Accent).Bold(true).Underline(true)
+	on := p.Text(p.Fg).Bold(true).Underline(true)
 	// The active track is bracketed as well as underlined, so it is marked without colour.
 	mark := func(name string) string {
-		return p.Text(p.Accent).Render("[") + on.Render(name) + p.Text(p.Accent).Render("]")
+		return p.Text(p.Dim).Render("[") + on.Render(name) + p.Text(p.Dim).Render("]")
 	}
 	label := func(i int) string {
 		name := allView

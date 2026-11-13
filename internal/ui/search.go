@@ -23,7 +23,7 @@ func (m model) searchChip(p pal) string {
 	if m.text == "" {
 		return ""
 	}
-	return p.Text(p.Accent).Bold(true).Render("/"+m.text) + p.Text(p.Dim).Render(" ×")
+	return p.Text(p.Fg).Bold(true).Render("/"+m.text) + p.Text(p.Dim).Render(" ×")
 }
 
 // withChip puts the search chip before a context row's right-hand text.

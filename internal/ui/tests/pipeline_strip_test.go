@@ -167,3 +167,52 @@ func TestOldStatusBarIsGone(t *testing.T) {
 		}
 	}
 }
+
+// S focuses the strip: ← → then move the status filter cell by cell, enter keeps it and
+// hands the keys back to the list, esc too. The focus shows in the footer and in the
+// strip's gutter mark, and the highlighted cell is the one selection style.
+func TestFocusedStripMovesTheStatusFilterWithArrowsAndEnter(t *testing.T) {
+	for _, tc := range []struct {
+		w, h          int
+		interviewing  string
+		offerHighlit  string
+		footerWantKey string
+	}{
+		{120, 36, "[◆ Interviewing 2]", "[★ Offer 2]", "←→"},
+		{80, 24, "[◆2]", "[★2]", "←→"},
+		{60, 16, "[◆2]", "[★2]", "←→"},
+	} {
+		m := driveStart(t, fixtureCopy(t, nil), fixtureClock, tc.w, tc.h)
+		m = driveModel(t, m, "3", "S", "right", "right", "right", "right")
+		view := ansi.Strip(m.View().Content)
+		line := stripLine(t, view)
+		if !strings.Contains(line, tc.interviewing) || strings.Count(line, "[") != 1 {
+			t.Errorf("%dx%d: → did not highlight Interviewing alone: %q", tc.w, tc.h, line)
+		}
+		if !strings.Contains(line, "▌") {
+			t.Errorf("%dx%d: focused strip has no gutter mark: %q", tc.w, tc.h, line)
+		}
+		lines := strings.Split(view, "\n")
+		foot := lines[len(lines)-1]
+		if !strings.Contains(foot, tc.footerWantKey) {
+			t.Errorf("%dx%d: footer does not show the strip keys: %q", tc.w, tc.h, foot)
+		}
+		m = driveModel(t, m, "right", "enter")
+		view = ansi.Strip(m.View().Content)
+		if line := stripLine(t, view); !strings.Contains(line, tc.offerHighlit) || strings.Contains(line, "▌") {
+			t.Errorf("%dx%d: enter should keep Offer and drop focus: %q", tc.w, tc.h, line)
+		}
+		// Focus is gone: → now cycles the list's view as before, not the strip's cursor.
+		m = driveModel(t, m, "S", "esc", "right")
+		if line := stripLine(t, ansi.Strip(m.View().Content)); strings.Contains(line, "▌") {
+			t.Errorf("%dx%d: esc did not drop strip focus: %q", tc.w, tc.h, line)
+		}
+	}
+}
+
+func TestStripFocusKeyIsInHelp(t *testing.T) {
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "?"))
+	if !strings.Contains(view, "[S]") || !strings.Contains(view, "focus strip") {
+		t.Errorf("Help does not list the strip focus key:\n%s", view)
+	}
+}

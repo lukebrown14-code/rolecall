@@ -63,25 +63,47 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 	}
 	name := moveName(a)
 	if undo {
-		m.toast = "Undid move " + name
+		verb := "move"
+		if a.Status == store.StatusDismissed {
+			verb = "dismiss"
+		}
+		m.toast, m.toastKind = "Undid "+verb+" "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
 	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
 	m.toast, m.toastHint, m.movedTo = "Moved "+name+" → "+status, undoHint, status
-	if m.hiddenByFilter(a.Folder) {
-		m.toast += " (hidden by filter)"
+	const hiddenNote = " (hidden by filter)"
+	hidden := m.hiddenByFilter(a.Folder)
+	if hidden {
+		m.toast += hiddenNote
 	}
 	if status == store.StatusDismissed {
 		m.toast = "Dismissed " + name
+		if hidden {
+			m.toast += hiddenNote
+		}
 	}
 	if status == store.StatusOffer {
-		m.toast = m.offerToast(a)
+		m.toast, m.toastKind = m.offerToast(a), toastOffer
+		if hidden {
+			m.toast += hiddenNote
+		}
 		// Land on the Application's new home so the celebration sits over its row, not
 		// an empty list left behind.
 		m.followAfterMove(a.Folder)
 	}
 	return m.startFlash(a.Folder)
 }
+
+// toastKind says how the feedback line draws a success toast, so the drawing does not
+// depend on the toast's wording.
+type toastKind int
+
+const (
+	toastPlain toastKind = iota // a ✓ in the ok colour
+	toastUndo                   // an undo: ↩
+	toastOffer                  // a move to Offer: the gold ★ celebration
+)
 
 // undoHint is the keys shown with the toast of every reversible action.
 const undoHint = "u undo · esc hide"

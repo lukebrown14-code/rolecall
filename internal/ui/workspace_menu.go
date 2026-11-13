@@ -97,7 +97,7 @@ func (wm *workspaceMenu) View(m *model, p pal) string {
 		room := max(0, cw-gutter-1-xansi.StringWidth(it.key))
 		label := padRight(xansi.Truncate(it.label, room, "…"), room)
 		if i == wm.sel {
-			mark := p.SelBase(true).Foreground(p.Accent).Bold(true).Render("▌▸")
+			mark := p.SelBase(true).Foreground(p.Accent).Bold(true).Render("▌") + p.SelText(true).Render("▸")
 			lines[i] = p.SelLine(true, cw, mark+p.SelText(true).Render(label+" "+it.key))
 			continue
 		}

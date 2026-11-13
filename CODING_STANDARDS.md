@@ -5,7 +5,8 @@ Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and C
 - Colour always pairs with a word or glyph, so meaning never rests on colour alone. Colours
   are roles with a dark and a light value; text keeps a 4.5:1 contrast floor on both themes
   and rules and dividers 3:1, even when a pop-up dims the frame behind it. The accent is the colour of keys
-  (and the selection gutter). The frame stays readable with `NO_COLOR` set (no colour, bold
+  and of focus (the selection gutter, the focused pane rule and the just-moved row's flash);
+  labels, chips, the spinner, borders and the active tab use other roles. The frame stays readable with `NO_COLOR` set (no colour, bold
   and underline kept) and with `ROLECALL_ASCII=1` (every glyph has an ASCII stand-in); a
   locale that is not UTF-8, or `TERM=linux`, turns ASCII on by itself.
 - Rescan-and-restore-cursor goes through the one `reload` helper in `internal/ui/model.go`.

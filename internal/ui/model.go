@@ -32,10 +32,12 @@ type model struct {
 	overlay               mode // the pop-up, prompt or search input that owns the keyboard
 	selectAfter           string
 	undo                  []undoMove
-	toast                 string // feedback line: what just happened (cleared on the next key)
-	movedTo               string // destination Status of the move the toast reports, else ""
-	toastHint             string // key hint shown with it, e.g. "u undo"
-	flash                 string // folder of the row just moved, lit until flashID's tick
+	toast                 string    // feedback line: what just happened (cleared on the next key)
+	movedTo               string    // destination Status of the move the toast reports, else ""
+	toastKind             toastKind // how the feedback line draws the toast
+	stripFocus            bool      // the pipeline strip has the keys: ←→ move the status filter
+	toastHint             string    // key hint shown with it, e.g. "u undo"
+	flash                 string    // folder of the row just moved, lit until flashID's tick
 	flashID               int
 	tick                  Ticker
 	err                   error
@@ -268,7 +270,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint, m.movedTo = "", "", ""
+		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}
@@ -318,6 +320,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k.String() == "," && m.screen != settingsScreen {
 			// Settings opens from anywhere, over the detail view and Stats too.
 			return m.openSettings(), nil
+		}
+		if m.stripFocus {
+			if next, ok := m.stripKey(k); ok {
+				return next, nil
+			}
 		}
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {
