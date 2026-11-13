@@ -188,7 +188,7 @@ func TestRescanDropsFilterOnARemovedTrack(t *testing.T) {
 // pads the key column, so any run of spaces separates them.
 func helpLists(view, pair string) bool {
 	k, d, _ := strings.Cut(pair, " ")
-	return regexp.MustCompile(regexp.QuoteMeta(k) + `\s+` + regexp.QuoteMeta(d)).MatchString(view)
+	return regexp.MustCompile(`\[?` + regexp.QuoteMeta(k) + `\]?\s+` + regexp.QuoteMeta(d)).MatchString(view)
 }
 
 func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
