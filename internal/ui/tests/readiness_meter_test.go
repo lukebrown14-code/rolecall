@@ -1,0 +1,92 @@
+package ui_test
+
+import (
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+)
+
+// meterRun is a run of meter cells: ▰ ready, ▱ missing.
+func meterRun(line string) string {
+	var b strings.Builder
+	for _, r := range line {
+		if r == '▰' || r == '▱' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// At 120x36 every row carries its meter: one cell per needed Document.
+func TestRowMeterShowsOnEveryRowWhenWide(t *testing.T) {
+	view := listView(t, 120, 36)
+	rows := rowLines(view)
+	if len(rows) < 3 {
+		t.Fatalf("found %d rows:\n%s", len(rows), view)
+	}
+	for _, r := range rows {
+		if n := len([]rune(meterRun(r))); n < 3 || n > 4 {
+			t.Errorf("row has %d meter cells, want 3 or 4: %q", n, r)
+		}
+	}
+}
+
+// At the narrowest sizes the meter is dropped before the title shrinks below ten cells.
+func TestRowMeterNeverSqueezesTheTitle(t *testing.T) {
+	for _, s := range columnSizes {
+		for _, r := range rowLines(listView(t, s[0], s[1])) {
+			runs := meterRun(r)
+			if runs == "" {
+				continue
+			}
+			i := strings.IndexRune(r, '▰')
+			if j := strings.IndexRune(r, '▱'); i < 0 || (j >= 0 && j < i) {
+				i = j
+			}
+			title := strings.TrimLeft(r[:i], " ▌")
+			// the Status glyph and a space lead the title
+			if w := ansi.StringWidth(title) - 2; w < 10 {
+				t.Errorf("%dx%d: title is %d cells beside the meter: %q", s[0], s[1], w, r)
+			}
+		}
+	}
+}
+
+// The detail lists each Document with ● ready or ○ missing, and a meter with the count.
+func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	view := ansi.Strip(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
+	for _, want := range []string{"○ JD", "● Resume", "● Cover letter", "○ PDF", "▰▰▱▱ 2/4"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("detail lacks %q:\n%s", want, view)
+		}
+	}
+}
+
+// ASCII mode draws the meter as # and -, and keeps the ready/missing marks apart.
+func TestMeterFoldsToASCII(t *testing.T) {
+	t.Setenv("ROLECALL_ASCII", "1")
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
+	if !strings.Contains(view, "##--") {
+		t.Errorf("no ASCII meter:\n%s", view)
+	}
+}
+
+// The TUI says "ready" and "missing" for a Document, never present, written or empty.
+func TestDocumentWordingIsReadyOrMissing(t *testing.T) {
+	banned := regexp.MustCompile(`\b(present|written|empty)\b`)
+	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"3", "/docs-written", "enter"}, {"3", "/docs-ready", "enter"}, {"2", "enter"}, {"?"}} {
+		view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, keys...))
+		for _, line := range strings.Split(view, "\n") {
+			low := strings.ToLower(line)
+			if !strings.Contains(low, "pdf") && !strings.Contains(low, "resume") && !strings.Contains(low, " jd") && !strings.Contains(low, "cover letter") {
+				continue
+			}
+			if m := banned.FindString(low); m != "" && !strings.Contains(low, "agent writing") {
+				t.Errorf("keys %q: Document state worded %q: %q", keys, m, line)
+			}
+		}
+	}
+}
