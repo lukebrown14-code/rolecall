@@ -4,7 +4,7 @@
    Leads › Dismissed · All tracks · 1/2 · list
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
  ▌ ⊘ docs-dismissed                             Dism. ~7d     ·  │ docs-dismissed                                       
- ▌   Fictional Labs · SWE · dismissed ~7d ago                    │ Fictional Labs · SWE                                 
+     Fictional Labs · SWE · dismissed ~7d ago                    │ Fictional Labs · SWE                                 
                                                                  │                                                      
    ⊘ Engineer #1                                ~Jan 2026  Good  │ ⊘ Dismissed   Fit: not assessed                      
      Example · Unknown · dismissed ~Jan 2026                     │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+ enter open · e edit · m move · n notes · a add · s status filter · / search              ←→ view · 1-6 screen · ? help

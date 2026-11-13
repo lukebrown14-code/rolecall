@@ -158,6 +158,9 @@ type Palette struct {
 	Fg, Dim, Sub, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Bad color.Color
 	Bg, Panel, Purple, Gold, Lead, Draft                                color.Color
 	Ascii                                                               bool
+	// Backdrop marks the dimmed palette behind a pop-up: the pop-up holds the one
+	// selection, so the frame behind it draws none.
+	Backdrop bool
 }
 
 func (t Mode) Base() Palette {
@@ -174,7 +177,7 @@ func (t Mode) Dimmed() Palette {
 	d := c(r.Dimmed)
 	return Palette{Fg: d, Dim: d, Sub: d, Faint: c(r.Faint), Rule: c(r.Rule), Accent: d, OnFill: c(r.DimmedOnFill),
 		Sel: c(r.Panel), Ok: d, Info: d, Warn: d, Bad: d, Bg: c(r.Bg), Panel: c(r.Panel), Purple: d, Gold: d,
-		Lead: d, Draft: d}
+		Lead: d, Draft: d, Backdrop: true}
 }
 
 // MarkdownStyle is Glamour's style drawn with the Mode's Roles rather than Glamour's own
@@ -299,6 +302,34 @@ func ASCIIFold(s string, force bool) string {
 func (p Palette) Text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
 // key is a key name in a hint: bold in the accent, which is the colour of keys.
+// The selected item: the one style every selectable surface draws its cursor with.
+// SelBase is its ground (the selection fill, or none in a pane that lacks focus),
+// SelGutter its ▌ mark in the chrome column (ASCII ">"), and SelText its bright bold
+// text. The mark alone carries the selection when colour is off or the fill is absent.
+func (p Palette) SelBase(filled bool) lipgloss.Style {
+	s := lipgloss.NewStyle()
+	if filled {
+		s = s.Background(p.Sel)
+	}
+	return s
+}
+
+func (p Palette) SelGutter(filled bool) string {
+	if p.Backdrop {
+		return p.SelBase(filled).Render("  ")
+	}
+	return p.SelBase(filled).Foreground(p.Accent).Bold(true).Render("▌ ")
+}
+
+func (p Palette) SelText(filled bool) lipgloss.Style {
+	return p.SelBase(filled).Foreground(p.Fg).Bold(true)
+}
+
+// SelLine is content as a selected line w cells wide: the fill runs the full width.
+func (p Palette) SelLine(filled bool, w int, content string) string {
+	return p.SelBase(filled).Width(w).Render(content)
+}
+
 func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
 
 // activeTab is the selected tab's fill: the accent and bold, so it is marked by more

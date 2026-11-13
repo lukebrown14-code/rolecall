@@ -87,12 +87,12 @@ func TestProfileEEditsTheSelectedSectionAndKeepsItSelected(t *testing.T) {
 		t.Fatalf("edited %q, want %q", got, want)
 	}
 	v := h.tm.plain()
-	for _, want := range []string{"on a Friday.", "▸ Experience", "Awards", "profile/master-profile.md"} {
+	for _, want := range []string{"on a Friday.", "▌ Experience", "Awards", "profile/master-profile.md"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("after the editor the screen lacks %q:\n%s", want, v)
 		}
 	}
-	if strings.Contains(v, "▸ Awards") || strings.Contains(v, "One award.") {
+	if strings.Contains(v, "▌ Awards") || strings.Contains(v, "One award.") {
 		t.Fatalf("the selection moved off Experience:\n%s", v)
 	}
 }
@@ -109,7 +109,7 @@ func TestProfileEEditsTheSelectedOtherFile(t *testing.T) {
 		t.Fatalf("edited %q, want %q", got, want)
 	}
 	v := h.tm.plain()
-	for _, want := range []string{"Now prints tide tables in colour.", "▸ projects.md", "profile/projects.md"} {
+	for _, want := range []string{"Now prints tide tables in colour.", "▌ projects.md", "profile/projects.md"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("after editing projects.md the screen lacks %q:\n%s", want, v)
 		}
@@ -128,7 +128,7 @@ func TestProfileESelectionFallsBackToTheFirstSection(t *testing.T) {
 	h.tm.Type("5jj")
 	h.tm.Type("e")
 	v := h.tm.plain()
-	for _, want := range []string{"▸ Contact", "alex.quinn@example.test"} {
+	for _, want := range []string{"▌ Contact", "alex.quinn@example.test"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("selection did not fall back to Contact (%q):\n%s", want, v)
 		}
@@ -151,7 +151,7 @@ func TestProfileRReReadsTheFiles(t *testing.T) {
 	}
 	h.tm.Type("r")
 	v := h.tm.plain()
-	for _, want := range []string{"Volunteer", "▸ Contact"} {
+	for _, want := range []string{"Volunteer", "▌ Contact"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("r did not reread the Profile (%q):\n%s", want, v)
 		}
@@ -171,7 +171,7 @@ func TestProfileSwitchingBackReReadsTheFiles(t *testing.T) {
 	}
 	h.tm.Type("15")
 	v := h.tm.plain()
-	for _, want := range []string{"Volunteer", "▸ Contact"} {
+	for _, want := range []string{"Volunteer", "▌ Contact"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("switching back did not reread the Profile (%q):\n%s", want, v)
 		}
@@ -199,7 +199,7 @@ func TestProfileEKeepsFocus(t *testing.T) {
 	h.tm.Type("\t")
 	h.tm.Type("e")
 	v := h.tm.plain()
-	for _, want := range []string{"CONTENT", "on a Friday.", "▸ Experience"} {
+	for _, want := range []string{"CONTENT", "on a Friday.", "▌ Experience"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("after the editor the screen lacks %q:\n%s", want, v)
 		}

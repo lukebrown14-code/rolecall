@@ -4,7 +4,7 @@
    Leads › Leads · All tracks · 1/4 · list
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
  ▌ ◌ Empty                                                    ·  │ Empty                                                
- ▌   Example · SWE · —                                           │ Example · SWE                                        
+     Example · SWE · —                                           │ Example · SWE                                        
                                                                  │                                                      
    ◌ Empty log                                                ·  │ ◌ Lead   Fit: not assessed                           
      Fictional Labs · SWE · —                                    │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · s sort newest · a add · / search    ←→ view · 1-6 screen · ? help
+ enter open · e edit · m move · x dismiss · n notes · a add · s status filter · o sort newest · / search         ? help

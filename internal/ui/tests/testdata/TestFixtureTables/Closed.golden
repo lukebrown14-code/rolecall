@@ -4,7 +4,7 @@
    Applied › Closed · All tracks · 1/4 · list
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
  ▌ ✕ Engineer #1                                ~Jan 2026  Good  │ Engineer #1                                          
- ▌   Example · Unknown · closed ~Jan 2026                        │ Example · Unknown                                    
+     Example · Unknown · closed ~Jan 2026                        │ Example · Unknown                                    
                                                                  │                                                      
    – Engineer #1                                ~Jan 2026  Good  │ ✕ Rejected   Fit: Good                               
      Example · Unknown · closed ~Jan 2026                        │ ○ JD  ○ Resume  ○ PDF                                
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+ enter open · e edit · m move · n notes · a add · s status filter · / search              ←→ view · 1-6 screen · ? help

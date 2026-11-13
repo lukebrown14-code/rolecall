@@ -2,7 +2,7 @@
 
    SECTIONS                                                                                   profile/master-profile.md
 ─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
- ▸ Contact                    ✗  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
+ ▌ Contact                    ✗  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
    Headlines                  2  │                                                                                      
    Experience                 2  │  Name         Alex Quinn                                                             
    Key Skills                 8  │  Phone        +61 400 000 000                                                        

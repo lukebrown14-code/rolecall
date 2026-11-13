@@ -187,7 +187,7 @@ func (m model) listView(p pal) string {
 	keys := m.keyLine(p, w)
 	if m.searching() {
 		in := p.Text(p.Accent).Bold(true).Render(" / ") + p.Text(p.Fg).Render(m.text) + p.Text(p.Accent).Render("▏")
-		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupNav)), w-1)
+		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupFilter, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.
@@ -984,17 +984,21 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	if m.expired(a) {
 		titleC = p.Dim
 	}
+	// The list loses the fill, not the mark, while a sheet over it holds the focus.
+	fill := sel && !m.sheetShown()
 	st := func(c color.Color) lipgloss.Style {
 		s := lipgloss.NewStyle().Foreground(c)
-		if sel {
+		if fill {
 			s = s.Background(p.Sel)
 		}
 		return s
 	}
 	if sel {
-		line = line.Background(p.Sel)
-		bar = st(p.Accent).Render("▌ ")
-		titleC, dimC = p.Accent, p.Sub
+		if fill {
+			line = line.Background(p.Sel)
+		}
+		bar = p.SelGutter(fill)
+		titleC, dimC = p.Fg, p.Sub
 	}
 	if a.Malformed != nil {
 		return []string{line.Render(bar + st(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
@@ -1020,7 +1024,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
-	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
+	// Only the first line carries the mark; the second keeps the fill.
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(st(p.Fg).Render("  ")+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
 		lines = p.FlashRow(lines, w)
 	}
