@@ -109,7 +109,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	if !strings.Contains(string(b), "track: \"SWE\"\n") {
 		t.Fatalf("track not patched:\n%s", b)
 	}
-	if !strings.Contains(ansi.Strip(view), "No Leads yet") || activeTrack(view) != "Platform" {
+	if !strings.Contains(ansi.Strip(view), "No Leads in Platform") || activeTrack(view) != "Platform" {
 		t.Fatalf("Platform filter still shows the row:\n%s", view)
 	}
 }
@@ -143,7 +143,7 @@ func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 	h := newAddHarness(t)
 	h.tm.Type("/zzznomatch")
 	h.enter()
-	h.wait("No matches")
+	h.wait("No Applications match")
 	empty := h.quit()
 	if !strings.Contains(ansi.Strip(onRow), "e edit") || strings.Contains(ansi.Strip(empty), "e edit") {
 		t.Fatalf("help bar on a row:\n%s\non an empty table:\n%s", onRow, empty)

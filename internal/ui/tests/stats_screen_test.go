@@ -130,7 +130,7 @@ func TestStatsEmptyWorkspace(t *testing.T) {
 		}
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "4"))
-	if !strings.Contains(view, "No Applications yet · a to add a Lead") || strings.Contains(view, "FUNNEL") {
+	if !strings.Contains(view, "No Applications · a add a Lead") || strings.Contains(view, "FUNNEL") {
 		t.Fatalf("empty Stats lacks its empty state:\n%s", view)
 	}
 }

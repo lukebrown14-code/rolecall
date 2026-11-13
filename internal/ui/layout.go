@@ -405,8 +405,13 @@ func (m model) overlayBody(p pal, base, box string) string {
 	x := max(0, (l.w-boxW)/bothSides)
 	rows := strings.Split(base, "\n")
 	blank := strings.Repeat(" ", l.w)
+	if am, ok := m.overlay.(anchoredMode); ok && am.anchored() {
+		// Top-left under the tab bar, over the body only: the rows behind stay in view.
+		y, x = top, 1
+		blank = ""
+	}
 	for i := range lines {
-		if y+i < len(rows) {
+		if y+i < len(rows) && blank != "" {
 			rows[y+i] = blank
 		}
 	}
