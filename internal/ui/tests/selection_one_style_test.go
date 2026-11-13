@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 func heldNow() time.Time { return fixtureNow }
@@ -15,7 +13,7 @@ func heldNow() time.Time { return fixtureNow }
 func markedLines(view, mark string) []string {
 	var out []string
 	for _, l := range strings.Split(view, "\n") {
-		if strings.Contains(ansi.Strip(l), mark) {
+		if strings.Contains(chipped(l), mark) {
 			out = append(out, l)
 		}
 	}
@@ -41,11 +39,11 @@ func TestOneSelectionMarkInEverySurface(t *testing.T) {
 				m := driveStart(t, fixtureCopy(t, nil), heldNow, size[0], size[1])
 				at := driveModel(t, m, keys...).View().Content
 				if got := markedLines(at, "▌"); len(got) != 1 {
-					t.Fatalf("want exactly one selected line, got %d:\n%s", len(got), ansi.Strip(at))
+					t.Fatalf("want exactly one selected line, got %d:\n%s", len(got), chipped(at))
 				}
 				moved := driveModel(t, m, append(append([]string{}, keys...), "down")...).View().Content
-				if a, b := markedLines(at, "▌")[0], markedLines(moved, "▌")[0]; ansi.Strip(a) == ansi.Strip(b) {
-					t.Fatalf("the mark did not follow the cursor: %q", ansi.Strip(a))
+				if a, b := markedLines(at, "▌")[0], markedLines(moved, "▌")[0]; chipped(a) == chipped(b) {
+					t.Fatalf("the mark did not follow the cursor: %q", chipped(a))
 				}
 			})
 		}
@@ -59,7 +57,7 @@ func TestSelectionMarkIsAGreaterThanInASCIIAndSurvivesNoColor(t *testing.T) {
 		m := driveStart(t, fixtureCopy(t, nil), heldNow, 100, 30)
 		v := driveModel(t, m, keys...).View().Content
 		if strings.Contains(v, "▌") || len(markedLines(v, "> ")) == 0 {
-			t.Fatalf("keys %q: ASCII selection mark missing:\n%s", keys, ansi.Strip(v))
+			t.Fatalf("keys %q: ASCII selection mark missing:\n%s", keys, chipped(v))
 		}
 	}
 }

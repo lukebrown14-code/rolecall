@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
@@ -180,7 +179,7 @@ func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "ascii = true\n") {
 		t.Fatalf("config.toml:\n%s", b)
 	}
-	for _, r := range ansi.Strip(d.plain()) {
+	for _, r := range chipped(d.plain()) {
 		if r > 0x7e {
 			t.Fatalf("non-ASCII glyph %q with ascii on:\n%s", r, d.plain())
 		}

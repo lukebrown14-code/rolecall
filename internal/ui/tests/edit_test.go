@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // openEdit selects an Application by filtering on its title, then opens the Edit form on it.
@@ -109,7 +108,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	if !strings.Contains(string(b), "track: \"SWE\"\n") {
 		t.Fatalf("track not patched:\n%s", b)
 	}
-	if !strings.Contains(ansi.Strip(view), "No Leads in Platform") || activeTrack(view) != "Platform" {
+	if !strings.Contains(chipped(view), "No Leads in Platform") || activeTrack(view) != "Platform" {
 		t.Fatalf("Platform filter still shows the row:\n%s", view)
 	}
 }
@@ -133,7 +132,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {
 		t.Fatalf("resume_only not set:\n%s", meta)
 	}
-	if plain := ansi.Strip(view); !strings.Contains(plain, "● PDF") || !strings.Contains(plain, "2/3") {
+	if plain := chipped(view); !strings.Contains(plain, "● PDF") || !strings.Contains(plain, "2/3") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
 	}
 }
@@ -145,7 +144,7 @@ func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 	h.enter()
 	h.wait("No Applications match")
 	empty := h.quit()
-	if !strings.Contains(ansi.Strip(onRow), "e edit") || strings.Contains(ansi.Strip(empty), "e edit") {
+	if !strings.Contains(chipped(onRow), "e edit") || strings.Contains(chipped(empty), "e edit") {
 		t.Fatalf("help bar on a row:\n%s\non an empty table:\n%s", onRow, empty)
 	}
 }
@@ -153,7 +152,7 @@ func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
 // activeTrack is the bracketed option of the track filter, which follows its "t" key at
 // the end of the context row.
 func activeTrack(view string) string {
-	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+	for _, line := range strings.Split(chipped(view), "\n") {
 		i := strings.LastIndex(line, " t ")
 		if i < 0 {
 			continue

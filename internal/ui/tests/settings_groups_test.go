@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
@@ -25,7 +24,7 @@ func TestEverySettingsGroupShowsItsRows(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
 	m = driveModel(t, m, "6")
 	for i, name := range settings.Groups {
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, want[i]) {
+		if view := chipped(m.View().Content); !strings.Contains(view, want[i]) {
 			t.Fatalf("group %q (%d) does not show %q:\n%s", name, i, want[i], view)
 		}
 		m = driveModel(t, m, "]") // ] steps to the next section

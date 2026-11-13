@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 // fernCloses gives the fixture's Fern Lead a close date.
@@ -31,11 +29,11 @@ func TestCloseDateUrgency(t *testing.T) {
 	} {
 		t.Run(tc.closes, func(t *testing.T) {
 			root := fixtureCopy(t, fernCloses(tc.closes))
-			list := ansi.Strip(runKeys(t, root, 120, "1", "/Fern", "enter"))
+			list := chipped(runKeys(t, root, 120, "1", "/Fern", "enter"))
 			if strings.Count(list, tc.want) < 2 { // the row and the preview
 				t.Fatalf("want %q in the row and the preview:\n%s", tc.want, list)
 			}
-			if detail := ansi.Strip(runKeys(t, root, 120, "1", "/Fern", "enter", "enter")); !strings.Contains(detail, tc.want) {
+			if detail := chipped(runKeys(t, root, 120, "1", "/Fern", "enter", "enter")); !strings.Contains(detail, tc.want) {
 				t.Fatalf("detail lacks %q:\n%s", tc.want, detail)
 			}
 		})
@@ -45,11 +43,11 @@ func TestCloseDateUrgency(t *testing.T) {
 // Rows label Fit, show a missing close date once as a dash, and give old dates as the
 // month rather than "21mo ago".
 func TestRowWording(t *testing.T) {
-	leads := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1"))
+	leads := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1"))
 	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || strings.Contains(leads, "fit —") {
 		t.Fatalf("Leads rows:\n%s", leads)
 	}
-	applied := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	applied := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{" Good", "applied ~Jan 2025", "● 9mo"} {
 		if !strings.Contains(applied, want) {
 			t.Fatalf("Applied rows lack %q:\n%s", want, applied)
@@ -74,7 +72,7 @@ func TestNextActionLine(t *testing.T) {
 		{"detail on the JD tab", []string{"1", "enter"}, "NEXT    add the JD", "[e] open jd.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
+			v := chipped(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
 			// the narrow card puts the key on the line under the words
 			if row := lineWith(v, tc.want); !strings.Contains(row, tc.key) && !strings.Contains(lineAfter(v, tc.want), tc.key) {
 				t.Fatalf("lacks %q … %q:\n%s", tc.want, tc.key, v)
@@ -88,7 +86,7 @@ func TestOfferCelebration(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	// The move lands on the Application's new home: the Offer view, with its row selected,
 	// and the celebration as one toast (not a body banner over an empty list).
-	v := ansi.Strip(runKeys(t, root, 120, "3", "tab", "m", "o"))
+	v := chipped(runKeys(t, root, 120, "3", "tab", "m", "o"))
 	if !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") {
 		t.Fatalf("no celebration:\n%s", v)
 	}
@@ -98,7 +96,7 @@ func TestOfferCelebration(t *testing.T) {
 	if strings.Contains(v, "press ← → to follow it") {
 		t.Fatalf("redundant follow hint still shown:\n%s", v)
 	}
-	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "tab", "m", "r")); strings.Contains(v, "OFFER") {
+	if v := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "tab", "m", "r")); strings.Contains(v, "OFFER") {
 		t.Fatalf("a rejection celebrated:\n%s", v)
 	}
 }
@@ -106,7 +104,7 @@ func TestOfferCelebration(t *testing.T) {
 // A Workspace without Applications teaches the first three moves.
 func TestFirstRunScreen(t *testing.T) {
 	root := fixtureCopy(t, func(root string) { _ = os.RemoveAll(filepath.Join(root, "jobs")) })
-	v := ansi.Strip(runKeys(t, root, 80, "1"))
+	v := chipped(runKeys(t, root, 80, "1"))
 	for _, want := range []string{"▞ rolecall", "No Leads · a add a Lead", "6  pick an Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("first run lacks %q:\n%s", want, v)
@@ -118,26 +116,26 @@ func TestFirstRunScreen(t *testing.T) {
 // other order.
 func TestLeadsSortToggle(t *testing.T) {
 	root := fixtureCopy(t, fernCloses("2026-09-01"))
-	byClose := ansi.Strip(runKeys(t, root, 140, "1"))
+	byClose := chipped(runKeys(t, root, 140, "1"))
 	if !strings.Contains(byClose, "Expired · 1") || !strings.Contains(byClose, "o sort newest") {
 		t.Fatalf("default order:\n%s", byClose)
 	}
-	newest := ansi.Strip(runKeys(t, root, 120, "1", "o"))
+	newest := chipped(runKeys(t, root, 120, "1", "o"))
 	if strings.Contains(newest, "Expired") || !strings.Contains(newest, "Leads newest first") {
 		t.Fatalf("newest first:\n%s", newest)
 	}
-	if v := ansi.Strip(runKeys(t, root, 140, "1", "o", "j")); !strings.Contains(v, "o sort by close date") {
+	if v := chipped(runKeys(t, root, 140, "1", "o", "j")); !strings.Contains(v, "o sort by close date") {
 		t.Fatalf("key line does not offer the close date order:\n%s", v)
 	}
 }
 
 // The wordmark's mark is never a Status glyph, in either mode.
 func TestWordmarkIsNotAStatusGlyph(t *testing.T) {
-	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, "▞ rolecall") {
+	if v := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, "▞ rolecall") {
 		t.Fatalf("wordmark: %q", strings.SplitN(v, "\n", 2)[0])
 	}
 	t.Setenv("ROLECALL_ASCII", "1")
-	if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, "R rolecall") {
+	if v := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1")); !strings.HasPrefix(v, "R rolecall") {
 		t.Fatalf("ASCII wordmark: %q", strings.SplitN(v, "\n", 2)[0])
 	}
 }

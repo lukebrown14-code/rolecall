@@ -28,7 +28,7 @@ func threeEntryLog(root string) {
 func detailPane(t *testing.T, screen, name string, w, h int, edit func(string)) string {
 	t.Helper()
 	m := driveStart(t, fixtureCopy(t, edit), fixtureClock, w, h, ui.WithHarness("h {skill} {dir}"), ui.WithPlugin("/plugin"))
-	return ansi.Strip(driveModel(t, m, screen, "/"+name).View().Content)
+	return chipped(driveModel(t, m, screen, "/"+name).View().Content)
 }
 
 // The pane draws labelled rows, each ending in its key and action.
@@ -96,7 +96,7 @@ func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 // Rows never wrap in the sheet and full views: the Overview tab holds the same rows.
 func TestDetailOverviewFitsSmallSizes(t *testing.T) {
 	for _, s := range [][2]int{{80, 24}, {60, 16}} {
-		view := ansi.Strip(driveModel(t, driveStart(t, fixtureCopy(t, threeEntryLog), fixtureClock, s[0], s[1], ui.WithHarness("h")), "3", "/zedcorp", "enter", "enter").View().Content)
+		view := chipped(driveModel(t, driveStart(t, fixtureCopy(t, threeEntryLog), fixtureClock, s[0], s[1], ui.WithHarness("h")), "3", "/zedcorp", "enter", "enter").View().Content)
 		if !strings.Contains(view, "STATUS") || !strings.Contains(view, "[m]") {
 			t.Errorf("%dx%d: overview lacks rows:\n%s", s[0], s[1], view)
 		}

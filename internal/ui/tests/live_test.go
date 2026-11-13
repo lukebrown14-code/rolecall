@@ -10,7 +10,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
@@ -87,7 +86,7 @@ func rowBlock(view, title string) string {
 func (h *liveHarness) finalView() string {
 	h.t.Helper()
 	h.tm.Type("q")
-	return ansi.Strip(h.tm.FinalModel(h.t, teatest.WithFinalTimeout(5*time.Second)).View().Content)
+	return chipped(h.tm.FinalModel(h.t, teatest.WithFinalTimeout(5*time.Second)).View().Content)
 }
 
 func (h *liveHarness) folder(name string) string { return filepath.Join(h.root, "jobs", "SWE", name) }

@@ -8,19 +8,18 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 func TestStatsScreenTabAndRowKeysAreInert(t *testing.T) {
-	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4"))
-	withKeys := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "tab", "m", "v", "e", "n", "x", "d", "f", "p", "b", "j", "k", "g", "G", "enter"))
+	plain := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4"))
+	withKeys := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4", "tab", "m", "v", "e", "n", "x", "d", "f", "p", "b", "j", "k", "g", "G", "enter"))
 	if plain != withKeys {
 		t.Fatalf("Tab or a row key changed Stats:\n--- plain ---\n%s\n--- with keys ---\n%s", plain, withKeys)
 	}
 }
 
 func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 140, "4", "t"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 140, "4", "t"))
 	if !strings.Contains(view, "Platform") {
 		t.Fatalf("track filter did not show Platform:\n%s", view)
 	}
@@ -30,7 +29,7 @@ func TestStatsTrackFilterHidesThePerTrackTable(t *testing.T) {
 }
 
 func TestStatsHelpBarOnlyListsValidKeys(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "?"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4", "?"))
 	for _, want := range []string{"add", "rescan", "quit", "next track", "1-6", "screen"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
@@ -44,14 +43,14 @@ func TestStatsHelpBarOnlyListsValidKeys(t *testing.T) {
 }
 
 func TestStatsAddWorks(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "a"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4", "a"))
 	if !strings.Contains(view, "Add a Lead") {
 		t.Fatalf("a did not open the Add form on Stats:\n%s", view)
 	}
 }
 
 func TestStatsScreenSwitchWorks(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "4", "1"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4", "1"))
 	if !strings.Contains(view, "Leads") {
 		t.Fatalf("1 did not leave Stats:\n%s", view)
 	}
@@ -74,22 +73,22 @@ func TestStatsLiveRefresh(t *testing.T) {
 func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 60, 16)
 	m = driveModel(t, m, "4")
-	top := ansi.Strip(m.View().Content)
+	top := chipped(m.View().Content)
 	up, down := regexp.MustCompile(`↑ \d+ more`), regexp.MustCompile(`↓ \d+ more`)
 	if !down.MatchString(top) || up.MatchString(top) || !strings.Contains(top, "scroll") {
 		t.Fatalf("tall Stats lacks the overflow cue or the scroll key:\n%s", top)
 	}
 	m = driveModel(t, m, "G")
-	if view := ansi.Strip(m.View().Content); !up.MatchString(view) || down.MatchString(view) {
+	if view := chipped(m.View().Content); !up.MatchString(view) || down.MatchString(view) {
 		t.Fatalf("G did not scroll to the bottom:\n%s", view)
 	}
 	m = driveModel(t, m, "g")
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelDown})
-	if view := ansi.Strip(m.View().Content); !up.MatchString(view) {
+	if view := chipped(m.View().Content); !up.MatchString(view) {
 		t.Fatalf("the wheel did not scroll Stats:\n%s", view)
 	}
 	m = driveModel(t, m, "k")
-	if view := ansi.Strip(m.View().Content); view != top {
+	if view := chipped(m.View().Content); view != top {
 		t.Fatalf("k did not scroll back to the top:\n%s", view)
 	}
 }
@@ -97,7 +96,7 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 // The funnel never calls a rise or a flat count a drop: each rung says what share of the
 // one before reached it and how many skipped it. Everything fits 80x24 with no cue.
 func TestStatsFunnelExplainsEachRung(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
 	for _, want := range []string{
 		"Applications that ever reached each Status",
 		"2 without Lead logged",
@@ -129,7 +128,7 @@ func TestStatsEmptyWorkspace(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "4"))
+	view := chipped(runKeys(t, root, 120, "4"))
 	if !strings.Contains(view, "No Applications · a add a Lead") || strings.Contains(view, "FUNNEL") {
 		t.Fatalf("empty Stats lacks its empty state:\n%s", view)
 	}

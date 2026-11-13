@@ -661,7 +661,7 @@ func (m model) detailTabsRow(p pal, a store.Application) string {
 		tabs[i] = p.Text(p.Dim).Render(" " + string(t) + " ")
 		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = p.ActiveTab().Render("[" + string(t) + "]")
+			tabs[i] = p.SelChip(string(t))
 		}
 	}
 	return strings.Join(tabs, " ")

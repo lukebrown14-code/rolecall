@@ -351,7 +351,6 @@ func (m model) screenCountLabel(si int) string {
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	wide := m.layout().wide()
-	on := p.ActiveTab()
 	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
 	// short of room.
 	spark := " " + p.Text(p.Dim).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
@@ -381,7 +380,7 @@ func (m model) tabs(p pal) (string, []int) {
 				tail = spark
 			}
 			if si == active {
-				out += on.Render("["+digit+name+count+"]") + tail
+				out += p.SelChip(digit+name+count) + tail
 				continue
 			}
 			if level >= shedCounts {
@@ -449,11 +448,7 @@ func (m model) trackSelector(p pal, form trackForm) string {
 	if form == trackCollapsed {
 		return key + p.Text(p.Dim).Render(":"+m.trackName())
 	}
-	on := p.Text(p.Fg).Bold(true).Underline(true)
-	// The active track is bracketed as well as underlined, so it is marked without colour.
-	mark := func(name string) string {
-		return p.Text(p.Dim).Render("[") + on.Render(name) + p.Text(p.Dim).Render("]")
-	}
+	mark := p.SelChip
 	label := func(i int) string {
 		name := allView
 		if i > 0 {

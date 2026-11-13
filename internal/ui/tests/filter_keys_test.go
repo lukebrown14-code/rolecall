@@ -10,13 +10,13 @@ import (
 // s is the status filter on every list screen: it cycles through the screen's views.
 func TestSStatusFilterCyclesViews(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	if v := ansi.Strip(runKeys(t, root, 120, "1", "s")); !strings.Contains(v, "Leads › Dismissed") {
+	if v := chipped(runKeys(t, root, 120, "1", "s")); !strings.Contains(v, "Leads › Dismissed") {
 		t.Fatalf("s on Leads did not switch to Dismissed:\n%s", v)
 	}
-	if v := ansi.Strip(runKeys(t, root, 120, "1", "s", "s")); !strings.Contains(v, "Leads › Leads") {
+	if v := chipped(runKeys(t, root, 120, "1", "s", "s")); !strings.Contains(v, "Leads › Leads") {
 		t.Fatalf("s did not wrap back to Leads:\n%s", v)
 	}
-	if v := ansi.Strip(runKeys(t, root, 120, "3", "s")); !strings.Contains(v, "Applied › Applied") {
+	if v := chipped(runKeys(t, root, 120, "3", "s")); !strings.Contains(v, "Applied › Applied") {
 		t.Fatalf("s on the Applied screen did not step from All:\n%s", v)
 	}
 }
@@ -24,12 +24,12 @@ func TestSStatusFilterCyclesViews(t *testing.T) {
 // o toggles the Leads sort; elsewhere it does nothing.
 func TestOTogglesLeadsSort(t *testing.T) {
 	root := fixtureCopy(t, fernCloses("2026-09-01"))
-	v := ansi.Strip(runKeys(t, root, 120, "1", "o"))
+	v := chipped(runKeys(t, root, 120, "1", "o"))
 	if !strings.Contains(v, "Leads newest first") {
 		t.Fatalf("o did not sort newest:\n%s", v)
 	}
-	base := ansi.Strip(runKeys(t, root, 120, "3"))
-	if got := ansi.Strip(runKeys(t, root, 120, "3", "o")); got != base {
+	base := chipped(runKeys(t, root, 120, "3"))
+	if got := chipped(runKeys(t, root, 120, "3", "o")); got != base {
 		t.Fatalf("o changed the Applied screen:\n%s", got)
 	}
 }
@@ -37,8 +37,8 @@ func TestOTogglesLeadsSort(t *testing.T) {
 // M is not bound.
 func TestCapitalMOpensNothing(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	base := ansi.Strip(runKeys(t, root, 120, "1"))
-	if got := ansi.Strip(runKeys(t, root, 120, "1", "M")); got != base {
+	base := chipped(runKeys(t, root, 120, "1"))
+	if got := chipped(runKeys(t, root, 120, "1", "M")); got != base {
 		t.Fatalf("M changed the screen:\n%s", got)
 	}
 }
@@ -47,7 +47,7 @@ func TestCapitalMOpensNothing(t *testing.T) {
 func TestPaletteFindsStatusFilterAndSort(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for _, q := range []string{"status filter", "sort"} {
-		v := ansi.Strip(runKeys(t, root, 120, "1", ":", q))
+		v := chipped(runKeys(t, root, 120, "1", ":", q))
 		if !strings.Contains(v, q) || strings.Contains(v, "No matching") {
 			t.Fatalf("palette lacks %q:\n%s", q, v)
 		}
@@ -56,7 +56,7 @@ func TestPaletteFindsStatusFilterAndSort(t *testing.T) {
 
 // Help has three sections, keys as chips, and no internal wording.
 func TestHelpSectionsChipsAndWording(t *testing.T) {
-	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 140, "1", "?"))
+	v := chipped(runKeys(t, fixtureCopy(t, nil), 140, "1", "?"))
 	for _, want := range []string{"NAVIGATE", "ACT", "FILTER & FIND", "[s]", "[o]", "[t]", "[/]", "[: ctrl+k]", "[m]"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("help lacks %q:\n%s", want, v)
@@ -74,7 +74,7 @@ func TestHelpSectionsChipsAndWording(t *testing.T) {
 
 // At 60x16 Help stays inside its box and the screen.
 func TestHelpFitsAt60x16(t *testing.T) {
-	v := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "1", "?"))
+	v := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "1", "?"))
 	lines := strings.Split(v, "\n")
 	if len(lines) > 16 {
 		t.Fatalf("help is %d lines:\n%s", len(lines), v)

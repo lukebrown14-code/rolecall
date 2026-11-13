@@ -17,7 +17,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 			t.Run(fmt.Sprint(size, keys), func(t *testing.T) {
 				m := driveStart(t, root, nil, size[0], size[1])
 				m = driveModel(t, m, append([]string{"3"}, keys...)...)
-				view := ansi.Strip(m.View().Content)
+				view := chipped(m.View().Content)
 				line := strings.Split(view, "\n")[0]
 				if keys[0] == "/" && !strings.Contains(view, "/Orbit ×") {
 					t.Errorf("missing search context: %s", view)
@@ -48,7 +48,7 @@ func TestTabBarDoesNotMoveBetweenScreens(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}} {
 		var want []int
 		for _, screen := range []string{"1", "2", "3", "4", "5", "6"} {
-			line := strings.Split(ansi.Strip(runKeysSized(t, root, size[0], size[1], screen)), "\n")[0]
+			line := strings.Split(chipped(runKeysSized(t, root, size[0], size[1], screen)), "\n")[0]
 			var at []int
 			for _, digit := range []string{"1 ", "2 ", "3 ", "4 ", "5 ", "6 "} {
 				at = append(at, strings.Index(line, digit+map[string]string{"1 ": "Leads", "2 ": "Drafts", "3 ": "Applied", "4 ": "Stats", "5 ": "Profile", "6 ": "Settings"}[digit]))
@@ -67,7 +67,7 @@ func TestTabBarDoesNotMoveBetweenScreens(t *testing.T) {
 func TestTrackFilterOnlyWhereItApplies(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for screen, want := range map[string]bool{"1": true, "2": true, "3": true, "4": true, "5": false, "6": false} {
-		lines := strings.Split(ansi.Strip(runKeysSized(t, root, 120, 36, screen)), "\n")
+		lines := strings.Split(chipped(runKeysSized(t, root, 120, 36, screen)), "\n")
 		ctx := lines[2] + "\n" + lines[3]
 		if got := strings.Contains(ctx, "[All"); got != want {
 			t.Errorf("screen %s: track filter shown = %v, want %v: %q", screen, got, want, ctx)
@@ -79,7 +79,7 @@ func TestTrackFilterOnlyWhereItApplies(t *testing.T) {
 // wordmark stays down to the medium class.
 func TestHeaderPulseAndWordmark(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	top := func(w, h int) string { return strings.Split(ansi.Strip(runKeysSized(t, root, w, h, "1")), "\n")[0] }
+	top := func(w, h int) string { return strings.Split(chipped(runKeysSized(t, root, w, h, "1")), "\n")[0] }
 	if wide := top(120, 36); strings.Contains(wide, "live") {
 		t.Errorf("wide tab bar still carries the pulse: %q", wide)
 	}
@@ -97,7 +97,7 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 // clock. Below the wide class neither shows, and the tab bar keeps the active screen.
 func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	top := func(w, h int) string { return strings.Split(ansi.Strip(runKeysSized(t, root, w, h, "1")), "\n")[0] }
+	top := func(w, h int) string { return strings.Split(chipped(runKeysSized(t, root, w, h, "1")), "\n")[0] }
 	wide := top(120, 36)
 	if !strings.HasPrefix(wide, "▞ rolecall") {
 		t.Errorf("wide tab bar does not lead with the brand mark: %q", wide)

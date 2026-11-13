@@ -15,7 +15,7 @@ var columnSizes = [][2]int{{120, 36}, {100, 30}, {88, 24}, {80, 24}, {72, 24}, {
 // listView is the Applied list at a size.
 func listView(t *testing.T, w, h int, keys ...string) string {
 	t.Helper()
-	return ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), w, h, append([]string{"3"}, keys...)...))
+	return chipped(runKeysSized(t, fixtureCopy(t, nil), w, h, append([]string{"3"}, keys...)...))
 }
 
 // listPane is a line's list part: what is left of the pane divider.
@@ -121,7 +121,7 @@ func TestListLongTitleTruncates(t *testing.T) {
 	if err := os.WriteFile(meta, title.ReplaceAll(b, []byte("title: "+long)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	view := ansi.Strip(runKeysSized(t, root, 60, 16, "3"))
+	view := chipped(runKeysSized(t, root, 60, 16, "3"))
 	for _, r := range rowLines(view) {
 		if strings.Contains(r, "Principal") {
 			if !strings.Contains(r, "…") || !strings.Contains(r, "Applied 6d") {
@@ -139,7 +139,7 @@ func TestFitWordingIsConsistent(t *testing.T) {
 	screens := [][]string{{"1"}, {"2"}, {"3"}, {"3", "enter"}, {"3", "enter", "right"}, {"3", "enter", "right", "right"}, {"?"}, {"3", "/docs-written", "enter", "enter", "right", "right"}}
 	for _, w := range []int{120, 80, 60} {
 		for _, keys := range screens {
-			view := strings.ToLower(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), w, 40, keys...)))
+			view := strings.ToLower(chipped(runKeysSized(t, fixtureCopy(t, nil), w, 40, keys...)))
 			for _, b := range banned {
 				if strings.Contains(view, b) {
 					t.Errorf("%dw %v: old wording %q:\n%s", w, keys, b, view)

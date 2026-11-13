@@ -11,7 +11,7 @@ import (
 // clickOn clicks the first cell of text on the given line of the current frame.
 func clickOn(t *testing.T, m tea.Model, line int, text string) tea.Model {
 	t.Helper()
-	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+	lines := strings.Split(chipped(m.View().Content), "\n")
 	i := strings.Index(lines[line], text)
 	if i < 0 {
 		t.Fatalf("line %d lacks %q: %q", line, text, lines[line])
@@ -22,7 +22,7 @@ func clickOn(t *testing.T, m tea.Model, line int, text string) tea.Model {
 // lineOf is the index of the first frame line holding text.
 func lineOf(t *testing.T, m tea.Model, text string) int {
 	t.Helper()
-	for i, l := range strings.Split(ansi.Strip(m.View().Content), "\n") {
+	for i, l := range strings.Split(chipped(m.View().Content), "\n") {
 		if strings.Contains(l, text) {
 			return i
 		}
@@ -39,20 +39,20 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 			label = " 3 " // a narrow tab bar keeps only the other screens' digits
 		}
 		m = clickOn(t, m, 0, label)
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied › All") {
+		if view := chipped(m.View().Content); !strings.Contains(view, "Applied › All") {
 			t.Fatalf("%v: tab click did not open Applied:\n%s", size, view)
 		}
 		if size[0] < 80 {
 			continue // narrow, the filters collapse to s:/t: and the view tabs go with tab
 		}
 		m = clickOn(t, m, lineOf(t, m, "Interviewing 2"), "Interviewing")
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied › Interviewing") {
+		if view := chipped(m.View().Content); !strings.Contains(view, "Applied › Interviewing") {
 			t.Fatalf("%v: view click did not switch:\n%s", size, view)
 		}
 	}
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = clickOn(t, m, lineOf(t, m, "Empty log"), "Empty log")
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "▌ ◌ Empty log") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Empty log") {
 		t.Fatalf("row click did not move the cursor:\n%s", view)
 	}
 }
@@ -64,12 +64,12 @@ func TestClickTargetsAsciiGlyphs(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "3")
 	m = clickOn(t, m, lineOf(t, m, "Interviewing 2"), "Interviewing")
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Applied > Interviewing") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "Applied > Interviewing") {
 		t.Fatalf("ASCII view click did not switch:\n%s", view)
 	}
 	m = driveModel(t, m, "/pl", "enter")
 	m = clickOn(t, m, lineOf(t, m, "/pl x"), "x")
-	if view := ansi.Strip(m.View().Content); strings.Contains(view, "/pl x") {
+	if view := chipped(m.View().Content); strings.Contains(view, "/pl x") {
 		t.Fatalf("ASCII chip click left the search on:\n%s", view)
 	}
 }
@@ -77,16 +77,16 @@ func TestClickTargetsAsciiGlyphs(t *testing.T) {
 func TestWheelMovesTheCursorAndClickClearsTheSearchChip(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelDown})
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "▌ ◌ Empty log") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Empty log") {
 		t.Fatalf("wheel down did not move the cursor:\n%s", view)
 	}
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelUp})
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "▌ ◌ Empty\n") && !strings.Contains(view, "▌ ◌ Empty ") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Empty\n") && !strings.Contains(view, "▌ ◌ Empty ") {
 		t.Fatalf("wheel up did not move the cursor back:\n%s", view)
 	}
 	m = driveModel(t, m, "/pl", "enter")
 	m = clickOn(t, m, lineOf(t, m, "/pl ×"), "×")
-	if view := ansi.Strip(m.View().Content); strings.Contains(view, "/pl ×") {
+	if view := chipped(m.View().Content); strings.Contains(view, "/pl ×") {
 		t.Fatalf("clicking × left the search on:\n%s", view)
 	}
 }

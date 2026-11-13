@@ -334,10 +334,15 @@ func (p Palette) SelLine(filled bool, w int, content string) string {
 
 func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
 
-// activeTab is the selected tab: the selection fill with bold, underlined text, so it is
-// marked by more than the fill; behind a pop-up its text stays at the text floor.
-func (p Palette) ActiveTab() lipgloss.Style {
-	return p.SelText(true).Underline(true)
+// SelChip is the active option of a row of options (the tab bar, the pipeline strip, the
+// Track filter): the selection fill one cell wider each side, " Drafts 2 ". Where there
+// is no fill to see it by (NO_COLOR, the terminal's own colours, ASCII, or behind a
+// pop-up) the cells hold brackets instead, "[Drafts 2]", so the width never changes.
+func (p Palette) SelChip(text string) string {
+	if NoColor() || p.Inherit || p.Ascii || p.Backdrop {
+		return p.SelText(!p.Backdrop).Underline(!p.Backdrop).Render("[" + text + "]")
+	}
+	return p.SelText(true).Render(" " + text + " ")
 }
 
 // paneRule colours a pane's rule or divider: the accent while the pane has focus, the

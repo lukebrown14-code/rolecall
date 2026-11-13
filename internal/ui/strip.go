@@ -199,7 +199,7 @@ func (m model) stripLine(p pal, f stripForm) string {
 	case f.compact:
 		sep = "  "
 	case f.arrows:
-		sep, closedSep = dim.Render(" ──▶ "), dim.Render(" · ")
+		sep, closedSep = p.Text(p.Rule).Render(" ──▶ "), dim.Render(" · ")
 	case f.labels:
 		sep, closedSep = dim.Render(" · "), dim.Render(" · ")
 	}
@@ -258,12 +258,14 @@ func (m model) stripCellText(p pal, c stripCell, f stripForm, label bool) string
 		text = fmt.Sprintf("%s %d", glyph, n)
 	}
 	if c.on(m) {
-		return p.SelText(true).Render("[" + text + "]")
+		return p.SelChip(text)
 	}
 	if n == 0 {
 		return p.Text(p.Dim).Render(text)
 	}
-	return p.Text(col).Render(text)
+	// The glyph and label in the Status colour, the count in the bright text colour.
+	count := fmt.Sprint(n)
+	return p.Text(col).Render(strings.TrimSuffix(text, count)) + p.Text(p.Fg).Render(count)
 }
 
 // stripDocs is the Workspace's document readiness: the meter and the share of ready

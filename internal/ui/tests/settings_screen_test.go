@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
@@ -77,7 +76,7 @@ func requireAll(t *testing.T, view string, wants ...string) {
 
 func TestSettingsOpensOnSixAfterProfile(t *testing.T) {
 	for _, from := range []string{"1", "4", "5"} {
-		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, from, "6"))
+		view := chipped(runKeys(t, fixtureCopy(t, nil), 120, from, "6"))
 		requireAll(t, view, "5 Profile", "6 Settings")
 		if strings.Index(view, "5 Profile") > strings.Index(view, "6 Settings") {
 			t.Fatalf("Settings is not after Profile:\n%s", view)

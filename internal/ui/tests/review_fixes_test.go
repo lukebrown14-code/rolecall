@@ -48,17 +48,17 @@ func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 // Pasted text lands in the focused form field and in the search, one line.
 func TestPasteFillsFormAndSearch(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	if view := ansi.Strip(runKeys(t, root, 120, "a", "paste:Pasted Title\n")); !strings.Contains(view, "Pasted Title▏") {
+	if view := chipped(runKeys(t, root, 120, "a", "paste:Pasted Title\n")); !strings.Contains(view, "Pasted Title▏") {
 		t.Fatalf("paste missing from the Title field:\n%s", view)
 	}
-	if view := ansi.Strip(runKeys(t, root, 120, "/", "paste:Orbit\n")); !strings.Contains(view, "/Orbit ×") {
+	if view := chipped(runKeys(t, root, 120, "/", "paste:Orbit\n")); !strings.Contains(view, "/Orbit ×") {
 		t.Fatalf("paste missing from the search:\n%s", view)
 	}
 }
 
 // Backspace removes a whole character: no half emoji, no stray joiner.
 func TestBackspaceRemovesWholeCharacters(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "a", "paste:Rocket👩‍💻", "backspace"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "a", "paste:Rocket👩‍💻", "backspace"))
 	if !strings.Contains(view, "Rocket▏") || strings.Contains(view, "\u200d") {
 		t.Fatalf("backspace left part of the emoji:\n%s", view)
 	}
@@ -66,7 +66,7 @@ func TestBackspaceRemovesWholeCharacters(t *testing.T) {
 
 // With the help pop-up open over an error, esc closes the pop-up and leaves the error.
 func TestEscClosesHelpOverAnError(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "G", "m", "d", "?", "esc"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "G", "m", "d", "?", "esc"))
 	if strings.Contains(view, "─ Keys ") {
 		t.Fatalf("esc left the help pop-up open:\n%s", view)
 	}
@@ -86,7 +86,7 @@ func TestLongTitleKeepsThePopupBorder(t *testing.T) {
 		}
 	})
 	for _, width := range []int{76, 120} {
-		view := ansi.Strip(runKeys(t, root, width, "e"))
+		view := chipped(runKeys(t, root, width, "e"))
 		var top, bottom string
 		for _, line := range strings.Split(view, "\n") {
 			if i := strings.Index(line, "╭"); i >= 0 {
@@ -105,7 +105,7 @@ func TestLongTitleKeepsThePopupBorder(t *testing.T) {
 
 // A long form value shows its end, where typing happens, and its error in full.
 func TestLongFormValueShowsItsEndAndError(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "a", "tab", "tab", "tab", "tab",
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "a", "tab", "tab", "tab", "tab",
 		"2026-01-01-and-some-more-text-here-xx", "enter"))
 	if !strings.Contains(view, "here-xx▏") {
 		t.Fatalf("the end of the value is hidden:\n%s", view)
@@ -117,14 +117,14 @@ func TestLongFormValueShowsItsEndAndError(t *testing.T) {
 
 // Rows keep SCHEMA's ~ on approximate dates.
 func TestApproxDatesKeepTheirTilde(t *testing.T) {
-	if view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3")); !strings.Contains(view, "applied ~") {
+	if view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3")); !strings.Contains(view, "applied ~") {
 		t.Fatalf("approximate applied dates lost their ~:\n%s", view)
 	}
 }
 
 // On a narrow terminal the key line keeps add and search, the way in for a newcomer.
 func TestNarrowKeyLineKeepsAddAndSearch(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 76, "1"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 76, "1"))
 	lines := strings.Split(view, "\n")
 	if last := lines[len(lines)-1]; !strings.Contains(last, "a add") || !strings.Contains(last, "/ search") {
 		t.Fatalf("narrow key line dropped add or search: %q", last)
@@ -141,7 +141,7 @@ func TestEveryScreenFillsTheTerminal(t *testing.T) {
 		if n := strings.Count(view, "\n") + 1; n != termHeight {
 			t.Fatalf("keys %q: %d lines on a %d-line terminal", keys, n, termHeight)
 		}
-		plain := ansi.Strip(view)
+		plain := chipped(view)
 		if strings.Contains(plain, "│") && (!strings.Contains(plain, "┬") || !strings.Contains(plain, "┴")) {
 			t.Fatalf("keys %q: pane joins missing:\n%s", keys, plain)
 		}
@@ -152,13 +152,13 @@ func TestEveryScreenFillsTheTerminal(t *testing.T) {
 // count — and the header count reads n/total while a filter hides rows.
 func TestScopeLineNamesEveryFilter(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	search := ansi.Strip(runKeys(t, root, 120, "1", "/pl", "enter"))
+	search := chipped(runKeys(t, root, 120, "1", "/pl", "enter"))
 	for _, want := range []string{"/pl ×", "2 of 4", "Leads 2/4"} {
 		if !strings.Contains(search, want) {
 			t.Fatalf("search scope lacks %q:\n%s", want, search)
 		}
 	}
-	track := ansi.Strip(runKeys(t, root, 120, "1", "t"))
+	track := chipped(runKeys(t, root, 120, "1", "t"))
 	if !strings.Contains(track, "t  All 17  [SWE 10]  Platform 1") || !strings.Contains(track, "3 of 4") {
 		t.Fatalf("track scope missing:\n%s", track)
 	}
@@ -166,7 +166,7 @@ func TestScopeLineNamesEveryFilter(t *testing.T) {
 
 // A long search filter truncates in the scope line instead of spilling the frame.
 func TestLongSearchKeepsTheFrame(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 80, "1", "/abcdefghijklmnopqrstuvwxyz"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 80, "1", "/abcdefghijklmnopqrstuvwxyz"))
 	if n := strings.Count(view, "\n") + 1; n != termHeight {
 		t.Fatalf("%d lines on a %d-line terminal", n, termHeight)
 	}
@@ -179,7 +179,7 @@ func TestLongSearchKeepsTheFrame(t *testing.T) {
 
 // A success toast shows on the status row, over the key line, with the bottom rule kept.
 func TestToastKeepsTheBottomRule(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "x"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "x"))
 	if !strings.Contains(view, "✓ Dismissed ") || !strings.Contains(view, "┴") {
 		t.Fatalf("toast replaced the bottom rule:\n%s", view)
 	}
@@ -188,7 +188,7 @@ func TestToastKeepsTheBottomRule(t *testing.T) {
 // The help pop-up fits a short terminal and keeps its bottom border with "any key close".
 func TestHelpFitsAShortTerminal(t *testing.T) {
 	const height = 14
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, height, "?"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, height, "?"))
 	if n := strings.Count(view, "\n") + 1; n > height {
 		t.Fatalf("%d lines on a %d-line terminal", n, height)
 	}
@@ -202,7 +202,7 @@ func TestCompactHelpCanReachLastPage(t *testing.T) {
 	m = driveModel(t, m, "?")
 	seen := ""
 	for range 30 {
-		seen += ansi.Strip(m.View().Content)
+		seen += chipped(m.View().Content)
 		m = driveModel(t, m, "down")
 	}
 	for _, text := range []string{"quit", "○ missing", "esc close"} {
@@ -215,7 +215,7 @@ func TestCompactHelpCanReachLastPage(t *testing.T) {
 func TestCompactAddExplainsEmptyTitle(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
 	m = driveModel(t, m, "a", "enter", "enter")
-	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Title is required") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "Title is required") {
 		t.Fatalf("missing validation: %s", view)
 	}
 }
@@ -223,14 +223,14 @@ func TestCompactAddExplainsEmptyTitle(t *testing.T) {
 func TestCompactMalformedErrorKeepsRecoveryKeys(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
 	m = driveModel(t, m, "G", "m", "d")
-	view := ansi.Strip(m.View().Content)
+	view := chipped(m.View().Content)
 	for _, hint := range []string{"e fix in editor", "esc hide"} {
 		if !strings.Contains(view, hint) {
 			t.Fatalf("missing %s: %s", hint, view)
 		}
 	}
 	m = driveModel(t, m, "enter")
-	if !strings.Contains(ansi.Strip(m.View().Content), "indented lines must be") {
+	if !strings.Contains(chipped(m.View().Content), "indented lines must be") {
 		t.Fatal("inspect lost diagnostic")
 	}
 }

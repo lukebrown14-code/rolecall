@@ -13,12 +13,12 @@ import (
 // cell and the Offer cell.
 func stripLine(t *testing.T, view string) string {
 	t.Helper()
-	for _, l := range strings.Split(ansi.Strip(view), "\n") {
+	for _, l := range strings.Split(chipped(view), "\n") {
 		if strings.Contains(l, "◌") && strings.Contains(l, "★") && !strings.Contains(l, "rolecall") {
 			return l
 		}
 	}
-	t.Fatalf("no pipeline strip in:\n%s", ansi.Strip(view))
+	t.Fatalf("no pipeline strip in:\n%s", chipped(view))
 	return ""
 }
 
@@ -45,7 +45,7 @@ func TestPipelineStripCountsMatchTheListGroups(t *testing.T) {
 		t.Fatalf("wide strip lacks its arrows or docs share: %q", line)
 	}
 	counts := stripCounts(t, line)
-	plain := ansi.Strip(view)
+	plain := chipped(view)
 	// The Applied screen's group rules carry the same counts as the strip's cells.
 	for i, group := range []string{"", "", "Applied", "Interviewing", "Offer", "Closed"} {
 		if group == "" {
@@ -82,7 +82,7 @@ func TestPipelineStripCountsMatchTheListGroups(t *testing.T) {
 }
 
 func TestSTwiceMovesTheStripHighlightAndTheBreadcrumb(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "s", "s"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "s", "s"))
 	if line := stripLine(t, view); !strings.Contains(line, "[◆ Interviewing 2]") || strings.Count(line, "[") != 1 {
 		t.Errorf("highlight is not on Interviewing alone: %q", line)
 	}
@@ -118,7 +118,7 @@ func TestMediumStripSeparatesWithDots(t *testing.T) {
 }
 
 func TestTrackOptionsShowCountsAndExplainThem(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
 	if !regexp.MustCompile(`SWE \d+`).MatchString(view) || !regexp.MustCompile(`Platform \d+`).MatchString(view) {
 		t.Errorf("Track options lack counts:\n%s", view)
 	}
@@ -128,14 +128,14 @@ func TestTrackOptionsShowCountsAndExplainThem(t *testing.T) {
 }
 
 func TestSettingsTracksExplainTheirCounts(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "6", "tab", "tab"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "6", "tab", "tab"))
 	if !regexp.MustCompile(`SWE\s+\d+ applications · \d+ active · \d+ closed`).MatchString(view) {
 		t.Errorf("Settings Tracks lack the breakdown:\n%s", view)
 	}
 }
 
 func TestGroupRulesCarryRollups(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
 	var rule string
 	for _, l := range strings.Split(view, "\n") {
 		if strings.Contains(l, "Interviewing · 2") {
@@ -160,7 +160,7 @@ func withoutStrip(view string) string {
 }
 
 func TestOldStatusBarIsGone(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3"))
 	for _, old := range []string{"[All 9]", "10 live", "Closed 4  "} {
 		if strings.Contains(view, old) {
 			t.Errorf("old status bar text %q still renders:\n%s", old, view)
@@ -184,7 +184,7 @@ func TestFocusedStripMovesTheStatusFilterWithArrowsAndEnter(t *testing.T) {
 	} {
 		m := driveStart(t, fixtureCopy(t, nil), fixtureClock, tc.w, tc.h)
 		m = driveModel(t, m, "3", "S", "right", "right", "right", "right")
-		view := ansi.Strip(m.View().Content)
+		view := chipped(m.View().Content)
 		line := stripLine(t, view)
 		if !strings.Contains(line, tc.interviewing) || strings.Count(line, "[") != 1 {
 			t.Errorf("%dx%d: → did not highlight Interviewing alone: %q", tc.w, tc.h, line)
@@ -198,20 +198,20 @@ func TestFocusedStripMovesTheStatusFilterWithArrowsAndEnter(t *testing.T) {
 			t.Errorf("%dx%d: footer does not show the strip keys: %q", tc.w, tc.h, foot)
 		}
 		m = driveModel(t, m, "right", "enter")
-		view = ansi.Strip(m.View().Content)
+		view = chipped(m.View().Content)
 		if line := stripLine(t, view); !strings.Contains(line, tc.offerHighlit) || strings.Contains(line, "▌") {
 			t.Errorf("%dx%d: enter should keep Offer and drop focus: %q", tc.w, tc.h, line)
 		}
 		// Focus is gone: → now cycles the list's view as before, not the strip's cursor.
 		m = driveModel(t, m, "S", "esc", "right")
-		if line := stripLine(t, ansi.Strip(m.View().Content)); strings.Contains(line, "▌") {
+		if line := stripLine(t, chipped(m.View().Content)); strings.Contains(line, "▌") {
 			t.Errorf("%dx%d: esc did not drop strip focus: %q", tc.w, tc.h, line)
 		}
 	}
 }
 
 func TestStripFocusKeyIsInHelp(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "?"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "?"))
 	if !strings.Contains(view, "[S]") || !strings.Contains(view, "focus strip") {
 		t.Errorf("Help does not list the strip focus key:\n%s", view)
 	}

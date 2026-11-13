@@ -57,7 +57,7 @@ func TestRowMeterNeverSqueezesTheTitle(t *testing.T) {
 // The detail lists each Document with ● ready or ○ missing, and a meter with the count.
 func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	view := ansi.Strip(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
+	view := chipped(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
 	for _, want := range []string{"○ JD", "● Resume", "● Cover letter", "○ PDF", "▰▰▱▱ 2/4"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
@@ -68,7 +68,7 @@ func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 // ASCII mode draws the meter as # and -, and keeps the ready/missing marks apart.
 func TestMeterFoldsToASCII(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
 	if !strings.Contains(view, "##--") {
 		t.Errorf("no ASCII meter:\n%s", view)
 	}
@@ -78,7 +78,7 @@ func TestMeterFoldsToASCII(t *testing.T) {
 func TestDocumentWordingIsReadyOrMissing(t *testing.T) {
 	banned := regexp.MustCompile(`\b(present|written|empty)\b`)
 	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"3", "/docs-written", "enter"}, {"3", "/docs-ready", "enter"}, {"2", "enter"}, {"?"}} {
-		view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, keys...))
+		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, keys...))
 		for _, line := range strings.Split(view, "\n") {
 			low := strings.ToLower(line)
 			if !strings.Contains(low, "pdf") && !strings.Contains(low, "resume") && !strings.Contains(low, " jd") && !strings.Contains(low, "cover letter") {

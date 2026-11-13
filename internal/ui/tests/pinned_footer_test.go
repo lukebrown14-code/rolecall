@@ -3,8 +3,6 @@ package ui_test
 import (
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 var footerSizes = [][2]int{{120, 36}, {80, 24}, {60, 16}}
@@ -12,7 +10,7 @@ var footerSizes = [][2]int{{120, 36}, {80, 24}, {60, 16}}
 // plainAt is the final View at a size, stripped of styling, as lines.
 func plainAt(t *testing.T, w, h int, keys ...string) []string {
 	t.Helper()
-	return strings.Split(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), w, h, keys...)), "\n")
+	return strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), w, h, keys...)), "\n")
 }
 
 // The key line is the last line of the View on every screen and size, short list or not.

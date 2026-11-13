@@ -13,7 +13,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
@@ -202,7 +201,7 @@ func TestAddURLFetchFillsOnlyEmptyFields(t *testing.T) {
 	h.wait("My Title", "My Co", "2027-01-01")
 	view := h.tm.plain()
 	if strings.Contains(view, "Fetched Title") || strings.Contains(view, "Fetched Co") || strings.Contains(view, "2028-02-02") {
-		t.Fatalf("fetch overwrote typed values:\n%s", ansi.Strip(view))
+		t.Fatalf("fetch overwrote typed values:\n%s", chipped(view))
 	}
 }
 

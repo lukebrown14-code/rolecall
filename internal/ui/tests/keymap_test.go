@@ -9,7 +9,7 @@ import (
 
 // keyLineOf is the frame's last line.
 func keyLineOf(view string) string {
-	plain := ansi.Strip(view)
+	plain := chipped(view)
 	return plain[strings.LastIndex(plain, "\n")+1:]
 }
 
@@ -51,15 +51,15 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 
 // ←→ switch views on a table screen; T cycles the track filter backwards.
 func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "right"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "right"))
 	if !strings.Contains(view, "Leads › Dismissed") {
 		t.Fatalf("→ did not switch to Dismissed:\n%s", view)
 	}
-	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "right", "left"))
+	view = chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "right", "left"))
 	if !strings.Contains(view, "Leads › Leads") {
 		t.Fatalf("← did not switch back to Leads:\n%s", view)
 	}
-	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
+	view = chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
 	if !strings.Contains(view, "[Platform 1]") {
 		t.Fatalf("T did not cycle back to the last track:\n%s", view)
 	}
@@ -68,7 +68,7 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 // The `?` pop-up lists the context's keys, then the global ones, and offers paging only
 // when there is a second page.
 func TestHelpIsContextAwareAndPagesOnlyWhenNeeded(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "?"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "?"))
 	for _, want := range []string{"Keys · Applied · JD", "NAVIGATE", "←→ switches tab"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("detail help lacks %q:\n%s", want, view)
