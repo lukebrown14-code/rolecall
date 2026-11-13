@@ -33,6 +33,7 @@ type model struct {
 	selectAfter           string
 	undo                  []undoMove
 	toast                 string // feedback line: what just happened (cleared on the next key)
+	movedTo               string // destination Status of the move the toast reports, else ""
 	toastHint             string // key hint shown with it, e.g. "u undo"
 	flash                 string // folder of the row just moved, lit until flashID's tick
 	flashID               int
@@ -263,7 +264,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint = "", ""
+		m.toast, m.toastHint, m.movedTo = "", "", ""
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}

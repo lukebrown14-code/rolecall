@@ -127,9 +127,14 @@ func (m model) feedbackLine(p pal, w int) string {
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Accent, true
 	case strings.HasPrefix(m.toast, offerPrefix):
 		icon, c = p.StatusGlyph(store.StatusOffer), p.StatusColor(store.StatusOffer)
+	case strings.HasPrefix(m.toast, "Undid move "):
+		icon = "↩"
 	}
 	if msg == "" {
 		return ""
+	}
+	if icon == "✓" && p.Ascii {
+		icon = "+" // the toast's own stand-in; Profile's ✓ folds to v
 	}
 	bg := lipgloss.NewStyle().Background(p.Panel)
 	var left string
