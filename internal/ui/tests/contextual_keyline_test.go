@@ -27,10 +27,10 @@ func hasKey(line, key string) bool {
 
 // On Leads with a row selected the key line has the sort key o; on Applied it does not.
 // o is a minor key, so it is the first to go when space is short: it is asserted where
-// there is room (120), and its absence on Applied at every size.
+// there is room (140), and its absence on Applied at every size.
 func TestKeyLineShowsSortOnlyOnLeads(t *testing.T) {
-	if line := lastLine(t, 120, 36, "1"); !hasKey(line, "o") {
-		t.Errorf("120x36 Leads key line lacks o: %q", line)
+	if line := lastLine(t, 140, 36, "1"); !hasKey(line, "o") {
+		t.Errorf("140x36 Leads key line lacks o: %q", line)
 	}
 	for _, sz := range keyLineSizes {
 		if line := lastLine(t, sz[0], sz[1], "3"); hasKey(line, "o") {
@@ -54,9 +54,10 @@ func TestKeyLineHidesRowActionsOnAnEmptyList(t *testing.T) {
 	}
 }
 
-// u undo appears only once there is something to undo.
+// u undo appears only once there is something to undo. It is a minor key, so it is
+// asserted where there is room for it.
 func TestKeyLineShowsUndoAfterAMove(t *testing.T) {
-	for _, sz := range keyLineSizes[:2] {
+	for _, sz := range keyLineSizes[:1] {
 		if line := lastLine(t, sz[0], sz[1], "3"); hasKey(line, "u") {
 			t.Errorf("%dx%d key line shows u with nothing to undo: %q", sz[0], sz[1], line)
 		}
@@ -67,8 +68,7 @@ func TestKeyLineShowsUndoAfterAMove(t *testing.T) {
 	}
 }
 
-// At every size the key line fits one line and ends with ? help (space menu is shown
-// only once bound, #174).
+// At every size the key line fits one line and keeps ? help.
 func TestKeyLineFitsAndEndsWithHelp(t *testing.T) {
 	for _, sz := range keyLineSizes {
 		for _, keys := range [][]string{{"1"}, {"3"}, {"3", "enter"}, {"6"}} {

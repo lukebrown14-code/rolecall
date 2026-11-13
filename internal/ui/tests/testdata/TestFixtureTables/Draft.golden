@@ -11,7 +11,7 @@
                                                                  │ TRACK   SWE                                [e] edit  
                                                                  │ NOTES   —                                 [n] notes  
                                                                  │                                                      
-                                                                 │ NEXT  add the JD   enter open                        
+                                                                 │ NEXT    add the JD                     [enter] open  
                                                                  │                                                      
                                                                  │ DOCS    ▱▱▱▱ 0/4                                     
                                                                  │         ○ JD                                         
@@ -37,4 +37,4 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · a add · S focus strip · / search              1-6 screen · ? help
+ enter open · e edit · m move · x dismiss · n notes · a add · S focus strip · / search              ? help · space menu

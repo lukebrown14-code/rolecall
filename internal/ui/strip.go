@@ -37,6 +37,15 @@ var stripCells = []stripCell{
 	{"", "closed", []stripView{{screenApplied, tableClosed}, {screenLeads, tableDismissed}}},
 }
 
+// shortLabel is a cell's label in the short forms: the list's own abbreviation where it
+// has one ("Interv."), otherwise the label.
+func (c stripCell) shortLabel() string {
+	if s, ok := stageNames[c.status]; ok {
+		return s
+	}
+	return c.label
+}
+
 // count is the cell's Applications under the Track and text filters, the same number the
 // list's group rule shows.
 func (c stripCell) count(m model) int {
@@ -72,14 +81,22 @@ func (m model) followUpsDue() int {
 }
 
 // stripForm is one fit of the strip, widest first: the arrows or the dots between cells,
-// whether the Follow-up due part is spelled out, and whether the docs share shows.
+// whether the Follow-up due part is spelled out, and how the docs share shows.
 type stripForm struct {
-	arrows bool
-	labels bool // the cells name their Status; off, they are glyphs and counts
-	words  int  // wordsFull spells "N follow-up due", wordsShort "N due", 0 just the count
-	docs   bool
-	closed bool // the closed cell keeps its word
+	arrows  bool
+	labels  bool // the cells name their Status; off, they are glyphs and counts
+	short   bool // the labels are abbreviated, "Interv."
+	compact bool // two spaces between the labelled cells; the closed, due and docs parts glyph-tight after them
+	words   int  // wordsFull spells "N follow-up due", wordsShort "N due", 0 just the count
+	docs    int  // docsMeter "docs ▰▱▱▱ 8%", docsShare "docs 8%", 0 none
+	closed  bool // the closed cell keeps its word
 }
+
+// How a strip form shows the docs share.
+const (
+	docsShare = 1
+	docsMeter = 2
+)
 
 // The Follow-up due part's wordings, longest first; 0 is the bare count.
 const (
@@ -90,15 +107,24 @@ const (
 // percentFull is the readiness share when every document is Ready.
 const percentFull = 100
 
+// stripForms is every fit, widest first. The medium size class starts at the third; the
+// narrow one has only the last narrowForms, which drop the labels but keep the docs share
+// while it fits.
 var stripForms = []stripForm{
-	{true, true, wordsFull, true, true},
-	{true, true, wordsShort, true, true},
-	{false, true, wordsFull, true, true},
-	{false, true, wordsShort, true, true},
-	{false, true, wordsShort, false, true},
-	{false, true, 0, false, false},
-	{false, false, 0, false, false},
+	{arrows: true, labels: true, words: wordsFull, docs: docsMeter, closed: true},
+	{arrows: true, labels: true, words: wordsShort, docs: docsMeter, closed: true},
+	{labels: true, words: wordsFull, docs: docsMeter, closed: true},
+	{labels: true, words: wordsShort, docs: docsMeter, closed: true},
+	{labels: true, words: wordsShort, closed: true},
+	{labels: true, short: true, docs: docsShare},
+	{labels: true, short: true, compact: true, docs: docsShare},
+	{labels: true, short: true, compact: true},
+	{docs: docsShare},
+	{},
 }
+
+// narrowForms is how many of the last stripForms the narrow size class may use.
+const narrowForms = 2
 
 // stripSelMargin is the cells the active cell's brackets add, kept free in every fit so
 // moving the highlight never changes which form fits.
@@ -127,7 +153,7 @@ func (m model) stripFormFor(p pal, w int) stripForm {
 	case classMedium:
 		forms = forms[2:]
 	default:
-		forms = forms[len(forms)-1:]
+		forms = forms[len(forms)-narrowForms:]
 	}
 	// The shown cell's brackets are in the line already; otherwise their cells are kept free.
 	spare := stripSelMargin
@@ -146,13 +172,7 @@ func (m model) stripFormFor(p pal, w int) stripForm {
 func (m model) stripCellAt(x, w int) (stripCell, bool) {
 	p := m.pal()
 	f := m.stripFormFor(p, w)
-	sep, closedSep := 1, 1
-	if f.labels {
-		sep, closedSep = 3, 3
-		if f.arrows {
-			sep = 5
-		}
-	}
+	sep, closedSep := f.seps()
 	col := inset
 	for i, c := range stripCells {
 		width := xansi.StringWidth(m.stripCellText(p, c, f, f.closed || i < len(stripCells)-1))
@@ -175,12 +195,13 @@ func (m model) stripLine(p pal, f stripForm) string {
 		cells = append(cells, m.stripCellText(p, c, f, true))
 	}
 	sep, closedSep := " ", " "
-	if f.labels {
-		sep = dim.Render(" · ")
-		if f.arrows {
-			sep = dim.Render(" ──▶ ")
-		}
-		closedSep = dim.Render(" · ")
+	switch {
+	case f.compact:
+		sep = "  "
+	case f.arrows:
+		sep, closedSep = dim.Render(" ──▶ "), dim.Render(" · ")
+	case f.labels:
+		sep, closedSep = dim.Render(" · "), dim.Render(" · ")
 	}
 	out := strings.Join(cells, sep) + closedSep + m.stripCellText(p, stripCells[len(stripCells)-1], f, f.closed)
 	if due := m.followUpsDue(); due > 0 {
@@ -191,17 +212,31 @@ func (m model) stripLine(p pal, f stripForm) string {
 		case wordsShort:
 			text += " due"
 		}
-		if !f.labels {
-			text = followUpFlag + text
-		} else {
+		if f.labels && !f.compact {
 			text = followUpFlag + " " + text
+		} else {
+			text = followUpFlag + text
 		}
 		out += closedSep + p.Text(p.Warn).Render(text)
 	}
-	if f.docs {
-		out += closedSep + m.stripDocs(p)
+	if f.docs > 0 {
+		out += closedSep + m.stripDocs(p, f.docs == docsMeter)
 	}
 	return out
+}
+
+// seps is the cells between the Status cells, and before the closed cell and each part
+// after it, as stripLine draws them.
+func (f stripForm) seps() (sep, closedSep int) {
+	switch {
+	case f.compact:
+		return 2, 1 //nolint:mnd // "  " between the cells, " " after them
+	case f.arrows:
+		return 5, 3 //nolint:mnd // " ──▶ ", " · "
+	case f.labels:
+		return 3, 3 //nolint:mnd // " · "
+	}
+	return 1, 1
 }
 
 // stripCellText is one cell: glyph, label and count, with the label dropped narrow. The
@@ -214,11 +249,13 @@ func (m model) stripCellText(p pal, c stripCell, f stripForm, label bool) string
 	}
 	n := c.count(m)
 	text := fmt.Sprintf("%s%d", glyph, n)
-	if f.labels {
+	switch {
+	case f.labels && label && f.short:
+		text = fmt.Sprintf("%s %s %d", glyph, c.shortLabel(), n)
+	case f.labels && label:
 		text = fmt.Sprintf("%s %s %d", glyph, c.label, n)
-		if !label {
-			text = fmt.Sprintf("%s %d", glyph, n)
-		}
+	case f.labels && !f.compact:
+		text = fmt.Sprintf("%s %d", glyph, n)
 	}
 	if c.on(m) {
 		return p.SelText(true).Render("[" + text + "]")
@@ -230,16 +267,20 @@ func (m model) stripCellText(p pal, c stripCell, f stripForm, label bool) string
 }
 
 // stripDocs is the Workspace's document readiness: the meter and the share of ready
-// documents, "docs ▰▰▱▱ 48%".
-func (m model) stripDocs(p pal) string {
+// documents, "docs ▰▰▱▱ 48%", or the share alone, "docs 48%".
+func (m model) stripDocs(p pal, meter bool) string {
 	pct := readyPercent(m.apps)
 	on := (pct*docsMeterCells + percentFull/2) / percentFull
 	c := p.Dim
 	if pct == percentFull {
 		c = p.Ok
 	}
-	meter := p.Text(c).Render(strings.Repeat(meterOn, on)) + p.Text(p.Faint).Render(strings.Repeat(meterOff, docsMeterCells-on))
-	return p.Text(p.Dim).Render("docs ") + meter + p.Text(c).Render(fmt.Sprintf(" %d%%", pct))
+	share := p.Text(c).Render(fmt.Sprintf("%d%%", pct))
+	if !meter {
+		return p.Text(p.Dim).Render("docs ") + share
+	}
+	cells := p.Text(c).Render(strings.Repeat(meterOn, on)) + p.Text(p.Faint).Render(strings.Repeat(meterOff, docsMeterCells-on))
+	return p.Text(p.Dim).Render("docs ") + cells + " " + share
 }
 
 // stripKey handles a key while the strip has focus: ← → move the status filter one cell and

@@ -19,6 +19,10 @@ const (
 // notAssessed is the Fit value of an Application with no Fit yet; the list uses it too.
 const notAssessed = "·"
 
+// notNeededMark marks a Document the Application does not need (a Resume only Cover letter).
+// The em dash is the frame's "none", as an empty NOTES row shows it.
+const notNeededMark = "—"
+
 // readOnly stands where a row has no key.
 const readOnly = "read-only"
 
@@ -168,7 +172,7 @@ func (m model) fieldBlock(p pal, a store.Application, w int) []string {
 		rows = append(rows, p.fieldRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), "e", "edit", w))
 	}
 	rows = append(rows, p.fieldRow("NOTES", notes, "n", "notes", w))
-	if next := m.nextLine(p, a, w); next != "" {
+	if next := m.nextLine(p, a, w, true); next != "" {
 		rows = append(rows, "", next)
 	}
 	rows = append(rows, "", p.fieldRow("DOCS", p.DocsMeter(a), "", "", w))
@@ -176,7 +180,13 @@ func (m model) fieldBlock(p pal, a store.Application, w int) []string {
 		rows = append(rows, m.docRow(p, a, c, w))
 	}
 	if a.ResumeOnly && !a.CoverLetterHasText {
-		rows = append(rows, p.Text(p.Dim).Render("  "+docCoverLetter), p.Text(p.Dim).Render("  "+resumeOnlyNote))
+		// Marked like the other Documents: neither ready nor missing, but not needed.
+		// The state goes before the name is cut: the mark already says "none".
+		letter := m.glyph(notNeededMark) + " " + docCoverLetter
+		if full := letter + "  " + notNeeded; fieldLabelW+xansi.StringWidth(full) <= w {
+			letter = full
+		}
+		rows = append(rows, p.fieldRow("", p.Text(p.Dim).Render(letter), "", "", w))
 	}
 	rows = append(rows, "", p.Text(p.Dim).Render("TIMELINE"))
 	return append(rows, m.verticalTimeline(p, a, w)...)

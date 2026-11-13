@@ -50,11 +50,11 @@ func visibleDetailTabs(a store.Application) []detailTab {
 }
 
 // detailTabs is the tabs the open detail shows. Where the card is folded away (the sheet and
-// the narrow full view) an Overview tab, last, holds the card's rows.
+// the narrow full view) an Overview tab, first, holds the card's rows.
 func (m model) detailTabs(a store.Application) []detailTab {
 	tabs := visibleDetailTabs(a)
 	if !m.cardShown() {
-		tabs = append(tabs, tabOverview)
+		tabs = append([]detailTab{tabOverview}, tabs...)
 	}
 	return tabs
 }
@@ -103,7 +103,10 @@ func (e docEntry) title() string {
 }
 
 // resumeOnlyNote is the Cover letter's state on a Resume only Application.
-const resumeOnlyNote = "not needed · Resume only"
+const resumeOnlyNote = notNeeded + " · Resume only"
+
+// notNeeded is the state of a Document the Application does not need.
+const notNeeded = "not needed"
 
 // displayStatus is a source document's state, ready or missing (an empty file is
 // missing), and whether it is ready. Built and sent files are ready by being there.
@@ -148,8 +151,14 @@ func (m model) current() (store.Application, bool) {
 	return m.selected()
 }
 
+// openDetail opens an Application on its first tab: Overview where the card is folded away,
+// otherwise the JD. A malformed one opens on the JD, where its parse error shows.
 func (m *model) openDetail(folder string) {
-	m.detail = &detailState{folder: folder, tab: tabJD, body: viewport.New()}
+	tab := tabJD
+	if a, ok := m.application(folder); ok && a.Malformed == nil {
+		tab = m.detailTabs(a)[0]
+	}
+	m.detail = &detailState{folder: folder, tab: tab, body: viewport.New()}
 }
 
 func (m model) closeDetail() model {
@@ -226,7 +235,11 @@ func (m model) syncDetail() model {
 		return m
 	}
 	d := *m.detail
-	if !slices.Contains(m.detailTabs(a), d.tab) {
+	switch {
+	case slices.Contains(m.detailTabs(a), d.tab):
+	case d.tab == tabOverview:
+		d.tab = tabJD // the window widened: the card beside the tabs holds the rows now
+	default:
 		m.err = fmt.Errorf("%s is gone", docName(markdownTabFiles[d.tab]))
 		d.tab = tabDocs
 	}
@@ -523,10 +536,11 @@ func (m model) detailView(p pal) string {
 		for i, l := range content {
 			content[i] = " " + l
 		}
-		// Without the card, the next step takes the line between the tabs and the text.
+		// Without the card, the next step takes the line between the tabs and the text,
+		// except on Overview, whose rows already hold it.
 		gap := ""
-		if !m.cardShown() {
-			gap = " " + m.nextLine(p, a, paneW-gutter-1)
+		if !m.cardShown() && m.detail.tab != tabOverview {
+			gap = " " + m.nextLine(p, a, paneW-gutter-1-rightMargin, false)
 		}
 		pane = m.detailTabsRow(p, a) + "\n" + gap + "\n" + strings.Join(content, "\n")
 	}

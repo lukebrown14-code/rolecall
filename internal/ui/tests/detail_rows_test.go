@@ -96,7 +96,7 @@ func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 // Rows never wrap in the sheet and full views: the Overview tab holds the same rows.
 func TestDetailOverviewFitsSmallSizes(t *testing.T) {
 	for _, s := range [][2]int{{80, 24}, {60, 16}} {
-		view := ansi.Strip(driveModel(t, driveStart(t, fixtureCopy(t, threeEntryLog), fixtureClock, s[0], s[1], ui.WithHarness("h")), "3", "/zedcorp", "enter", "enter", "left").View().Content)
+		view := ansi.Strip(driveModel(t, driveStart(t, fixtureCopy(t, threeEntryLog), fixtureClock, s[0], s[1], ui.WithHarness("h")), "3", "/zedcorp", "enter", "enter").View().Content)
 		if !strings.Contains(view, "STATUS") || !strings.Contains(view, "[m]") {
 			t.Errorf("%dx%d: overview lacks rows:\n%s", s[0], s[1], view)
 		}

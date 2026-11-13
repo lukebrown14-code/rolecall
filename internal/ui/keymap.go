@@ -30,7 +30,10 @@ type listAction struct {
 	// early is true when the dispatcher returns at once instead of falling through to the
 	// end-of-update sync: the actions that open a pop-up or start a run.
 	early bool
-	run   func(m *model, key string) tea.Cmd
+	// alwaysInHelp keeps the key in the `?` pop-up while listed is false, so Help names it
+	// before it first does something (u undo, before any move).
+	alwaysInHelp bool
+	run          func(m *model, key string) tea.Cmd
 }
 
 // text is a fixed help description.
@@ -132,7 +135,7 @@ var listActions = []listAction{
 	},
 	{
 		keys: []string{"u"}, keyLabel: "u", desc: text("undo"),
-		group: groupAction, prio: fixed(prioMinor),
+		group: groupAction, prio: fixed(prioMinor), alwaysInHelp: true,
 		listed:  func(m model) bool { return usable(m) && len(m.undo) > 0 },
 		enabled: func(m model) bool { return len(m.undo) > 0 },
 		run: func(m *model, _ string) tea.Cmd {
@@ -301,6 +304,21 @@ func (m model) actionKeys() []helpKey {
 	for _, a := range listActions {
 		if a.listed(m) {
 			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(a.prio(m)))
+		}
+	}
+	return keys
+}
+
+// dormantKeys is the row actions the `?` pop-up names although they do nothing yet here,
+// help-only so they never reach the key line.
+func (m model) dormantKeys() []helpKey {
+	if !m.hasTables() || m.stripFocus {
+		return nil
+	}
+	var keys []helpKey
+	for _, a := range listActions {
+		if a.alwaysInHelp && !a.listed(m) && usable(m) {
+			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(prioHelpOnly))
 		}
 	}
 	return keys

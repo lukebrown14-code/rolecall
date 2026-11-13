@@ -352,9 +352,16 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		} else {
 			value = bg.Foreground(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
-		value += bg.Render(strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value))))
+		// An unsaved edit's "was" sits right after the value it was edited from, not out in
+		// the column the group's longest value sets.
+		colW := valueW
+		if r.Was != "" {
+			colW = xansi.StringWidth(value)
+		}
+		value += bg.Render(strings.Repeat(" ", max(0, colW-xansi.StringWidth(value))))
 		tail := bg.Foreground(p.Dim).Render(r.Note())
 		if editing != nil && isSetting && editing.Key == set.key {
+			colW = valueW
 			// The field opens where the value sits, narrow, with the end of what is typed.
 			fw := min(maxFieldWidth, max(minFieldWidth, valueW))
 			shown := xansi.TruncateLeft(editing.Buf, max(0, xansi.StringWidth(editing.Buf)-(fw-1)), "…")
@@ -378,7 +385,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		line += pad + value
 		if r.Tail() != "" {
 			// The source and any warning are never cut: without room they get their own line.
-			if width-labelW-valueW-gutter >= xansi.StringWidth(r.Tail()) {
+			if width-labelW-colW-gutter >= xansi.StringWidth(r.Tail()) {
 				line += bg.Render(strings.Repeat(" ", gutter)) + tail
 				lines = append(lines, fillLine(line))
 			} else {

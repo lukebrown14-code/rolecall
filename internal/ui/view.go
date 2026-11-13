@@ -56,14 +56,32 @@ func (m model) viewHeight() int {
 
 func padRight(s string, w int) string { return s + strings.Repeat(" ", max(0, w-xansi.StringWidth(s))) }
 
-// joinColumns sets blocks side by side at a fixed width, or stacks them when narrow.
-func joinColumns(cols []string, w int, side bool) string {
-	if !side {
+// joinColumns sets blocks side by side inside room: each w wide, or wider for a longer
+// line; failing that, each as wide as its widest line and a gutter. When neither fits it
+// stacks them. The last block needs no gap after it.
+func joinColumns(cols []string, w, room int) string {
+	fit := func(least int) ([]int, bool) {
+		widths := make([]int, len(cols))
+		total := 0
+		for i, c := range cols {
+			widths[i] = lipgloss.Width(c)
+			if i < len(cols)-1 {
+				widths[i] = max(least, widths[i]+gutter)
+			}
+			total += widths[i]
+		}
+		return widths, total <= room
+	}
+	widths, ok := fit(w)
+	if !ok {
+		widths, ok = fit(0)
+	}
+	if !ok {
 		return strings.Join(cols, "\n\n")
 	}
 	styled := make([]string, len(cols))
 	for i, c := range cols {
-		styled[i] = lipgloss.NewStyle().Width(w).Render(c)
+		styled[i] = lipgloss.NewStyle().Width(widths[i]).Render(c)
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, styled...)
 }
@@ -990,7 +1008,9 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		if fill {
 			line = line.Background(p.Sel)
 		}
-		bar = p.SelGutter(fill)
+		if !m.stripFocus { // the focused strip holds the one mark; the fill still shows the row
+			bar = p.SelGutter(fill)
+		}
 		titleC, dimC = p.Fg, p.Sub
 	}
 	if a.Malformed != nil {

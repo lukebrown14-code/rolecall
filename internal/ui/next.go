@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"strings"
-
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
@@ -84,9 +82,12 @@ func (m model) writeStep(what string) nextStep {
 	return nextStep{what: what}
 }
 
-// nextLine is "NEXT  add the JD   enter open", or "FOLLOW-UP  due 9 days ago   r draft nudge", cut to w from the right but keeping
-// its key: the reason goes first, then the words are cut.
-func (m model) nextLine(p pal, a store.Application, w int) string {
+// nextLine is the next step as a field row, "NEXT    add the JD   [enter] open" or
+// "FOLLOW-UP  due 9 days ago   [r] draft nudge", inside w cells. The reason joins the
+// words only when the whole row fits. When even the words and the key do not fit, wrap
+// puts the key and its action on a second line at the same right edge (the card is
+// narrow); without wrap the row cuts as every field row does.
+func (m model) nextLine(p pal, a store.Application, w int, wrap bool) string {
 	s, ok := m.nextAction(a)
 	if !ok {
 		return ""
@@ -95,21 +96,18 @@ func (m model) nextLine(p pal, a store.Application, w int) string {
 	if s.label != "" {
 		name = s.label
 	}
-	label := p.Text(p.Dim).Bold(true).Render(name + "  ")
-	keys := ""
-	if s.key != "" {
-		keys = "   " + p.Key().Render(s.key) + p.Text(p.Dim).Render(" "+s.desc)
-	}
+	labelW := max(fieldLabelW, xansi.StringWidth(name)+2) //nolint:mnd // the gap after a long label
 	what := p.Text(p.Fg).Render(s.what)
+	fits := func(value string) bool {
+		return labelW+xansi.StringWidth(value)+1+xansi.StringWidth("["+s.key+"] "+s.desc) <= w
+	}
 	if s.why != "" {
-		if full := what + p.Text(p.Dim).Render(" · "+s.why); xansi.StringWidth(label+full+keys) <= w {
+		if full := what + p.Text(p.Dim).Render(" · "+s.why); fits(full) {
 			what = full
 		}
 	}
-	if xansi.StringWidth(label+what+keys) <= w || keys == "" {
-		return label + xansi.Truncate(what, max(0, w-xansi.StringWidth(label+keys)), "…") + keys
+	if wrap && s.key != "" && !fits(what) {
+		return p.fieldRowIn(labelW, name, what, "", "", w) + "\n" + p.fieldRow("", "", s.key, s.desc, w)
 	}
-	// Too narrow for one line: the key goes under the words, lined up with them.
-	return label + xansi.Truncate(what, max(0, w-xansi.StringWidth(label)), "…") + "\n" +
-		strings.Repeat(" ", xansi.StringWidth(label)) + strings.TrimLeft(keys, " ")
+	return p.fieldRowIn(labelW, name, what, s.key, s.desc, w)
 }

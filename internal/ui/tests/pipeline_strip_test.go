@@ -179,7 +179,7 @@ func TestFocusedStripMovesTheStatusFilterWithArrowsAndEnter(t *testing.T) {
 		footerWantKey string
 	}{
 		{120, 36, "[◆ Interviewing 2]", "[★ Offer 2]", "←→"},
-		{80, 24, "[◆2]", "[★2]", "←→"},
+		{80, 24, "[◆ Interv. 2]", "[★ Offer 2]", "←→"},
 		{60, 16, "[◆2]", "[★2]", "←→"},
 	} {
 		m := driveStart(t, fixtureCopy(t, nil), fixtureClock, tc.w, tc.h)

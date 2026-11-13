@@ -63,19 +63,21 @@ func TestRowWording(t *testing.T) {
 // The preview and the detail view say what to do next, with a key that works there.
 func TestNextActionLine(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		keys []string
-		want string
+		name      string
+		keys      []string
+		want, key string
 	}{
-		{"lead without a JD", []string{"1"}, "NEXT  add the JD   enter open"},
-		{"applied", []string{"3"}, "NEXT  wait to hear back   m move"},
-		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago   n note"},
-		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT  decide on the offer   m move"},
-		{"detail on the JD tab", []string{"1", "enter"}, "e open jd.md"},
+		{"lead without a JD", []string{"1"}, "NEXT    add the JD", "[enter] open"},
+		{"applied", []string{"3"}, "NEXT    wait to hear back", "[m] move"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago", "[n] note"},
+		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT    decide on the offer", "[m] move"},
+		{"detail on the JD tab", []string{"1", "enter"}, "NEXT    add the JD", "[e] open jd.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...)); !strings.Contains(v, tc.want) {
-				t.Fatalf("lacks %q:\n%s", tc.want, v)
+			v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
+			// the narrow card puts the key on the line under the words
+			if row := lineWith(v, tc.want); !strings.Contains(row, tc.key) && !strings.Contains(lineAfter(v, tc.want), tc.key) {
+				t.Fatalf("lacks %q … %q:\n%s", tc.want, tc.key, v)
 			}
 		})
 	}
@@ -116,7 +118,7 @@ func TestFirstRunScreen(t *testing.T) {
 // other order.
 func TestLeadsSortToggle(t *testing.T) {
 	root := fixtureCopy(t, fernCloses("2026-09-01"))
-	byClose := ansi.Strip(runKeys(t, root, 120, "1"))
+	byClose := ansi.Strip(runKeys(t, root, 140, "1"))
 	if !strings.Contains(byClose, "Expired · 1") || !strings.Contains(byClose, "o sort newest") {
 		t.Fatalf("default order:\n%s", byClose)
 	}
