@@ -105,7 +105,7 @@ func TestOfferCelebration(t *testing.T) {
 func TestFirstRunScreen(t *testing.T) {
 	root := fixtureCopy(t, func(root string) { _ = os.RemoveAll(filepath.Join(root, "jobs")) })
 	v := ansi.Strip(runKeys(t, root, 80, "1"))
-	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "6  pick an Editor", "?  see every key"} {
+	for _, want := range []string{"▞ rolecall", "No Leads · a add a Lead", "6  pick an Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("first run lacks %q:\n%s", want, v)
 		}

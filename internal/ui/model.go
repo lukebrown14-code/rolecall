@@ -296,6 +296,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = nil
 			return m, m.editAt(pe)
 		}
+		if k.String() == " " || k.String() == "space" {
+			m.overlay = m.openMenu()
+			return m, nil
+		}
 		if k.String() == ":" || k.String() == "ctrl+k" {
 			// The command palette lists what the keys underneath it would do.
 			m.overlay = m.openPalette()
