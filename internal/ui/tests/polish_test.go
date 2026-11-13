@@ -55,13 +55,13 @@ func TestPopupKeyLineShowsThePopupKeys(t *testing.T) {
 	}
 }
 
-// The track filter sits on the context row, labelled once by its key: "t  [All]  SWE
+// The track filter sits on the context row, labelled once by its key: "t [All] SWE
 // Platform", or "t [All]▸" where the row is narrow. The tab bar carries no filter.
 func TestTrackFilterReadsItsKeyOnce(t *testing.T) {
 	for _, size := range [][3]int{{120, 36, 0}, {80, 24, 0}, {60, 16, 1}} {
 		lines := strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), size[0], size[1], "3")), "\n")
 		ctx := lines[3-size[2]] // the short class drops the gap under the tab bar
-		want := "t  [All 17]  SWE 10  Platform 1"
+		want := "t [All 17] SWE 10 Platform 1"
 		if size[2] == 1 {
 			want = "t [All 17]▸" // collapsed to one piece when narrow
 		}

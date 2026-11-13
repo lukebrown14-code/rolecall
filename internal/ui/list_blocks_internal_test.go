@@ -17,7 +17,7 @@ func TestListBlocksComputeHeightsWithoutRendering(t *testing.T) {
 		rows[i] = store.Application{Title: "Application", Company: "Acme", Track: "SWE", Status: store.StatusApplied}
 	}
 
-	blocks, cur := m.listBlocks(rows, 20)
+	blocks, cur := m.listBlocks(rows)
 	if len(blocks) == 0 {
 		t.Fatal("no blocks")
 	}
@@ -26,8 +26,8 @@ func TestListBlocksComputeHeightsWithoutRendering(t *testing.T) {
 			t.Fatalf("block %d has height %d", b.idx, b.height)
 		}
 	}
-	if cur != 0 {
-		t.Fatalf("cursor block %d, want 0", cur)
+	if b := blocks[cur]; !b.row || b.idx != 0 {
+		t.Fatalf("cursor block %d is %+v, want the first row", cur, b)
 	}
 }
 

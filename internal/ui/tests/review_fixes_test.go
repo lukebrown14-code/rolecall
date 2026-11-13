@@ -159,7 +159,7 @@ func TestScopeLineNamesEveryFilter(t *testing.T) {
 		}
 	}
 	track := chipped(runKeys(t, root, 120, "1", "t"))
-	if !strings.Contains(track, "t  All 17  [SWE 10]  Platform 1") || !strings.Contains(track, "3 of 4") {
+	if !strings.Contains(track, "t All 17 [SWE 10] Platform 1") || !strings.Contains(track, "3 of 4") {
 		t.Fatalf("track scope missing:\n%s", track)
 	}
 }

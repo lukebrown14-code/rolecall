@@ -99,7 +99,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	top := func(w, h int) string { return strings.Split(chipped(runKeysSized(t, root, w, h, "1")), "\n")[0] }
 	wide := top(120, 36)
-	if !strings.HasPrefix(wide, "▞ rolecall") {
+	if !strings.HasPrefix(wide, " ▞ rolecall") {
 		t.Errorf("wide tab bar does not lead with the brand mark: %q", wide)
 	}
 	if !strings.Contains(wide, "Stats ▁▁▁▁▁▁█▂") {

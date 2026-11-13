@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -128,22 +129,42 @@ func (m model) logDate(p pal, e store.StatusEntry) string {
 const timelineName = 14
 
 // verticalTimeline is the Status log, newest first, one line per entry joined by a │
-// connector under each glyph. An empty log says how to start it.
+// connector under each glyph. Above it, faint, is the Status the pipeline goes to next;
+// an empty log shows the current Status as its one stop.
 func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
-	if len(a.StatusLog) == 0 {
-		return []string{p.Text(p.Dim).Render("Not moved yet · ") + p.keyChip("m") + p.Text(p.Dim).Render(" move")}
-	}
 	var out []string
+	stop := func(status, when string, current bool) {
+		name := p.Text(p.StatusColor(status)).Bold(current).Render(padRight(status, timelineName))
+		out = append(out, xansi.Truncate(p.StatusMark(status)+" "+name+when, w, "…"))
+	}
+	link := func() { out = append(out, p.Text(p.Rule).Render("│")) }
+	if next := nextStatus(a.Status); next != "" {
+		out = append(out, xansi.Truncate(p.Text(p.StatusColor(next)).Faint(true).Render(p.StatusGlyph(next)+" "+padRight(next, timelineName))+p.Text(p.Dim).Render("next"), w, "…"))
+		link()
+	}
+	if len(a.StatusLog) == 0 {
+		if a.Status != "" {
+			stop(a.Status, p.Text(p.Dim).Render("not logged"), true)
+		}
+		return out
+	}
 	for i := len(a.StatusLog) - 1; i >= 0; i-- {
 		e := a.StatusLog[i]
-		name := p.Text(p.StatusColor(e.Status)).Bold(i == len(a.StatusLog)-1).Render(padRight(e.Status, timelineName))
-		line := p.StatusMark(e.Status) + " " + name + m.logDate(p, e)
-		out = append(out, xansi.Truncate(line, w, "…"))
+		stop(e.Status, m.logDate(p, e), i == len(a.StatusLog)-1)
 		if i > 0 {
-			out = append(out, p.Text(p.Rule).Render("│"))
+			link()
 		}
 	}
 	return out
+}
+
+// nextStatus is the Status after status along the pipeline, "" past Offer or once closed.
+func nextStatus(status string) string {
+	i := slices.Index(pipeline, status)
+	if i < 0 || i+1 >= len(pipeline) {
+		return ""
+	}
+	return pipeline[i+1]
 }
 
 // fieldBlock is an Application's detail as rows inside w cells: Status, Fit, Track,

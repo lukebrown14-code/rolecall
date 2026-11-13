@@ -161,7 +161,7 @@ func TestFocusedStripIsTheOnlyMarkedLine(t *testing.T) {
 			t.Errorf("%dx%d: want the strip alone marked, got %d lines:\n%s", sz[0], sz[1], len(marked), chipped(strings.Join(marked, "\n")))
 		}
 		back := runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", "S", "esc")
-		if n := len(markedLines(back, "▌")); n != 1 {
+		if n := len(markedRows(back, "▌")); n != 1 {
 			t.Errorf("%dx%d: after esc %d lines are marked", sz[0], sz[1], n)
 		}
 	}
@@ -253,13 +253,14 @@ func TestResumeOnlyCoverLetterRowIsAligned(t *testing.T) {
 	}
 }
 
-// A malformed row is two lines, but only its first carries the selection mark (#169).
+// A malformed row is two lines under one selection bar, like any row: no line outside it
+// is marked (#169).
 func TestMalformedRowCarriesOneMark(t *testing.T) {
 	for _, sz := range keyLineSizes {
 		t.Run(fmt.Sprintf("%dx%d", sz[0], sz[1]), func(t *testing.T) {
 			view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "G"))
-			if n := strings.Count(view, "▌"); n != 1 {
-				t.Errorf("malformed row shows %d marks, want 1:\n%s", n, view)
+			if n := strings.Count(view, "▌"); n != 2 || len(markedRows(view, "▌")) != 1 {
+				t.Errorf("malformed row shows %d marks, want its two lines:\n%s", n, view)
 			}
 		})
 	}

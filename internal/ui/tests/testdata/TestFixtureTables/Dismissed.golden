@@ -1,11 +1,11 @@
-▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
+ ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    ◌ Leads 4 ──▶ ✎ Drafts 2 ──▶ ● Applied 1 ──▶ ◆ Interviewing 2 ──▶ ★ Offer 2 · [✕ closed 6] · ⚑ 1 due · docs ▱▱▱▱ 8%
-   Leads › Dismissed · All tracks · 1/2        t  [All 17]  SWE 10  Platform 1   17 applications · 11 active · 6 closed
+   Leads › Dismissed · All tracks · 1/2 · list                                       TRACK t [All 17] SWE 10 Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ⊘ docs-dismissed                 ▱▱▱▱        Dism. ~7d     ·  │ docs-dismissed                                       
-     Fictional Labs · SWE · dismissed ~7d ago                    │ Fictional Labs · SWE                                 
-                                                                 │                                                      
+   ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
+ ▌ ⊘ docs-dismissed                 ▱▱▱▱        Dism. ~7d     ·  │ Fictional Labs · SWE                                 
+ ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
    ⊘ Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ STATUS  ⊘ Dismissed                        [m] move  
      Example · Unknown · dismissed ~Jan 2026                     │ FIT     ·                            [f] assess fit  
                                                                  │ TRACK   SWE                                [e] edit  

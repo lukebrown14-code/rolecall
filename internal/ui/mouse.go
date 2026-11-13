@@ -141,7 +141,7 @@ func (m model) rowAt(x, y int) (int, bool) {
 		return 0, false
 	}
 	h := m.listHeight()
-	blocks, cur := m.listBlocks(rows, h)
+	blocks, cur := m.listBlocks(rows)
 	start, end := scrollWindow(blocks, cur, h)
 	line := 0
 	if start > 0 {

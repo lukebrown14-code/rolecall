@@ -353,21 +353,22 @@ func (m model) tabs(p pal) (string, []int) {
 	wide := m.layout().wide()
 	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
 	// short of room.
-	spark := " " + p.Text(p.Dim).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
+	spark := " " + p.Text(p.Accent).Faint(true).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
 	build := func(level, active int) (string, []int) {
-		// The brand mark leads the bar at wide sizes only, muted (eleven cells with its
-		// trailing space); below that the bar is the tabs alone.
+		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
+		// in from the edge (twelve cells with its trailing space); below that the bar is the
+		// tabs alone.
 		mark := ""
 		if wide {
 			switch {
 			case level >= shedMark:
 			case level >= shedWordmark:
-				mark = wordmark + " "
+				mark = " " + wordmark + " "
 			default:
-				mark = wordmark + " rolecall "
+				mark = " " + wordmark + " rolecall "
 			}
 		}
-		out := p.Text(p.Dim).Render(mark)
+		out := p.Text(p.Accent).Bold(true).Render(mark)
 		starts := make([]int, len(screenDefs))
 		for si, d := range screenDefs {
 			starts[si] = xansi.StringWidth(out) + 1
@@ -466,7 +467,7 @@ func (m model) trackSelector(p pal, form trackForm) string {
 			parts[i] = mark(label(i))
 		}
 	}
-	out := key + "  " + strings.Join(parts, "  ")
+	out := p.Text(p.Dim).Render("TRACK ") + key + " " + strings.Join(parts, " ")
 	if form == trackExplained {
 		if why := m.explainCounts(m.track); why != "" {
 			out += "   " + p.Text(p.Dim).Render(why)
@@ -476,7 +477,7 @@ func (m model) trackSelector(p pal, form trackForm) string {
 }
 
 // trackTotal is the Applications on a Track (0 is All): every one the Workspace lists,
-// whatever the text filter.
+// whatever the text filter, so All adds up with the pipeline strip.
 func (m model) trackTotal(track int) int {
 	if track == 0 {
 		return len(m.apps)
@@ -534,13 +535,25 @@ func (m model) breadcrumbRow(p pal) string {
 	}
 	w := m.layout().w
 	pad := strings.Repeat(" ", inset)
+	l := m.layout()
+	narrow := l.class != classMedium && l.class != classWide
+	fullLeft := xansi.StringWidth(pad + m.breadcrumb(p, false, narrow))
 	leastLeft := xansi.StringWidth(pad + m.breadcrumb(p, true, true))
-	var right string
-	for _, form := range []trackForm{trackExplained, trackFull, trackCompact, trackCollapsed} {
-		right = m.withChip(p, joinNonEmpty("   ", m.scopeLine(p), m.trackSelector(p, form)))
-		if leastLeft+gutter+xansi.StringWidth(right) <= w-rightMargin {
-			break
+	forms := []trackForm{trackExplained, trackFull, trackCompact, trackCollapsed}
+	right := ""
+	// The richest Track filter that leaves the whole breadcrumb its room; failing that,
+	// the richest that leaves the shortest breadcrumb its room.
+	fits := func(left int) bool {
+		for _, form := range forms {
+			right = m.withChip(p, joinNonEmpty("   ", m.scopeLine(p), m.trackSelector(p, form)))
+			if left+gutter+xansi.StringWidth(right) <= w-rightMargin {
+				return true
+			}
 		}
+		return false
+	}
+	if !fits(fullLeft) {
+		fits(leastLeft)
 	}
 	room := w - rightMargin - gutter - xansi.StringWidth(right)
 	if right == "" {
@@ -592,7 +605,11 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 			}
 		}
 	}
-	parts := []string{m.views()[m.table], track, fmt.Sprintf("%d/%d", pos, len(rows))}
+	parts := []string{track, fmt.Sprintf("%d/%d", pos, len(rows))}
+	// A view named like its screen (Leads › Leads) says nothing twice.
+	if v := m.views()[m.table]; v != screenDefs[m.screen].name {
+		parts = append([]string{v}, parts...)
+	}
 	if !noFocus {
 		parts = append(parts, focus)
 	}
@@ -696,25 +713,20 @@ func (m model) scopeLine(p pal) string {
 // listBody lays out the rows with section dividers. Rows get a blank line between them
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
-	blocks, cur := m.listBlocks(rows, h)
+	blocks, cur := m.listBlocks(rows)
 	return scroll(p, m, rows, fixedSlots, w, blocks, cur, h)
 }
 
-// listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
-// spaced when they all fit in h and dense when they do not. Heights are measured without
-// rendering: a row is two lines, a divider one or two, and a gap adds a third. This is the
-// one place a block's height is computed; renderBlock draws content and scroll pads it.
-func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
+// rowLines is a list row's height: the title line and the meta line. Rows in a group sit
+// together; only a group's rule has air above it.
+const rowLines = 2
+
+// listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block.
+// Heights are measured without rendering: a row is two lines and a divider one or two.
+// This is the one place a block's height is computed; renderBlock draws content and
+// scroll pads it.
+func (m model) listBlocks(rows []store.Application) ([]block, int) {
 	dividers := m.dividers(rows)
-	rowHeight := func(i int, gap bool) int {
-		n := 2
-		if gap && i+1 < len(rows) {
-			if _, next := dividers[i+1]; !next {
-				n++
-			}
-		}
-		return n
-	}
 	dividerHeight := func(i int) int {
 		n := 1
 		if i > 0 {
@@ -722,14 +734,6 @@ func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 		}
 		return n
 	}
-	total := 0
-	for i := range rows {
-		if _, ok := dividers[i]; ok {
-			total += dividerHeight(i)
-		}
-		total += rowHeight(i, true)
-	}
-	gap := total <= h
 	var blocks []block
 	cur := 0
 	for i := range rows {
@@ -739,7 +743,7 @@ func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 		if i == m.cursor {
 			cur = len(blocks)
 		}
-		blocks = append(blocks, block{height: rowHeight(i, gap), row: true, idx: i})
+		blocks = append(blocks, block{height: rowLines, row: true, idx: i})
 	}
 	return blocks, cur
 }
@@ -771,7 +775,8 @@ type divider struct {
 }
 
 // dividers are the section headings drawn before a row: one per Status in the Applied
-// screen's All view, and Expired at the end of Leads and Draft.
+// screen's All view, one over a single view's rows, and Expired at the end of Leads
+// and Draft.
 func (m model) dividers(rows []store.Application) map[int]divider {
 	div := map[int]divider{}
 	switch m.views()[m.table] {
@@ -790,6 +795,13 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 				div[i] = divider{label: "Expired", n: len(rows) - i}
 				break
 			}
+		}
+	}
+	// A view of one group still opens with its rule, "◌ Leads · 3 ────", up to the
+	// Expired section when there is one.
+	if v := m.views()[m.table]; v != allView && len(rows) > 0 {
+		if _, ok := div[0]; !ok {
+			div[0] = divider{label: v, n: groupEnd(div, 0, len(rows))}
 		}
 	}
 	for i, d := range div {
@@ -1013,7 +1025,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	}
 	if a.Malformed != nil {
 		return []string{line.Render(bar + st(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
-			line.Render(st(dimC).Render(strings.Repeat(" ", xansi.StringWidth(bar)) + "  " + xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))} // one mark, on the title
+			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))} // the bar spans both lines, like any row
 	}
 	state, flag, fit := m.slotText(a)
 	fitC := p.FitColor(a.Fit)
@@ -1045,8 +1057,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
-	// Only the first line carries the mark; the second keeps the fill.
-	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(st(p.Fg).Render("  ")+st(p.Fg).Render("  ")+meta, w, "…"))}
+	// The bar spans both lines, so the selected row reads as one block.
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
 		lines = p.FlashRow(lines, w)
 	}

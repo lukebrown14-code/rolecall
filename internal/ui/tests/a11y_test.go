@@ -27,7 +27,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 		t.Fatalf("NO_COLOR dropped bold and underline as well:\n%q", view)
 	}
 	plain := ansi.Strip(view)
-	for _, want := range []string{"[◌ Leads 4]", "▞ rolecall", "t  [All 17]"} {
+	for _, want := range []string{"[◌ Leads 4]", "▞ rolecall", "t [All 17]"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
