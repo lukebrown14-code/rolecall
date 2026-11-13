@@ -275,8 +275,8 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 		}
 	}
 	reader := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "/docs-written", "enter", "enter", "right", "right"))
-	if !strings.Contains(reader, "Fit: not assessed") {
-		t.Errorf("card split the Fit phrase:\n%s", reader)
+	if !strings.Contains(reader, "FIT     ·") {
+		t.Errorf("card split the Fit row:\n%s", reader)
 	}
 }
 
