@@ -251,3 +251,33 @@ func TestResumeOnlyCoverLetterRowIsAligned(t *testing.T) {
 		t.Errorf("Cover letter mark at %d, Resume mark at %d:\n%s\n%s", mark(row), mark(resume), resume, row)
 	}
 }
+
+// A malformed row is two lines, but only its first carries the selection mark (#169).
+func TestMalformedRowCarriesOneMark(t *testing.T) {
+	for _, sz := range keyLineSizes {
+		t.Run(fmt.Sprintf("%dx%d", sz[0], sz[1]), func(t *testing.T) {
+			view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "G"))
+			if n := strings.Count(view, "▌"); n != 1 {
+				t.Errorf("malformed row shows %d marks, want 1:\n%s", n, view)
+			}
+		})
+	}
+}
+
+// The detail of a malformed Application wraps the fix to the pane: no line is wider than
+// the terminal.
+func TestMalformedDetailFitsTheWidth(t *testing.T) {
+	for _, sz := range keyLineSizes {
+		t.Run(fmt.Sprintf("%dx%d", sz[0], sz[1]), func(t *testing.T) {
+			view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "G", "enter"))
+			for _, l := range strings.Split(view, "\n") {
+				if w := ansi.StringWidth(l); w > sz[0] {
+					t.Errorf("line is %d wide in %d: %q", w, sz[0], l)
+				}
+			}
+			if !strings.Contains(view, "status_log") {
+				t.Errorf("detail lost the fix:\n%s", view)
+			}
+		})
+	}
+}

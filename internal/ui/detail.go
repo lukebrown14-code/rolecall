@@ -528,7 +528,7 @@ func (m model) detailView(p pal) string {
 			ctx[i] = ""
 		}
 		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
-		pane = p.Text(p.Fg).Render(m.malformedReason(a)) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
+		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), paneW-paneMargin), "\n")) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
 			"\n\n" + p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")
 	} else {
 		// The tab names sit one cell in from their brackets; the content lines up with them.

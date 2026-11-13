@@ -645,7 +645,10 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 	out := []string{title}
 	var content []string
 	if a.Malformed != nil {
-		content = []string{p.Text(p.Fg).Render(m.malformedReason(a)), "", p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")}
+		for _, l := range wrapWords(m.malformedReason(a), w-1-rightMargin) {
+			content = append(content, p.Text(p.Fg).Render(l))
+		}
+		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
 		out = append(out, "")
 	} else {
 		out = append(out, " "+m.detailTabsRow(p, a))
@@ -1015,7 +1018,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	}
 	if a.Malformed != nil {
 		return []string{line.Render(bar + st(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))),
-			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))}
+			line.Render(st(dimC).Render(strings.Repeat(" ", xansi.StringWidth(bar)) + "  " + xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))} // one mark, on the title
 	}
 	state, flag, fit := m.slotText(a)
 	fitC := p.FitColor(a.Fit)
