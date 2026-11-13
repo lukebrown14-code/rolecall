@@ -192,7 +192,7 @@ func (m model) listView(p pal) string {
 	keys := m.keyLine(p, w)
 	if m.searching() {
 		in := p.Text(p.Accent).Bold(true).Render(" / ") + p.Text(p.Fg).Render(m.text) + p.Text(p.Accent).Render("▏")
-		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupNav)), w-1)
+		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupFilter, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
 	// the search input or the key line, one at a time.

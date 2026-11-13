@@ -219,14 +219,26 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
-		keys: []string{"s"}, keyLabel: "s",
+		keys: []string{"s"}, keyLabel: "s", desc: text("status filter"),
+		group: groupFilter, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
+		enabled: func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
+		run: func(m *model, _ string) tea.Cmd {
+			// The same cycle as ←→ and as t on the Track filter: All, each Status, Closed, All.
+			m.table = (m.table + 1) % len(m.views())
+			m.cursor = 0
+			return nil
+		},
+	},
+	{
+		keys: []string{"o"}, keyLabel: "o",
 		desc: func(m model) string {
 			if m.leadsNewest {
 				return "sort by close date"
 			}
 			return "sort newest"
 		},
-		group: groupAction, prio: fixed(prioMinor),
+		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		enabled: func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		run: func(m *model, _ string) tea.Cmd {
@@ -249,7 +261,7 @@ var listActions = []listAction{
 	},
 	{
 		keys: []string{"/"}, keyLabel: "/", desc: text("search"),
-		group: groupAction, prio: fixed(prioCore),
+		group: groupFilter, prio: fixed(prioCore),
 		listed:  func(m model) bool { return m.detail == nil },
 		enabled: always,
 		run: func(m *model, _ string) tea.Cmd {
