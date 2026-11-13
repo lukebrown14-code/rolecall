@@ -72,6 +72,17 @@ func rowLine(view, title string) string {
 	return ""
 }
 
+// rowBlock is a row's two lines: the title line and the company line under it.
+func rowBlock(view, title string) string {
+	line := rowLine(view, title)
+	if line == "" {
+		return ""
+	}
+	rest := view[strings.Index(view, line)+len(line):]
+	next, _, _ := strings.Cut(strings.TrimPrefix(rest, "\n"), "\n")
+	return line + "\n" + next
+}
+
 // finalView quits and returns the last rendered screen without styling.
 func (h *liveHarness) finalView() string {
 	h.t.Helper()
@@ -119,7 +130,7 @@ func TestLiveDroppedPDFsFlipDocsMarker(t *testing.T) {
 	h.write(filepath.Join(out, "Owner Resume Role.pdf"), "%PDF")
 	h.write(filepath.Join(out, "Owner Role Cover Letter.pdf"), "%PDF")
 	h.wait("✓ ready")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "docs-none"), "✓ ready") {
+	if v := h.finalView(); !strings.Contains(rowBlock(v, "docs-none"), "✓ ready") {
 		t.Fatalf("docs-none row lacks the Ready marker:\n%s", v)
 	}
 }
@@ -131,11 +142,11 @@ func TestLiveNewApplicationAppearsAndIsWatched(t *testing.T) {
 	h.write(filepath.Join(h.folder("newco"), "meta.yml"), newLead)
 	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("newco"), "fit: Marginal")
-	h.wait("Marginal")
+	h.wait("Marg.")
 	// A whole folder appearing at once, with out/ already inside it.
 	h.write(filepath.Join(h.folder("late"), "meta.yml"), strings.Replace(newLead, "Brand New Role", "Late Arrival", 1))
 	h.wait("Late Arrival")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "Marginal") || !strings.Contains(v, "Newco") {
+	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "Marg.") || !strings.Contains(v, "Newco") {
 		t.Fatalf("new Application row missing or stale:\n%s", v)
 	}
 }

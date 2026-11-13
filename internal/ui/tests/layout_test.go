@@ -262,7 +262,7 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 	}
 }
 
-// Text wraps only at spaces: a flag such as "--wait" and a phrase such as "fit not
+// Text wraps only at spaces: a flag such as "--wait" and a phrase such as "Fit: not
 // assessed" stay whole.
 func TestWrapsOnlyAtSpaces(t *testing.T) {
 	machine := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "6", "j", "j", "j"))
@@ -275,7 +275,7 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 		}
 	}
 	reader := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "/docs-written", "enter", "enter", "right", "right"))
-	if !strings.Contains(reader, "fit not assessed") {
+	if !strings.Contains(reader, "Fit: not assessed") {
 		t.Errorf("card split the Fit phrase:\n%s", reader)
 	}
 }

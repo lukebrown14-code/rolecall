@@ -105,16 +105,16 @@ func (p pal) GroupHeader(label, status string, n, w int) string {
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 
-// fitNone is how a missing Fit reads in prose; list columns show "—".
+// fitNone is how a missing Fit reads in prose; list columns show "·".
 const fitNone = "not assessed"
 
-// fitText is "   fit Strong", the Fit beside a status chip.
+// FitText is "   Fit: Strong", the Fit beside a status chip.
 func (p pal) FitText(a store.Application) string {
 	fit := a.Fit
 	if fit == "" {
 		fit = fitNone
 	}
-	return p.Text(p.Dim).Render("   fit ") + p.Text(p.FitColor(a.Fit)).Render(fit)
+	return p.Text(p.Dim).Render("   Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)
 }
 
 // spread places left and right on one line of width w.

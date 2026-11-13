@@ -308,9 +308,9 @@ func (m model) emptyDocument(a store.Application, tab detailTab, name string) st
 		return "No JD saved · e to open " + name
 	case tabFit:
 		if m.harness != "" {
-			return "No fit assessment yet · f to assess fit"
+			return "f to assess fit"
 		}
-		return "No fit assessment yet"
+		return "No reasoning saved"
 	case tabNotes:
 		return "No notes yet · e to write some"
 	}
@@ -536,7 +536,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	if fit == "" {
 		fit = fitNone
 	}
-	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("fit ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
+	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
 	if beforeApplied(tableOf(a)) {
 		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
 			parts = append(parts, p.CloseStyle(s, p.Text, p.Dim).Render(text))

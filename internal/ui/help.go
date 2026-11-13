@@ -328,7 +328,7 @@ func glyphLegend(p pal, followUpDays int) string {
 		row("Docs", dim("✓ ready"), dim("○ missing"), dim(meterOn+meterOff+" N of M ready")) + "\n" +
 		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
 		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("⚑ quiet %d+ days", followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
-		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor+" · — not assessed"))
+		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor), dim(fitDot+" not assessed"))
 }
 
 // helpBox is the `?` pop-up: the keys of the context it was opened from, then the

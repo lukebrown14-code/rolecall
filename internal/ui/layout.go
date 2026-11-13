@@ -349,7 +349,7 @@ func wrapWords(s string, w int) []string {
 }
 
 // keepTogether joins phrases with spaces on one line when they fit w, otherwise one per
-// line, so a phrase such as "fit not assessed" is never split across lines.
+// line, so a phrase such as "Fit: not assessed" is never split across lines.
 func keepTogether(w int, sep string, phrases ...string) string {
 	var lines []string
 	line := ""
