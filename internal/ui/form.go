@@ -37,8 +37,8 @@ func (m model) formBox(p pal, f *form, w int) string {
 		focused := i == f.Focus && !f.Discarding
 		mark, label := "  ", p.Text(p.Sub).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		if focused {
-			mark = p.Text(p.Accent).Render("▌ ")
-			label = p.Text(p.Accent).Bold(true).Width(lw).Align(lipgloss.Right).Render(fld.Label)
+			mark = p.SelGutter(false)
+			label = p.Text(p.Sub).Bold(true).Width(lw).Align(lipgloss.Right).Render(fld.Label)
 		}
 		req := " "
 		if fld.Required {
@@ -88,7 +88,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int) string {
 	cursor := ""
 	if focused {
-		cursor = p.Text(p.Accent).Render("▏")
+		cursor = p.Text(p.Fg).Render("▏")
 	}
 	valC := p.Sub
 	if focused {
@@ -102,7 +102,7 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 	case fld.Choices != nil:
 		arrow := p.Dim
 		if focused {
-			arrow = p.Accent
+			arrow = p.Fg
 		}
 		label := fld.Value
 		for _, c := range fld.Choices {
@@ -112,14 +112,24 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 		}
 		return p.Text(arrow).Render("‹ ") + p.Text(valC).Bold(focused).Render(label) + p.Text(arrow).Render(" ›") + aside
 	case fld.Role == forms.RoleURL && f.Fetching:
-		return p.Text(p.Accent).Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
+		return p.SpinnerStyle().Render(m.spinner.View()) + p.Text(p.Sub).Render(" Fetching…")
 	case fld.Value == "":
+		// The cursor takes the first cell of an empty field rather than pushing it right,
+		// so an empty field starts in the same column focused or not.
 		if fld.Placeholder != "" {
-			return cursor + p.Text(p.Dim).Italic(true).Render(fld.Placeholder) + aside
+			ph := p.Text(p.Dim).Italic(true)
+			if !focused {
+				return ph.Render(fld.Placeholder) + aside
+			}
+			first, _ := xansi.FirstGraphemeCluster(fld.Placeholder, xansi.GraphemeWidth)
+			return ph.Reverse(true).Render(first) + ph.Render(strings.TrimPrefix(fld.Placeholder, first)) + aside
 		}
 		// A faint underline shows where to type, apart from the labels and examples.
 		line := min(formUnderline, max(1, avail-xansi.StringWidth(fld.Note)-gutter-1))
-		return cursor + p.Text(p.Faint).Render(strings.Repeat("_", line)) + aside
+		if focused {
+			return cursor + p.Text(p.Faint).Render(strings.Repeat("_", line-1)) + aside
+		}
+		return p.Text(p.Faint).Render(strings.Repeat("_", line)) + aside
 	}
 	// Long text shows its end, where the typing happens.
 	shown := fld.Value

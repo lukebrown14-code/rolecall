@@ -1,24 +1,23 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats  5 Profile  6 Settings                         10 live · 1 due
-
-   All 9    ● [Applied 1]    ◆ Interviewing 2    ★ Offer 2    Closed 4                          t  [All]  SWE  Platform
+ ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATUS s All 9 [Applied 1] Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 1] SWE 1  Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ● Software Engineer                                    fit —  │ Software Engineer                                    
- ▌   Orbit Labs · SWE · applied 6d ago                           │ Orbit Labs · SWE                                     
+   ● Applied · 1 ─────────────────────────────────────────────── │ Software Engineer                                    
+ ▌ ● Software Engineer                         Applied 6d     ·  │ Orbit Labs · SWE · applied 6d ago                    
+ ▌   Orbit Labs · SWE · applied 6d ago                           │                                                      
+                                                                 │ ● Applied                          fit not assessed  
                                                                  │                                                      
-                                                                 │ ● Applied   fit not assessed                         
-                                                                 │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
-                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
+                                                                 │ DOCS    □□□□ 0/4                                     
+                                                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
-                                                                 │ NEXT  wait to hear back   m move                     
+                                                                 │ NEXT    wait to hear back                    m move  
                                                                  │                                                      
                                                                  │ TIMELINE                                             
-                                                                 │ ◌ Lead ─ ● Applied 25 Sep ─ ◆ Interviewing           
+                                                                 │   ◌ Lead                                     24 Sep  
+                                                                 │   ● Applied                                  25 Sep  
+                                                                 │   ◆ Interviewing                               next  
                                                                  │                                                      
-                                                                 │ FIT                                                  
-                                                                 │ No fit assessment yet                                
-                                                                 │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
+                                                                 │ NOTES   none yet                              n add  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+   Applied › Applied · All tracks · 1/1 · list
+ Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help

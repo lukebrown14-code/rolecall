@@ -13,16 +13,23 @@ import (
 const (
 	skillAssessFit        = "assess-fit"
 	skillPrepareDocuments = "prepare-documents"
+	skillDraftFollowUp    = "draft-follow-up"
 )
 
+// followUpDraftFile is the message the draft-follow-up skill writes in the Application's
+// folder. The TUI only names it; it never sends it (ADR 0005).
+const followUpDraftFile = "follow-up.md"
+
 // handoffAllowed reports whether a skill applies to an Application: assess-fit on
-// any, prepare-documents only on a Lead or Draft.
-func handoffAllowed(a store.Application, skill string) bool {
+// any, prepare-documents only on a Lead or Draft, draft-follow-up only when Follow-up due.
+func (m model) handoffAllowed(a store.Application, skill string) bool {
 	switch skill {
 	case skillAssessFit:
 		return true
 	case skillPrepareDocuments:
-		return a.Status == store.StatusLead || a.Status == store.StatusDraft
+		return a.Unsent()
+	case skillDraftFollowUp:
+		return followUpDue(a, m.now(), m.followUpDays)
 	}
 	return false
 }
@@ -38,10 +45,14 @@ func (m *model) startHandoff(skill string) tea.Cmd {
 		m.err = errors.New("Set harness in ~/.config/rolecall/config.toml")
 		return nil
 	}
-	if !handoffAllowed(a, skill) {
+	if !m.handoffAllowed(a, skill) {
 		return nil
 	}
-	return m.runHandoff(a.Folder, harnessCommand(m.harness, skill, handoffDir(a.Folder)))
+	toast := ""
+	if skill == skillDraftFollowUp {
+		toast = "Draft written to " + m.rel(filepath.Join(a.Folder, followUpDraftFile))
+	}
+	return m.runHandoff(a.Folder, harnessCommand(m.harness, skill, handoffDir(a.Folder)), toast)
 }
 
 // harnessCommand fills the Harness template: {skill} becomes the Plugin skill name

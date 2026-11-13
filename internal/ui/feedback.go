@@ -114,30 +114,11 @@ func hintPairs(hint string) [][2]string {
 // finishes). The message is on the left and is cut first; the keys are on the right and
 // are never cut. It never replaces the bottom rule.
 func (m model) feedbackLine(p pal, w int) string {
-	icon, c, msg, hint := "✓", p.Ok, m.toast, m.toastHint
-	raw := false
-	switch {
-	case m.err != nil:
-		msg = m.errorText(m.err)
-		icon, c, hint = errorMark, p.Bad, "esc hide"
-		if _, ok := parseError(m.err); ok {
-			hint = "e fix in editor · esc hide"
-		}
-	case m.building != nil && m.toast == "":
-		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Accent, true
-	case strings.HasPrefix(m.toast, offerPrefix):
-		icon, c = p.StatusGlyph(store.StatusOffer), p.StatusColor(store.StatusOffer)
-	}
-	if msg == "" {
+	left, hint := m.feedbackMsg(p)
+	if left == "" {
 		return ""
 	}
 	bg := lipgloss.NewStyle().Background(p.Panel)
-	var left string
-	if raw {
-		left = bg.Render(" ") + icon + bg.Foreground(p.Fg).Render(msg)
-	} else {
-		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.Fg).Render(msg)
-	}
 	var keys []string
 	for _, kv := range hintPairs(hint) {
 		keys = append(keys, bg.Foreground(p.Fg).Bold(true).Render(kv[0])+bg.Foreground(p.Dim).Render(" "+kv[1]))
@@ -150,4 +131,53 @@ func (m model) feedbackLine(p pal, w int) string {
 	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
 	gap := bg.Render(strings.Repeat(" ", n))
 	return left + gap + right
+}
+
+// feedbackParts is the feedback as the table screens' footer shows it, beside the
+// breadcrumb: the message as a chip, then its keys.
+func (m model) feedbackParts(p pal) (msg, keys string) {
+	msg, hint := m.feedbackMsg(p)
+	if msg == "" {
+		return "", ""
+	}
+	var ks []string
+	for _, kv := range hintPairs(hint) {
+		ks = append(ks, p.Key().Render(kv[0])+p.Text(p.Dim).Render(" "+kv[1]))
+	}
+	return msg + lipgloss.NewStyle().Background(p.Panel).Render(" "), strings.Join(ks, "  ")
+}
+
+// feedbackMsg is the feedback's message on the panel colour, with its glyph, and the keys
+// that go with it; empty when nothing just happened.
+func (m model) feedbackMsg(p pal) (string, string) {
+	icon, c, msg, hint := "✓", p.Ok, m.toast, m.toastHint
+	raw := false
+	switch {
+	case m.err != nil:
+		msg = m.errorText(m.err)
+		icon, c, hint = errorMark, p.Bad, "esc hide"
+		if _, ok := parseError(m.err); ok {
+			hint = "e fix in editor · esc hide"
+		}
+	case m.building != nil && m.toast == "":
+		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Info, true
+	case m.toastKind == toastOffer:
+		icon, c = p.StatusGlyph(store.StatusOffer), p.StatusColor(store.StatusOffer)
+	case m.toastKind == toastUndo:
+		icon = "↩"
+	}
+	if msg == "" {
+		return "", ""
+	}
+	if icon == "✓" && p.Ascii {
+		icon = "+" // the toast's own stand-in; Profile's ✓ folds to v
+	}
+	bg := lipgloss.NewStyle().Background(p.Panel)
+	var left string
+	if raw {
+		left = bg.Render(" ") + icon + bg.Foreground(p.Fg).Render(msg)
+	} else {
+		left = bg.Foreground(c).Bold(true).Render(" "+icon+" ") + bg.Foreground(p.Fg).Render(msg)
+	}
+	return left, hint
 }

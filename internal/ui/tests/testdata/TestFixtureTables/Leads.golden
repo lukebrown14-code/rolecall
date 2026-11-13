@@ -1,24 +1,23 @@
- ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats  5 Profile  6 Settings                         10 live · 1 due
-
-   ◌ [Leads 4]    ⊘ Dismissed 2                                                                 t  [All]  SWE  Platform
+ ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATUS s [Leads 4] Dismissed 2 │ TRACK t [All 4] SWE 3  Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ◌ Empty                                                fit —  │ Empty                                                
- ▌   Example · SWE · —                                           │ Example · SWE                                        
+   ◌ Leads · 4 ───────────────────────────────────────────────── │ Empty                                                
+ ▌ ◌ Empty                                                    ·  │ Example · SWE                                        
+ ▌   Example · SWE · —                                           │                                                      
+   ◌ Empty log                                                ·  │ ◌ Lead                             fit not assessed  
+     Fictional Labs · SWE · —                                    │                                                      
+   ◌ Platform Engineer                            Lead 7d     ·  │ DOCS    □□□□ 0/4                     p prepare docs  
+     Fern Systems · Platform · —                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+   ⚠ Can't read SWE/malformed                                    │                                                      
+     meta.yml line 4: indented lines must be status_log entri…   │ NEXT    add the JD                       enter open  
                                                                  │                                                      
-   ◌ Empty log                                            fit —  │ ◌ Lead   fit not assessed                            
-     Fictional Labs · SWE · —                                    │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
-                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
-   ◌ Platform Engineer                                    fit —  │                                                      
-     Fern Systems · Platform · —                                 │ NEXT  add the JD   enter open                        
+                                                                 │ TIMELINE                                             
+                                                                 │   ◌ Lead                                 not logged  
+                                                                 │   ✎ Draft                                      next  
                                                                  │                                                      
-   ⚠ Can't read SWE/malformed                                    │ TIMELINE                                             
-     meta.yml line 4: indented lines must be status_log entri…   │ Not moved yet · m to move                            
+                                                                 │ NOTES   none yet                              n add  
                                                                  │                                                      
-                                                                 │ FIT                                                  
-                                                                 │ No fit assessment yet                                
-                                                                 │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · x dismiss · n notes · s sort newest · a add · / search    ←→ view · 1-6 screen · ? help
+   Leads › All tracks · 1/4 · list
+ Enter open  e edit  m move  x dismiss  n notes  a add  s status  o sort newest  / search  t track               ? help

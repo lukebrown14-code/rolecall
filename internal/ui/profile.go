@@ -26,10 +26,6 @@ const (
 	profilePanes
 )
 
-// profileMarker is the selected section's leading mark: bold and accent carry it too,
-// so it stays readable without colour.
-const profileMarker = "▸ "
-
 // profileMarkerWidth is the cells the marker, or its indent on unselected rows, takes.
 const profileMarkerWidth = 2
 
@@ -51,7 +47,7 @@ const (
 )
 
 // profileListWidth is the section list's column, divider excluded.
-func (m model) profileListWidth() int { return m.layout().panel(profileShare, profileMin, profileMax) }
+func (m model) profileListWidth() int { return m.layout().profileW }
 
 // profileState is the loaded Profile and where the Owner is in it. It is replaced, never
 // mutated in place, so copies of the model stay independent.
@@ -238,7 +234,13 @@ func (m model) profileMarkdown(st profileState) string {
 			return ""
 		}
 		width := m.profileContentWidth(m.viewWidth())
-		var lines []string
+		// The selection as a field row, like the detail's: what it is, and the key that edits it.
+		p := m.pal()
+		label := "SECTION"
+		if _, ok := st.file(); ok {
+			label = "FILE"
+		}
+		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit", width), ""}
 		if warning != "" {
 			lines = append(lines, warning)
 		}
@@ -289,13 +291,8 @@ func (m model) fieldTable(body string, width int) (lines []string, ok bool) {
 	labelW += gutter
 	p := m.pal()
 	for _, r := range rows {
-		label := p.Text(p.Dim).Render(r[0] + strings.Repeat(" ", labelW-xansi.StringWidth(r[0])))
-		for i, part := range wrapWords(r[1], max(1, width-labelW)) {
-			if i > 0 {
-				label = strings.Repeat(" ", labelW)
-			}
-			lines = append(lines, label+p.Text(p.Fg).Render(part))
-		}
+		// One row per field, the value cut to the room beside its key.
+		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "e", "edit", width))
 	}
 	return lines, true
 }
@@ -549,12 +546,17 @@ func profileListRow(p pal, listW int, name, suffix string, colour color.Color, s
 	}
 	heading := xansi.Truncate(name, max(1, room), "…")
 	left := strings.Repeat(" ", inset) + p.Text(p.Dim).Italic(file).Render(heading)
+	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	if selected {
-		left = strings.Repeat(" ", edge) + p.Text(p.Accent).Bold(true).Italic(file).Render(profileMarker+heading)
+		line := p.SelBase(true)
+		left = strings.Repeat(" ", edge) + p.SelGutter(true) + p.SelText(true).Italic(file).Render(heading)
+		if suffix == "" {
+			return p.SelLine(true, width, left)
+		}
+		return p.SelLine(true, width, left+line.Render(strings.Repeat(" ", max(1, gap)))+line.Foreground(colour).Render(suffix))
 	}
 	if suffix == "" {
 		return left
 	}
-	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	return left + strings.Repeat(" ", max(1, gap)) + p.Text(colour).Render(suffix)
 }

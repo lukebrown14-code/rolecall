@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"strings"
-
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
@@ -12,14 +10,16 @@ import (
 // document with no Harness set to write it), so the line never offers a key that
 // would do nothing.
 type nextStep struct {
-	what, why, key, desc string
+	label, what, why, key, desc string // label is "NEXT" unless the step says otherwise
 }
 
 // Words the next step repeats.
 const (
-	descMove  = "move"
-	descOpen  = "open"
-	stepAddJD = "add the JD"
+	followUpLabel = "FOLLOW-UP"
+	descNudge     = "draft nudge"
+	descMove      = "move"
+	descOpen      = "open"
+	stepAddJD     = "add the JD"
 )
 
 // nextAction is the Application's next step, or false when there is none: a closed or
@@ -57,8 +57,12 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		}
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
-		if _, flag, _ := m.slotText(a); flag != "" {
-			return nextStep{what: "follow up", why: strings.TrimPrefix(flag, followUpFlag+" "), key: "n", desc: "note"}, true
+		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+			step := nextStep{label: followUpLabel, what: followUpWords(past), key: "n", desc: "note"}
+			if harness {
+				step.key, step.desc = "r", descNudge
+			}
+			return step, true
 		}
 		if a.Status == store.StatusInterviewing {
 			return nextStep{what: "prepare for the interview", key: "n", desc: "note"}, true
@@ -78,28 +82,32 @@ func (m model) writeStep(what string) nextStep {
 	return nextStep{what: what}
 }
 
-// nextLine is "NEXT  follow up · quiet 9mo   n note", cut to w from the right but keeping
-// its key: the reason goes first, then the words are cut.
-func (m model) nextLine(p pal, a store.Application, w int) string {
+// nextLine is the next step as a field row, "NEXT    add the JD   enter open" or
+// "FOLLOW-UP  due 9 days ago   r draft nudge", inside w cells. The reason joins the
+// words only when the whole row fits. When even the words and the key do not fit, wrap
+// puts the key and its action on a second line at the same right edge (the card is
+// narrow); without wrap the row cuts as every field row does.
+func (m model) nextLine(p pal, a store.Application, w int, wrap bool) string {
 	s, ok := m.nextAction(a)
 	if !ok {
 		return ""
 	}
-	label := p.Text(p.Dim).Bold(true).Render("NEXT  ")
-	keys := ""
-	if s.key != "" {
-		keys = "   " + p.Key().Render(s.key) + p.Text(p.Dim).Render(" "+s.desc)
+	name := "NEXT"
+	if s.label != "" {
+		name = s.label
 	}
+	labelW := max(fieldLabelW, xansi.StringWidth(name)+2) //nolint:mnd // the gap after a long label
 	what := p.Text(p.Fg).Render(s.what)
+	fits := func(value string) bool {
+		return labelW+xansi.StringWidth(value)+1+xansi.StringWidth(s.key+" "+s.desc) <= w
+	}
 	if s.why != "" {
-		if full := what + p.Text(p.Dim).Render(" · "+s.why); xansi.StringWidth(label+full+keys) <= w {
+		if full := what + p.Text(p.Dim).Render(" · "+s.why); fits(full) {
 			what = full
 		}
 	}
-	if xansi.StringWidth(label+what+keys) <= w || keys == "" {
-		return label + xansi.Truncate(what, max(0, w-xansi.StringWidth(label+keys)), "…") + keys
+	if wrap && s.key != "" && !fits(what) {
+		return p.fieldRowIn(labelW, name, what, "", "", w) + "\n" + p.fieldRow("", "", s.key, s.desc, w)
 	}
-	// Too narrow for one line: the key goes under the words, lined up with them.
-	return label + xansi.Truncate(what, max(0, w-xansi.StringWidth(label)), "…") + "\n" +
-		strings.Repeat(" ", xansi.StringWidth(label)) + strings.TrimLeft(keys, " ")
+	return p.fieldRowIn(labelW, name, what, s.key, s.desc, w)
 }

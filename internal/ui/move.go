@@ -1,7 +1,8 @@
 package ui
 
 import (
-	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -60,22 +61,68 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.err, m.toast = sentErr, ""
 		return nil
 	}
+	name := moveName(a)
 	if undo {
-		m.toast = fmt.Sprintf("Undone · %s back to %s", appName(a.Title), status)
+		verb := "move"
+		if a.Status == store.StatusDismissed {
+			verb = "dismiss"
+		}
+		m.toast, m.toastKind = "Undid "+verb+" "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
 	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
-	m.toast = fmt.Sprintf("Moved to %s · %s", status, appName(a.Title))
+	m.toast, m.toastHint, m.movedTo = "Moved "+name+" → "+status, undoHint, status
+	const hiddenNote = " (hidden by filter)"
+	hidden := m.hiddenByFilter(a.Folder)
+	if hidden {
+		m.toast += hiddenNote
+	}
 	if status == store.StatusDismissed {
-		m.toast = "Dismissed · " + appName(a.Title)
+		m.toast = "Dismissed " + name
+		if hidden {
+			m.toast += hiddenNote
+		}
 	}
 	if status == store.StatusOffer {
-		m.toast = m.offerToast(a)
+		m.toast, m.toastKind = m.offerToast(a), toastOffer
+		if hidden {
+			m.toast += hiddenNote
+		}
 		// Land on the Application's new home so the celebration sits over its row, not
 		// an empty list left behind.
 		m.followAfterMove(a.Folder)
 	}
 	return m.startFlash(a.Folder)
+}
+
+// toastKind says how the feedback line draws a success toast, so the drawing does not
+// depend on the toast's wording.
+type toastKind int
+
+const (
+	toastPlain toastKind = iota // a ✓ in the ok colour
+	toastUndo                   // an undo: ↩
+	toastOffer                  // a move to Offer: the gold ★ celebration
+)
+
+// undoHint is the keys shown with the toast of every reversible action.
+const undoHint = "u undo · esc hide"
+
+// moveName is the company a toast names, falling back to the Application's title.
+func moveName(a store.Application) string {
+	if c := strings.TrimSpace(a.Company); c != "" {
+		return c
+	}
+	return appName(a.Title)
+}
+
+// hiddenByFilter reports that a track or text filter is in force and the row is not among
+// the rows now shown, so the toast can say where it went.
+func (m model) hiddenByFilter(folder string) bool {
+	if !m.filtered() {
+		return false
+	}
+	return !slices.ContainsFunc(m.rows(), func(r store.Application) bool { return r.Folder == folder })
 }
 
 // followAfterMove puts the selection on folder's row in whichever screen and view now

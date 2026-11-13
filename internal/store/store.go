@@ -20,6 +20,13 @@ type Application struct {
 	AppliedDate, LastChange                                              *StatusEntry
 	Malformed                                                            error `json:"-"`
 }
+
+// Unsent reports that the Application is still the Owner's to send: a Lead or a Draft.
+// Documents are prepared, built and dismissed only while it is.
+func (a Application) Unsent() bool {
+	return a.Status == StatusLead || a.Status == StatusDraft
+}
+
 type StatusEntry struct {
 	Status string
 	At     string
@@ -34,6 +41,8 @@ func Open(root string) (*Store, error) { return OpenWithFileSystem(root, nil) }
 
 // OpenWithFileSystem opens a Workspace with an atomic publication filesystem.
 func OpenWithFileSystem(root string, files FileSystem) (*Store, error) {
+	// Cleaned, so the root is a prefix of every path joined under it: "./ws" joins as "ws/…".
+	root = filepath.Clean(root)
 	info, err := os.Stat(root)
 	if err != nil {
 		return nil, err

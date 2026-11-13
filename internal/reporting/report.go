@@ -12,6 +12,7 @@ import (
 const (
 	statsWeeks          = 12
 	daysPerWeek         = 7
+	hoursPerDay         = 24
 	defaultFollowUpDays = 14
 )
 
@@ -280,6 +281,34 @@ func tracksOf(apps []store.Application, now time.Time, followUpDays int) []Track
 		out[i].OK = out[i].Judged > 0
 		if out[i].OK {
 			out[i].Rate = percentOf(out[i].Responses, out[i].Judged)
+		}
+	}
+	return out
+}
+
+// WeeklyActivity counts Status log entries per week over the last n weeks, oldest first,
+// the last week ending at now. A week is seven local days; an entry counts on its local
+// date. Malformed Applications, entries older than n weeks and future entries are
+// ignored. It reads only the scanned Applications.
+func WeeklyActivity(apps []store.Application, now time.Time, n int) []int {
+	loc := now.Location()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	out := make([]int, n)
+	for _, a := range apps {
+		if a.Malformed != nil {
+			continue
+		}
+		for _, e := range a.StatusLog {
+			t, ok := parseLocal(e.At, loc)
+			if !ok {
+				continue
+			}
+			d := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+			back := int(math.Round(today.Sub(d).Hours() / hoursPerDay))
+			if back < 0 || back >= n*daysPerWeek {
+				continue
+			}
+			out[n-1-back/daysPerWeek]++
 		}
 	}
 	return out

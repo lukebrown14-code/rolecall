@@ -24,10 +24,10 @@ var settingsPopups = []struct {
 	keys []string
 	want string
 }{
-	{"search area", []string{"tab", "enter"}, "ctrl+s save"},
-	{"gate", []string{"j", "tab", "enter"}, "enter save"},
-	{"add track", []string{"j", "j", "tab", "a"}, "enter add"},
-	{"rename track", []string{"j", "j", "tab", "r"}, "enter review"},
+	{"search area", []string{"enter"}, "ctrl+s save"},
+	{"gate", []string{"]", "enter"}, "enter save"},
+	{"add track", []string{"]", "]", "a"}, "enter add"},
+	{"rename track", []string{"]", "]", "r"}, "enter review"},
 }
 
 func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
@@ -38,7 +38,8 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 				h = 16
 			}
 			f := footer(settingsAt(t, w, h, tc.keys...))
-			if !strings.Contains(f, tc.want) || !strings.Contains(f, "esc cancel") {
+			// The footer spells enter "Enter"; the pop-up's border keeps it lower case.
+			if !strings.Contains(f, strings.Replace(tc.want, "enter", "Enter", 1)) || !strings.Contains(f, "esc cancel") {
 				t.Errorf("%s at %d: footer %q lacks pop-up keys", tc.name, w, f)
 			}
 		}
@@ -46,8 +47,8 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 }
 
 func TestSettingsFooterWhileEditingAMachineSetting(t *testing.T) {
-	f := footer(settingsAt(t, 120, 36, "j", "j", "j", "tab", "j", "enter"))
-	if !strings.Contains(f, "enter save") || !strings.Contains(f, "esc cancel") {
+	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "j", "enter"))
+	if !strings.Contains(f, "Enter set") || !strings.Contains(f, "esc cancel") {
 		t.Fatalf("footer %q lacks edit keys", f)
 	}
 }
@@ -80,22 +81,22 @@ func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 }
 
 func TestSettingsTrackFooterKeys(t *testing.T) {
-	f := footer(settingsAt(t, 120, 36, "j", "j", "tab"))
-	if !strings.Contains(f, "a add · r rename · x remove · J/K reorder") {
+	f := footer(settingsAt(t, 120, 36, "]", "]"))
+	if !strings.Contains(f, "a add  r rename  x remove  J/K reorder") {
 		t.Fatalf("footer %q", f)
 	}
 }
 
 func TestSettingsFooterOffersEnterOnEditableRowsOnly(t *testing.T) {
 	// Follow-up and a machine setting are editable; the add row adds. Read-only rows are
-	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers enter on one.
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "tab", "j", "j", "j")); !strings.Contains(f, "enter edit") {
+	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers Enter on one.
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j", "j")); !strings.Contains(f, "Enter edit") {
 		t.Errorf("Follow-up days: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "j", "tab")); !strings.Contains(f, "enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "Enter edit") {
 		t.Errorf("Editor: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "j", "j", "tab", "j", "j")); !strings.Contains(f, "enter add a Track") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j")); !strings.Contains(f, "Enter add a Track") {
 		t.Errorf("add row: %q", f)
 	}
 }
@@ -109,61 +110,31 @@ func rowWith(lines []string, text string) string {
 	return ""
 }
 
-// The focused pane carries the ▸ marker: the group while the list has focus, the rows
-// while the settings pane does. Only one ▸ is ever drawn, so nothing reads as a second
-// cursor.
-func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
-	// The group list has focus: the group is marked, no settings row is.
-	v := settingsAt(t, 120, 36, "j", "j")
-	if group := settingsColumn(v, 0); !strings.Contains(group, "▸ Tracking") {
-		t.Errorf("focused group list: %q", group)
+// The sections are tabs: the active one is bracketed, and the field cursor (or the header,
+// above the first field) carries the one selection mark.
+func TestSettingsCursorMarksOneFieldOrTheHeader(t *testing.T) {
+	v := strings.Join(settingsAt(t, 120, 36, "]", "]"), "\n")
+	if !strings.Contains(v, "[ Tracking ]") || strings.Count(v, "▌") != 1 || !strings.Contains(v, "▌ SWE") {
+		t.Errorf("field cursor:\n%s", v)
 	}
-	if rows := settingsColumn(v, 1); strings.Contains(rows, "▸") {
-		t.Errorf("unfocused settings pane marked a row:\n%s", rows)
+	lines := settingsAt(t, 120, 36, "]", "]", "k")
+	if l := rowWith(lines, "SETTINGS"); !strings.Contains(l, "▌") {
+		t.Errorf("header cursor: %q", l)
 	}
-	// The settings pane has focus: its row is marked, and the group keeps its place
-	// without a second ▸.
-	v = settingsAt(t, 120, 36, "j", "j", "tab")
-	if group := settingsColumn(v, 0); strings.Contains(group, "▸") || !strings.Contains(group, "Tracking") {
-		t.Errorf("unfocused group list should be unmarked but named: %q", group)
+	if v := strings.Join(lines, "\n"); strings.Contains(v, "▌ SWE") {
+		t.Errorf("two cursors:\n%s", v)
 	}
-	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ SWE") {
-		t.Errorf("focused settings pane lost its marker:\n%s", rows)
-	}
-}
-
-// settingsColumn is one pane of the split Settings body: 0 is the group list, 1 is the
-// settings. Lines without the divider are the chrome around the body and are dropped.
-func settingsColumn(lines []string, side int) string {
-	var b strings.Builder
-	for _, l := range lines {
-		i := strings.Index(l, "│")
-		if i < 0 {
-			continue
-		}
-		if side == 0 {
-			b.WriteString(l[:i])
-		} else {
-			b.WriteString(l[i+len("│"):])
-		}
-		b.WriteString("\n")
-	}
-	return b.String()
 }
 
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "j", "j", "tab")
-		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▸ SWE") {
+		lines := settingsAt(t, size[0], size[1], "]", "]")
+		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▌ SWE") {
 			t.Errorf("%dx%d first Track: %q", size[0], size[1], l)
 		}
-		lines = settingsAt(t, size[0], size[1], "j", "j", "tab", "j")
-		if l := rowWith(lines, "Platform"); !strings.Contains(l, "▸") {
+		lines = settingsAt(t, size[0], size[1], "]", "]", "j")
+		if l := rowWith(lines, "Platform"); !strings.Contains(l, "▌") {
 			t.Errorf("%dx%d second Track: %q\n%s", size[0], size[1], l, strings.Join(lines, "\n"))
 		}
-	}
-	// Narrow: the Groups column is hidden, so the row is selected without pressing tab.
-	if l := rowWith(settingsAt(t, 60, 16, "j", "j"), "SWE"); !strings.Contains(l, "▸ SWE") {
-		t.Errorf("60x16 before tab: %q", l)
 	}
 }

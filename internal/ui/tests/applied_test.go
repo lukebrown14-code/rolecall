@@ -71,7 +71,7 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	got, _ = os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -88,7 +88,7 @@ func TestReadyMoveToAppliedHasNoPrompt(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	got, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -145,7 +145,7 @@ func TestAppliedRecordsExactlyTheListedFilesThatExist(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	quit(t, tm)
 
 	want := map[string]string{
@@ -166,11 +166,11 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	tm.Type("3")
 	wait("Applied 1")
 	tm.Type("mw") // away from Applied
-	wait("Moved to Withdrawn")
+	wait("→ Withdrawn")
 	before := sentFiles(t, folder)
 
 	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("changed"), 0o644); err != nil {
@@ -186,7 +186,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, before) {
@@ -204,9 +204,9 @@ func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("Moved to Applied")
+	wait("→ Applied")
 	tm.Type("u")
-	wait("back to Draft")
+	wait("Undid move ")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "original"}) {

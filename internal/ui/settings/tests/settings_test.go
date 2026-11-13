@@ -11,22 +11,35 @@ import (
 func TestNavigationSkipsReadOnlyRowsAndPreservesPreviousState(t *testing.T) {
 	original := settings.State[string]{}
 	machine := settings.Machine{Editor: "vi", EditorAvailable: true}
-	current := original.Navigate("tab", machine).Navigate("j", machine).Navigate("j", machine)
+	current := original.Navigate("]", machine).Navigate("[", machine).Navigate("j", machine)
 	rows := current.Rows(current.Group, machine)
 	if rows[current.Row].Label != "Remote roles" {
 		t.Fatalf("cursor moved onto read-only rows: %+v", current)
 	}
-	if original.Focus != 0 || original.Row != 0 {
+	if original.Group != 0 || original.Row != 0 {
 		t.Fatalf("navigation mutated prior state: %+v", original)
 	}
-	current = current.Navigate("tab", machine)
-	for range 3 {
-		current = current.Navigate("j", machine)
+	if up := current.Navigate("k", machine).Navigate("k", machine); !up.Header {
+		t.Fatalf("k above the first field should rest on the header: %+v", up)
 	}
-	current = current.Navigate("tab", machine)
+	current = original
+	for range 3 {
+		current = current.Navigate("]", machine)
+	}
 	rows = current.Rows(current.Group, machine)
 	if rows[current.Row].Label != settings.LabelEditor {
 		t.Fatalf("machine cursor did not skip Workspace: %+v", current)
+	}
+}
+
+func TestPendingEditsAreCopiedNotShared(t *testing.T) {
+	a := settings.State[string]{}.With("editor", "nano")
+	b := a.With("downloads", "/x")
+	if a.Dirty() != 1 || b.Dirty() != 2 {
+		t.Fatalf("pending leaked between copies: %d, %d", a.Dirty(), b.Dirty())
+	}
+	if c := b.Without("editor"); c.Dirty() != 1 || b.Dirty() != 2 {
+		t.Fatalf("Without mutated or miscounted: %d, %d", c.Dirty(), b.Dirty())
 	}
 }
 
@@ -40,12 +53,12 @@ func TestReloadPreservesSelectionAndUndoAndRefreshesTrackCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	undo := "restore previous setting"
-	original := settings.State[string]{Group: 2, Row: 1, Focus: 1, Undo: &undo}
+	original := settings.State[string]{Group: 2, Row: 1, Undo: &undo}
 	loaded, err := original.Load(s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.Group != original.Group || loaded.Row != original.Row || loaded.Focus != original.Focus || loaded.Undo != original.Undo {
+	if loaded.Group != original.Group || loaded.Row != original.Row || loaded.Undo != original.Undo {
 		t.Fatal("reload lost navigation or undo")
 	}
 	if len(loaded.TrackUse) == 0 {

@@ -24,7 +24,7 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	m = next.(model)
 	m.screen = 1 // Drafts, where docs-none is the first row
 	view := xansi.Strip(m.View().Content)
-	if !strings.Contains(view, "Resume writing…") || !strings.Contains(view, "1 of 4 ready") {
+	if !strings.Contains(view, "Resume writing…") || !strings.Contains(view, "1/4") {
 		t.Fatalf("no writing mark:\n%s", view)
 	}
 	first := m.writing[key]
@@ -37,7 +37,7 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	}
 	next, _ = m.Update(writingDone{key, m.writing[key]})
 	m = next.(model)
-	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "✓ Resume") {
+	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "● Resume") {
 		t.Fatalf("mark not put out:\n%s", view)
 	}
 }

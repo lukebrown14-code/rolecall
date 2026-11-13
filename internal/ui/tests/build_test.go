@@ -10,7 +10,6 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
@@ -140,7 +139,7 @@ func (h *buildHarness) key(k string) {
 	}
 }
 
-func (h *buildHarness) plain() string { return ansi.Strip(h.m.View().Content) }
+func (h *buildHarness) plain() string { return chipped(h.m.View().Content) }
 
 func (h *buildHarness) wait(texts ...string) {
 	h.t.Helper()

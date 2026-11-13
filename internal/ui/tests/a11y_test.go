@@ -14,7 +14,7 @@ import (
 func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"5"},
-		{"6"}, {"6", "j", "j", "tab", "a"}, {"6", "tab", "enter"}} {
+		{"6"}, {"6", "]", "]", "a"}, {"6", "enter"}} {
 		view := runKeys(t, fixtureCopy(t, nil), 120, keys...)
 		for _, seq := range []string{"38;2;", "48;2;"} {
 			if strings.Contains(view, seq) {
@@ -27,14 +27,14 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 		t.Fatalf("NO_COLOR dropped bold and underline as well:\n%q", view)
 	}
 	plain := ansi.Strip(view)
-	for _, want := range []string{"[All]", "[Leads 4]", "▞ rolecall", "t  [All]"} {
+	for _, want := range []string{"s [Leads 4]", "▞ rolecall", "t [All 4]"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
 	}
 	// Profile keeps its pane label, selection marker and Contact mark without colour.
 	profile := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
-	for _, want := range []string{"SECTIONS", "▸ Contact", "✓"} {
+	for _, want := range []string{"SECTIONS", "▌ Contact", "✓"} {
 		if !strings.Contains(profile, want) {
 			t.Fatalf("without colour, %q is not readable on Profile:\n%s", want, profile)
 		}
@@ -44,8 +44,8 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 // A pop-up over Settings dims the frame behind it but leaves the values and the group
 // marker where they were, so the frame still reads while the pop-up is open.
 func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
-	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab", "a"))
-	for _, want := range []string{"Add a Track", "▸ SWE", "Tracking", "Follow-up due after"} {
+	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "]", "]", "a"))
+	for _, want := range []string{"Add a Track", "SWE", "Tracking", "Follow-up due after"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("pop-up over Settings lost %q:\n%s", want, v)
 		}
@@ -57,7 +57,7 @@ func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
 func TestAsciiGlyphsFallBack(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"1", "m"}, {"a"}, {"?"}, {"/pl"}, {"G", "m", "d"}, {"5"},
-		{"6"}, {"6", "j", "tab", "enter"}, {"6", "j", "j", "tab", "r"}, {"6", "j", "j", "j", "tab", "j", "enter"}} {
+		{"6"}, {"6", "]", "enter"}, {"6", "]", "]", "r"}, {"6", "]", "]", "]", "j", "enter"}} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))
 		for _, r := range view {
 			if r > 127 {
@@ -66,7 +66,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 		}
 	}
 	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	for _, want := range []string{"[All]", "Move", "cancel"} {
+	for _, want := range []string{"[All 4]", "Move", "cancel"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("ASCII fallback lost %q:\n%s", want, plain)
 		}
@@ -113,7 +113,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 			t.Setenv("LC_CTYPE", "")
 			t.Setenv("LANG", tc.lang)
 			t.Setenv("TERM", "xterm-256color") // TERM=linux would turn ASCII on regardless
-			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab"))
+			view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "]", "]"))
 			got := false
 			for _, r := range view {
 				if r > 127 {
@@ -130,7 +130,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 // The ? pop-up explains the glyphs.
 func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
-	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "⚑ quiet 14+ days") || !strings.Contains(view, "— not assessed") {
+	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "· ◦ ● due 14+ days") || !strings.Contains(view, "· not assessed") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
 	}
 }
@@ -141,7 +141,7 @@ func TestHelpExplainsTheGlyphs(t *testing.T) {
 func TestThemeEnvPicksTheRoles(t *testing.T) {
 	const (
 		darkPanel  = "48;2;22;27;34"    // #161B22
-		lightPanel = "48;2;232;237;241" // #E8EDF1
+		lightPanel = "48;2;246;248;250" // #F6F8FA
 	)
 	for _, tc := range []struct {
 		env, bg, panel, notPanel string
@@ -204,7 +204,7 @@ func TestAsciiOnTheLinuxConsole(t *testing.T) {
 func TestAsciiKeepsStatusesApart(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", "x docs-ready", "< docs-resume-only"} {
+	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", "x docs-ready", "- docs-resume-only"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("ASCII lost %q:\n%s", want, view)
 		}
@@ -212,19 +212,57 @@ func TestAsciiKeepsStatusesApart(t *testing.T) {
 }
 
 // Every Status shows its glyph wherever the Status shows: the view row, group headers,
-// rows, the preview, the timeline and the Move pop-up.
+// rows, the preview, the timeline and the Move pop-up. The filter row names views without
+// glyphs, as the design draws it.
 func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
-		"● Applied   fit", "◌ Lead", "★ docs-partial", "✕ docs-ready", "↩ docs-resume-only", "◆ Interviewing 2"} {
+		"● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only"} {
 		if !strings.Contains(list, want) {
 			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
 		}
 	}
 	move := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	for _, want := range []string{"now ◌ Lead", "◐ Draft", "⊘ Dismissed"} {
+	for _, want := range []string{"now ◌ Lead", "✎ Draft", "⊘ Dismissed"} {
 		if !strings.Contains(move, want) {
 			t.Fatalf("Move pop-up lacks %q:\n%s", want, move)
+		}
+	}
+}
+
+// The Closed group carries the ✕ group glyph (x in ASCII), and Withdrawn rows are told
+// from Rejected ones by their own – glyph.
+func TestClosedGroupHeaderHasAGlyph(t *testing.T) {
+	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	for _, want := range []string{"✕ Closed · 4", "– docs-resume-only"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("Applied screen lacks %q:\n%s", want, view)
+		}
+	}
+	t.Setenv("ROLECALL_ASCII", "1")
+	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
+	if !strings.Contains(view, "x Closed . 4") {
+		t.Fatalf("ASCII Closed header lost its glyph:\n%s", view)
+	}
+}
+
+// With NO_COLOR set, every Status still shows its glyph, so no meaning rests on colour.
+func TestNoColorShowsAGlyphForEveryStatus(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	for _, tc := range []struct {
+		keys  []string
+		wants []string
+	}{
+		{[]string{"1"}, []string{"◌ "}},
+		{[]string{"1", "s"}, []string{"⊘ "}},
+		{[]string{"2"}, []string{"✎ "}},
+		{[]string{"3"}, []string{"● Applied", "◆ Interviewing", "★ Offer", "✕ Closed", "✕ docs-ready", "– docs-resume-only"}},
+	} {
+		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
+		for _, want := range tc.wants {
+			if !strings.Contains(view, want) {
+				t.Errorf("NO_COLOR keys %q lacks %q:\n%s", tc.keys, want, view)
+			}
 		}
 	}
 }

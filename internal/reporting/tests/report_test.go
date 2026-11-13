@@ -213,3 +213,47 @@ func TestStatsFunnelThroughAndSkipped(t *testing.T) {
 		t.Errorf("Lead = %+v, Draft = %+v: want no conversion from an empty rung and 2 skipped Lead", lead, draft)
 	}
 }
+
+// Status log entries are counted per week over the last n weeks, oldest first, the last
+// week ending at now. Date-only entries count on that local date; entries outside the
+// window, malformed Applications and future entries are ignored.
+func TestWeeklyActivityBucketsStatusEntries(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	day := func(s string) store.StatusEntry { return store.StatusEntry{Status: "Lead", At: s} }
+	apps := []store.Application{
+		{Folder: "a", StatusLog: []store.StatusEntry{day("2026-10-01"), day("2026-09-25"), day("2026-09-24")}},
+		{Folder: "b", StatusLog: []store.StatusEntry{day("2026-09-24T01:00:00Z"), day("2026-08-07"), day("2026-08-06"), day("2026-10-02")}},
+		{Folder: "bad", Malformed: errTest, StatusLog: []store.StatusEntry{day("2026-10-01")}},
+	}
+	// 08-07 is 55 days back (oldest day of the window); 08-06 is outside; 10-02 is future.
+	want := []int{1, 0, 0, 0, 0, 0, 2, 2}
+	got := reporting.WeeklyActivity(apps, now, 8)
+	if len(got) != len(want) {
+		t.Fatalf("got %d weeks, want 8", len(got))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("weeks = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestWeeklyActivityOverFixtures(t *testing.T) {
+	s, err := store.Open("../../../fixtures/workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apps, err := s.Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := reporting.WeeklyActivity(apps, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), 8)
+	// Hand-counted from the fixtures meta.yml: entries dated 2026-09-24 fall in week 7
+	// of 8 (seven days back), the one on 2026-09-25 in the last; the rest are older.
+	want := []int{0, 0, 0, 0, 0, 0, 8, 1}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("weeks = %v, want %v", got, want)
+		}
+	}
+}

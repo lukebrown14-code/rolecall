@@ -27,7 +27,7 @@ func finalViewAt(t *testing.T, now time.Time, keys ...string) string {
 func selectedLine(t *testing.T, view string) string {
 	t.Helper()
 	for _, line := range strings.Split(view, "\n") {
-		if strings.Contains(ansi.Strip(line), "▌ ") {
+		if strings.Contains(chipped(line), "▌ ") {
 			return line
 		}
 	}
@@ -36,7 +36,7 @@ func selectedLine(t *testing.T, view string) string {
 }
 
 // selectionBg is the selection bar's background as it appears in an SGR sequence.
-const selectionBg = "48;2;31;61;61"
+const selectionBg = "48;2;47;85;96" // #2F5560
 
 // barText is the text drawn on the selection background in a styled line.
 func barText(line string) string {
@@ -51,7 +51,7 @@ func barText(line string) string {
 
 // listColumn is the width of the list column: everything left of the preview's divider.
 func listColumn(line string) int {
-	plain := ansi.Strip(line)
+	plain := chipped(line)
 	if i := strings.Index(plain, "│"); i >= 0 {
 		return ansi.StringWidth(plain[:i])
 	}
@@ -76,16 +76,16 @@ func TestSelectionBarSpansTheListColumnInEveryView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			line := selectedLine(t, finalView(t, tc.keys...))
 			if got, want := ansi.StringWidth(barText(line)), listColumn(line)-2; got != want {
-				t.Fatalf("selection bar is %d cells wide, want %d: %q", got, want, ansi.Strip(line))
+				t.Fatalf("selection bar is %d cells wide, want %d: %q", got, want, chipped(line))
 			}
 		})
 	}
 }
 
-// The ⚑ glyph is ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
+// A heat glyph can be ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
 func TestFlaggedSelectedRowKeepsPaddingAfterFlag(t *testing.T) {
 	bar := barText(selectedLine(t, finalViewAt(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), "3")))
-	if !strings.Contains(bar, "⚑ quiet") || !strings.HasSuffix(bar, " ") {
+	if !strings.Contains(bar, "● 3mo") || !strings.HasSuffix(bar, " ") {
 		t.Fatalf("flagged row is not padded after its last label: %q", bar)
 	}
 }
@@ -94,8 +94,8 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 	const all = "e edit,m move,u undo,x dismiss,n notes,d download"
 	t.Run("malformed row offers detail only", func(t *testing.T) {
 		raw := finalView(t, "G") // the malformed row sorts last on Leads
-		view := ansi.Strip(raw)
-		if !strings.Contains(view, "⚠") || !strings.Contains(ansi.Strip(selectedLine(t, raw)), "⚠") {
+		view := chipped(raw)
+		if !strings.Contains(view, "⚠") || !strings.Contains(chipped(selectedLine(t, raw)), "⚠") {
 			t.Fatalf("cursor is not on the malformed row:\n%s", view)
 		}
 		for _, k := range strings.Split(all, ",") {
@@ -103,29 +103,29 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 				t.Errorf("malformed row offers %q:\n%s", k, view)
 			}
 		}
-		if !strings.Contains(view, "enter open") {
+		if !strings.Contains(view, "Enter open") {
 			t.Errorf("malformed row hides detail:\n%s", view)
 		}
 	})
 	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
 		// At this width n notes makes way for the pinned a add and / search; ? lists it.
-		view := ansi.Strip(finalView(t))
-		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
+		view := chipped(finalView(t))
+		for _, k := range []string{"Enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)
 			}
 		}
 	})
 	t.Run("undo appears only once there is a move to undo", func(t *testing.T) {
-		if view := ansi.Strip(finalView(t)); strings.Contains(view, "u undo") {
+		if view := chipped(finalView(t)); strings.Contains(view, "u undo") {
 			t.Errorf("empty undo stack offers undo:\n%s", view)
 		}
-		if view := ansi.Strip(finalView(t, "x")); !strings.Contains(view, "u undo") {
+		if view := chipped(finalView(t, "x")); !strings.Contains(view, "u undo") {
 			t.Errorf("undo hidden after a move:\n%s", view)
 		}
 	})
 	t.Run("detail view does not offer itself", func(t *testing.T) {
-		if view := ansi.Strip(finalView(t, "v")); strings.Contains(view, "enter open") {
+		if view := chipped(finalView(t, "v")); strings.Contains(view, "enter open") {
 			t.Errorf("detail view offers detail:\n%s", view)
 		}
 	})

@@ -27,12 +27,30 @@ func (m model) statsApps() []store.Application {
 	return out
 }
 
+// statsEmptyMessage and statsEmptyHints are Stats with nothing to report. Both keys are
+// always live on Stats (a adds; t cycles the Track filter), so they are named directly:
+// asking the registry here would ask Stats for its keys again.
+func (m model) statsEmptyMessage() string {
+	if m.track > 0 {
+		return "No Applications in " + m.tracks[m.track-1]
+	}
+	return "No Applications"
+}
+
+func (m model) statsEmptyHints() []emptyHint {
+	hints := []emptyHint{addLeadHint}
+	if m.track > 0 {
+		hints = append([]emptyHint{{"t", "change Track"}}, hints...)
+	}
+	return hints
+}
+
 // statsHelpKeys is the keys only Stats accepts: add. The track filter and the rest are
 // global keys.
 func (m model) statsHelpKeys() []helpKey {
 	keys := []helpKey{help(groupAction, "a", "add").at(prioCore)}
 	if m.statsMaxTop() > 0 {
-		keys = append(keys, help(groupNav, "↑↓", "scroll"), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
+		keys = append(keys, help(groupNav, "↑↓", "scroll").at(prioMain), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -114,7 +132,7 @@ func (m model) statsLines(p pal) []string {
 	apps := m.statsApps()
 	var lines []string
 	if len(apps) == 0 {
-		lines = []string{p.Text(p.Dim).Render("No Applications yet · ") + p.Key().Render("a") + p.Text(p.Dim).Render(" to add a Lead")}
+		lines = m.emptyLines(p, l.w-inset-rightMargin, m.statsEmptyMessage(), m.statsEmptyHints())
 	} else {
 		lines = m.statsBody(p, m.statsReport(), l.w-inset-rightMargin, l.bodyHeight(1))
 	}
@@ -368,6 +386,32 @@ func sparkline(p pal, weeks []reporting.Week) string {
 			continue
 		}
 		i := max(1, int(math.Ceil(float64(w.Count)*float64(top)/float64(most))))
+		b.WriteString(levels[i])
+	}
+	return b.String()
+}
+
+// activityWeeks is how many weeks the nav's activity sparkline covers.
+const activityWeeks = 8
+
+// activitySparkline draws one cell per week of Status log activity, scaled to the busiest
+// week. Unlike the Applied chart, an empty week is the lowest bar, not blank.
+func activitySparkline(p pal, counts []int) string {
+	levels := sparkLevels[0]
+	if p.Ascii {
+		levels = sparkLevels[1]
+	}
+	most := 0
+	for _, c := range counts {
+		most = max(most, c)
+	}
+	top := len(levels) - 1
+	var b strings.Builder
+	for _, c := range counts {
+		i := 0
+		if c > 0 {
+			i = max(1, int(math.Ceil(float64(c)*float64(top)/float64(most))))
+		}
 		b.WriteString(levels[i])
 	}
 	return b.String()

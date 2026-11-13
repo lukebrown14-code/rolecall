@@ -1,24 +1,23 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats  5 Profile  6 Settings                         10 live · 1 due
-
-   All 9    ● Applied 1    ◆ Interviewing 2    ★ [Offer 2]    Closed 4                          t  [All]  SWE  Platform
+ ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATUS s All 9  Applied 1  Interviewing 2 [Offer 2] Closed 4 │ TRACK t [All 2] SWE 1  Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ★ Engineer #1                                       fit Good  │ Engineer #1                                          
- ▌   Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │ Example · Unknown                                    
+   ★ Offer · 2 ───────────────────────────────────────────────── │ Engineer #1                                          
+ ▌ ★ Engineer #1                                ~Jan 2026  Good  │ Example · Unknown · applied ~Jan 2025 · offer ~Jan…  
+ ▌   Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │                                                      
+   ★ docs-partial                               Offer ~7d     ·  │ ★ Offer                                    fit Good  
+     Fictional Labs · SWE · offer ~7d ago                        │                                                      
+                                                                 │ DOCS    □□□ 0/3                                      
+                                                                 │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
                                                                  │                                                      
-   ★ docs-partial                                      fit    —  │ ★ Offer   fit Good                                   
-     Fictional Labs · SWE · offer ~7d ago                        │ ○ JD  ○ Resume  ○ PDF                                
-                                                                 │ ▱▱▱ 0 of 3 ready                                     
-                                                                 │                                                      
-                                                                 │ NEXT  decide on the offer   m move                   
+                                                                 │ NEXT    decide on the offer                  m move  
                                                                  │                                                      
                                                                  │ TIMELINE                                             
-                                                                 │ ● Applied ~1 Jan 2025 ─ ★ Offer ~1 Jan               
+                                                                 │   ● Applied                             ~1 Jan 2025  
+                                                                 │   ★ Offer                                    ~1 Jan  
                                                                  │                                                      
-                                                                 │ FIT                                                  
-                                                                 │ Good · no reasoning saved                            
+                                                                 │ NOTES   none yet                              n add  
                                                                  │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+   Applied › Offer · All tracks · 1/2 · list
+ Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help

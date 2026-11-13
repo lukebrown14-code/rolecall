@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
@@ -64,7 +63,7 @@ func setFit(t *testing.T, folder, fit string) {
 	}
 }
 
-func plain(m tea.Model) string { return ansi.Strip(m.View().Content) }
+func plain(m tea.Model) string { return chipped(m.View().Content) }
 
 func TestHandoffAssessFitWritesFitAndRescans(t *testing.T) {
 	root := fixtureCopy(t, nil)

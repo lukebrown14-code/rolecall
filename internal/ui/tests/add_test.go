@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
@@ -136,7 +135,7 @@ func sameSnapshot(a, b map[string]string) bool {
 // with the selection bar ▌.
 func selectedRow(t *testing.T, view string) string {
 	t.Helper()
-	for _, line := range strings.Split(ansi.Strip(view), "\n") {
+	for _, line := range strings.Split(chipped(view), "\n") {
 		if _, rest, ok := strings.Cut(line, "▌ "); ok {
 			// The title follows its Status glyph.
 			for _, g := range statusGlyphs {
@@ -272,7 +271,7 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 		t.Fatalf("editor opened: %v", h.edited)
 	}
 	// Engineer #1 is only on the Dismissed table, so selecting it proves the table switch.
-	if !strings.Contains(ansi.Strip(view), "Dismissed 2") {
+	if !strings.Contains(chipped(view), "Leads › Dismissed") {
 		t.Fatalf("Dismissed table not shown:\n%s", view)
 	}
 	if row := selectedRow(t, view); !strings.HasPrefix(row, "Engineer #1") {

@@ -1,22 +1,21 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats  5 Profile  6 Settings                         10 live · 1 due
-
-   All 9    ● Applied 1    ◆ Interviewing 2    ★ Offer 2    [Closed 4]                          t  [All]  SWE  Platform
+ ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATUS s All 9  Applied 1  Interviewing 2  Offer 2 [Closed 4] │ TRACK t [All 4] SWE 2  Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ✕ Engineer #1                             rejected  fit Good  │ Engineer #1                                          
- ▌   Example · Unknown · closed ~Jan 2026                        │ Example · Unknown                                    
-                                                                 │                                                      
-   ↩ Engineer #1                            withdrawn  fit Good  │ ✕ Rejected   fit Good                                
-     Example · Unknown · closed ~Jan 2026                        │ ○ JD  ○ Resume  ○ PDF                                
-                                                                 │ ▱▱▱ 0 of 3 ready                                     
-   ✕ docs-ready                              rejected  fit    —  │                                                      
+   ✕ Closed · 4 ──────────────────────────────────────────────── │ Engineer #1                                          
+ ▌ ✕ Engineer #1                                ~Jan 2026  Good  │ Example · Unknown · closed ~Jan 2026                 
+ ▌   Example · Unknown · closed ~Jan 2026                        │                                                      
+   – Engineer #1                                ~Jan 2026  Good  │ ✕ Rejected                                 fit Good  
+     Example · Unknown · closed ~Jan 2026                        │                                                      
+   ✕ docs-ready                                  Rej. ~7d     ·  │ DOCS    □□□ 0/3                                      
+     Fictional Labs · SWE · closed ~7d ago                       │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
+   – docs-resume-only                         Withdr. ~7d     ·  │                                                      
      Fictional Labs · SWE · closed ~7d ago                       │ TIMELINE                                             
-                                                                 │ ● Applied ~1 Jan 2025 ─ ✕ Rejected ~1 Jan            
-   ↩ docs-resume-only                       withdrawn  fit    —  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │ FIT                                                  
-                                                                 │ Good · no reasoning saved                            
+                                                                 │   ● Applied                             ~1 Jan 2025  
+                                                                 │   ✕ Rejected                                 ~1 Jan  
                                                                  │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
+                                                                 │ NOTES   none yet                              n add  
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+   Applied › Closed · All tracks · 1/4 · list
+ Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help

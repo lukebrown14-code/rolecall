@@ -1,16 +1,16 @@
- R rolecall  1 Leads 4  2 Drafts 2  3 Applied 9  4 Stats [5 Profile] 6 Settings                         10 live . 1 due
-
+ R rolecall  1 Leads 4  2 Drafts 2  3 Applied 9  4 Stats ______#. [5 Profile] 6 Settings             space menu  ? help
+------------------------------------------------------------------------------------------------------------------------
    SECTIONS                                                                                   profile/master-profile.md
 ---------------------------------+--------------------------------------------------------------------------------------
- > Contact                    v  |  Name         Alex Quinn                                                             
-   Headlines                  2  |  Email        alex.quinn@example.test                                                
-   Experience                 2  |  Phone        +61 400 000 000                                                        
-   Key Skills                 8  |  Location     Brisbane, QLD                                                          
-   Summary                       |  LinkedIn     linkedin.com/in/alexquinn                                              
-   Facts NOT available        2  |  GitHub       github.com/alexquinn                                                   
-   files ----------------------  |  Work rights  Full working rights in Australia (the subclass never appears)          
-   projects.md                   |                                                                                      
-                                 |                                                                                      
+ > Contact                    v  |  SECTION Contact                                                              e edit 
+   Headlines                  2  |                                                                                      
+   Experience                 2  |  NAME         Alex Quinn                                                      e edit 
+   Key Skills                 8  |  EMAIL        alex.quinn@example.test                                         e edit 
+   Summary                       |  PHONE        +61 400 000 000                                                 e edit 
+   Facts NOT available        2  |  LOCATION     Brisbane, QLD                                                   e edit 
+   files ----------------------  |  LINKEDIN     linkedin.com/in/alexquinn                                       e edit 
+   projects.md                   |  GITHUB       github.com/alexquinn                                            e edit 
+                                 |  WORK RIGHTS  Full working rights in Australia (the subclass never appears)   e edit 
                                  |                                                                                      
                                  |                                                                                      
                                  |                                                                                      
@@ -33,4 +33,4 @@
                                  |                                                                                      
                                  |                                                                                      
 ---------------------------------+--------------------------------------------------------------------------------------
- e edit file                                                 j k section . tab focus . 1-6 screen . : commands . ? help
+ e edit file                                                     j k section  tab focus  1-6 screen  : commands  ? help

@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -20,7 +19,7 @@ func TestNavigation(t *testing.T) {
 		{[]string{"tab", "?"}, "Keys"},
 	} {
 		m = driveModel(t, m, tc.keys...)
-		if v := ansi.Strip(m.View().Content); !strings.Contains(v, tc.want) {
+		if v := chipped(m.View().Content); !strings.Contains(v, tc.want) {
 			t.Fatalf("keys %q: screen lacks %q:\n%s", tc.keys, tc.want, v)
 		}
 	}
@@ -37,11 +36,11 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40)
 
 	m = driveModel(t, m, "x")
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Dismissed · ") {
+	if v := chipped(m.View().Content); !strings.Contains(v, "✓ Dismissed ") {
 		t.Fatalf("dismiss did not report:\n%s", v)
 	}
 	m = driveModel(t, m, "tab", "m", "enter") // Dismissed → restore to Lead
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Moved to Lead") {
+	if v := chipped(m.View().Content); !strings.Contains(v, "✓ Moved ") {
 		t.Fatalf("restore did not report:\n%s", v)
 	}
 	driveModel(t, m, "u", "u", "u", "q")
@@ -64,12 +63,12 @@ func TestFilters(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{[]string{"/zzznomatch"}, "No matches"},
+		{[]string{"/zzznomatch"}, "No Applications match"},
 		{[]string{"enter", "2"}, "Draft"},
 		{[]string{"r", "esc"}, "Drafts 2"},
 	} {
 		m = driveModel(t, m, tc.keys...)
-		if v := ansi.Strip(m.View().Content); !strings.Contains(v, tc.want) {
+		if v := chipped(m.View().Content); !strings.Contains(v, tc.want) {
 			t.Fatalf("keys %q: screen lacks %q:\n%s", tc.keys, tc.want, v)
 		}
 	}

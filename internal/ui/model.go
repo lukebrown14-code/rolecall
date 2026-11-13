@@ -32,9 +32,11 @@ type model struct {
 	overlay               mode // the pop-up, prompt or search input that owns the keyboard
 	selectAfter           string
 	undo                  []undoMove
-	toast                 string // feedback line: what just happened (cleared on the next key)
-	toastHint             string // key hint shown with it, e.g. "u undo"
-	flash                 string // folder of the row just moved, lit until flashID's tick
+	toast                 string    // feedback line: what just happened (cleared on the next key)
+	movedTo               string    // destination Status of the move the toast reports, else ""
+	toastKind             toastKind // how the feedback line draws the toast
+	toastHint             string    // key hint shown with it, e.g. "u undo"
+	flash                 string    // folder of the row just moved, lit until flashID's tick
 	flashID               int
 	tick                  Ticker
 	err                   error
@@ -45,6 +47,7 @@ type model struct {
 	stats                 *statsCache // the Stats report for the current interaction; see statsReport
 	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
 	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	inherit               bool        // inherit_terminal in config.toml: ANSI-16 colours, no painted background
 	theme                 theme       // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
@@ -212,6 +215,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
 		m.err = done.err
+		if done.err == nil && done.toast != "" {
+			m.toast = done.toast
+		}
 		if err != nil {
 			m.err = err
 		} else if a != nil {
@@ -263,7 +269,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint = "", ""
+		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
 		if k.String() == "ctrl+c" {
 			return m, m.quit()
 		}
@@ -274,6 +280,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		m.clampCursor()
 		return m, cmd
+	}
+	if m.fieldOpen() {
+		// An open Settings field owns the keyboard, so typing digits or "," is text.
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			return m.editKey(msg), nil
+		case tea.PasteMsg:
+			return m.editPaste(msg.Content), nil
+		}
 	}
 	if done, ok := msg.(flashDone); ok {
 		if done.id == m.flashID {
@@ -291,6 +306,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// The error on show names a meta.yml the store cannot read: e opens it there.
 			m.err = nil
 			return m, m.editAt(pe)
+		}
+		if k.String() == " " || k.String() == spaceKey {
+			m.overlay = m.openMenu()
+			return m, nil
 		}
 		if k.String() == ":" || k.String() == "ctrl+k" {
 			// The command palette lists what the keys underneath it would do.

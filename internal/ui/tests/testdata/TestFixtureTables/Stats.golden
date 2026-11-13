@@ -1,14 +1,14 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2  3 Applied 9 [4 Stats] 5 Profile  6 Settings                         10 live · 1 due
-
-   STATS                                                                                        t  [All]  SWE  Platform
+ ▞ rolecall  1 Leads 4  2 Drafts 2  3 Applied 9 [4 Stats] ▁▁▁▁▁▁█▂ 5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATS                                                                             TRACK t [All 17] SWE 10 Platform 1
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    FUNNEL          Applications that ever reached each Status
    ◌ Lead          ██████                   2
-   ◐ Draft         ██████                   2  2 without Lead logged
+   ✎ Draft         ██████                   2  2 without Lead logged
    ● Applied       ████████████████████████ 7  50% of Draft · 6 skipped Draft
    ◆ Interviewing  ██████                   2  14% of Applied · 1 skipped Applied
    ★ Offer         ██████                   2  2 without Interviewing logged
-   closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2
+   closed  ✕ Rejected 2 · – Withdrawn 2 · ⊘ Dismissed 2
 
    RESPONSE RATE   2 of 6  ▕████░░░░░░░░▏ 33%
                    Not counted: 1 Application applied less than 14 days ago (too early to judge)
@@ -37,4 +37,4 @@
 
 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- a add                                                                                 1-6 screen · : commands · ? help
+ a add  t track                                                                          1-6 screen  : commands  ? help

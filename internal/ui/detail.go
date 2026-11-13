@@ -30,6 +30,8 @@ const (
 	tabFit    detailTab = "Fit"
 	tabNotes  detailTab = "Notes"
 	tabDocs   detailTab = "Docs"
+	// tabOverview holds the same rows as the card, for the sheet and full views that have no card.
+	tabOverview detailTab = "Overview"
 )
 
 // visibleDetailTabs derives navigation from the Application's written documents.
@@ -45,6 +47,16 @@ func visibleDetailTabs(a store.Application) []detailTab {
 		tabs = append(tabs, tabGaps)
 	}
 	return append(tabs, tabNotes, tabDocs)
+}
+
+// detailTabs is the tabs the open detail shows. Where the card is folded away (the sheet and
+// the narrow full view) an Overview tab, first, holds the card's rows.
+func (m model) detailTabs(a store.Application) []detailTab {
+	tabs := visibleDetailTabs(a)
+	if !m.cardShown() {
+		tabs = append([]detailTab{tabOverview}, tabs...)
+	}
+	return tabs
 }
 
 var markdownTabFiles = map[detailTab]string{tabJD: jdFile, tabNotes: notesFile, tabFit: fitFile, tabResume: resumeFile, tabLetter: coverLetterFile, tabGaps: gapsFile}
@@ -91,7 +103,10 @@ func (e docEntry) title() string {
 }
 
 // resumeOnlyNote is the Cover letter's state on a Resume only Application.
-const resumeOnlyNote = "not needed · Resume only"
+const resumeOnlyNote = notNeeded + " · Resume only"
+
+// notNeeded is the state of a Document the Application does not need.
+const notNeeded = "not needed"
 
 // displayStatus is a source document's state, ready or missing (an empty file is
 // missing), and whether it is ready. Built and sent files are ready by being there.
@@ -136,8 +151,14 @@ func (m model) current() (store.Application, bool) {
 	return m.selected()
 }
 
+// openDetail opens an Application on its first tab: Overview where the card is folded away,
+// otherwise the JD. A malformed one opens on the JD, where its parse error shows.
 func (m *model) openDetail(folder string) {
-	m.detail = &detailState{folder: folder, tab: tabJD, body: viewport.New()}
+	tab := tabJD
+	if a, ok := m.application(folder); ok && a.Malformed == nil {
+		tab = m.detailTabs(a)[0]
+	}
+	m.detail = &detailState{folder: folder, tab: tab, body: viewport.New()}
 }
 
 func (m model) closeDetail() model {
@@ -156,6 +177,7 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	minBodyHeight = 3
+	sheetChrome   = 3  // the sheet's title and tabs rows and the scroll cue
 	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
@@ -170,7 +192,7 @@ const (
 func (m model) cardShown() bool { return m.layout().wide() }
 
 // cardWidth is the left card's column, divider excluded.
-func (m model) cardWidth() int { return m.layout().panel(cardShare, cardMin, cardMax) }
+func (m model) cardWidth() int { return m.layout().cardW }
 
 // detailContextLines is the lines between the tab bar and the body: the title row, then
 // the facts line beside the card or the strip in its place.
@@ -191,6 +213,10 @@ func (m model) paneWidth() int {
 
 // bodyHeight is the lines of tab content shown at once.
 func (m model) bodyHeight() int {
+	if m.sheetShown() {
+		_, detail, _ := m.layout().sheetHeights(tableContext)
+		return max(minBodyHeight, detail-sheetChrome)
+	}
 	return max(minBodyHeight, m.layout().bodyHeight(m.detailContextLines())-paneChrome)
 }
 
@@ -209,13 +235,22 @@ func (m model) syncDetail() model {
 		return m
 	}
 	d := *m.detail
-	if !slices.Contains(visibleDetailTabs(a), d.tab) {
+	switch {
+	case slices.Contains(m.detailTabs(a), d.tab):
+	case d.tab == tabOverview:
+		d.tab = tabJD // the window widened: the card beside the tabs holds the rows now
+	default:
 		m.err = fmt.Errorf("%s is gone", docName(markdownTabFiles[d.tab]))
 		d.tab = tabDocs
 	}
 	d.docs = min(d.docs, len(docEntries(a))-1)
 	d.body.SetWidth(m.bodyWidth())
 	d.body.SetHeight(m.bodyHeight())
+	if d.tab == tabOverview && a.Malformed == nil {
+		offset := d.body.YOffset()
+		d.body.SetContent(strings.Join(m.fieldBlock(m.pal(), a, m.bodyWidth()), "\n"))
+		d.body.SetYOffset(offset)
+	}
 	if name, ok := markdownTabFiles[d.tab]; ok && a.Malformed == nil {
 		offset := d.body.YOffset()
 		d.body.SetContent(m.markdownBody(a, d.tab, name))
@@ -303,9 +338,9 @@ func (m model) emptyDocument(a store.Application, tab detailTab, name string) st
 		return "No JD saved · e to open " + name
 	case tabFit:
 		if m.harness != "" {
-			return "No fit assessment yet · f to assess fit"
+			return "f to assess fit"
 		}
-		return "No fit assessment yet"
+		return "No reasoning saved"
 	case tabNotes:
 		return "No notes yet · e to write some"
 	}
@@ -354,7 +389,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	case "esc":
 		return m.closeDetail(), nil, true
 	case "right", "left":
-		tabs := visibleDetailTabs(a)
+		tabs := m.detailTabs(a)
 		step := 1
 		if key == "left" {
 			step = len(tabs) - 1
@@ -376,12 +411,15 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	if d.tab == tabDocs {
 		return m.docsKey(a, &d, key)
 	}
+	if d.tab == tabOverview && key == "e" {
+		return m, nil, false // the shared edit key opens the Application's meta.yml
+	}
 	switch key {
 	case "down", "j":
 		d.body.ScrollDown(1)
 	case "up", "k":
 		d.body.ScrollUp(1)
-	case "pgdown", "space":
+	case "pgdown", spaceKey:
 		d.body.PageDown()
 	case "pgup":
 		d.body.PageUp()
@@ -490,7 +528,7 @@ func (m model) detailView(p pal) string {
 			ctx[i] = ""
 		}
 		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
-		pane = p.Text(p.Fg).Render(m.malformedReason(a)) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
+		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), paneW-paneMargin), "\n")) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
 			"\n\n" + p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")
 	} else {
 		// The tab names sit one cell in from their brackets; the content lines up with them.
@@ -498,12 +536,13 @@ func (m model) detailView(p pal) string {
 		for i, l := range content {
 			content[i] = " " + l
 		}
-		// Without the card, the next step takes the line between the tabs and the text.
+		// Without the card, the next step takes the line between the tabs and the text,
+		// except on Overview, whose rows already hold it.
 		gap := ""
-		if !m.cardShown() {
-			gap = " " + m.nextLine(p, a, paneW-gutter-1)
+		if !m.cardShown() && m.detail.tab != tabOverview {
+			gap = " " + m.nextLine(p, a, paneW-gutter-1-rightMargin, false)
 		}
-		pane = m.detailTabsRow(p, a) + "\n" + gap + "\n" + strings.Join(content, "\n")
+		pane = m.detailTabsRow(p, a, paneW-gutter) + "\n" + gap + "\n" + strings.Join(content, "\n")
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
@@ -531,7 +570,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	if fit == "" {
 		fit = fitNone
 	}
-	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("fit ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
+	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
 	if beforeApplied(tableOf(a)) {
 		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
 			parts = append(parts, p.CloseStyle(s, p.Text, p.Dim).Render(text))
@@ -578,32 +617,6 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 	return xansi.Truncate(current, w, "…")
 }
 
-// timelineFlow is the track for a narrow column: every stop with its date, flowing onto
-// as many lines as w needs, each line ending in the rule that leads to the next.
-func (m model) timelineFlow(p pal, a store.Application, w int) string {
-	_, pastDated, current, ahead := m.trackStops(p, a)
-	stops := append(append(append([]string{}, pastDated...), current), ahead...)
-	sep := p.Text(p.Rule).Render(" ─ ")
-	var lines []string
-	line := ""
-	for i, s := range stops {
-		item := s
-		if i < len(stops)-1 {
-			item += p.Text(p.Rule).Render(" ─")
-		}
-		switch {
-		case line == "":
-			line = item
-		case xansi.StringWidth(strings.TrimSuffix(line, p.Text(p.Rule).Render(" ─"))+sep+item) <= w:
-			line = strings.TrimSuffix(line, p.Text(p.Rule).Render(" ─")) + sep + item
-		default:
-			lines = append(lines, line)
-			line = item
-		}
-	}
-	return strings.Join(append(lines, line), "\n")
-}
-
 // trackStops is a timeline track's stops: earlier Statuses without and with their dates,
 // the current one, and the Statuses still ahead.
 func (m model) trackStops(p pal, a store.Application) (past, pastDated []string, current string, ahead []string) {
@@ -641,17 +654,61 @@ func (m model) trackStops(p pal, a store.Application) (past, pastDated []string,
 	return past, pastDated, current, ahead
 }
 
-func (m model) detailTabsRow(p pal, a store.Application) string {
-	visible := visibleDetailTabs(a)
+func (m model) detailTabsRow(p pal, a store.Application, w int) string {
+	visible := m.detailTabs(a)
 	tabs := make([]string, len(visible))
 	for i, t := range visible {
 		tabs[i] = p.Text(p.Dim).Render(" " + string(t) + " ")
 		if t == m.detail.tab {
 			// Bracketed as well as filled: the active tab is marked without colour.
-			tabs[i] = p.ActiveTab().Render("[" + string(t) + "]")
+			tabs[i] = p.SelChip(string(t))
 		}
 	}
-	return strings.Join(tabs, " ")
+	return fitTabs(p, tabs, active(visible, m.detail.tab), w)
+}
+
+// active is the index of tab in tabs, or 0.
+func active(tabs []detailTab, tab detailTab) int {
+	if i := slices.Index(tabs, tab); i >= 0 {
+		return i
+	}
+	return 0
+}
+
+// fitTabs joins tabs into one line of at most w cells. Where they do not all fit, it keeps
+// a run around the active tab and marks the hidden ends with ‹ and ›: the row never wraps.
+func fitTabs(p pal, tabs []string, at, w int) string {
+	if line := strings.Join(tabs, " "); xansi.StringWidth(line) <= w {
+		return line
+	}
+	from, to := at, at+1
+	width := func(f, t int) int {
+		n := xansi.StringWidth(strings.Join(tabs[f:t], " "))
+		if f > 0 {
+			n += markWidth
+		}
+		if t < len(tabs) {
+			n += markWidth
+		}
+		return n
+	}
+	for grew := true; grew; {
+		grew = false
+		if to < len(tabs) && width(from, to+1) <= w {
+			to, grew = to+1, true
+		}
+		if from > 0 && width(from-1, to) <= w {
+			from, grew = from-1, true
+		}
+	}
+	line := strings.Join(tabs[from:to], " ")
+	if from > 0 {
+		line = p.Text(p.Dim).Render("‹ ") + line
+	}
+	if to < len(tabs) {
+		line += p.Text(p.Dim).Render(" ›")
+	}
+	return line
 }
 
 // detailContent is the current tab: rendered Markdown with a scroll cue, or the
@@ -694,9 +751,8 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Faint).Render(file)
 		if i == m.detail.docs {
-			row = lipgloss.NewStyle().Background(p.Sel).Width(paneW - paneMargin).Render(
-				p.Text(p.Accent).Background(p.Sel).Render("▌ ") + p.Text(p.Accent).Background(p.Sel).Bold(true).Render(xansi.Strip(mark)+name) +
-					p.Text(p.Sub).Background(p.Sel).Render(file))
+			row = p.SelLine(true, paneW-paneMargin, p.SelGutter(true)+p.SelText(true).Render(xansi.Strip(mark)+name)+
+				p.SelBase(true).Foreground(p.Sub).Render(file))
 		}
 		lines = append(lines, row)
 	}
@@ -710,18 +766,7 @@ func (m model) detailCard(p pal, a store.Application) string {
 	}
 	var b strings.Builder
 	inner := m.cardWidth() - cardPadding
-	b.WriteString(keepTogether(inner, "", p.StatusChip(a.Status), p.FitText(a)) + "\n\n")
-	if next := m.nextLine(p, a, inner); next != "" {
-		b.WriteString(next + "\n\n")
-	}
-	b.WriteString(p.Heading("Docs") + "\n" + p.DocsMeter(a) + "\n")
-	for _, c := range docChips(a) {
-		b.WriteString(m.chipText(p, a, c) + "\n")
-	}
-	if a.ResumeOnly && !a.CoverLetterHasText {
-		b.WriteString(p.Text(p.Dim).Render("  "+docCoverLetter+"\n  "+resumeOnlyNote) + "\n")
-	}
-	b.WriteString("\n" + p.Heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, true) + "\n")
+	b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n") + "\n")
 	if a.URL != "" {
 		b.WriteString("\n" + p.Heading("Link") + "\n" + p.Text(p.Info).Render(xansi.Truncate(a.URL, m.cardWidth()-cardPadding, "…")))
 	}

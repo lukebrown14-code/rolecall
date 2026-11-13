@@ -19,7 +19,7 @@ import (
 // Colour always pairs with a word or glyph, so meaning never rests on colour alone.
 //
 // Floors (contrast_internal_test.go): text Roles 4.5:1 on bg, panel and the selection
-// bar; rules, separators and glyphs 3:1. Accent means focus and selection only.
+// bar; rules, separators and glyphs 3:1. Accent is the colour of keys; it also marks the selection gutter.
 type Roles struct {
 	Bg     string // painted as the terminal background
 	Panel  string // pop-up fill and the feedback line
@@ -28,14 +28,14 @@ type Roles struct {
 	Muted  string // the floor for any text; also closed Statuses
 	Faint  string // separators between labels and past timeline dots, never body text
 	Rule   string // rules and pane dividers
-	Accent string // focus and selection only
+	Accent string // keys, and the selection gutter
 	OnFill string // text on an accent fill
 	Sel    string // the selection bar: the accent tinted over bg
 	Ok     string // Strong fit, built docs, success
 	Info   string // links, Good fit
 	Warn   string // closes within a week, quiet follow-up, written docs, warning pop-ups
 	Danger string // closes today, errors
-	Purple string // Interviewing
+	Purple string // Interviewing: magenta on dark, so it parts from Applied blue under red-green colour blindness
 	Gold   string // Offer
 	Lead   string // Lead: cool grey-blue
 	Draft  string // Draft: a lighter blue than Applied, apart from the accent
@@ -62,23 +62,23 @@ var rolePalette = struct {
 	Purple, Gold, Lead, Draft, Dimmed, DimmedOnFill rolePair
 }{
 	Bg:           rolePair{darkBg, lightBg},
-	Panel:        rolePair{"#161B22", "#E8EDF1"},
+	Panel:        rolePair{"#161B22", "#F6F8FA"},
 	Text:         rolePair{"#E6EDF3", "#1F2328"},
 	Sub:          rolePair{"#C9D1D9", "#424A53"},
-	Muted:        rolePair{"#8B949E", "#59636E"},
+	Muted:        rolePair{"#8B949E", "#57606A"},
 	Faint:        rolePair{"#6E7681", "#6E7985"},
-	Rule:         rolePair{"#6E7681", "#6E7985"},
+	Rule:         rolePair{"#5A6878", "#6E7985"},
 	Accent:       rolePair{"#5EEAD4", "#0F766E"},
 	OnFill:       rolePair{darkBg, lightBg},
-	Sel:          rolePair{"#1F3D3D", "#E2EEEB"},
+	Sel:          rolePair{"#2F5560", "#DDF4FF"},
 	Ok:           rolePair{"#3FB950", "#14702F"},
-	Info:         rolePair{"#58A6FF", "#0759B8"},
-	Warn:         rolePair{"#F0883E", "#9A3D00"},
+	Info:         rolePair{"#58A6FF", "#074A9A"},
+	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
-	Purple:       rolePair{"#BC8CFF", "#6F3BC8"},
-	Gold:         rolePair{"#F2CC60", "#6E5600"},
-	Lead:         rolePair{"#8FA1B3", "#4B6076"},
-	Draft:        rolePair{"#A5D6FF", "#3A6490"},
+	Purple:       rolePair{"#F778BA", "#7A4AD6"},
+	Gold:         rolePair{"#F2CC60", "#8A5A00"},
+	Lead:         rolePair{"#9CB0A0", "#5F6B73"},
+	Draft:        rolePair{"#A5D6FF", "#2D6A8F"},
 	Dimmed:       rolePair{"#768390", "#656D76"},
 	DimmedOnFill: rolePair{darkBg, lightBg},
 }
@@ -158,6 +158,11 @@ type Palette struct {
 	Fg, Dim, Sub, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Bad color.Color
 	Bg, Panel, Purple, Gold, Lead, Draft                                color.Color
 	Ascii                                                               bool
+	// Inherit marks the terminal-colours palette: ANSI-16 roles and no painted fill.
+	Inherit bool
+	// Backdrop marks the dimmed palette behind a pop-up: the pop-up holds the one
+	// selection, so the frame behind it draws none.
+	Backdrop bool
 }
 
 func (t Mode) Base() Palette {
@@ -174,7 +179,7 @@ func (t Mode) Dimmed() Palette {
 	d := c(r.Dimmed)
 	return Palette{Fg: d, Dim: d, Sub: d, Faint: c(r.Faint), Rule: c(r.Rule), Accent: d, OnFill: c(r.DimmedOnFill),
 		Sel: c(r.Panel), Ok: d, Info: d, Warn: d, Bad: d, Bg: c(r.Bg), Panel: c(r.Panel), Purple: d, Gold: d,
-		Lead: d, Draft: d}
+		Lead: d, Draft: d, Backdrop: true}
 }
 
 // MarkdownStyle is Glamour's style drawn with the Mode's Roles rather than Glamour's own
@@ -265,15 +270,18 @@ func StripColor(s string) string {
 // different things get different stand-ins: a Status keeps the one its palette draws, a
 // warning (!) is not the follow-up flag (?), and a missing document (0) is not a Lead (o).
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "@", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "?", "↩", "<",
+	"◆", "@", "▌", ">", "▸", ">", "▶", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
 	"●", "*", "○", "0", "✓", "v", "⚠", "!", "✕", "x", "✗", "X", "✘", "X", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
-	"◐", "=", "★", "$", "⊘", "-",
+	"◐", "=", "✎", "=", "★", "*", "⊘", "/", "◦", "o", "–", "-",
 	// the wordmark's mark, distinct from every Status stand-in and from a data block
 	"▞", "R",
 	// the documents' ready meter and an urgent close date
-	"▰", "#", "▱", "-", "▲", "^",
+	"■", "#", "□", "-", "▲", "^",
+	// the Stats sparkline's eight steps fold onto five: _ . - = #
+	"▁", "_", "▂", "_", "▃", ".", "▄", ".", "▅", "-", "▆", "=", "▇", "=",
+	"░", ".", "▕", "|", "“", `"`, "”", `"`, "≤", "<",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
 	// the box rules Glamour draws around a Markdown table
 	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
@@ -295,13 +303,46 @@ func ASCIIFold(s string, force bool) string {
 
 func (p Palette) Text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
-// key is a key name in a hint: bold body text. The accent is kept for focus.
-func (p Palette) Key() lipgloss.Style { return p.Text(p.Fg).Bold(true) }
+// key is a key name in a hint: bold in the accent, which is the colour of keys.
+// The selected item: the one style every selectable surface draws its cursor with.
+// SelBase is its ground (the selection fill, or none in a pane that lacks focus),
+// SelGutter its ▌ mark in the chrome column (ASCII ">"), and SelText its bright bold
+// text. The mark alone carries the selection when colour is off or the fill is absent.
+func (p Palette) SelBase(filled bool) lipgloss.Style {
+	s := lipgloss.NewStyle()
+	if filled {
+		s = s.Background(p.Sel)
+	}
+	return s
+}
 
-// activeTab is the selected tab's fill: the accent and bold, so it is marked by more
-// than the fill; behind a pop-up its text stays at the text floor on the dimmed fill.
-func (p Palette) ActiveTab() lipgloss.Style {
-	return lipgloss.NewStyle().Background(p.Accent).Foreground(p.OnFill).Bold(true)
+func (p Palette) SelGutter(filled bool) string {
+	if p.Backdrop {
+		return p.SelBase(filled).Render("  ")
+	}
+	return p.SelBase(filled).Foreground(p.Accent).Bold(true).Render("▌ ")
+}
+
+func (p Palette) SelText(filled bool) lipgloss.Style {
+	return p.SelBase(filled).Foreground(p.Fg).Bold(true)
+}
+
+// SelLine is content as a selected line w cells wide: the fill runs the full width.
+func (p Palette) SelLine(filled bool, w int, content string) string {
+	return p.SelBase(filled).Width(w).Render(content)
+}
+
+func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
+
+// SelChip is the active option of a row of options (the tab bar, the pipeline strip, the
+// Track filter): the selection fill one cell wider each side, " Drafts 2 ". Where there
+// is no fill to see it by (NO_COLOR, the terminal's own colours, ASCII, or behind a
+// pop-up) the cells hold brackets instead, "[Drafts 2]", so the width never changes.
+func (p Palette) SelChip(text string) string {
+	if NoColor() || p.Inherit || p.Ascii || p.Backdrop {
+		return p.SelText(!p.Backdrop).Underline(!p.Backdrop).Render("[" + text + "]")
+	}
+	return p.SelText(true).Render(" " + text + " ")
 }
 
 // paneRule colours a pane's rule or divider: the accent while the pane has focus, the
@@ -387,9 +428,26 @@ func (p Palette) Keys(pairs [][2]string) string {
 	return strings.Join(parts, p.Text(p.Faint).Render(" · "))
 }
 
+// KeyRow renders the footer's key line and the tab bar's keys: Keys with two spaces
+// between pairs and Enter capitalised, as a row of hints rather than a list.
+func (p Palette) KeyRow(pairs [][2]string) string {
+	parts := make([]string, len(pairs))
+	for i, kv := range pairs {
+		k := kv[0]
+		if k == "enter" {
+			k = "Enter"
+		}
+		parts[i] = p.Key().Render(k) + p.Text(p.Dim).Render(" "+kv[1])
+	}
+	return strings.Join(parts, "  ")
+}
+
 // panelFill paints s on the palette's pop-up fill, re-applying it after inner resets so
 // the fill survives styled text inside it.
 func (p Palette) PanelFill(s string) string {
+	if p.Inherit {
+		return s
+	}
 	panelSeq := bgSeq(p.Panel)
 	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+panelSeq)
 	s = strings.ReplaceAll(s, "\x1b[m", "\x1b[m"+panelSeq)
@@ -400,13 +458,22 @@ func (p Palette) PanelFill(s string) string {
 // cold-to-gold ramp; the closed ones are muted, never alarming.
 var statusGlyphs = map[string][2]string{
 	store.StatusLead:         {"◌", "o"},
-	store.StatusDraft:        {"◐", "="},
+	store.StatusDraft:        {"✎", "="},
 	store.StatusApplied:      {"●", "*"},
 	store.StatusInterviewing: {"◆", "@"},
 	store.StatusOffer:        {"★", "$"},
 	store.StatusRejected:     {"✕", "x"},
-	store.StatusWithdrawn:    {"↩", "<"},
-	store.StatusDismissed:    {"⊘", "-"},
+	store.StatusWithdrawn:    {"–", "-"},
+	store.StatusDismissed:    {"⊘", "/"},
+}
+
+// ClosedGroupGlyph is the glyph of the Closed group (Rejected, Withdrawn, Dismissed), or
+// its ASCII stand-in.
+func (p Palette) ClosedGroupGlyph() string {
+	if p.Ascii {
+		return "x"
+	}
+	return "✕"
 }
 
 // ClosedStatus reports a Status that ends an Application: drawn muted, not bold.

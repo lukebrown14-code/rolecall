@@ -1,22 +1,21 @@
- ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats  5 Profile  6 Settings                         10 live · 1 due
-
-   ◌ Leads 4    ⊘ [Dismissed 2]                                                                 t  [All]  SWE  Platform
+ ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   STATUS s Leads 4 [Dismissed 2] │ TRACK t [All 2] SWE 1  Platform 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
- ▌ ⊘ docs-dismissed                                              │ docs-dismissed                                       
- ▌   Fictional Labs · SWE · dismissed ~7d ago                    │ Fictional Labs · SWE                                 
-                                                                 │                                                      
-   ⊘ Engineer #1                                                 │ ⊘ Dismissed   fit not assessed                       
-     Example · Unknown · dismissed ~Jan 2026                     │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
-                                                                 │ ▱▱▱▱ 0 of 4 ready                                    
+   ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
+ ▌ ⊘ docs-dismissed                             Dism. ~7d     ·  │ Fictional Labs · SWE · dismissed ~7d ago             
+ ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
+   ⊘ Engineer #1                                ~Jan 2026  Good  │ ⊘ Dismissed                        fit not assessed  
+     Example · Unknown · dismissed ~Jan 2026                     │                                                      
+                                                                 │ DOCS    □□□□ 0/4                                     
+                                                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
                                                                  │ TIMELINE                                             
-                                                                 │ ⊘ Dismissed ~24 Sep                                  
+                                                                 │   ⊘ Dismissed                               ~24 Sep  
                                                                  │                                                      
-                                                                 │ FIT                                                  
-                                                                 │ No fit assessment yet                                
+                                                                 │ NOTES   none yet                              n add  
                                                                  │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
- enter open · e edit · m move · n notes · a add · / search                   ←→ view · 1-6 screen · : commands · ? help
+   Leads › Dismissed · All tracks · 1/2 · list
+ Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help

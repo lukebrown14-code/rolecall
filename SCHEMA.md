@@ -52,6 +52,7 @@ defined in `GLOSSARY.md`.
 | `notes.md` | — | TUI (`$EDITOR`), Owner | free-text notes |
 | `fit.md` | — | agent | the reasoning behind `fit` |
 | `gaps.md` | — | agent | gaps found while writing |
+| `follow-up.md` | — | agent | a drafted follow-up message for the Owner to send |
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
@@ -133,7 +134,7 @@ Each entry is a flow map on one line:
 | Writer | May write | Must not |
 |---|---|---|
 | **TUI** | creates folders. Writes any key through Add / Edit. Appends any Status | touch docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs and `fit.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
+| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 
 ### Format rules (both languages)
@@ -215,6 +216,19 @@ A missing `search_area` means no filter: the Sweep keeps every location and repo
 countries to their states and major cities, so `Australia` covers `Sydney, NSW`. A role is kept
 if it names a Place, dropped if it names only known places outside the Places, and kept if its
 location is empty or unknown. `--all-locations` bypasses the filter.
+
+## `config.toml` (machine settings, outside the Workspace)
+
+`~/.config/rolecall/config.toml` is per machine and never part of a Workspace. The Settings
+screen edits its keys in place and keeps comments. Two keys change how the TUI draws:
+
+- `ascii` (bool, default `false`): ASCII glyphs.
+- `inherit_terminal` (bool, default `false`): inherit the terminal's colours. Status and role
+  colours become ANSI-16 indices (muted is bright black), no background is painted anywhere,
+  and the selection is the gutter mark plus reverse video. A missing key means `false`,
+  so an existing file draws exactly as before. `NO_COLOR` wins over it; it combines with
+  `ascii` (glyph set) and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings
+  takes effect at once.
 
 ## `jobs/roles.json` (optional role catalogue)
 

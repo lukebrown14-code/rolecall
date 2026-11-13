@@ -3,8 +3,6 @@ package ui_test
 import (
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 // While a text filter is on, its chip shows on every screen, the detail view included,
@@ -14,13 +12,13 @@ func TestSearchChipShowsOnEveryScreen(t *testing.T) {
 		m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 		m = driveModel(t, m, "3", "/en", "enter")
 		m = driveModel(t, m, keys...)
-		if view := ansi.Strip(m.View().Content); !strings.Contains(view, "/en ×") {
+		if view := chipped(m.View().Content); !strings.Contains(view, "/en ×") {
 			t.Fatalf("%v: search chip missing:\n%s", keys, view)
 		}
 	}
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "/en", "enter", "4", "esc")
-	if view := ansi.Strip(m.View().Content); strings.Contains(view, "/en ×") {
+	if view := chipped(m.View().Content); strings.Contains(view, "/en ×") {
 		t.Fatalf("esc on Stats left the search on:\n%s", view)
 	}
 }
@@ -29,10 +27,10 @@ func TestSearchChipShowsOnEveryScreen(t *testing.T) {
 // broken meta.yml happened to yield.
 func TestSearchSkipsMalformedRowsThatDoNotMatch(t *testing.T) {
 	// The malformed fixture's company is Example, which contains "pl".
-	if view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "/pl", "enter")); strings.Contains(view, "Can't read") {
+	if view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "/pl", "enter")); strings.Contains(view, "Can't read") {
 		t.Fatalf("malformed row shown for a query it does not match:\n%s", view)
 	}
-	if view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "/malformed", "enter")); !strings.Contains(view, "Can't read SWE/malformed") {
+	if view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "/malformed", "enter")); !strings.Contains(view, "Can't read SWE/malformed") {
 		t.Fatalf("malformed row hidden from a search for its folder:\n%s", view)
 	}
 }

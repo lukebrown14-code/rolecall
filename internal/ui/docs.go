@@ -5,6 +5,8 @@ import (
 	"image/color"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -107,17 +109,57 @@ func (p pal) DocsLabel(a store.Application) (string, color.Color) {
 
 // meterGlyphs are the ready meter's filled and empty cells.
 const (
-	meterOn  = "▰"
-	meterOff = "▱"
+	meterOn  = "■"
+	meterOff = "□"
 )
 
-// docsMeter is "▰▰▱▱ 2 of 4 ready": the share of documents ready, green when all are.
+// meterCells is the meter's cells, one per needed document: ■■□□ for two ready of four.
+// st styles each run, so a selected row keeps its fill under the cells.
+func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style) string {
+	n, total := readyCount(a)
+	c := p.Dim
+	if n == total {
+		c = p.Ok
+	}
+	return st(c).Render(strings.Repeat(meterOn, n)) + st(p.Faint).Render(strings.Repeat(meterOff, total-n))
+}
+
+// DocsMeter is the detail's "■■■□ 3/4": the cells, then how many documents are ready.
 func (p pal) DocsMeter(a store.Application) string {
 	n, total := readyCount(a)
 	c := p.Dim
 	if n == total {
 		c = p.Ok
 	}
-	return p.Text(c).Render(strings.Repeat(meterOn, n)) + p.Text(p.Faint).Render(strings.Repeat(meterOff, total-n)) +
-		p.Text(c).Render(fmt.Sprintf(" %d of %d %s", n, total, docReady))
+	return p.meterCells(a, p.Text) + p.Text(c).Render(fmt.Sprintf(" %d/%d", n, total))
+}
+
+// readyTotals is the documents ready of the documents needed across the Workspace's
+// active Applications: those still live (not Dismissed, Rejected or Withdrawn, and
+// readable). It is the share the pipeline strip shows.
+func readyTotals(apps []store.Application) (ready, needed int) {
+	for _, a := range apps {
+		if !isActive(a) {
+			continue
+		}
+		n, total := readyCount(a)
+		ready += n
+		needed += total
+	}
+	return ready, needed
+}
+
+// readyPercent is readyTotals as a whole percent, 0 when nothing is needed.
+func readyPercent(apps []store.Application) int {
+	ready, needed := readyTotals(apps)
+	if needed == 0 {
+		return 0
+	}
+	return (ready*100 + needed/2) / needed
+}
+
+// isActive reports whether an Application is still live: it reads, and is not closed or dismissed.
+func isActive(a store.Application) bool {
+	t := tableOf(a)
+	return a.Malformed == nil && t != tableDismissed && t != tableClosed
 }

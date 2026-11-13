@@ -60,11 +60,10 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	if !m.hasTables() || m.detail != nil {
 		return m, nil, false
 	}
-	rule := ruleLine(view, m.glyph("─"))
-	if y == rule-1 {
-		if v, ok := labelAt(line, x, m.views()); ok {
-			m.table, m.cursor = v, 0
-			return m, nil, true
+	rule := ruleLine(view, m.glyph("─"), m.layout().headerLines())
+	if y == rule-tableContext {
+		if f, ok := m.filterAt(x); ok {
+			return m.pickFilter(f), nil, true
 		}
 		return m, nil, false
 	}
@@ -75,11 +74,12 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	return m, nil, false
 }
 
-// ruleLine is the index of the frame's top rule: the first line drawn with rule, the
-// horizontal character the renderer drew (─, or - in ASCII mode).
-func ruleLine(view []string, rule string) int {
+// ruleLine is the index of the frame's top rule: the first line at or after from (past
+// the header and the rule under the tab bar) drawn with rule, the horizontal character the
+// renderer drew (─, or - in ASCII mode).
+func ruleLine(view []string, rule string, from int) int {
 	for i, l := range view {
-		if strings.HasPrefix(l, rule) {
+		if i >= from && strings.HasPrefix(l, rule) {
 			return i
 		}
 	}
@@ -101,30 +101,6 @@ func (m model) tabAt(x int) (int, bool) {
 	return best, best >= 0
 }
 
-// labelAt is the index of the label holding column x on a line that lists them in order.
-func labelAt(line string, x int, labels []string) (int, bool) {
-	// Each label owns the columns from its bracket to the next label's.
-	from, hit := 0, -1
-	last := 0
-	for i, l := range labels {
-		col := columnOf(line[from:], l)
-		if col < 0 {
-			break
-		}
-		col += xansi.StringWidth(line[:from])
-		if x >= col-1 {
-			hit = i
-		}
-		last = col + xansi.StringWidth(l)
-		from = byteIndexOfColumn(line, last)
-	}
-	// The last label's count and bracket follow it; the scope line further right does not count.
-	if hit < 0 || (hit == len(labels)-1 && x > last+len(" 00/00]")) {
-		return 0, false
-	}
-	return hit, true
-}
-
 // chipCloseAt reports whether column x is the search chip's ×, the close character the
 // renderer drew (×, or x in ASCII mode).
 func chipCloseAt(line string, x int, close string) bool {
@@ -141,18 +117,6 @@ func columnOf(line, sub string) int {
 	return xansi.StringWidth(line[:i])
 }
 
-// byteIndexOfColumn is the byte offset in line of terminal column col.
-func byteIndexOfColumn(line string, col int) int {
-	w := 0
-	for i, r := range line {
-		if w >= col {
-			return i
-		}
-		w += xansi.StringWidth(string(r))
-	}
-	return len(line)
-}
-
 // rowAt is the row drawn at column x and body line y of the list, if any.
 func (m model) rowAt(x, y int) (int, bool) {
 	rows := m.rows()
@@ -160,8 +124,8 @@ func (m model) rowAt(x, y int) (int, bool) {
 	if len(rows) == 0 || x >= listW || y < 0 {
 		return 0, false
 	}
-	h := m.layout().bodyHeight(1)
-	blocks, cur := m.listBlocks(rows, h)
+	h := m.listHeight()
+	blocks, cur := m.listBlocks(rows)
 	start, end := scrollWindow(blocks, cur, h)
 	line := 0
 	if start > 0 {

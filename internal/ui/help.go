@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -14,6 +15,10 @@ import (
 // helpKeys, each with a group (where it sits) and a priority (how long it survives on a
 // narrow key line). The key line, the `?` pop-up and the `:` command palette all read
 // the same list from helpKeys, so a key is declared once and shows up everywhere.
+//
+// Keys held back for features still to come, so no one else takes them: space opens the
+// Workspace menu (#174) and r drafts a Follow-up nudge (#179). g and G are go-to-top and
+// bottom; M is not bound. The Leads sort is o and the status filter is s.
 //
 // To add an action: append help(group, key, description) to the list for its context —
 // the list view below, a screen's help func in screenDefs, or a mode's Keys — and raise
@@ -34,6 +39,10 @@ const (
 	// groupGlobal works on every screen: the pop-up's Everywhere column. Only `?` and the
 	// screen digits reach the key line.
 	groupGlobal
+	// groupFilter narrows or orders what is listed (search, status filter, Track filter,
+	// sort, the command palette): the key line's left after the actions, and the `?`
+	// pop-up's Filter & find section.
+	groupFilter
 )
 
 // Key-line priorities: when the line is too narrow the lowest goes first, and among
@@ -52,8 +61,7 @@ const (
 const (
 	helpKeyWidth = 9
 	helpColumn   = 23 // three fit side by side from 80 columns
-	helpColumns  = 3
-	keyLineGap   = 4 // the key line's indent plus the space kept between its halves
+	keyLineGap   = 4  // the key line's indent plus the space kept between its halves
 )
 
 type helpKey struct {
@@ -162,7 +170,7 @@ func (m model) contextKeys() []helpKey {
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
 	}
 	if len(m.views()) > 1 {
-		keys = append(keys, help(groupNav, "←→", "view"))
+		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
 	}
 	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"))
 }
@@ -176,18 +184,30 @@ func (m model) trackFilterApplies() bool {
 // globalKeys is the keys that work on every screen. A context key with the same key
 // wins (Settings' r renames a Track), so a key is never listed twice.
 func (m model) globalKeys(ctx []helpKey) []helpKey {
+	if m.fieldOpen() {
+		// An open field takes every printable key as text: 1-6, : and ? type into it, so
+		// the key line offers only the field's own keys.
+		return nil
+	}
 	keys := []helpKey{help(groupGlobal, "1-6", "screen").at(prioScreen)}
 	if m.trackFilterApplies() {
-		keys = append(keys, help(groupGlobal, "t", "next track"), help(groupGlobal, "T", "previous track"))
+		keys = append(keys, help(groupFilter, "t", "track").at(prioMinor), help(groupFilter, "T", "previous track"))
 	}
 	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
-		keys = append(keys, help(groupGlobal, "esc", "clear search"))
+		keys = append(keys, help(groupFilter, "esc", "clear search"))
 	}
 	if m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, ",", "settings"))
 	}
-	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, ":", "commands").at(prioScreen), help(groupGlobal, "ctrl+k", "commands"),
-		help(groupGlobal, "?", "help").at(prioPinned), help(groupGlobal, "q", "quit"))
+	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioMinor), help(groupFilter, "ctrl+k", "commands"),
+		help(groupGlobal, "?", "help").at(prioPinned))
+	// The tab bar shows the menu key where it has room, so the key line leaves it to the help.
+	menu := help(groupGlobal, "space", "menu").at(prioPinned)
+	if m.barKeys(m.pal()) != "" {
+		menu = menu.at(prioHelpOnly)
+	}
+	keys = append(keys, menu)
+	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {
 		taken[k.Help().Key] = true
@@ -199,6 +219,11 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		}
 	}
 	return out
+}
+
+// fieldOpen reports whether a Settings field is being edited, so it owns the keyboard.
+func (m model) fieldOpen() bool {
+	return m.screen == settingsScreen && m.settings != nil && m.settings.Edit != nil
 }
 
 // screenIndex is a screen's position in screenDefs.
@@ -230,12 +255,17 @@ func fitKeys(p pal, keys []helpKey, w int) (left, right string) {
 	var shown []helpKey
 	for _, k := range keys {
 		if k.prio > prioHelpOnly {
+			// The palette key sits with the footer's global keys, beside help, rather than
+			// among the filters.
+			if k.group == groupFilter && k.Help().Key == ":" {
+				k.group = groupGlobal
+			}
 			shown = append(shown, k)
 		}
 	}
 	// Left and right in display order: actions, then navigation, then globals.
 	ordered := make([]helpKey, 0, len(shown))
-	for _, g := range []helpGroup{groupAction, groupNav, groupGlobal} {
+	for _, g := range []helpGroup{groupAction, groupFilter, groupNav, groupGlobal} {
 		for _, k := range shown {
 			if k.group == g {
 				ordered = append(ordered, k)
@@ -243,7 +273,7 @@ func fitKeys(p pal, keys []helpKey, w int) (left, right string) {
 		}
 	}
 	render := func() (string, string) {
-		return p.Keys(pairs(ordered, groupAction)), p.Keys(pairs(ordered, groupNav, groupGlobal))
+		return p.KeyRow(pairs(ordered, groupAction, groupFilter)), p.KeyRow(pairs(ordered, groupNav, groupGlobal))
 	}
 	for {
 		left, right = render()
@@ -311,10 +341,10 @@ func glyphLegend(p pal, followUpDays int) string {
 		row("Statuses", line(open)) + "\n" +
 		row("", line(closed)) + "\n" +
 		row("Timeline", current, earlier, dim("~ approximate date")) + "\n" +
-		row("Docs", dim("✓ ready"), dim("○ missing"), dim(meterOn+meterOff+" N of M ready")) + "\n" +
+		row("Docs", dim("● ready"), dim("○ missing"), dim(meterOn+meterOff+" N/M ready")) + "\n" +
 		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
-		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("⚑ quiet %d+ days", followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
-		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor+" · — not assessed"))
+		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("%s %s %s due %d+ days", heatLow, heatMid, heatHigh, followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
+		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor), dim(fitDot+" not assessed"))
 }
 
 // helpBox is the `?` pop-up: the keys of the context it was opened from, then the
@@ -322,18 +352,23 @@ func glyphLegend(p pal, followUpDays int) string {
 func (m model) helpBox(p pal) string {
 	under := m
 	under.overlay = nil
-	keys := under.screenKeys()
-	col := func(title string, list [][2]string) string {
+	keys := append(under.screenKeys(), under.dormantKeys()...)
+	col := func(title string, list []helpKey) string {
 		var b strings.Builder
 		b.WriteString(p.Heading(title) + "\n")
-		for _, kv := range list {
-			b.WriteString(p.Key().Render(padRight(kv[0], helpKeyWidth)) + p.Text(p.Fg).Render(kv[1]) + "\n")
+		rows := mergeAliases(list)
+		keyW := helpKeyWidth // widened for a merged row, "[: ctrl+k]", so the column's words line up
+		for _, k := range rows {
+			keyW = max(keyW, xansi.StringWidth("["+k[0]+"]")+1)
+		}
+		for _, k := range rows {
+			b.WriteString(p.Key().Render(padRight("["+k[0]+"]", keyW)) + p.Text(p.Fg).Render(k[1]) + "\n")
 		}
 		return strings.TrimSuffix(b.String(), "\n")
 	}
-	cols := []string{col(m.contextName(), pairs(keys, groupAction)), col("Move around", pairs(keys, groupNav, groupCursor)),
-		col("Everywhere", pairs(keys, groupGlobal))}
-	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset >= helpColumns*helpColumn)
+	cols := []string{col("Navigate", section(keys, groupNav, groupCursor, groupGlobal)), col("Act", section(keys, groupAction)),
+		col("Filter & find", section(keys, groupFilter))}
+	body := joinColumns(cols, helpColumn, popWidth(popLarge, m.viewWidth())-popInset)
 	if c := conventions(keys); c != "" {
 		body += "\n\n" + p.Text(p.Dim).Render(c)
 	}
@@ -362,6 +397,48 @@ func (m model) helpBox(p pal) string {
 		title += fmt.Sprintf(" · %d/%d", page+1, pages)
 	}
 	return popup(p, title, false, popLarge, m.viewWidth(), body, p.Keys(helpModeKeys(pages)))
+}
+
+// section is the keys of the given groups, highest priority first and registry order among
+// equals.
+func section(keys []helpKey, groups ...helpGroup) []helpKey {
+	var out []helpKey
+	for _, k := range keys {
+		if slices.Contains(groups, k.group) {
+			out = append(out, k)
+		}
+	}
+	// Pinned keys (? help, esc back) close the list rather than lead it.
+	rank := func(k helpKey) int {
+		if k.prio == prioPinned {
+			return -1
+		}
+		return k.prio
+	}
+	slices.SortStableFunc(out, func(a, b helpKey) int { return rank(b) - rank(a) })
+	return out
+}
+
+// mergeAliases is the pop-up's rows: keys that do the same thing (: and ctrl+k open the
+// command palette) share one row, "[: ctrl+k] commands", at the first one's place.
+func mergeAliases(keys []helpKey) [][2]string {
+	var rows [][2]string
+	at := map[string]int{}
+	for _, k := range keys {
+		h := k.Help()
+		if i, ok := at[h.Desc]; ok {
+			// The shorter key leads, "[: ctrl+k]", whichever the section ranked first.
+			if len(h.Key) < len(rows[i][0]) {
+				rows[i][0] = h.Key + " " + rows[i][0]
+			} else {
+				rows[i][0] += " " + h.Key
+			}
+			continue
+		}
+		at[h.Desc] = len(rows)
+		rows = append(rows, [2]string{h.Key, h.Desc})
+	}
+	return rows
 }
 
 // conventions is the one line that says how the navigation keys divide the work, for the

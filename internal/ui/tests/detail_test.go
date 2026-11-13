@@ -174,7 +174,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
-		{"fit", 1, []string{"Fit: not assessed", "No fit assessment yet"}},
+		{"fit", 1, []string{"Fit: not assessed", "No reasoning saved"}},
 		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -303,7 +303,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes —", "Moved to Draft")
+	h.show("Draft · Platform · closes —", "→ Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -401,7 +401,7 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "Moved to Applied")
+	yes.show("Applied · ", "→ Applied")
 }
 
 func TestResumeReader(t *testing.T) {

@@ -27,6 +27,7 @@ func themeFor(dark bool) theme    { return theme(appearance.ForBackground(dark))
 var isDark = appearance.IsDark
 var noColor = appearance.NoColor
 var asciiMode = appearance.ASCIIMode
+var inheritANSI = appearance.InheritANSI
 var stripColor = appearance.StripColor
 var asciiFold = appearance.ASCIIFold
 
@@ -52,6 +53,9 @@ var basePal = themeDark.Base()
 // pal is the palette for the model's theme and glyph setting.
 func (m model) pal() pal {
 	p := m.theme.Base()
+	if m.inherit {
+		p = pal{appearance.InheritBase()}
+	}
 	p.Ascii = m.ascii || asciiMode()
 	return p
 }
@@ -59,6 +63,9 @@ func (m model) pal() pal {
 // dimmedPal is the palette for the frame behind a pop-up.
 func (m model) dimmedPal() pal {
 	p := m.theme.Dimmed()
+	if m.inherit {
+		p = pal{appearance.InheritDimmed()}
+	}
 	p.Ascii = m.ascii || asciiMode()
 	return p
 }
@@ -90,28 +97,31 @@ func tableStatus(table string) string {
 }
 
 // groupHeader is a list section divider, "● Applied · 2 ────", label and rule in the
-// Status's colour. A section of several Statuses (Closed, Expired) is muted and keeps the
+// Status's colour, then its rollups when non-zero ("· 1 follow-up due"). A section of several Statuses (Closed, Expired) is muted and keeps the
 // glyph's column blank so the labels line up.
-func (p pal) GroupHeader(label, status string, n, w int) string {
+func (p pal) GroupHeader(label, status string, n int, rollup string, w int) string {
 	c, glyph := p.Dim, " "
-	if status != "" {
+	switch {
+	case status != "":
 		c, glyph = p.StatusColor(status), p.StatusGlyph(status)
+	case label == tableClosed:
+		glyph = p.ClosedGroupGlyph()
 	}
 	s := p.Text(c)
-	head := "  " + glyph + " " + label + " · " + fmt.Sprint(n) + " "
+	head := xansi.Truncate("  "+glyph+" "+label+" · "+fmt.Sprint(n)+rollup, max(0, w-1), "…") + " "
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 
-// fitNone is how a missing Fit reads in prose; list columns show "—".
+// fitNone is how a missing Fit reads in prose; list columns show "·".
 const fitNone = "not assessed"
 
-// fitText is "   fit Strong", the Fit beside a status chip.
+// FitText is "   Fit: Strong", the Fit beside a status chip.
 func (p pal) FitText(a store.Application) string {
 	fit := a.Fit
 	if fit == "" {
 		fit = fitNone
 	}
-	return p.Text(p.Dim).Render("   fit ") + p.Text(p.FitColor(a.Fit)).Render(fit)
+	return p.Text(p.Dim).Render("   Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)
 }
 
 // spread places left and right on one line of width w.
@@ -154,7 +164,7 @@ func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hin
 	if termWidth > 0 {
 		w = min(w, popWidth(w, termWidth))
 	}
-	border := p.Accent
+	border := p.Sub
 	if warn {
 		border, title = p.Warn, "⚠ "+title
 	}

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 )
 
@@ -50,7 +49,7 @@ func profileFiles(t *testing.T, root string) map[string]string {
 
 func TestProfileOpensOnFiveFromAnyScreen(t *testing.T) {
 	for _, from := range []string{"1", "2", "3", "4", "5"} {
-		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, from, "5"))
+		view := chipped(runKeys(t, fixtureCopy(t, nil), 120, from, "5"))
 		if !strings.Contains(view, "5 Profile") {
 			t.Fatalf("5 from screen %s did not open Profile:\n%s", from, view)
 		}
@@ -60,7 +59,7 @@ func TestProfileOpensOnFiveFromAnyScreen(t *testing.T) {
 // Switching screens closes an open detail view, so 5 from a detail leaves it behind
 // rather than keeping its keys and its frame.
 func TestProfileScreenKeyClosesAnOpenDetail(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "5"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "5"))
 	for _, want := range []string{"5 Profile", "alex.quinn@example.test"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("5 from an open detail lacks %q:\n%s", want, view)
@@ -82,7 +81,7 @@ func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
 		}
 		writeMasterProfile(t, root, string(b)+"\n## Volunteer\n\nCommunity mentoring.\n")
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	view := chipped(runKeys(t, root, 120, "5"))
 	// The list shows short names (no "(…)" aside, the template's long headings shortened).
 	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts NOT available", "Volunteer"}
 	last := -1
@@ -102,15 +101,15 @@ func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
 }
 
 func TestProfileJKMoveSectionAndContentFollows(t *testing.T) {
-	contact := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	contact := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5"))
 	if !strings.Contains(contact, "alex.quinn@example.test") {
 		t.Fatalf("Profile did not open on Contact:\n%s", contact)
 	}
-	headlines := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "j"))
+	headlines := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5", "j"))
 	if strings.Contains(headlines, "alex.quinn@example.test") || !strings.Contains(headlines, "Full Stack Software Engineer") {
 		t.Fatalf("j did not move to Headlines:\n%s", headlines)
 	}
-	back := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "j", "k"))
+	back := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5", "j", "k"))
 	if !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
 	}
@@ -119,12 +118,12 @@ func TestProfileJKMoveSectionAndContentFollows(t *testing.T) {
 // Glamour moves a table's links to a footnote unless told to keep them inline, which
 // left the Contact table's Email cell empty and the address below the table.
 func TestProfileContactEmailRendersInlineInTheTable(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5"))
 	email := "alex.quinn@example.test"
 	cell := ""
 	for _, line := range strings.Split(view, "\n") {
 		_, right, ok := strings.Cut(line, "│")
-		if ok && strings.Contains(right, "Email") {
+		if ok && strings.Contains(right, "EMAIL") {
 			cell = right
 			break
 		}
@@ -189,7 +188,7 @@ func removeProfileLines(t *testing.T, root string, drop ...string) {
 // Every section row carries its count right-aligned; prose shows none, and Contact
 // shows ✓ from the store's Contact reader rather than a count.
 func TestProfileSectionRowsShowCounts(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5"))
 	for _, tc := range []struct{ section, count string }{
 		{"Contact", "✓"},
 		{"Headlines", "2"},
@@ -234,7 +233,7 @@ func TestProfileContactMarkAndWarningFollowMissingFields(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			root := fixtureCopy(t, func(root string) { removeProfileLines(t, root, tc.drop...) })
-			view := ansi.Strip(runKeys(t, root, 120, "5"))
+			view := chipped(runKeys(t, root, 120, "5"))
 			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "✗") {
 				t.Fatalf("Contact row = %q, want ✗:\n%s", row, view)
 			}
@@ -268,7 +267,7 @@ func TestProfileWithoutContactSectionStillWarns(t *testing.T) {
 		}
 		writeMasterProfile(t, root, text[:start]+text[end:])
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5", "j"))
+	view := chipped(runKeys(t, root, 120, "5", "j"))
 	warning := "⚠ Contact is missing Name and Email. Builds will fail until they are added."
 	if !strings.Contains(view, warning) {
 		t.Fatalf("warning %q absent:\n%s", warning, view)
@@ -291,7 +290,7 @@ func TestProfileTabFocusScrollsALongSection(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
 		writeMasterProfile(t, root, "# Title\n\n## Long\n\n"+strings.Join(lines, "\n")+"\n")
 	})
-	top := ansi.Strip(runKeys(t, root, 120, "5"))
+	top := chipped(runKeys(t, root, 120, "5"))
 	if !strings.Contains(top, "line 01") || strings.Contains(top, "line 40") {
 		t.Fatalf("long section did not start at the top:\n%s", top)
 	}
@@ -299,7 +298,7 @@ func TestProfileTabFocusScrollsALongSection(t *testing.T) {
 	for range 20 {
 		keys = append(keys, "j")
 	}
-	scrolled := ansi.Strip(runKeys(t, root, 120, keys...))
+	scrolled := chipped(runKeys(t, root, 120, keys...))
 	if !strings.Contains(scrolled, "CONTENT") {
 		t.Fatalf("tab did not focus the content:\n%s", scrolled)
 	}
@@ -314,7 +313,7 @@ func TestProfileMissingShowsTheMessageAndNoList(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	view := chipped(runKeys(t, root, 120, "5"))
 	if !strings.Contains(view, noProfile) {
 		t.Fatalf("missing Profile message absent:\n%s", view)
 	}
@@ -348,7 +347,7 @@ var profileKeysToFile = []string{"5", "j", "j", "j", "j", "j", "j"}
 
 // The other Profile files that exist sit below a divider, after the sections.
 func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5"))
 	if !hasProfileDivider(view) {
 		t.Fatalf("no divider above the other Profile files:\n%s", view)
 	}
@@ -370,12 +369,12 @@ func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
 // j crosses from the last section to the first file and k crosses straight back.
 func TestProfileJKCrossesTheDivider(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	file := ansi.Strip(runKeys(t, root, 120, profileKeysToFile...))
-	if !strings.Contains(file, "▸ projects.md") || !strings.Contains(file, "prints local tide times") {
+	file := chipped(runKeys(t, root, 120, profileKeysToFile...))
+	if !strings.Contains(file, "▌ projects.md") || !strings.Contains(file, "prints local tide times") {
 		t.Fatalf("j did not reach projects.md:\n%s", file)
 	}
 	keys := append(append([]string{}, profileKeysToFile...), "k")
-	back := ansi.Strip(runKeys(t, root, 120, keys...))
+	back := chipped(runKeys(t, root, 120, keys...))
 	if !strings.Contains(back, "No Kubernetes production experience") || strings.Contains(back, "prints local tide times") {
 		t.Fatalf("k did not cross back to the last section:\n%s", back)
 	}
@@ -383,8 +382,8 @@ func TestProfileJKCrossesTheDivider(t *testing.T) {
 
 // A selected file renders whole, and the context row names it rather than the Profile.
 func TestProfileSelectingAFileRendersItAndShowsItsPath(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, profileKeysToFile...))
-	for _, want := range []string{"▸ projects.md", "Tide Tables", "A command-line tool that prints local tide times. Go, open source.", "profile/projects.md"} {
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, profileKeysToFile...))
+	for _, want := range []string{"▌ projects.md", "Tide Tables", "A command-line tool that prints local tide times. Go, open source.", "profile/projects.md"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("selected projects.md lacks %q:\n%s", want, view)
 		}
@@ -398,7 +397,7 @@ func TestProfileWithoutOtherFilesHasNoDivider(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	view := chipped(runKeys(t, root, 120, "5"))
 	if hasProfileDivider(view) {
 		t.Fatalf("divider shown with no other Profile files:\n%s", view)
 	}
@@ -411,7 +410,7 @@ func TestProfileMissingMasterProfileKeepsTheMessage(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5"))
+	view := chipped(runKeys(t, root, 120, "5"))
 	if !strings.Contains(view, noProfile) {
 		t.Fatalf("missing Profile message absent:\n%s", view)
 	}
@@ -426,8 +425,8 @@ func TestProfileWithoutHeadingsShowsOneSection(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
 		writeMasterProfile(t, root, "Just prose.\n\nMore prose.\n")
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5"))
-	for _, want := range []string{"▸ Profile", "Just prose.", "More prose."} {
+	view := chipped(runKeys(t, root, 120, "5"))
+	for _, want := range []string{"▌ Profile", "Just prose.", "More prose."} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("one-section fallback lacks %q:\n%s", want, view)
 		}
@@ -438,8 +437,8 @@ func TestProfileWithoutHeadingsShowsOneSection(t *testing.T) {
 func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	before := profileFiles(t, root)
-	plain := ansi.Strip(runKeys(t, root, 120, "5"))
-	withKeys := ansi.Strip(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
+	plain := chipped(runKeys(t, root, 120, "5"))
+	withKeys := chipped(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
 	if plain != withKeys {
 		t.Fatalf("an Application key or t changed Profile:\n--- plain ---\n%s\n--- with keys ---\n%s", plain, withKeys)
 	}
@@ -449,7 +448,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 }
 
 func TestProfileHelpListsOnlyValidKeys(t *testing.T) {
-	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5", "?"))
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "5", "?"))
 	for _, want := range []string{"j k", "section", "e", "edit file", "tab", "focus", "1-6", "screen", "rescan", "help", "quit"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help lacks %q:\n%s", want, view)
@@ -469,7 +468,7 @@ func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	view := ansi.Strip(runKeys(t, root, 120, "5", "?"))
+	view := chipped(runKeys(t, root, 120, "5", "?"))
 	for _, wanted := range []string{"1-6", "screen", "rescan", "help", "quit"} {
 		if !strings.Contains(view, wanted) {
 			t.Fatalf("help lacks %q with no Profile:\n%s", wanted, view)
@@ -482,10 +481,10 @@ func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 	}
 }
 
-// Below 80 columns the section list has no room: it is hidden and the context row names
-// the selected entry and its 1-based position instead. At 80 columns the list is back.
+// Below 72 columns the section list has no room: it is hidden and the context row names
+// the selected entry and its 1-based position instead. At 72 columns the list is back.
 func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
-	narrow := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))
+	narrow := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "j", "j"))
 	if !strings.Contains(narrow, "Experience 3/6") {
 		t.Fatalf("narrow context row lacks the selection and position:\n%s", narrow)
 	}
@@ -494,20 +493,20 @@ func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
 			t.Fatalf("narrow layout still shows %q:\n%s", hidden, narrow)
 		}
 	}
-	wide := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "5"))
+	wide := chipped(runKeysSized(t, fixtureCopy(t, nil), 72, 24, "5"))
 	if !strings.Contains(wide, "SECTIONS") || !strings.Contains(wide, "Key Skills") {
-		t.Fatalf("80 columns still hides the section list:\n%s", wide)
+		t.Fatalf("72 columns still hides the section list:\n%s", wide)
 	}
 }
 
 // j and k still move the selection when the list is hidden, and the content follows.
 func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	headlines := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j"))
+	headlines := chipped(runKeysSized(t, root, 71, 24, "5", "j"))
 	if !strings.Contains(headlines, " 2/6") || !strings.Contains(headlines, "Full Stack Software Engineer") {
 		t.Fatalf("j did not move to Headlines:\n%s", headlines)
 	}
-	back := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j", "k"))
+	back := chipped(runKeysSized(t, root, 71, 24, "5", "j", "k"))
 	if !strings.Contains(back, " 1/6") || !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
 	}
@@ -516,7 +515,7 @@ func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 // With the list hidden there is no second pane to focus, so tab stays on the list and j
 // still changes the section instead of scrolling the content.
 func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "tab", "j"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "tab", "j"))
 	for _, want := range []string{"2/6", "Full Stack Software Engineer"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tab then j did not move to Headlines (%q):\n%s", want, view)
@@ -529,7 +528,7 @@ func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
 
 // The narrow position continues from the sections into the other files under the divider.
 func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, profileKeysToFile...))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, profileKeysToFile...))
 	if !strings.Contains(view, "projects.md 7/7") {
 		t.Fatalf("narrow context row lacks projects.md 7/7:\n%s", view)
 	}
@@ -540,7 +539,7 @@ func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
 
 // Below the minimum size the too-small notice replaces Profile, as on every screen.
 func TestProfileTooSmallShowsTheNotice(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 49, 11, "5"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 49, 11, "5"))
 	if !strings.Contains(view, "rolecall needs") || !strings.Contains(view, "now 49×11 · resize to continue") {
 		t.Fatalf("no too-small notice:\n%s", view)
 	}
@@ -549,11 +548,11 @@ func TestProfileTooSmallShowsTheNotice(t *testing.T) {
 // The wide layouts keep their goldens; the narrow, missing, warning and ASCII states get
 // one each.
 func TestProfileGolden(t *testing.T) {
-	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))))
+	teatest.RequireEqualOutput(t, []byte(chipped(runKeys(t, fixtureCopy(t, nil), 120, "5"))))
 }
 
 func TestProfileNarrowGolden(t *testing.T) {
-	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))))
+	teatest.RequireEqualOutput(t, []byte(chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "j", "j"))))
 }
 
 func TestProfileMissingGolden(t *testing.T) {
@@ -562,19 +561,19 @@ func TestProfileMissingGolden(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, root, 120, "5"))))
+	teatest.RequireEqualOutput(t, []byte(chipped(runKeys(t, root, 120, "5"))))
 }
 
 func TestProfileWarningGolden(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
 		removeProfileLines(t, root, "| Email | alex.quinn@example.test |")
 	})
-	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, root, 120, "5"))))
+	teatest.RequireEqualOutput(t, []byte(chipped(runKeys(t, root, 120, "5"))))
 }
 
 func TestProfileAsciiGolden(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "5"))
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "5"))
 	for _, r := range view {
 		if r > 127 {
 			t.Fatalf("non-ASCII glyph %q survived ROLECALL_ASCII:\n%s", r, view)

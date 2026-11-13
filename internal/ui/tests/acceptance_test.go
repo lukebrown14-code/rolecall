@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
@@ -25,7 +24,7 @@ func TestFixtureTables(t *testing.T) {
 				keys = append(keys, "tab")
 			}
 			// Colour-free goldens: a palette tweak only rewrites the one "palette" golden.
-			teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, keys...))))
+			teatest.RequireEqualOutput(t, []byte(chipped(runKeys(t, fixtureCopy(t, nil), 120, keys...))))
 		})
 	}
 	t.Run("palette", func(t *testing.T) {

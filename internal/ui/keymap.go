@@ -30,7 +30,10 @@ type listAction struct {
 	// early is true when the dispatcher returns at once instead of falling through to the
 	// end-of-update sync: the actions that open a pop-up or start a run.
 	early bool
-	run   func(m *model, key string) tea.Cmd
+	// alwaysInHelp keeps the key in the `?` pop-up while listed is false, so Help names it
+	// before it first does something (u undo, before any move).
+	alwaysInHelp bool
+	run          func(m *model, key string) tea.Cmd
 }
 
 // text is a fixed help description.
@@ -57,14 +60,23 @@ func usable(m model) bool {
 // leadOrDraft reports whether the current row is still the Owner's to send.
 func leadOrDraft(m model) bool {
 	a, ok := m.current()
-	return ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft)
+	return ok && a.Unsent()
+}
+
+// followUpRow reports whether the current row is Follow-up due.
+func followUpRow(m model) bool {
+	a, ok := m.current()
+	return ok && followUpDue(a, m.now(), m.followUpDays)
 }
 
 // listActions is every row action the list and detail views accept, in the order the help
 // lists them. The dispatcher and the help both read it.
 var listActions = []listAction{
 	{
-		keys: []string{"enter", "v"}, keyLabel: "enter", desc: text("open"),
+		keys: []string{"enter", "v"}, keyLabel: "enter",
+		// One label at every width: "open" opens the detail, or the Document under the
+		// cursor on the Docs tab.
+		desc:  func(model) string { return descOpen },
 		group: groupAction, prio: fixed(prioCore),
 		listed: func(m model) bool {
 			a, ok := m.current()
@@ -119,7 +131,7 @@ var listActions = []listAction{
 	},
 	{
 		keys: []string{"u"}, keyLabel: "u", desc: text("undo"),
-		group: groupAction, prio: fixed(prioMinor),
+		group: groupAction, prio: fixed(prioMinor), alwaysInHelp: true,
 		listed:  func(m model) bool { return usable(m) && len(m.undo) > 0 },
 		enabled: func(m model) bool { return len(m.undo) > 0 },
 		run: func(m *model, _ string) tea.Cmd {
@@ -145,7 +157,7 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
 		enabled: leadOrDraft,
 		run: func(m *model, _ string) tea.Cmd {
-			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+			if a, ok := m.current(); ok && a.Unsent() {
 				return m.move(a, store.StatusDismissed, false)
 			}
 			return nil
@@ -205,6 +217,14 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillAssessFit) },
 	},
 	{
+		// Only on a Follow-up due Application; elsewhere r is the global rescan.
+		keys: []string{"r"}, keyLabel: "r", desc: text(descNudge),
+		group: groupAction, prio: fixed(prioNav),
+		listed:  func(m model) bool { return followUpRow(m) && usable(m) && m.harness != "" },
+		enabled: followUpRow,
+		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillDraftFollowUp) },
+	},
+	{
 		keys: []string{"p"}, keyLabel: "p", desc: text("prepare docs"),
 		group: groupAction, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return usable(m) && leadOrDraft(m) && m.harness != "" },
@@ -212,14 +232,26 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
-		keys: []string{"s"}, keyLabel: "s",
+		keys: []string{"s"}, keyLabel: "s", desc: text("status"),
+		group: groupFilter, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
+		enabled: func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
+		run: func(m *model, _ string) tea.Cmd {
+			// The same cycle as ←→ and as t on the Track filter: All, each Status, Closed, All.
+			m.table = (m.table + 1) % len(m.views())
+			m.cursor = 0
+			return nil
+		},
+	},
+	{
+		keys: []string{"o"}, keyLabel: "o",
 		desc: func(m model) string {
 			if m.leadsNewest {
 				return "sort by close date"
 			}
 			return "sort newest"
 		},
-		group: groupAction, prio: fixed(prioMinor),
+		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		enabled: func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		run: func(m *model, _ string) tea.Cmd {
@@ -242,7 +274,7 @@ var listActions = []listAction{
 	},
 	{
 		keys: []string{"/"}, keyLabel: "/", desc: text("search"),
-		group: groupAction, prio: fixed(prioCore),
+		group: groupFilter, prio: fixed(prioCore),
 		listed:  func(m model) bool { return m.detail == nil },
 		enabled: always,
 		run: func(m *model, _ string) tea.Cmd {
@@ -258,6 +290,21 @@ func (m model) actionKeys() []helpKey {
 	for _, a := range listActions {
 		if a.listed(m) {
 			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(a.prio(m)))
+		}
+	}
+	return keys
+}
+
+// dormantKeys is the row actions the `?` pop-up names although they do nothing yet here,
+// help-only so they never reach the key line.
+func (m model) dormantKeys() []helpKey {
+	if !m.hasTables() {
+		return nil
+	}
+	var keys []helpKey
+	for _, a := range listActions {
+		if a.alwaysInHelp && !a.listed(m) && usable(m) {
+			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(prioHelpOnly))
 		}
 	}
 	return keys
