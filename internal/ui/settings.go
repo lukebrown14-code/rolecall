@@ -349,10 +349,9 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		}
 		pad := strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label)))
 		var value string
-		switch {
-		case r.Value == "":
+		if r.Value == "" {
 			value = p.Text(p.Dim).Italic(true).Render("not set")
-		default:
+		} else {
 			value = p.Text(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
 		value += strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value)))
@@ -399,12 +398,6 @@ func fitValue(label, value string, room int) string {
 	return xansi.Truncate(value, room, "…")
 }
 
-var sourceText = settings.SourceText
-
-var fileSource = settings.FileSource
-
-var remoteLabel = settings.RemoteLabel
-
 type settingRow = settings.Row
 type settingsState = settings.State[settingsUndo]
 
@@ -421,7 +414,6 @@ const (
 	labelDownloads   = settings.LabelDownloads
 	labelPlugin      = settings.LabelPlugin
 	labelASCII       = settings.LabelASCII
-	labelAddTrack    = settings.LabelAddTrack
 )
 
 func (m model) settingsMachine() settings.Machine {

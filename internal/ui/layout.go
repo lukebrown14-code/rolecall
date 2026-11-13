@@ -17,16 +17,14 @@ import (
 // context lines, a rule, the body, a rule and the status row. Width falls into one of
 // three size classes; height is short or not.
 
-// sizeClass names a width budget.
+// sizeClass names a width budget. The zero value is the narrow class: below mediumWidth
+// there is one pane everywhere and the tab bar shows only the active screen's name.
 type sizeClass int
 
 const (
-	// classNarrow is below mediumWidth: one pane everywhere; the tab bar shows only the
-	// active screen's name.
-	classNarrow sizeClass = iota
 	// classMedium is mediumWidth up to wideWidth: Profile and Settings keep their side
 	// lists; the list has no preview and the detail view's card folds into a strip.
-	classMedium
+	classMedium sizeClass = iota + 1
 	// classWide is wideWidth and up: the preview beside the list, the card beside the
 	// detail view and the pipeline summary in the tab bar.
 	classWide
@@ -72,8 +70,7 @@ func sizeLayout(w, h int) layout {
 	return l
 }
 
-func (l layout) wide() bool   { return l.class == classWide }
-func (l layout) narrow() bool { return l.class == classNarrow }
+func (l layout) wide() bool { return l.class == classWide }
 
 // headerLines is the tab bar and, unless short, the blank line under it.
 func (l layout) headerLines() int {

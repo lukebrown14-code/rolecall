@@ -167,7 +167,7 @@ func TestHandoffPrepareDocumentGateDoesNotRun(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	f := &fakeHarness{}
 	m := driveStart(t, root, fixtureClock, 120, 40, ui.WithExternalRunner(f.runner), ui.WithHarness("x {skill} {dir}"))
-	m = driveModel(t, m, "/Engineer #1", "enter", "3", "p")
+	driveModel(t, m, "/Engineer #1", "enter", "3", "p")
 	if len(f.calls) != 0 {
 		t.Fatalf("p ran on an Interviewing Application: %v", f.calls)
 	}

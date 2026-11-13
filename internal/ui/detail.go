@@ -60,7 +60,6 @@ type detailState struct {
 // docEntry is one line of the Docs tab.
 type docEntry struct {
 	name    string // path relative to the Application folder
-	present bool
 	hasText bool
 }
 
@@ -108,12 +107,12 @@ func (e docEntry) displayStatus(a store.Application) (string, bool) {
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{jdFile, a.HasJD, a.JDHasText}, {resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{jdFile, a.JDHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}, {gapsFile, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
-		entries = append(entries, docEntry{"out/" + pdf, true, false})
+		entries = append(entries, docEntry{"out/" + pdf, false})
 	}
 	if a.HasSent {
-		entries = append(entries, docEntry{"sent/", true, false})
+		entries = append(entries, docEntry{"sent/", false})
 	}
 	return entries
 }

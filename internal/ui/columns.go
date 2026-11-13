@@ -6,15 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
 // followUpFlag marks an Applied or Interviewing row whose last change is older than follow_up_days.
 const followUpFlag = "⚑"
-
-// separatorWidth is the cells between columns (" | ").
-const separatorWidth = 3
 
 func entryDate(e *store.StatusEntry) string {
 	if e == nil {
@@ -97,44 +93,4 @@ func SortApplications(rows []store.Application, table string) {
 		}
 		return a > b
 	})
-}
-
-func RenderColumns(cells [][]string, width int) []string {
-	widths := make([]int, len(cells[0]))
-	for _, row := range cells {
-		for i, c := range row {
-			if w := ansi.StringWidth(c); w > widths[i] {
-				widths[i] = w
-			}
-		}
-	}
-	total := separatorWidth * (len(widths) - 1)
-	for _, w := range widths {
-		total += w
-	}
-	if width > 0 {
-		for _, i := range []int{0, 1, 2, 3, 4, 5, 6} {
-			if i >= len(widths) {
-				break
-			}
-			for total > width && widths[i] > 1 {
-				widths[i]--
-				total--
-			}
-		}
-	}
-	out := make([]string, len(cells))
-	for n, row := range cells {
-		parts := make([]string, len(widths))
-		for i := range widths {
-			c := ""
-			if i < len(row) {
-				c = row[i]
-			}
-			c = ansi.Truncate(c, widths[i], "…")
-			parts[i] = c + strings.Repeat(" ", max(0, widths[i]-ansi.StringWidth(c)))
-		}
-		out[n] = strings.TrimRight(strings.Join(parts, " | "), " ")
-	}
-	return out
 }

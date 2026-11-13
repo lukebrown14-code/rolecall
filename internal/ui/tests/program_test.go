@@ -44,7 +44,7 @@ func TestDismissRestoreAndUndo(t *testing.T) {
 	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Moved to Lead") {
 		t.Fatalf("restore did not report:\n%s", v)
 	}
-	m = driveModel(t, m, "u", "u", "u", "q")
+	driveModel(t, m, "u", "u", "u", "q")
 
 	after, _ := s.Scan()
 	for i, a := range after {

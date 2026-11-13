@@ -56,8 +56,6 @@ type renameMode struct {
 	result    store.RenameResult
 }
 
-func (rm *renameMode) boxed() bool { return true }
-
 func (rm *renameMode) Keys() [][2]string {
 	if rm.stage == renameReport {
 		return [][2]string{{"esc", hintClose}}

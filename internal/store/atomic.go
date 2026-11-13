@@ -41,11 +41,11 @@ func atomicWrite(files FileSystem, path string, data []byte, mode os.FileMode) e
 	if err != nil {
 		return err
 	}
-	defer fs.Remove(f.Name())
+	defer func() { _ = fs.Remove(f.Name()) }()
 	closed := false
 	defer func() {
 		if !closed {
-			f.Close()
+			_ = f.Close()
 		}
 	}()
 	if err = f.Chmod(mode); err != nil {

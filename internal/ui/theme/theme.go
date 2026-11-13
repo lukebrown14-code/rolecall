@@ -50,6 +50,7 @@ const (
 	lightBg = "#FFFFFF"
 )
 
+//nolint:dupl // the dark and light role tables are parallel by design; only the values differ.
 var darkRoles = Roles{
 	Bg: darkBg, Panel: "#161B22", Text: "#E6EDF3", Sub: "#C9D1D9", Muted: "#8B949E",
 	Faint: "#6E7681", Rule: "#6E7681", Accent: "#5EEAD4", OnFill: darkBg, Sel: "#1F3D3D",
@@ -59,6 +60,8 @@ var darkRoles = Roles{
 
 // lightRoles are the same Roles on white. Warn is orange rather than amber, so it never
 // reads as Offer's gold.
+//
+//nolint:dupl // see darkRoles: the two role tables mirror each other field for field.
 var lightRoles = Roles{
 	Bg: lightBg, Panel: "#E8EDF1", Text: "#1F2328", Sub: "#424A53", Muted: "#59636E",
 	Faint: "#6E7985", Rule: "#6E7985", Accent: "#0F766E", OnFill: lightBg, Sel: "#E2EEEB",

@@ -94,12 +94,12 @@ func TestSettingsReorderTracks(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["A","B","C"]}`)
 	h.tm.Type("J")
 	f := h.file()
-	if !(strings.Index(f, `"B"`) < strings.Index(f, `"A"`) && strings.Index(f, `"A"`) < strings.Index(f, `"C"`)) {
+	if strings.Index(f, `"B"`) >= strings.Index(f, `"A"`) || strings.Index(f, `"A"`) >= strings.Index(f, `"C"`) {
 		t.Fatalf("J did not move A down: %s", f)
 	}
 	h.tm.Type("K")
 	f = h.file()
-	if !(strings.Index(f, `"A"`) < strings.Index(f, `"B"`)) {
+	if strings.Index(f, `"A"`) >= strings.Index(f, `"B"`) {
 		t.Fatalf("K did not move it back: %s", f)
 	}
 }

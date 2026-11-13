@@ -19,7 +19,6 @@ const (
 	fallbackHeight = 30
 	rowPad         = 1 // keeps the last label off the edge of the selection bar
 	soonDays       = 7 // "closes in Nd" turns amber at or below this
-	labelWidth     = 13
 	hoursPerDay    = 24
 	percent        = 100
 	minTitle       = 8 // a title never shrinks below this

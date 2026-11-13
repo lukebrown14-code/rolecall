@@ -66,7 +66,7 @@ func (w *Watcher) Close() {
 	}
 	w.once.Do(func() {
 		close(w.done)
-		w.fs.Close()
+		_ = w.fs.Close()
 	})
 }
 
@@ -141,7 +141,7 @@ func wanted(parts []string) bool {
 // Application folder found is reported as changed, since files may have landed
 // before its watch existed.
 func (w *Watcher) addTree(dir string, mark bool) {
-	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
 			return nil
 		}
@@ -160,7 +160,7 @@ func (w *Watcher) addTree(dir string, mark bool) {
 		w.dirs[path] = true
 		w.mu.Unlock()
 		if !known {
-			w.fs.Add(path)
+			_ = w.fs.Add(path)
 		}
 		if mark && len(p) == 2 {
 			w.deb.Add(path)

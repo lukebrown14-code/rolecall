@@ -36,19 +36,6 @@ func TestTableSorting(t *testing.T) {
 	}
 }
 
-func TestTitleShrinksBeforeCompany(t *testing.T) {
-	cells := [][]string{{"Long role title", "Company", "Track"}}
-	for _, tc := range []struct {
-		width int
-		want  string
-	}{{25, "Long r… | Company | Track"}, {18, "… | Compa… | Track"}} {
-		got := ui.RenderColumns(cells, tc.width)
-		if got[0] != tc.want {
-			t.Errorf("width %d: %q want %q", tc.width, got[0], tc.want)
-		}
-	}
-}
-
 func TestColumnsAcrossTables(t *testing.T) {
 	now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	for _, table := range []string{"Leads", "Drafts", "Dismissed", "Applied", "Interviewing", "Offer", "Closed"} {

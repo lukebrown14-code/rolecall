@@ -46,11 +46,8 @@ func DetectTheme(in, out *os.File) Option {
 	}
 }
 
-// basePal and dimmedPal are the dark theme's palettes, for drawing outside a model.
-var (
-	basePal   = themeDark.Base()
-	dimmedPal = themeDark.Dimmed()
-)
+// basePal is the dark theme's palette, for drawing outside a model.
+var basePal = themeDark.Base()
 
 // pal is the palette for the model's theme and glyph setting.
 func (m model) pal() pal {

@@ -195,8 +195,6 @@ type removeBlockedMode struct {
 
 func (rb *removeBlockedMode) Keys() [][2]string { return [][2]string{{"esc", hintClose}} }
 
-func (rb *removeBlockedMode) boxed() bool { return true }
-
 func (rb *removeBlockedMode) View(m *model, p pal) string {
 	what := fmt.Sprintf("%s is used by %s", rb.track, plural(rb.n, "Application", "Applications"))
 	if rb.incl != "" {

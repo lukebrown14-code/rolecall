@@ -78,9 +78,6 @@ func New(title string, fields ...Field) *Form {
 }
 
 const (
-	formMark        = 2 // "▌ " or its blank
-	formReq         = 2 // the * column and the space after it
-	formUnderline   = 24
 	keyCtrlS        = "ctrl+s"
 	hintDiscard     = "discard"
 	hintKeepEditing = "keep editing"
@@ -208,9 +205,10 @@ func (f *Form) Key(k tea.KeyPressMsg) bool {
 			return false
 		}
 		next := f.Focus
-		if s == "tab" || s == "down" {
+		switch s {
+		case "tab", "down":
 			next = min(f.Focus+1, len(f.Fields)-1)
-		} else if s == "shift+tab" || s == "up" {
+		case "shift+tab", "up":
 			next = max(f.Focus-1, 0)
 		}
 		if next != f.Focus {
