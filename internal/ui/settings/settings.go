@@ -50,6 +50,7 @@ type Row struct {
 	Warning      string // a problem with the value, e.g. an Editor not on PATH
 	Section      string // a heading drawn above the row
 	Action       bool   // "+ add a Track": no value, enter acts
+	Was          string // the saved value while an unsaved edit changes it
 }
 
 // settingsState is the loaded workspace.json and where the Owner is. It is replaced, never
@@ -57,11 +58,46 @@ type Row struct {
 type State[Undo any] struct {
 	Ws       store.WorkspaceSettings
 	TrackUse map[string]int // Applications on each Track, archived ones included
-	Group    int
-	Row      int
-	Focus    int // settingsList or settingsRows
-	Undo     *Undo
+	// Breakdown follows each Track's count so the numbers add up: " · 9 active · 1 closed".
+	Breakdown map[string]string
+	Group     int
+	Row       int
+	Header    bool // the cursor is on the header, where ctrl+z reverts every change
+	Undo      *Undo
+	// Pending holds unsaved machine-setting edits by config.toml key, as typed. A key is
+	// absent once its edit equals the saved value.
+	Pending map[string]string
+	Edit    *Edit // the field being typed into, if any
 }
+
+// Edit is the inline field open on a row: the config.toml key and what has been typed.
+type Edit struct{ Key, Buf, Err string }
+
+// With returns the state with key pending as value; the map is copied so earlier copies stay put.
+func (st State[Undo]) With(key, value string) State[Undo] {
+	next := make(map[string]string, len(st.Pending)+1)
+	for k, v := range st.Pending {
+		next[k] = v
+	}
+	next[key] = value
+	st.Pending = next
+	return st
+}
+
+// Without returns the state with key's edit dropped.
+func (st State[Undo]) Without(key string) State[Undo] {
+	next := make(map[string]string, len(st.Pending))
+	for k, v := range st.Pending {
+		if k != key {
+			next[k] = v
+		}
+	}
+	st.Pending = next
+	return st
+}
+
+// Dirty is how many fields have unsaved edits.
+func (st State[Undo]) Dirty() int { return len(st.Pending) }
 
 // selectable reports whether the cursor can rest on a row: everything but read-only rows.
 func (r Row) Selectable() bool { return !r.ReadOnly }
@@ -88,9 +124,21 @@ func (r Row) Provenance() string {
 	return r.Source
 }
 
-// tail is the source and warning after a row's value, as plain text, for sizing.
-func (r Row) Tail() string {
+// Note is what follows a row's value: the saved value while an edit is unsaved, then the provenance.
+func (r Row) Note() string {
 	t := r.Provenance()
+	if r.Was != "" {
+		t = "was " + r.Was
+		if p := r.Provenance(); p != "" {
+			t += " · " + p
+		}
+	}
+	return t
+}
+
+// tail is the note and warning after a row's value, as plain text, for sizing.
+func (r Row) Tail() string {
+	t := r.Note()
 	if r.Warning != "" {
 		t += WarnSep + r.Warning
 	}
@@ -235,7 +283,7 @@ func (st State[Undo]) Rows(group int, machine Machine) []Row {
 func (st State[Undo]) trackingRows(machine Machine) []Row {
 	var rows []Row
 	for _, t := range st.Ws.Tracks {
-		rows = append(rows, Row{Label: t, Value: plural(st.TrackUse[t], "Application", "Applications")})
+		rows = append(rows, Row{Label: t, Value: plural(st.TrackUse[t], "application", "applications") + st.Breakdown[t]})
 	}
 	if len(rows) > 0 {
 		rows[0].Section = "Tracks"
@@ -276,21 +324,31 @@ func SelectableRow(rows []Row, row, dir int) int {
 	return row
 }
 
-// moveSetting moves the group while the list has focus, the row otherwise. The row skips
-// read-only rows, so enter always has something to do.
+// move moves the cursor down (delta 1) or up. The row skips read-only rows, so enter
+// always has something to do; above the first row the cursor rests on the header.
 func (st State[Undo]) move(delta int, machine Machine) State[Undo] {
-	if st.Focus == settingsList {
-		st.Group = min(max(st.Group+delta, 0), len(Groups)-1)
-		st.Row = SelectableRow(st.Rows(st.Group, machine), 0, 1)
+	if st.Header {
+		if delta > 0 {
+			st.Header = false
+			st.Row = SelectableRow(st.Rows(st.Group, machine), 0, 1)
+		}
 		return st
 	}
 	rows := st.Rows(st.Group, machine)
 	for i := st.Row + delta; i >= 0 && i < len(rows); i += delta {
 		if rows[i].Selectable() {
 			st.Row = i
-			break
+			return st
 		}
 	}
+	st.Header = delta < 0
+	return st
+}
+
+// section switches to the group delta away, wrapping, with the cursor on its first row.
+func (st State[Undo]) section(delta int, machine Machine) State[Undo] {
+	st.Group = (st.Group + delta + len(Groups)) % len(Groups)
+	st.Row = SelectableRow(st.Rows(st.Group, machine), 0, 1)
 	return st
 }
 
@@ -305,12 +363,13 @@ type Machine struct {
 	Sources                                                     Sources
 }
 
-// Navigate moves focus or selection, preserving the previous value for model copies.
+// Navigate moves the section or the field cursor, preserving the previous value for model copies.
 func (st State[Undo]) Navigate(key string, machine Machine) State[Undo] {
 	switch key {
-	case "tab", "shift+tab":
-		st.Focus = (st.Focus + 1) % settingsPanes
-		st.Row = SelectableRow(st.Rows(st.Group, machine), st.Row, 1)
+	case "tab", "]":
+		st = st.section(1, machine)
+	case "shift+tab", "[":
+		st = st.section(-1, machine)
 	case "down", "j":
 		st = st.move(1, machine)
 	case "up", "k":
@@ -332,6 +391,10 @@ func (st State[Undo]) Load(s *store.Store) (State[Undo], error) {
 	}
 	return st, nil
 }
+
+// YesNo is a Yes/No setting as it reads.
+func YesNo(on bool) string { return yesNo(on) }
+
 func yesNo(on bool) string {
 	if on {
 		return "Yes"
@@ -348,9 +411,6 @@ func plural(n int, one, many string) string {
 const (
 	settingsFile    = "workspace.json"
 	configFile      = "config.toml"
-	settingsList    = 0
-	settingsRows    = 1
-	settingsPanes   = 2
 	fieldPlaces     = "Places"
 	fieldRemote     = "Remote roles"
 	minFollowUpDays = 1

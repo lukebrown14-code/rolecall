@@ -127,7 +127,7 @@ func fixtureCopy(t *testing.T, edit func(root string)) string {
 func TestEverySizeFitsTheTerminal(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	sizes := [][2]int{{1, 1}, {10, 3}, {55, 30}, {120, 13}, {56, 14}, {64, 15}, {79, 20}, {80, 21}, {109, 24}, {110, 24}}
-	states := [][]string{{"1"}, {"3"}, {"4"}, {"5"}, {"6"}, {"m"}, {"a"}, {"?"}, {":"}, {"3", "enter"}, {"G", "m", "d"}, {"6", "tab", "enter"}}
+	states := [][]string{{"1"}, {"3"}, {"4"}, {"5"}, {"6"}, {"m"}, {"a"}, {"?"}, {":"}, {"3", "enter"}, {"G", "m", "d"}, {"6", "enter"}}
 	for _, size := range sizes {
 		for _, keys := range states {
 			w, h := size[0], size[1]
@@ -213,8 +213,8 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 			switch keys[0] {
 			case "1", "3":
 				want = tc.preview
-			case "4":
-				want = false
+			case "4", "6":
+				want = false // Stats and Settings draw no divider: Settings sections are tabs
 			}
 			if split != want || split != strings.Contains(lines[rules[1]], "┴") {
 				t.Errorf("%dx%d keys %q: divider = %v, want %v:\n%s", tc.w, tc.h, keys, split, want, strings.Join(lines, "\n"))
@@ -237,7 +237,7 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 func TestPopupsStayInsideTheBody(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for _, size := range [][2]int{{60, 16}, {56, 14}, {80, 24}} {
-		for _, keys := range [][]string{{"1", "m"}, {"a"}, {"?"}, {"6", "tab", "enter"}} {
+		for _, keys := range [][]string{{"1", "m"}, {"a"}, {"?"}, {"6", "enter"}} {
 			lines := strings.Split(ansi.Strip(runKeysSized(t, root, size[0], size[1], keys...)), "\n")
 			top, bottom := -1, -1
 			for i, l := range lines {
@@ -265,7 +265,7 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 // Text wraps only at spaces: a flag such as "--wait" and a phrase such as "Fit: not
 // assessed" stay whole.
 func TestWrapsOnlyAtSpaces(t *testing.T) {
-	machine := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "6", "j", "j", "j"))
+	machine := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "6", "]", "]", "]"))
 	if !strings.Contains(machine, "--wait") || strings.Contains(machine, "-\n") {
 		t.Errorf("editor examples split a flag:\n%s", machine)
 	}

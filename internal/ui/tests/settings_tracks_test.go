@@ -12,9 +12,8 @@ func tracksHarness(t *testing.T, workspaceJSON string) *settingsHarness {
 	t.Helper()
 	h := newSettingsHarness(t, 120, workspaceJSON, nil)
 	h.tm.Type("6")
-	h.tm.Type("j")
-	h.tm.Type("j")
-	h.tm.Type("tab")
+	h.tm.Type("]")
+	h.tm.Type("]")
 	return h
 }
 
