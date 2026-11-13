@@ -290,7 +290,7 @@ func (m model) settingsBody(p pal, w, h int) string {
 		case i != m.settings.Group:
 			groups = append(groups, pad+p.Text(p.Dim).Render(name))
 		case m.settings.Focus == settingsList:
-			groups = append(groups, strings.Repeat(" ", edge)+p.Text(p.Accent).Bold(true).Render(profileMarker+name))
+			groups = append(groups, strings.Repeat(" ", edge)+p.SelGutter(true)+p.SelText(true).Render(name))
 		default:
 			// While the rows have focus only they carry the ▸ cursor; the selected group
 			// stays bold and indented, so two cursors never show at once.
@@ -338,7 +338,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		mark, label := "  ", p.Text(p.Dim).Render(r.Label)
 		switch {
 		case selected:
-			mark, label = p.Text(p.Accent).Bold(true).Render(profileMarker), p.Text(p.Accent).Bold(true).Render(r.Label)
+			mark, label = p.SelGutter(true), p.SelText(true).Render(r.Label)
 		case r.Action:
 			label = p.Text(p.Sub).Render(r.Label)
 		}
@@ -347,31 +347,39 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			lines = append(lines, xansi.Truncate(line, width, "…"))
 			continue
 		}
-		pad := strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label)))
+		bg := p.SelBase(selected)
+		pad := bg.Render(strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label))))
 		var value string
 		if r.Value == "" {
-			value = p.Text(p.Dim).Italic(true).Render("not set")
+			value = bg.Foreground(p.Dim).Italic(true).Render("not set")
 		} else {
-			value = p.Text(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
+			value = bg.Foreground(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
-		value += strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value)))
-		tail := p.Text(p.Dim).Render(r.Provenance())
+		value += bg.Render(strings.Repeat(" ", max(0, valueW-xansi.StringWidth(value))))
+		tail := bg.Foreground(p.Dim).Render(r.Provenance())
 		if r.Warning != "" {
-			tail += p.Text(p.Warn).Render(warnSep + r.Warning)
+			tail += bg.Foreground(p.Warn).Render(warnSep + r.Warning)
+		}
+		fillLine := func(s string) string {
+			s = xansi.Truncate(s, width, "…")
+			if selected {
+				return p.SelLine(true, width, s)
+			}
+			return s
 		}
 		line += pad + value
 		if r.Tail() != "" {
 			// The source and any warning are never cut: without room they get their own line.
 			if width-labelW-valueW-gutter >= xansi.StringWidth(r.Tail()) {
-				line += strings.Repeat(" ", gutter) + tail
-				lines = append(lines, xansi.Truncate(line, width, "…"))
+				line += bg.Render(strings.Repeat(" ", gutter)) + tail
+				lines = append(lines, fillLine(line))
 			} else {
-				lines = append(lines, xansi.Truncate(line, width, "…"),
+				lines = append(lines, fillLine(line),
 					xansi.Truncate(strings.Repeat(" ", labelW)+tail, width, "…"))
 			}
 			continue
 		}
-		lines = append(lines, xansi.Truncate(line, width, "…"))
+		lines = append(lines, fillLine(line))
 	}
 	if settingsGroups[m.settings.Group] == groupMachineName {
 		lines = append(lines, "")

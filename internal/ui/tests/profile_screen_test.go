@@ -371,7 +371,7 @@ func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
 func TestProfileJKCrossesTheDivider(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	file := ansi.Strip(runKeys(t, root, 120, profileKeysToFile...))
-	if !strings.Contains(file, "▸ projects.md") || !strings.Contains(file, "prints local tide times") {
+	if !strings.Contains(file, "▌ projects.md") || !strings.Contains(file, "prints local tide times") {
 		t.Fatalf("j did not reach projects.md:\n%s", file)
 	}
 	keys := append(append([]string{}, profileKeysToFile...), "k")
@@ -384,7 +384,7 @@ func TestProfileJKCrossesTheDivider(t *testing.T) {
 // A selected file renders whole, and the context row names it rather than the Profile.
 func TestProfileSelectingAFileRendersItAndShowsItsPath(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, profileKeysToFile...))
-	for _, want := range []string{"▸ projects.md", "Tide Tables", "A command-line tool that prints local tide times. Go, open source.", "profile/projects.md"} {
+	for _, want := range []string{"▌ projects.md", "Tide Tables", "A command-line tool that prints local tide times. Go, open source.", "profile/projects.md"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("selected projects.md lacks %q:\n%s", want, view)
 		}
@@ -427,7 +427,7 @@ func TestProfileWithoutHeadingsShowsOneSection(t *testing.T) {
 		writeMasterProfile(t, root, "Just prose.\n\nMore prose.\n")
 	})
 	view := ansi.Strip(runKeys(t, root, 120, "5"))
-	for _, want := range []string{"▸ Profile", "Just prose.", "More prose."} {
+	for _, want := range []string{"▌ Profile", "Just prose.", "More prose."} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("one-section fallback lacks %q:\n%s", want, view)
 		}

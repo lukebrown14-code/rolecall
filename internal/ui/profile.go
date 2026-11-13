@@ -26,10 +26,6 @@ const (
 	profilePanes
 )
 
-// profileMarker is the selected section's leading mark: bold and accent carry it too,
-// so it stays readable without colour.
-const profileMarker = "▸ "
-
 // profileMarkerWidth is the cells the marker, or its indent on unselected rows, takes.
 const profileMarkerWidth = 2
 
@@ -549,12 +545,17 @@ func profileListRow(p pal, listW int, name, suffix string, colour color.Color, s
 	}
 	heading := xansi.Truncate(name, max(1, room), "…")
 	left := strings.Repeat(" ", inset) + p.Text(p.Dim).Italic(file).Render(heading)
+	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	if selected {
-		left = strings.Repeat(" ", edge) + p.Text(p.Accent).Bold(true).Italic(file).Render(profileMarker+heading)
+		line := p.SelBase(true)
+		left = strings.Repeat(" ", edge) + p.SelGutter(true) + p.SelText(true).Italic(file).Render(heading)
+		if suffix == "" {
+			return p.SelLine(true, width, left)
+		}
+		return p.SelLine(true, width, left+line.Render(strings.Repeat(" ", max(1, gap)))+line.Foreground(colour).Render(suffix))
 	}
 	if suffix == "" {
 		return left
 	}
-	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	return left + strings.Repeat(" ", max(1, gap)) + p.Text(colour).Render(suffix)
 }
