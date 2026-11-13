@@ -252,7 +252,7 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 // welcome is the first-run screen, for a Workspace with no Applications at all: the
 // first three moves instead of empty panes.
 func (m model) welcome(p pal) string {
-	title := p.Text(p.Accent).Bold(true).Render(wordmark+" rolecall") + p.Text(p.Dim).Render(" · no Applications yet")
+	title := p.Text(p.Fg).Bold(true).Render(wordmark+" rolecall") + p.Text(p.Dim).Render(" · no Applications yet")
 	step := func(k, desc string) string {
 		return p.Key().Render(padRight(k, gutter+1)) + p.Text(p.Fg).Render(desc)
 	}
@@ -385,7 +385,7 @@ func (m model) tabs(p pal) (string, []int) {
 		case level >= shedEdge:
 			mark = wordmark + " rolecall "
 		}
-		out := p.Text(p.Accent).Bold(true).Render(mark)
+		out := p.Text(p.Fg).Bold(true).Render(mark)
 		starts := make([]int, len(screenDefs))
 		for si, d := range screenDefs {
 			starts[si] = xansi.StringWidth(out) + 1

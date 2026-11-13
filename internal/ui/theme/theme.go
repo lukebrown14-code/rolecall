@@ -19,7 +19,7 @@ import (
 // Colour always pairs with a word or glyph, so meaning never rests on colour alone.
 //
 // Floors (contrast_internal_test.go): text Roles 4.5:1 on bg, panel and the selection
-// bar; rules, separators and glyphs 3:1. Accent means focus and selection only.
+// bar; rules, separators and glyphs 3:1. Accent is the colour of keys; it also marks the selection gutter.
 type Roles struct {
 	Bg     string // painted as the terminal background
 	Panel  string // pop-up fill and the feedback line
@@ -28,14 +28,14 @@ type Roles struct {
 	Muted  string // the floor for any text; also closed Statuses
 	Faint  string // separators between labels and past timeline dots, never body text
 	Rule   string // rules and pane dividers
-	Accent string // focus and selection only
+	Accent string // keys, and the selection gutter
 	OnFill string // text on an accent fill
 	Sel    string // the selection bar: the accent tinted over bg
 	Ok     string // Strong fit, built docs, success
 	Info   string // links, Good fit
 	Warn   string // closes within a week, quiet follow-up, written docs, warning pop-ups
 	Danger string // closes today, errors
-	Purple string // Interviewing
+	Purple string // Interviewing: magenta on dark, so it parts from Applied blue under red-green colour blindness
 	Gold   string // Offer
 	Lead   string // Lead: cool grey-blue
 	Draft  string // Draft: a lighter blue than Applied, apart from the accent
@@ -62,23 +62,23 @@ var rolePalette = struct {
 	Purple, Gold, Lead, Draft, Dimmed, DimmedOnFill rolePair
 }{
 	Bg:           rolePair{darkBg, lightBg},
-	Panel:        rolePair{"#161B22", "#E8EDF1"},
+	Panel:        rolePair{"#161B22", "#F6F8FA"},
 	Text:         rolePair{"#E6EDF3", "#1F2328"},
 	Sub:          rolePair{"#C9D1D9", "#424A53"},
-	Muted:        rolePair{"#8B949E", "#59636E"},
+	Muted:        rolePair{"#8B949E", "#57606A"},
 	Faint:        rolePair{"#6E7681", "#6E7985"},
-	Rule:         rolePair{"#6E7681", "#6E7985"},
+	Rule:         rolePair{"#5A6878", "#6E7985"},
 	Accent:       rolePair{"#5EEAD4", "#0F766E"},
 	OnFill:       rolePair{darkBg, lightBg},
-	Sel:          rolePair{"#1F3D3D", "#E2EEEB"},
+	Sel:          rolePair{"#2F5560", "#DDF4FF"},
 	Ok:           rolePair{"#3FB950", "#14702F"},
-	Info:         rolePair{"#58A6FF", "#0759B8"},
-	Warn:         rolePair{"#F0883E", "#9A3D00"},
+	Info:         rolePair{"#58A6FF", "#074A9A"},
+	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
-	Purple:       rolePair{"#BC8CFF", "#6F3BC8"},
-	Gold:         rolePair{"#F2CC60", "#6E5600"},
-	Lead:         rolePair{"#8FA1B3", "#4B6076"},
-	Draft:        rolePair{"#A5D6FF", "#3A6490"},
+	Purple:       rolePair{"#F778BA", "#7A4AD6"},
+	Gold:         rolePair{"#F2CC60", "#8A5A00"},
+	Lead:         rolePair{"#9CB0A0", "#5F6B73"},
+	Draft:        rolePair{"#A5D6FF", "#2D6A8F"},
 	Dimmed:       rolePair{"#768390", "#656D76"},
 	DimmedOnFill: rolePair{darkBg, lightBg},
 }
@@ -265,15 +265,18 @@ func StripColor(s string) string {
 // different things get different stand-ins: a Status keeps the one its palette draws, a
 // warning (!) is not the follow-up flag (?), and a missing document (0) is not a Lead (o).
 var asciiGlyphs = strings.NewReplacer(
-	"◆", "@", "▌", ">", "▸", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "?", "↩", "<",
+	"◆", "@", "▌", ">", "▸", ">", "▶", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
 	"●", "*", "○", "0", "✓", "v", "⚠", "!", "✕", "x", "✗", "X", "✘", "X", "◌", "o", "█", "#",
 	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
 	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
-	"◐", "=", "★", "$", "⊘", "-",
+	"◐", "=", "✎", "=", "★", "*", "⊘", "/", "◦", "o", "–", "-",
 	// the wordmark's mark, distinct from every Status stand-in and from a data block
 	"▞", "R",
 	// the documents' ready meter and an urgent close date
 	"▰", "#", "▱", "-", "▲", "^",
+	// the Stats sparkline's eight steps fold onto five: _ . - = #
+	"▁", "_", "▂", "_", "▃", ".", "▄", ".", "▅", "-", "▆", "=", "▇", "=",
+	"░", ".", "▕", "|", "“", `"`, "”", `"`, "≤", "<",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
 	// the box rules Glamour draws around a Markdown table
 	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
@@ -295,8 +298,8 @@ func ASCIIFold(s string, force bool) string {
 
 func (p Palette) Text(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 
-// key is a key name in a hint: bold body text. The accent is kept for focus.
-func (p Palette) Key() lipgloss.Style { return p.Text(p.Fg).Bold(true) }
+// key is a key name in a hint: bold in the accent, which is the colour of keys.
+func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
 
 // activeTab is the selected tab's fill: the accent and bold, so it is marked by more
 // than the fill; behind a pop-up its text stays at the text floor on the dimmed fill.
@@ -400,13 +403,22 @@ func (p Palette) PanelFill(s string) string {
 // cold-to-gold ramp; the closed ones are muted, never alarming.
 var statusGlyphs = map[string][2]string{
 	store.StatusLead:         {"◌", "o"},
-	store.StatusDraft:        {"◐", "="},
+	store.StatusDraft:        {"✎", "="},
 	store.StatusApplied:      {"●", "*"},
 	store.StatusInterviewing: {"◆", "@"},
 	store.StatusOffer:        {"★", "$"},
 	store.StatusRejected:     {"✕", "x"},
-	store.StatusWithdrawn:    {"↩", "<"},
-	store.StatusDismissed:    {"⊘", "-"},
+	store.StatusWithdrawn:    {"–", "-"},
+	store.StatusDismissed:    {"⊘", "/"},
+}
+
+// ClosedGroupGlyph is the glyph of the Closed group (Rejected, Withdrawn, Dismissed), or
+// its ASCII stand-in.
+func (p Palette) ClosedGroupGlyph() string {
+	if p.Ascii {
+		return "x"
+	}
+	return "✕"
 }
 
 // ClosedStatus reports a Status that ends an Application: drawn muted, not bold.
