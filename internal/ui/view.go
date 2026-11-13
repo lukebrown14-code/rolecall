@@ -126,9 +126,12 @@ func (m model) View() tea.View {
 	v.MouseMode = tea.MouseModeCellMotion // clicks and the wheel; see mouse.go
 	// Paint the theme's background so its roles keep their contrast whatever the
 	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
-	if noColor() {
+	switch {
+	case noColor(): // NO_COLOR wins over the inherit option
 		v.Content = stripColor(v.Content)
-	} else {
+	case m.inherit:
+		v.Content = inheritANSI(v.Content)
+	default:
 		v.BackgroundColor, v.ForegroundColor = p.Bg, p.Fg
 	}
 	return v

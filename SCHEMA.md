@@ -217,6 +217,19 @@ countries to their states and major cities, so `Australia` covers `Sydney, NSW`.
 if it names a Place, dropped if it names only known places outside the Places, and kept if its
 location is empty or unknown. `--all-locations` bypasses the filter.
 
+## `config.toml` (machine settings, outside the Workspace)
+
+`~/.config/rolecall/config.toml` is per machine and never part of a Workspace. The Settings
+screen edits its keys in place and keeps comments. Two keys change how the TUI draws:
+
+- `ascii` (bool, default `false`): ASCII glyphs.
+- `inherit_terminal` (bool, default `false`): inherit the terminal's colours. Status and role
+  colours become ANSI-16 indices (muted is bright black), no background is painted anywhere,
+  and the selection is the gutter mark plus reverse video. A missing key means `false`,
+  so an existing file draws exactly as before. `NO_COLOR` wins over it; it combines with
+  `ascii` (glyph set) and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings
+  takes effect at once.
+
 ## `jobs/roles.json` (optional role catalogue)
 
 Read by the Sweep (`sweep.py`) and the `find-jobs` skill. It is **not** an Application and

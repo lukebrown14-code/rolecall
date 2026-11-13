@@ -390,8 +390,11 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 		lines = append(lines, fillLine(line))
 	}
 	if settingsGroups[m.settings.Group] == groupMachineName {
-		lines = append(lines, "")
-		for _, l := range wrapWords(editorExamples, max(1, width-profileMarkerWidth)) {
+		examples := wrapWords(editorExamples, max(1, width-profileMarkerWidth))
+		if len(lines)+1+len(examples) <= h {
+			lines = append(lines, "") // a short terminal loses this spacer before the examples
+		}
+		for _, l := range examples {
 			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Text(p.Dim).Render(l))
 		}
 	}
@@ -434,13 +437,14 @@ const (
 	labelDownloads   = settings.LabelDownloads
 	labelPlugin      = settings.LabelPlugin
 	labelASCII       = settings.LabelASCII
+	labelInherit     = settings.LabelInherit
 )
 
 // settingsMachine is the machine settings as the screen shows them: the saved values with
 // any unsaved edit laid over them.
 func (m model) settingsMachine() settings.Machine {
 	mc := settings.Machine{Workspace: m.store.Root(), EditorSource: m.editorSource, Downloads: m.downloads, Harness: m.harness,
-		Plugin: m.plugin, ASCII: m.ascii, FollowUpDays: m.followUpDays, Sources: m.sources}
+		Plugin: m.plugin, ASCII: m.ascii, Inherit: m.inherit, FollowUpDays: m.followUpDays, Sources: m.sources}
 	editor := m.editor
 	if m.settings != nil {
 		pend := m.settings.Pending
@@ -458,6 +462,9 @@ func (m model) settingsMachine() settings.Machine {
 		}
 		if v, ok := pend["ascii"]; ok {
 			mc.ASCII = v == yesNo(true)
+		}
+		if v, ok := pend[keyInherit]; ok {
+			mc.Inherit = v == yesNo(true)
 		}
 		if v, ok := pend[keyFollowUpDays]; ok {
 			mc.FollowUpDays, _ = strconv.Atoi(v)

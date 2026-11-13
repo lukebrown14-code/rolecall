@@ -15,12 +15,17 @@ import (
 // re-read it. Without it the machine settings are shown but cannot be saved.
 func WithConfigHome(home string) Option { return func(m *model) { m.configHome = home } }
 
+// WithInheritTerminal draws with the terminal's ANSI-16 colours and no background, as the
+// inherit_terminal key in config.toml does.
+func WithInheritTerminal(on bool) Option { return func(m *model) { m.inherit = on } }
+
 // WithASCII turns ASCII glyphs on, as the ascii key in config.toml does.
 func WithASCII(on bool) Option { return func(m *model) { m.ascii = on } }
 
 const (
 	keyFollowUpDays = "follow_up_days"
 	keyEditor       = "editor"
+	keyInherit      = "inherit_terminal"
 )
 
 // machineSetting is an editable config.toml row.
@@ -45,6 +50,7 @@ func machineSettingsList() []machineSetting {
 		{group: settings.GroupMachine, key: "harness", label: labelHarness},
 		{group: settings.GroupMachine, key: "plugin", label: labelPlugin},
 		{group: settings.GroupMachine, key: "ascii", label: labelASCII, toggle: true},
+		{group: settings.GroupMachine, key: keyInherit, label: labelInherit, toggle: true},
 	} {
 		s.row = i + 1
 		rows = append(rows, s)
@@ -84,6 +90,9 @@ func (m model) savedText(s machineSetting) string {
 		return m.harness
 	case "plugin":
 		return m.plugin
+	}
+	if s.key == keyInherit {
+		return yesNo(m.inherit)
 	}
 	return yesNo(m.ascii)
 }
@@ -346,7 +355,7 @@ func (m model) loadMachine() model {
 		return m
 	}
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
-	m.followUpDays, m.ascii = c.FollowUpDays, c.ASCII
+	m.followUpDays, m.ascii, m.inherit = c.FollowUpDays, c.ASCII, c.InheritTerminal
 	m.editorSource = c.EditorSource
 	// The Workspace is fixed for the session (the store is open), so its source stays.
 	m.sources = SettingSources{Workspace: m.sources.Workspace, FollowUpDays: c.FollowUpDaysSource,
