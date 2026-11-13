@@ -27,7 +27,7 @@ func (m model) handoffAllowed(a store.Application, skill string) bool {
 	case skillAssessFit:
 		return true
 	case skillPrepareDocuments:
-		return a.Status == store.StatusLead || a.Status == store.StatusDraft
+		return a.Unsent()
 	case skillDraftFollowUp:
 		return followUpDue(a, m.now(), m.followUpDays)
 	}

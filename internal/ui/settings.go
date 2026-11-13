@@ -358,7 +358,7 @@ func (m model) settingsRowsView(p pal, width, h int) string {
 			// The field opens where the value sits, narrow, with the end of what is typed.
 			fw := min(maxFieldWidth, max(minFieldWidth, valueW))
 			shown := xansi.TruncateLeft(editing.Buf, max(0, xansi.StringWidth(editing.Buf)-(fw-1)), "…")
-			value = bg.Foreground(p.Fg).Underline(true).Render(shown) + bg.Foreground(p.Accent).Render("▏")
+			value = bg.Foreground(p.Fg).Underline(true).Render(shown) + bg.Foreground(p.Fg).Render("▏")
 			value += bg.Render(strings.Repeat(" ", max(0, fw-xansi.StringWidth(shown)-1)))
 			tail = bg.Foreground(p.Dim).Render(r.Unit)
 			if editing.Err != "" {
@@ -461,10 +461,10 @@ func (m model) settingsMachine() settings.Machine {
 			mc.Plugin = v
 		}
 		if v, ok := pend["ascii"]; ok {
-			mc.ASCII = v == yesNo(true)
+			mc.ASCII = v == settings.YesNo(true)
 		}
 		if v, ok := pend[keyInherit]; ok {
-			mc.Inherit = v == yesNo(true)
+			mc.Inherit = v == settings.YesNo(true)
 		}
 		if v, ok := pend[keyFollowUpDays]; ok {
 			mc.FollowUpDays, _ = strconv.Atoi(v)

@@ -58,8 +58,6 @@ func machineSettingsList() []machineSetting {
 	return rows
 }
 
-func yesNo(on bool) string { return settings.YesNo(on) }
-
 // rowSetting is the editable setting on row of a group that has rows rows. Follow-up days
 // is the last Tracking row, so it moves down as Tracks are added.
 func (m model) rowSetting(group, row, rows int) (machineSetting, bool) {
@@ -92,9 +90,9 @@ func (m model) savedText(s machineSetting) string {
 		return m.plugin
 	}
 	if s.key == keyInherit {
-		return yesNo(m.inherit)
+		return settings.YesNo(m.inherit)
 	}
-	return yesNo(m.ascii)
+	return settings.YesNo(m.ascii)
 }
 
 // shownText is a setting with any unsaved edit laid over it: what the field starts from.
@@ -117,7 +115,7 @@ func typedValue(s machineSetting, text string) any {
 		n, _ := strconv.Atoi(text)
 		return n
 	case s.toggle:
-		return text == yesNo(true)
+		return text == settings.YesNo(true)
 	}
 	return text
 }
@@ -142,7 +140,7 @@ func (m model) activateSetting() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if s.toggle {
-		return m.setPending(s, yesNo(m.shownText(s) != yesNo(true))), nil
+		return m.setPending(s, settings.YesNo(m.shownText(s) != settings.YesNo(true))), nil
 	}
 	st.Edit = &settings.Edit{Key: s.key, Buf: m.shownText(s)}
 	m.settings = &st
@@ -342,7 +340,7 @@ func (m model) patchMachine(s machineSetting, value any) model {
 // machineValue is a saved value as the feedback line reads it.
 func machineValue(value any) string {
 	if on, ok := value.(bool); ok {
-		return yesNo(on)
+		return settings.YesNo(on)
 	}
 	return fmt.Sprint(value)
 }

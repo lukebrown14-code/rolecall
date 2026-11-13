@@ -57,7 +57,7 @@ func usable(m model) bool {
 // leadOrDraft reports whether the current row is still the Owner's to send.
 func leadOrDraft(m model) bool {
 	a, ok := m.current()
-	return ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft)
+	return ok && a.Unsent()
 }
 
 // followUpRow reports whether the current row is Follow-up due.
@@ -158,7 +158,7 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
 		enabled: leadOrDraft,
 		run: func(m *model, _ string) tea.Cmd {
-			if a, ok := m.current(); ok && (a.Status == store.StatusLead || a.Status == store.StatusDraft) {
+			if a, ok := m.current(); ok && a.Unsent() {
 				return m.move(a, store.StatusDismissed, false)
 			}
 			return nil
@@ -241,6 +241,16 @@ var listActions = []listAction{
 			// The same cycle as ←→ and as t on the Track filter: All, each Status, Closed, All.
 			m.table = (m.table + 1) % len(m.views())
 			m.cursor = 0
+			return nil
+		},
+	},
+	{
+		keys: []string{"S"}, keyLabel: "S", desc: text("focus strip"),
+		group: groupFilter, prio: fixed(prioNav),
+		listed:  func(m model) bool { return m.detail == nil },
+		enabled: func(m model) bool { return m.detail == nil },
+		run: func(m *model, _ string) tea.Cmd {
+			m.stripFocus = true
 			return nil
 		},
 	},

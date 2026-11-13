@@ -1,6 +1,7 @@
 package ui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"fmt"
 	"slices"
 	"strings"
@@ -110,7 +111,11 @@ const docsMeterCells = 4
 // glyphs and counts. It never wraps.
 func (m model) pipelineStrip(p pal, w int) string {
 	f := m.stripFormFor(p, w)
-	return xansi.Truncate(strings.Repeat(" ", inset)+m.stripLine(p, f), w-rightMargin, "…")
+	lead := strings.Repeat(" ", inset)
+	if m.stripFocus {
+		lead = p.SelGutter(false) + " " // the gutter mark: the strip has the keys
+	}
+	return xansi.Truncate(lead+m.stripLine(p, f), w-rightMargin, "…")
 }
 
 // stripFormFor is the widest form of the strip that fits w cells.
@@ -216,7 +221,7 @@ func (m model) stripCellText(p pal, c stripCell, f stripForm, label bool) string
 		}
 	}
 	if c.on(m) {
-		return p.Text(p.Accent).Render("[") + p.SelText(true).Render(text) + p.Text(p.Accent).Render("]")
+		return p.SelText(true).Render("[" + text + "]")
 	}
 	if n == 0 {
 		return p.Text(p.Dim).Render(text)
@@ -235,4 +240,34 @@ func (m model) stripDocs(p pal) string {
 	}
 	meter := p.Text(c).Render(strings.Repeat(meterOn, on)) + p.Text(p.Faint).Render(strings.Repeat(meterOff, docsMeterCells-on))
 	return p.Text(p.Dim).Render("docs ") + meter + p.Text(c).Render(fmt.Sprintf(" %d%%", pct))
+}
+
+// stripKey handles a key while the strip has focus: ← → move the status filter one cell and
+// show it, enter keeps it, esc too. Any other key hands the keyboard back to the list and
+// is handled there.
+func (m model) stripKey(k tea.KeyPressMsg) (model, bool) {
+	if !m.hasTables() || m.detail != nil {
+		m.stripFocus = false
+		return m, false
+	}
+	switch k.String() {
+	case "left", "right":
+		// With no cell shown (All), → lands on the first and ← on the last.
+		next := 0
+		if at := slices.IndexFunc(stripCells, func(c stripCell) bool { return c.on(m) }); at >= 0 {
+			next = (at + 1) % len(stripCells)
+			if k.String() == "left" {
+				next = (at + len(stripCells) - 1) % len(stripCells)
+			}
+		} else if k.String() == "left" {
+			next = len(stripCells) - 1
+		}
+		m = m.showStripCell(stripCells[next])
+		return m.syncDetail(), true
+	case "enter", "esc", "S":
+		m.stripFocus = false
+		return m, true
+	}
+	m.stripFocus = false
+	return m, false
 }

@@ -140,3 +140,23 @@ func TestDismissToastOffersUndo(t *testing.T) {
 		t.Fatalf("key line is not the last row:\n%s", plain)
 	}
 }
+
+// Undoing a dismiss says so: "↩ Undid dismiss <Company>", not "Undid move".
+func TestUndoDismissToastSaysDismiss(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "x", "u")
+	plain := ansi.Strip(m.View().Content)
+	if !regexp.MustCompile(`↩ Undid dismiss \S`).MatchString(plain) || strings.Contains(plain, "Undid move") {
+		t.Fatalf("undo of a dismiss reads wrong:\n%s", plain)
+	}
+}
+
+// A move to Offer that the filter hides keeps the celebration and the hidden-by-filter note.
+func TestOfferMoveHiddenByFilterKeepsTheNote(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "3", "s", "t", "m", "o")
+	plain := ansi.Strip(m.View().Content)
+	if !strings.Contains(plain, "OFFER · ") || !strings.Contains(plain, "(hidden by filter)") || !strings.Contains(plain, "u undo") {
+		t.Fatalf("offer toast lost its filter note or undo:\n%s", plain)
+	}
+}

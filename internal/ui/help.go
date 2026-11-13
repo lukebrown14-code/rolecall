@@ -160,6 +160,10 @@ func (m model) contextKeys() []helpKey {
 	if !m.hasTables() {
 		return screenDefs[m.screen].help(m)
 	}
+	if m.stripFocus && m.detail == nil {
+		return []helpKey{help(groupNav, "←→", "status").at(prioCore), help(groupAction, "enter", "keep").at(prioCore),
+			help(groupNav, "esc", "back").at(prioPinned)}
+	}
 	keys := m.actionKeys()
 	if m.detail != nil {
 		vertical := "scroll"

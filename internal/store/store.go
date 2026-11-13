@@ -20,6 +20,13 @@ type Application struct {
 	AppliedDate, LastChange                                              *StatusEntry
 	Malformed                                                            error `json:"-"`
 }
+
+// Unsent reports that the Application is still the Owner's to send: a Lead or a Draft.
+// Documents are prepared, built and dismissed only while it is.
+func (a Application) Unsent() bool {
+	return a.Status == StatusLead || a.Status == StatusDraft
+}
+
 type StatusEntry struct {
 	Status string
 	At     string
