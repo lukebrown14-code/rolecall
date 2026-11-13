@@ -255,7 +255,7 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 			if top <= rule || bottom >= len(lines)-2 || top < 0 {
 				t.Errorf("%dx%d keys %q: box spans lines %d-%d, body is %d-%d:\n%s", size[0], size[1], keys, top, bottom, rule+1, len(lines)-3, strings.Join(lines, "\n"))
 			}
-			if keys[len(keys)-1] == "m" && !strings.Contains(strings.Join(lines, "\n"), "▌ d  ◐ Draft") {
+			if keys[len(keys)-1] == "m" && !strings.Contains(strings.Join(lines, "\n"), "▌ d  ✎ Draft") {
 				t.Errorf("%dx%d: Move lost its selection while scrolled:\n%s", size[0], size[1], strings.Join(lines, "\n"))
 			}
 		}

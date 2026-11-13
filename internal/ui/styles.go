@@ -94,8 +94,11 @@ func tableStatus(table string) string {
 // glyph's column blank so the labels line up.
 func (p pal) GroupHeader(label, status string, n, w int) string {
 	c, glyph := p.Dim, " "
-	if status != "" {
+	switch {
+	case status != "":
 		c, glyph = p.StatusColor(status), p.StatusGlyph(status)
+	case label == tableClosed:
+		glyph = p.ClosedGroupGlyph()
 	}
 	s := p.Text(c)
 	head := "  " + glyph + " " + label + " · " + fmt.Sprint(n) + " "

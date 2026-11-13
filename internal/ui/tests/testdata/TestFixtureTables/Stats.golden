@@ -4,11 +4,11 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    FUNNEL          Applications that ever reached each Status
    ◌ Lead          ██████                   2
-   ◐ Draft         ██████                   2  2 without Lead logged
+   ✎ Draft         ██████                   2  2 without Lead logged
    ● Applied       ████████████████████████ 7  50% of Draft · 6 skipped Draft
    ◆ Interviewing  ██████                   2  14% of Applied · 1 skipped Applied
    ★ Offer         ██████                   2  2 without Interviewing logged
-   closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2
+   closed  ✕ Rejected 2 · – Withdrawn 2 · ⊘ Dismissed 2
 
    RESPONSE RATE   2 of 6  ▕████░░░░░░░░▏ 33%
                    Not counted: 1 Application applied less than 14 days ago (too early to judge)

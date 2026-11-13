@@ -103,7 +103,7 @@ func TestStatsFunnelExplainsEachRung(t *testing.T) {
 		"2 without Lead logged",
 		"50% of Draft · 6 skipped Draft",
 		"14% of Applied · 1 skipped Applied",
-		"closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2",
+		"closed  ✕ Rejected 2 · – Withdrawn 2 · ⊘ Dismissed 2",
 		"2 of 6",
 		"Not counted: 1 Application applied less than 14 days ago (too early to judge)",
 		"13 Jul → 28 Sep",

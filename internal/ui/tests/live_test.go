@@ -58,7 +58,7 @@ func (h *liveHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
 
 // rowLine is the first line of the row whose title starts with title.
 // statusGlyphs lead a list row's title, one per Status.
-var statusGlyphs = []string{"◌", "◐", "●", "◆", "★", "✕", "↩", "⊘"}
+var statusGlyphs = []string{"◌", "✎", "●", "◆", "★", "✕", "–", "⊘"}
 
 // rowLine is the list line whose title is title: the title follows a Status glyph.
 func rowLine(view, title string) string {
