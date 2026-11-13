@@ -121,13 +121,12 @@ func (pm *paletteMode) View(m *model, p pal) string {
 	var lines []string
 	for i := start; i < min(len(found), start+limit); i++ {
 		kv := found[i].pair()
-		mark, keyC, descC := "  ", p.Fg, p.Fg
 		if i == pm.sel {
-			mark = p.Text(p.Accent).Render("▌ ")
-		} else {
-			descC = p.Dim
+			lines = append(lines, p.SelLine(true, popWidth(popSmall, m.viewWidth())-popInset+gutter,
+				p.SelGutter(true)+p.SelText(true).Render(padRight(kv[0], helpKeyWidth-gutter)+kv[1])))
+			continue
 		}
-		lines = append(lines, mark+p.Text(keyC).Bold(true).Render(padRight(kv[0], helpKeyWidth-gutter))+p.Text(descC).Render(kv[1]))
+		lines = append(lines, "  "+p.Text(p.Fg).Bold(true).Render(padRight(kv[0], helpKeyWidth-gutter))+p.Text(p.Dim).Render(kv[1]))
 	}
 	if len(lines) == 0 {
 		lines = []string{p.Text(p.Dim).Render("No command matches \"" + pm.query + "\"")}

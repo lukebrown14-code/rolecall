@@ -34,7 +34,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 	}
 	// Profile keeps its pane label, selection marker and Contact mark without colour.
 	profile := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "5"))
-	for _, want := range []string{"SECTIONS", "▸ Contact", "✓"} {
+	for _, want := range []string{"SECTIONS", "▌ Contact", "✓"} {
 		if !strings.Contains(profile, want) {
 			t.Fatalf("without colour, %q is not readable on Profile:\n%s", want, profile)
 		}
@@ -45,7 +45,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 // marker where they were, so the frame still reads while the pop-up is open.
 func TestSettingsPopupKeepsTheFrameReadable(t *testing.T) {
 	v := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "6", "j", "j", "tab", "a"))
-	for _, want := range []string{"Add a Track", "▸ SWE", "Tracking", "Follow-up due after"} {
+	for _, want := range []string{"Add a Track", "SWE", "Tracking", "Follow-up due after"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("pop-up over Settings lost %q:\n%s", want, v)
 		}

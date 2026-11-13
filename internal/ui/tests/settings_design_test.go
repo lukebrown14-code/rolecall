@@ -109,25 +109,25 @@ func rowWith(lines []string, text string) string {
 	return ""
 }
 
-// The focused pane carries the ▸ marker: the group while the list has focus, the rows
-// while the settings pane does. Only one ▸ is ever drawn, so nothing reads as a second
+// The focused pane carries the ▌ marker: the group while the list has focus, the rows
+// while the settings pane does. Only one ▌ is ever drawn, so nothing reads as a second
 // cursor.
 func TestSettingsFocusMovesTheMarkerBetweenPanes(t *testing.T) {
 	// The group list has focus: the group is marked, no settings row is.
 	v := settingsAt(t, 120, 36, "j", "j")
-	if group := settingsColumn(v, 0); !strings.Contains(group, "▸ Tracking") {
+	if group := settingsColumn(v, 0); !strings.Contains(group, "▌ Tracking") {
 		t.Errorf("focused group list: %q", group)
 	}
-	if rows := settingsColumn(v, 1); strings.Contains(rows, "▸") {
+	if rows := settingsColumn(v, 1); strings.Contains(rows, "▌") {
 		t.Errorf("unfocused settings pane marked a row:\n%s", rows)
 	}
 	// The settings pane has focus: its row is marked, and the group keeps its place
-	// without a second ▸.
+	// without a second ▌.
 	v = settingsAt(t, 120, 36, "j", "j", "tab")
-	if group := settingsColumn(v, 0); strings.Contains(group, "▸") || !strings.Contains(group, "Tracking") {
+	if group := settingsColumn(v, 0); strings.Contains(group, "▌") || !strings.Contains(group, "Tracking") {
 		t.Errorf("unfocused group list should be unmarked but named: %q", group)
 	}
-	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▸ SWE") {
+	if rows := settingsColumn(v, 1); !strings.Contains(rows, "▌ SWE") {
 		t.Errorf("focused settings pane lost its marker:\n%s", rows)
 	}
 }
@@ -154,16 +154,16 @@ func settingsColumn(lines []string, side int) string {
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "j", "j", "tab")
-		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▸ SWE") {
+		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▌ SWE") {
 			t.Errorf("%dx%d first Track: %q", size[0], size[1], l)
 		}
 		lines = settingsAt(t, size[0], size[1], "j", "j", "tab", "j")
-		if l := rowWith(lines, "Platform"); !strings.Contains(l, "▸") {
+		if l := rowWith(lines, "Platform"); !strings.Contains(l, "▌") {
 			t.Errorf("%dx%d second Track: %q\n%s", size[0], size[1], l, strings.Join(lines, "\n"))
 		}
 	}
 	// Narrow: the Groups column is hidden, so the row is selected without pressing tab.
-	if l := rowWith(settingsAt(t, 60, 16, "j", "j"), "SWE"); !strings.Contains(l, "▸ SWE") {
+	if l := rowWith(settingsAt(t, 60, 16, "j", "j"), "SWE"); !strings.Contains(l, "▌ SWE") {
 		t.Errorf("60x16 before tab: %q", l)
 	}
 }
