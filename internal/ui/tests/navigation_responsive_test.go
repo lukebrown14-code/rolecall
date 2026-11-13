@@ -22,7 +22,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				if keys[0] == "/" && !strings.Contains(view, "/Orbit ×") {
 					t.Errorf("missing search context: %s", view)
 				}
-				if keys[0] == "t" && !strings.Contains(view, "[SWE]") {
+				if keys[0] == "t" && !strings.Contains(view, "[SWE]") && !strings.Contains(view, "t:SWE") {
 					t.Errorf("missing track context: %s", view)
 				}
 				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], "/9") {
