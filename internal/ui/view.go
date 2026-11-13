@@ -88,9 +88,9 @@ func ago(date string, now time.Time) (string, int) {
 	return span(n) + " ago", days
 }
 
-// quiet is how long an Application has gone without a change, "9mo", for the follow-up
+// since is how long an Application has gone without a change, "9mo", for the follow-up
 // flag: always a span, since "quiet Feb 2026" would read as a date.
-func (m model) quiet(e *store.StatusEntry) string {
+func (m model) since(e *store.StatusEntry) string {
 	_, days, ok := daysFrom(e.At, m.now())
 	if !ok {
 		return ""
@@ -126,9 +126,12 @@ func (m model) View() tea.View {
 	v.MouseMode = tea.MouseModeCellMotion // clicks and the wheel; see mouse.go
 	// Paint the theme's background so its roles keep their contrast whatever the
 	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
-	if noColor() {
+	switch {
+	case noColor(): // NO_COLOR wins over the inherit option
 		v.Content = stripColor(v.Content)
-	} else {
+	case m.inherit:
+		v.Content = inheritANSI(v.Content)
+	default:
 		v.BackgroundColor, v.ForegroundColor = p.Bg, p.Fg
 	}
 	return v
@@ -959,8 +962,8 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	if a.Malformed != nil {
 		return "", "", ""
 	}
-	if followUpDue(a, m.now(), m.followUpDays) && a.LastChange != nil {
-		flag = followUpFlag + " " + m.quiet(a.LastChange)
+	if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		flag = followUpHeat(past) + " " + m.since(a.LastChange)
 	}
 	return m.stageText(a), flag, fitCell(a.Fit)
 }
@@ -1005,7 +1008,11 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// The right-hand columns are fixed: a row without a value holds the column blank, so
 	// every column starts at the same cell on every row.
 	buildRight := func() string {
-		return slot(show.flagW, p.Warn, flag) + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
+		heat := slot(show.flagW, p.Warn, flag)
+		if strings.HasPrefix(flag, heatHigh) {
+			heat = st(p.Warn).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
+		}
+		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
 			st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
 	right := buildRight()
@@ -1113,33 +1120,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
 	} else {
 		b.WriteString(wrap(a.Title, p.Fg, titleLines) + "\n" + p.Text(p.Dim).Render(a.Company+" · "+a.Track) + "\n\n")
-		b.WriteString(keepTogether(inner, "", p.StatusChip(a.Status), p.FitText(a)) + "\n")
-		b.WriteString(m.fileMarks(p, a) + "\n" + p.DocsMeter(a) + "\n")
-		if next := m.nextLine(p, a, inner); next != "" {
-			b.WriteString("\n" + next + "\n")
-		}
-		b.WriteString("\n" + p.Heading("Timeline") + "\n" + m.timelineBlock(p, a, inner, false) + "\n\n")
-		b.WriteString(p.Heading("Fit") + "\n")
-		if t := m.docText(a, fitFile); t != "" {
-			if a.Fit == "" {
-				b.WriteString(p.Text(p.Dim).Render(fitSummary(a, true)) + "\n")
-			}
-			b.WriteString(wrap(t, p.Fg, docLines) + "\n")
-		} else {
-			b.WriteString(m.fitEmpty(p, a) + "\n")
-		}
-		if beforeApplied(tableOf(a)) {
-			if jd := m.docText(a, jdFile); jd != "" {
-				b.WriteString("\n" + p.Heading("JD") + "\n" + wrap(jd, p.Sub, previewLines) + "\n" +
-					p.Key().Render("enter") + p.Text(p.Dim).Render(" full JD") + "\n")
-			}
-		}
-		b.WriteString("\n" + p.Heading("Notes") + "\n")
-		if t := m.docText(a, notesFile); t != "" {
-			b.WriteString(wrap(t, p.Fg, docLines))
-		} else {
-			b.WriteString(p.Text(p.Dim).Render("No notes yet · ") + p.Key().Render("n") + p.Text(p.Dim).Render(" to add"))
-		}
+		b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
 }
@@ -1152,40 +1133,6 @@ func (m model) fileMarks(p pal, a store.Application) string {
 		parts = append(parts, m.chipText(p, a, c))
 	}
 	return strings.Join(parts, "  ")
-}
-
-// timelineBlock is the Timeline section: the Status log as a one-line track, then the
-// close date for Leads and Drafts by its urgency. An empty log says how to start it.
-// flow lets the track run onto more lines, for a column too narrow for one.
-func (m model) timelineBlock(p pal, a store.Application, w int, flow bool) string {
-	var lines []string
-	switch {
-	case len(a.StatusLog) == 0:
-		lines = append(lines, p.Text(p.Dim).Render("Not moved yet · ")+p.Key().Render("m")+p.Text(p.Dim).Render(" to move"))
-	case flow:
-		lines = append(lines, m.timelineFlow(p, a, w))
-	default:
-		lines = append(lines, m.timelineTrack(p, a, w))
-	}
-	if beforeApplied(tableOf(a)) {
-		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
-			lines = append(lines, p.Text(p.Faint).Render("→ ")+p.CloseStyle(s, p.Text, p.Dim).Render(text))
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// fitEmpty is the Fit section without reasoning: the verdict and where it came from, or
-// that there is none yet and the key that assesses it.
-func (m model) fitEmpty(p pal, a store.Application) string {
-	if a.Fit != "" {
-		return p.Text(p.Dim).Render(fitSummary(a, false))
-	}
-	s := p.Text(p.Dim).Render("Fit: " + fitNone)
-	if m.harness != "" {
-		s += p.Text(p.Dim).Render(" · ") + p.Key().Render("f") + p.Text(p.Dim).Render(" to assess")
-	}
-	return s
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for

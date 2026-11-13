@@ -39,10 +39,10 @@ func (m model) trackHelpKeys() []helpKey {
 	return keys
 }
 
-// settingsRowsFocused reports whether keys act on the settings rows: the rows pane has
-// focus, or the group list is hidden.
+// settingsRowsFocused reports whether keys act on the settings rows: the cursor is on a
+// field, not the header.
 func (m model) settingsRowsFocused() bool {
-	return m.settings != nil && (m.settings.Focus == settingsRows || !m.settingsListShown(m.viewWidth()))
+	return m.settings != nil && !m.settings.Header
 }
 
 // tracksKey handles a, J, K, x and enter on the Tracking rows. handled is false for any

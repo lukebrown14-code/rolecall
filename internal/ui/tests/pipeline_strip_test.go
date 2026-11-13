@@ -128,7 +128,7 @@ func TestTrackOptionsShowCountsAndExplainThem(t *testing.T) {
 }
 
 func TestSettingsTracksExplainTheirCounts(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "6", "j", "j", "tab"))
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "6", "tab", "tab"))
 	if !regexp.MustCompile(`SWE\s+\d+ applications · \d+ active · \d+ closed`).MatchString(view) {
 		t.Errorf("Settings Tracks lack the breakdown:\n%s", view)
 	}

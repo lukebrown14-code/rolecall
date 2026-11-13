@@ -124,7 +124,7 @@ func TestProfileContactEmailRendersInlineInTheTable(t *testing.T) {
 	cell := ""
 	for _, line := range strings.Split(view, "\n") {
 		_, right, ok := strings.Cut(line, "│")
-		if ok && strings.Contains(right, "Email") {
+		if ok && strings.Contains(right, "EMAIL") {
 			cell = right
 			break
 		}

@@ -7,7 +7,6 @@ func searchHarness(t *testing.T, workspaceJSON string) *settingsHarness {
 	t.Helper()
 	h := newSettingsHarness(t, 120, workspaceJSON, nil)
 	h.tm.Type("6")
-	h.tm.Type("tab")
 	return h
 }
 

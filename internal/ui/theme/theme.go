@@ -158,6 +158,8 @@ type Palette struct {
 	Fg, Dim, Sub, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Bad color.Color
 	Bg, Panel, Purple, Gold, Lead, Draft                                color.Color
 	Ascii                                                               bool
+	// Inherit marks the terminal-colours palette: ANSI-16 roles and no painted fill.
+	Inherit bool
 	// Backdrop marks the dimmed palette behind a pop-up: the pop-up holds the one
 	// selection, so the frame behind it draws none.
 	Backdrop bool
@@ -424,6 +426,9 @@ func (p Palette) Keys(pairs [][2]string) string {
 // panelFill paints s on the palette's pop-up fill, re-applying it after inner resets so
 // the fill survives styled text inside it.
 func (p Palette) PanelFill(s string) string {
+	if p.Inherit {
+		return s
+	}
 	panelSeq := bgSeq(p.Panel)
 	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+panelSeq)
 	s = strings.ReplaceAll(s, "\x1b[m", "\x1b[m"+panelSeq)

@@ -9,7 +9,7 @@ import (
 // it says what to do about the Applications still on the Track.
 func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "j", "j", "tab", "x")
+		lines := settingsAt(t, size[0], size[1], "]", "]", "x")
 		v := strings.Join(lines, "\n")
 		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 10 Applications", "incl. 1 Dismissed", "Move its Applications to another Track")
 		if strings.Contains(v, "rename") {
@@ -37,7 +37,7 @@ func TestSettingsRefusalCountAddsUp(t *testing.T) {
 // them; the cursor passes over them, so enter never lands on one and does nothing.
 func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "tab", "j", "j")
+		lines := settingsAt(t, size[0], size[1], "j", "j")
 		if l := rowWith(lines, "Remote roles"); !strings.Contains(l, "▌ Remote roles") {
 			t.Errorf("%dx%d the cursor left Remote roles for a read-only row: %q", size[0], size[1], l)
 		}
@@ -47,7 +47,7 @@ func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 		if l := rowWith(lines, "Blockers"); !strings.Contains(l, "read-only") {
 			t.Errorf("%dx%d Blockers: %q", size[0], size[1], l)
 		}
-		lines = settingsAt(t, size[0], size[1], "j", "j", "j", "tab")
+		lines = settingsAt(t, size[0], size[1], "]", "]", "]")
 		if v := strings.Join(lines, "\n"); !strings.Contains(v, "fixed this session") {
 			t.Errorf("%dx%d Workspace lacks its reason:\n%s", size[0], size[1], v)
 		}
@@ -57,7 +57,7 @@ func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 // An unset editable value shows an example of what to type, not a bare "not set".
 func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "j", "j", "j", "tab")
+		lines := settingsAt(t, size[0], size[1], "]", "]", "]")
 		v := strings.Join(lines, "\n")
 		for _, want := range []string{"nvim, code --wait", "~/Downloads", "claude", "path to rolecall/plugin"} {
 			if !strings.Contains(v, want) {
@@ -74,7 +74,7 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 // The rename name step says what the next screen does: review the reach, then confirm.
 func TestSettingsRenamePopupSaysReviewNotNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		f := footer(settingsAt(t, size[0], size[1], "j", "j", "tab", "r"))
+		f := footer(settingsAt(t, size[0], size[1], "]", "]", "r"))
 		if !strings.Contains(f, "enter review") {
 			t.Fatalf("%dx%d rename footer %q", size[0], size[1], f)
 		}
@@ -89,8 +89,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	t.Run("gate", func(t *testing.T) {
 		h := newSettingsHarness(t, 120, `{"letterWordCap":300}`, nil)
 		h.tm.Type("6")
-		h.tm.Type("j")
-		h.tm.Type("tab")
+		h.tm.Type("]")
 		h.tm.Type("enter")
 		h.tm.Type("enter")
 		requireAll(t, h.tm.plain(), "Saved Cover letter maximum: 300 words")
@@ -98,8 +97,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	t.Run("gate names the stored number", func(t *testing.T) {
 		h := newSettingsHarness(t, 120, `{"letterWordCap":300}`, nil)
 		h.tm.Type("6")
-		h.tm.Type("j")
-		h.tm.Type("tab")
+		h.tm.Type("]")
 		h.tm.Type("enter")
 		for range 3 {
 			h.tm.Type("backspace")
@@ -125,6 +123,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 		}
 		d.Type("nano")
 		d.Type("enter")
+		d.Type("ctrl+s")
 		requireAll(t, d.plain(), "Saved Editor: nano")
 	})
 	t.Run("add track", func(t *testing.T) {

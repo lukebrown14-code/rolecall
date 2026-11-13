@@ -6,21 +6,21 @@
  ▌ ◌ Empty                          ▱▱▱▱                      ·  │ Empty                                                
      Example · SWE · —                                           │ Example · SWE                                        
                                                                  │                                                      
-   ◌ Empty log                      ▱▱▱▱                      ·  │ ◌ Lead   Fit: not assessed                           
-     Fictional Labs · SWE · —                                    │ ○ JD  ○ Resume  ○ Cover letter  ○ PDF                
-                                                                 │ ▱▱▱▱ 0/4                                             
-   ◌ Platform Engineer              ▱▱▱▱          Lead 7d     ·  │                                                      
-     Fern Systems · Platform · —                                 │ NEXT  add the JD   enter open                        
+   ◌ Empty log                      ▱▱▱▱                      ·  │ STATUS  ◌ Lead                             [m] move  
+     Fictional Labs · SWE · —                                    │ FIT     ·                                 read-only  
+                                                                 │ TRACK   SWE                                [e] edit  
+   ◌ Platform Engineer              ▱▱▱▱          Lead 7d     ·  │ NOTES   —                                 [n] notes  
+     Fern Systems · Platform · —                                 │                                                      
+                                                                 │ NEXT  add the JD   enter open                        
+   ⚠ Can't read SWE/malformed                                    │                                                      
+     meta.yml line 4: indented lines must be status_log entri…   │ DOCS    ▱▱▱▱ 0/4                                     
+                                                                 │         ○ JD                                         
+                                                                 │         ○ Resume                                     
+                                                                 │         ○ Cover letter                               
+                                                                 │         ○ PDF                                        
                                                                  │                                                      
-   ⚠ Can't read SWE/malformed                                    │ TIMELINE                                             
-     meta.yml line 4: indented lines must be status_log entri…   │ Not moved yet · m to move                            
-                                                                 │                                                      
-                                                                 │ FIT                                                  
-                                                                 │ Fit: not assessed                                    
-                                                                 │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
-                                                                 │                                                      
+                                                                 │ TIMELINE                                             
+                                                                 │ Not moved yet · [m] move                             
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

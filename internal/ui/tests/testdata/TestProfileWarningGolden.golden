@@ -2,16 +2,16 @@
 
    SECTIONS                                                                                   profile/master-profile.md
 ─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
- ▌ Contact                    ✗  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
+ ▌ Contact                    ✗  │  SECTION Contact                                                            [e] edit 
    Headlines                  2  │                                                                                      
-   Experience                 2  │  Name         Alex Quinn                                                             
-   Key Skills                 8  │  Phone        +61 400 000 000                                                        
-   Summary                       │  Location     Brisbane, QLD                                                          
-   Facts NOT available        2  │  LinkedIn     linkedin.com/in/alexquinn                                              
-   files ──────────────────────  │  GitHub       github.com/alexquinn                                                   
-   projects.md                   │  Work rights  Full working rights in Australia (the subclass never appears)          
-                                 │                                                                                      
-                                 │                                                                                      
+   Experience                 2  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
+   Key Skills                 8  │                                                                                      
+   Summary                       │  NAME         Alex Quinn                                                    [e] edit 
+   Facts NOT available        2  │  PHONE        +61 400 000 000                                               [e] edit 
+   files ──────────────────────  │  LOCATION     Brisbane, QLD                                                 [e] edit 
+   projects.md                   │  LINKEDIN     linkedin.com/in/alexquinn                                     [e] edit 
+                                 │  GITHUB       github.com/alexquinn                                          [e] edit 
+                                 │  WORK RIGHTS  Full working rights in Australia (the subclass never appears) [e] edit 
                                  │                                                                                      
                                  │                                                                                      
                                  │                                                                                      

@@ -46,6 +46,7 @@ type model struct {
 	stats                 *statsCache // the Stats report for the current interaction; see statsReport
 	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
 	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	inherit               bool        // inherit_terminal in config.toml: ANSI-16 colours, no painted background
 	theme                 theme       // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
@@ -213,6 +214,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
 		m.err = done.err
+		if done.err == nil && done.toast != "" {
+			m.toast = done.toast
+		}
 		if err != nil {
 			m.err = err
 		} else if a != nil {
@@ -275,6 +279,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		m.clampCursor()
 		return m, cmd
+	}
+	if m.screen == settingsScreen && m.settings != nil && m.settings.Edit != nil {
+		// An open Settings field owns the keyboard, so typing digits or "," is text.
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			return m.editKey(msg), nil
+		case tea.PasteMsg:
+			return m.editPaste(msg.Content), nil
+		}
 	}
 	if done, ok := msg.(flashDone); ok {
 		if done.id == m.flashID {

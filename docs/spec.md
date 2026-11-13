@@ -39,7 +39,7 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 ├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
-│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents
+│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents, draft-follow-up
 │  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py
 │  ├─ templates/ resume.typ, cover-letter.typ, brand.typ, fonts/
 │  ├─ styles/au.md
@@ -72,10 +72,11 @@ follow_up_days = 14
 downloads = "~/Downloads"
 harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
 plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
+inherit_terminal = false  # use the terminal's ANSI-16 colours, no painted background; NO_COLOR still wins
 ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale or TERM=linux turns them on
 ```
 
-Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90) and `ascii` in place, keeping comments and other lines; `workspace` is never written.
+Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90), `ascii` and `inherit_terminal` in place, keeping comments and other lines; `workspace` is never written.
 
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 
@@ -399,6 +400,7 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 | `find-jobs` | runs `sweep.py`, triages, creates a Lead folder per role worth a look (as capture-job, `jd.md` may be a stub with the URL) |
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
+| `draft-follow-up` | `follow-up.md` (a message for the Owner to send; the TUI never sends it) |
 
 All skills: never append to `status_log` unless the Owner explicitly asks. Never touch
 `notes.md`, `sent/`, or the profile fact table.
@@ -464,12 +466,13 @@ separate track.
   `Set harness in ~/.config/rolecall/config.toml`. Unset `plugin` does the same for `b` and
   fetch (Add still works by hand).
 
-#### Handoff: `f` and `p`
+#### Handoff: `f`, `p` and `r`
 
 | Key | Skill | Applications | From |
 |---|---|---|---|
 | `f` | `assess-fit` | any | table row, detail view |
 | `p` | `prepare-documents` | Lead, Draft | table row, detail view |
+| `r` | `draft-follow-up` | Follow-up due | table row, detail view |
 
 Interactive mode: the Owner talks to the agent in their terminal (ADR-0003). On exit the
 folder is rescanned. A non-zero exit shows `Harness exited with status N` in the feedback

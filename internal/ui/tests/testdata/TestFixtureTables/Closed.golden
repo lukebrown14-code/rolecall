@@ -6,22 +6,22 @@
  ▌ ✕ Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ Engineer #1                                          
      Example · Unknown · closed ~Jan 2026                        │ Example · Unknown                                    
                                                                  │                                                      
-   – Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ ✕ Rejected   Fit: Good                               
-     Example · Unknown · closed ~Jan 2026                        │ ○ JD  ○ Resume  ○ PDF                                
-                                                                 │ ▱▱▱ 0/3                                              
-   ✕ docs-ready                     ▰▰▰▱         Rej. ~7d     ·  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │ TIMELINE                                             
-                                                                 │ ● Applied ~1 Jan 2025 ─ ✕ Rejected ~1 Jan            
-   – docs-resume-only               ▰▰▱       Withdr. ~7d     ·  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │ FIT                                                  
-                                                                 │ Good · no reasoning saved                            
+   – Engineer #1                    ▱▱▱         ~Jan 2026  Good  │ STATUS  ✕ Rejected                         [m] move  
+     Example · Unknown · closed ~Jan 2026                        │ FIT     Good                              read-only  
+                                                                 │ TRACK   Unknown                            [e] edit  
+   ✕ docs-ready                     ▰▰▰▱         Rej. ~7d     ·  │ NOTES   —                                 [n] notes  
+     Fictional Labs · SWE · closed ~7d ago                       │                                                      
+                                                                 │ DOCS    ▱▱▱ 0/3                                      
+   – docs-resume-only               ▰▰▱       Withdr. ~7d     ·  │         ○ JD                                         
+     Fictional Labs · SWE · closed ~7d ago                       │         ○ Resume                                     
+                                                                 │         ○ PDF                                        
+                                                                 │   Cover letter                                       
+                                                                 │   not needed · Resume only                           
                                                                  │                                                      
-                                                                 │ NOTES                                                
-                                                                 │ No notes yet · n to add                              
-                                                                 │                                                      
-                                                                 │                                                      
-                                                                 │                                                      
-                                                                 │                                                      
+                                                                 │ TIMELINE                                             
+                                                                 │ ✕ Rejected      ~1 Jan                               
+                                                                 │ │                                                    
+                                                                 │ ● Applied       ~1 Jan 2025                          
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

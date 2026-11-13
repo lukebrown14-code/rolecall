@@ -12,14 +12,16 @@ import (
 // document with no Harness set to write it), so the line never offers a key that
 // would do nothing.
 type nextStep struct {
-	what, why, key, desc string
+	label, what, why, key, desc string // label is "NEXT" unless the step says otherwise
 }
 
 // Words the next step repeats.
 const (
-	descMove  = "move"
-	descOpen  = "open"
-	stepAddJD = "add the JD"
+	followUpLabel = "FOLLOW-UP"
+	descNudge     = "draft nudge"
+	descMove      = "move"
+	descOpen      = "open"
+	stepAddJD     = "add the JD"
 )
 
 // nextAction is the Application's next step, or false when there is none: a closed or
@@ -57,8 +59,12 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		}
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
-		if _, flag, _ := m.slotText(a); flag != "" {
-			return nextStep{what: "follow up", why: "quiet " + strings.TrimPrefix(flag, followUpFlag+" "), key: "n", desc: "note"}, true
+		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+			step := nextStep{label: followUpLabel, what: followUpWords(past), key: "n", desc: "note"}
+			if harness {
+				step.key, step.desc = "r", descNudge
+			}
+			return step, true
 		}
 		if a.Status == store.StatusInterviewing {
 			return nextStep{what: "prepare for the interview", key: "n", desc: "note"}, true
@@ -78,14 +84,18 @@ func (m model) writeStep(what string) nextStep {
 	return nextStep{what: what}
 }
 
-// nextLine is "NEXT  follow up · quiet 9mo   n note", cut to w from the right but keeping
+// nextLine is "NEXT  add the JD   enter open", or "FOLLOW-UP  due 9 days ago   r draft nudge", cut to w from the right but keeping
 // its key: the reason goes first, then the words are cut.
 func (m model) nextLine(p pal, a store.Application, w int) string {
 	s, ok := m.nextAction(a)
 	if !ok {
 		return ""
 	}
-	label := p.Text(p.Dim).Bold(true).Render("NEXT  ")
+	name := "NEXT"
+	if s.label != "" {
+		name = s.label
+	}
+	label := p.Text(p.Dim).Bold(true).Render(name + "  ")
 	keys := ""
 	if s.key != "" {
 		keys = "   " + p.Key().Render(s.key) + p.Text(p.Dim).Render(" "+s.desc)

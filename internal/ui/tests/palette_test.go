@@ -21,7 +21,7 @@ func TestCommandPaletteRunsTheChosenAction(t *testing.T) {
 	}
 	m = driveModel(t, m, "dism")
 	view = ansi.Strip(m.View().Content)
-	if !strings.Contains(view, "x      dismiss") || strings.Contains(view, "notes") {
+	if !strings.Contains(view, "x      dismiss") || strings.Contains(view, "n      notes") {
 		t.Fatalf("palette did not filter to dismiss:\n%s", view)
 	}
 	m = driveModel(t, m, "enter")

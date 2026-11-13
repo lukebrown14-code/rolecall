@@ -19,6 +19,8 @@ type Config struct {
 	Plugin       string `toml:"plugin"`
 	Harness      string `toml:"harness"`
 	ASCII        bool   `toml:"ascii"`
+	// InheritTerminal draws with the terminal's own ANSI-16 colours and paints no background.
+	InheritTerminal bool `toml:"inherit_terminal"`
 
 	// EditorSource names where the effective Editor came from: one of the Source*
 	// constants. Editor itself stays the configured value (empty when unset), so the
