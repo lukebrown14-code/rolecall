@@ -187,7 +187,7 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 	for _, tc := range []struct {
 		w, h           int
 		preview, lists bool
-	}{{120, 36, true, true}, {110, 30, true, true}, {109, 30, false, true}, {80, 24, false, true}, {79, 24, false, false}, {60, 16, false, false}} {
+	}{{120, 36, true, true}, {100, 30, true, true}, {99, 30, false, true}, {72, 24, false, true}, {71, 24, false, false}, {60, 16, false, false}} {
 		short := tc.h <= 20
 		for _, keys := range [][]string{{"1"}, {"3", "enter"}, {"5"}, {"6"}, {"4"}} {
 			lines := strings.Split(ansi.Strip(runKeysSized(t, root, tc.w, tc.h, keys...)), "\n")

@@ -482,10 +482,10 @@ func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 	}
 }
 
-// Below 80 columns the section list has no room: it is hidden and the context row names
-// the selected entry and its 1-based position instead. At 80 columns the list is back.
+// Below 72 columns the section list has no room: it is hidden and the context row names
+// the selected entry and its 1-based position instead. At 72 columns the list is back.
 func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
-	narrow := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))
+	narrow := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "j", "j"))
 	if !strings.Contains(narrow, "Experience 3/6") {
 		t.Fatalf("narrow context row lacks the selection and position:\n%s", narrow)
 	}
@@ -494,20 +494,20 @@ func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
 			t.Fatalf("narrow layout still shows %q:\n%s", hidden, narrow)
 		}
 	}
-	wide := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "5"))
+	wide := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 72, 24, "5"))
 	if !strings.Contains(wide, "SECTIONS") || !strings.Contains(wide, "Key Skills") {
-		t.Fatalf("80 columns still hides the section list:\n%s", wide)
+		t.Fatalf("72 columns still hides the section list:\n%s", wide)
 	}
 }
 
 // j and k still move the selection when the list is hidden, and the content follows.
 func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 	root := fixtureCopy(t, nil)
-	headlines := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j"))
+	headlines := ansi.Strip(runKeysSized(t, root, 71, 24, "5", "j"))
 	if !strings.Contains(headlines, " 2/6") || !strings.Contains(headlines, "Full Stack Software Engineer") {
 		t.Fatalf("j did not move to Headlines:\n%s", headlines)
 	}
-	back := ansi.Strip(runKeysSized(t, root, 79, 24, "5", "j", "k"))
+	back := ansi.Strip(runKeysSized(t, root, 71, 24, "5", "j", "k"))
 	if !strings.Contains(back, " 1/6") || !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
 	}
@@ -516,7 +516,7 @@ func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 // With the list hidden there is no second pane to focus, so tab stays on the list and j
 // still changes the section instead of scrolling the content.
 func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "tab", "j"))
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "tab", "j"))
 	for _, want := range []string{"2/6", "Full Stack Software Engineer"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tab then j did not move to Headlines (%q):\n%s", want, view)
@@ -529,7 +529,7 @@ func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
 
 // The narrow position continues from the sections into the other files under the divider.
 func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
-	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, profileKeysToFile...))
+	view := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 71, 24, profileKeysToFile...))
 	if !strings.Contains(view, "projects.md 7/7") {
 		t.Fatalf("narrow context row lacks projects.md 7/7:\n%s", view)
 	}
@@ -553,7 +553,7 @@ func TestProfileGolden(t *testing.T) {
 }
 
 func TestProfileNarrowGolden(t *testing.T) {
-	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 79, 24, "5", "j", "j"))))
+	teatest.RequireEqualOutput(t, []byte(ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "j", "j"))))
 }
 
 func TestProfileMissingGolden(t *testing.T) {
