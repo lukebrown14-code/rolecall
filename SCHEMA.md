@@ -52,6 +52,7 @@ defined in `GLOSSARY.md`.
 | `notes.md` | — | TUI (`$EDITOR`), Owner | free-text notes |
 | `fit.md` | — | agent | the reasoning behind `fit` |
 | `gaps.md` | — | agent | gaps found while writing |
+| `follow-up.md` | — | agent | a drafted follow-up message for the Owner to send |
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
@@ -133,7 +134,7 @@ Each entry is a flow map on one line:
 | Writer | May write | Must not |
 |---|---|---|
 | **TUI** | creates folders. Writes any key through Add / Edit. Appends any Status | touch docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs and `fit.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
+| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 
 ### Format rules (both languages)

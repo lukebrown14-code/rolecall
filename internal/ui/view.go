@@ -88,9 +88,9 @@ func ago(date string, now time.Time) (string, int) {
 	return span(n) + " ago", days
 }
 
-// quiet is how long an Application has gone without a change, "9mo", for the follow-up
+// since is how long an Application has gone without a change, "9mo", for the follow-up
 // flag: always a span, since "quiet Feb 2026" would read as a date.
-func (m model) quiet(e *store.StatusEntry) string {
+func (m model) since(e *store.StatusEntry) string {
 	_, days, ok := daysFrom(e.At, m.now())
 	if !ok {
 		return ""
@@ -950,8 +950,8 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	if a.Malformed != nil {
 		return "", "", ""
 	}
-	if followUpDue(a, m.now(), m.followUpDays) && a.LastChange != nil {
-		flag = followUpFlag + " " + m.quiet(a.LastChange)
+	if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		flag = followUpHeat(past) + " " + m.since(a.LastChange)
 	}
 	return m.stageText(a), flag, fitCell(a.Fit)
 }
@@ -996,7 +996,11 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// The right-hand columns are fixed: a row without a value holds the column blank, so
 	// every column starts at the same cell on every row.
 	buildRight := func() string {
-		return slot(show.flagW, p.Warn, flag) + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
+		heat := slot(show.flagW, p.Warn, flag)
+		if strings.HasPrefix(flag, heatHigh) {
+			heat = st(p.Warn).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
+		}
+		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
 			st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
 	right := buildRight()

@@ -213,6 +213,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)
 		m.err = done.err
+		if done.err == nil && done.toast != "" {
+			m.toast = done.toast
+		}
 		if err != nil {
 			m.err = err
 		} else if a != nil {
