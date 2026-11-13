@@ -51,7 +51,7 @@ const (
 )
 
 // profileListWidth is the section list's column, divider excluded.
-func (m model) profileListWidth() int { return m.layout().panel(profileShare, profileMin, profileMax) }
+func (m model) profileListWidth() int { return m.layout().profileW }
 
 // profileState is the loaded Profile and where the Owner is in it. It is replaced, never
 // mutated in place, so copies of the model stay independent.

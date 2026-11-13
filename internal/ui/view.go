@@ -207,8 +207,8 @@ func (m model) listView(p pal) string {
 // of n rows. A mouse click reads the same geometry the frame is drawn with.
 func (m model) listPane(n int) (int, bool) {
 	l := m.layout()
-	if l.wide() && n > 0 {
-		return l.w - l.panel(previewShare, previewMin, previewMax) - 1, true
+	if l.detail == detailPane && n > 0 {
+		return l.listW, true
 	}
 	return l.w, false
 }
