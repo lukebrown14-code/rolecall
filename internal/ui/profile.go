@@ -234,7 +234,13 @@ func (m model) profileMarkdown(st profileState) string {
 			return ""
 		}
 		width := m.profileContentWidth(m.viewWidth())
-		var lines []string
+		// The selection as a field row, like the detail's: what it is, and the key that edits it.
+		p := m.pal()
+		label := "SECTION"
+		if _, ok := st.file(); ok {
+			label = "FILE"
+		}
+		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit", width), ""}
 		if warning != "" {
 			lines = append(lines, warning)
 		}
@@ -285,13 +291,8 @@ func (m model) fieldTable(body string, width int) (lines []string, ok bool) {
 	labelW += gutter
 	p := m.pal()
 	for _, r := range rows {
-		label := p.Text(p.Dim).Render(r[0] + strings.Repeat(" ", labelW-xansi.StringWidth(r[0])))
-		for i, part := range wrapWords(r[1], max(1, width-labelW)) {
-			if i > 0 {
-				label = strings.Repeat(" ", labelW)
-			}
-			lines = append(lines, label+p.Text(p.Fg).Render(part))
-		}
+		// One row per field, the value cut to the room beside its key.
+		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "e", "edit", width))
 	}
 	return lines, true
 }
