@@ -170,16 +170,15 @@ func (m model) listView(p pal) string {
 	case len(rows) == 0:
 		switch {
 		case m.text != "":
-			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
-				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render("No matches for “"+m.text+"”"), "", p.Text(p.Dim).Render("esc clears the search")))
+			msg, hints := m.emptySearchLine()
+			body = m.emptyBody(p, w, bodyH, msg, hints)
 		case m.movedOut():
 			// A move just took this view's last row elsewhere: say where it went and keep
 			// a celebration whole, rather than showing "nothing here" under a toast.
 			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center, m.movedOutView(p))
 		default:
-			title, hint := emptyMessage(m.views()[m.table])
-			body = lipgloss.Place(w, bodyH, lipgloss.Center, lipgloss.Center,
-				lipgloss.JoinVertical(lipgloss.Center, p.Text(p.Fg).Bold(true).Render(title), "", p.Text(p.Dim).Render(hint)))
+			msg, hints := m.emptyViewLine(m.views()[m.table])
+			body = m.emptyBody(p, w, bodyH, msg, hints)
 		}
 	default:
 		list := lipgloss.NewStyle().PaddingLeft(1).Width(listW).Render(m.listBody(p, rows, listW-gutter, bodyH))
@@ -257,13 +256,16 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 // welcome is the first-run screen, for a Workspace with no Applications at all: the
 // first three moves instead of empty panes.
 func (m model) welcome(p pal) string {
-	title := p.Text(p.Fg).Bold(true).Render(wordmark+" rolecall") + p.Text(p.Dim).Render(" · no Applications yet")
+	title := p.Text(p.Fg).Bold(true).Render(wordmark + " rolecall")
+	msg, _ := m.emptyViewLine(m.views()[m.table])
+	hints := m.availableHints(addLeadHint)
 	step := func(k, desc string) string {
 		return p.Key().Render(padRight(k, gutter+1)) + p.Text(p.Fg).Render(desc)
 	}
-	steps := lipgloss.JoinVertical(lipgloss.Left, step("a", "add your first Lead"),
+	steps := lipgloss.JoinVertical(lipgloss.Left,
 		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
-	return lipgloss.JoinVertical(lipgloss.Left, title, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
+	line := strings.Join(m.emptyLines(p, m.layout().w-2*gutter, msg, hints), "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, title, "", line, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
 }
 
 // movedOut reports that a move just took the last row out of this view.
@@ -296,27 +298,6 @@ func (m model) movedOutView(p pal) string {
 		hint = "press 1-6 to find it"
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
-}
-
-// emptyMessage says how Applications reach an empty view.
-func emptyMessage(table string) (string, string) {
-	switch table {
-	case tableLeads:
-		return "No Leads yet", "Press a to add one, or run capture-job from your harness."
-	case tableDismissed:
-		return "Nothing dismissed", "Press x on a Lead to dismiss it."
-	case tableDraft:
-		return "No Drafts", "Move a Lead here with m → d."
-	case allView, tableApplied:
-		return "Nothing applied for yet", "Mark a Draft as sent with m → a."
-	case tableInterviewing:
-		return "No interviews", "Move an Application here with m → i from Applied."
-	case tableOffer:
-		return "No offers yet", "Move an Application here with m → o from Interviewing."
-	case tableClosed:
-		return "Nothing closed", "Rejected and Withdrawn Applications land here (m → r / w)."
-	}
-	return "Nothing here", ""
 }
 
 func (m model) screenCount(si int) int {
