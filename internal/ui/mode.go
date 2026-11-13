@@ -18,14 +18,6 @@ type mode interface {
 	View(m *model, p pal) string
 	// Keys are the mode's keys: the pop-up's bottom border, or the search hints.
 	Keys() [][2]string
-	// boxed reports whether the mode is a pop-up whose border carries its own keys, so
-	// the key line shows context instead of repeating them.
-	boxed() bool
-}
-
-func (m model) helpOpen() bool {
-	_, ok := m.overlay.(*helpMode)
-	return ok
 }
 
 func (m model) searching() bool {
@@ -51,8 +43,6 @@ type formMode struct {
 }
 
 func (fm *formMode) Keys() [][2]string { return fm.form.Keys() }
-
-func (fm *formMode) boxed() bool { return true }
 
 func (fm *formMode) View(m *model, p pal) string { return m.formBox(p, fm.form, popForm) }
 
@@ -116,8 +106,6 @@ func (mv *moveMode) Keys() [][2]string {
 	return [][2]string{{label, "move"}, {"↑↓ enter", "pick"}, {"esc", "cancel"}}
 }
 
-func (mv *moveMode) boxed() bool { return true }
-
 func (mv *moveMode) View(m *model, p pal) string { return m.moveBox(p, mv) }
 
 // Update moves the Application the pop-up shows, not whatever row the cursor is on now: a
@@ -156,8 +144,6 @@ func (cm *confirmMode) Keys() [][2]string {
 	return [][2]string{{"y", "mark Applied"}, {keyNoEsc, "cancel"}}
 }
 
-func (cm *confirmMode) boxed() bool { return true }
-
 func (cm *confirmMode) View(m *model, p pal) string { return m.confirmBox(p, cm) }
 
 func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -181,8 +167,6 @@ func (dm *downloadMode) Keys() [][2]string {
 	return [][2]string{{"y", "overwrite"}, {"a", "all"}, {"n", "skip"}, {"esc", "stop"}}
 }
 
-func (dm *downloadMode) boxed() bool { return true }
-
 func (dm *downloadMode) View(m *model, p pal) string { return m.overwriteBox(p, dm) }
 
 func (dm *downloadMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -202,8 +186,6 @@ type duplicateMode struct {
 func (dm *duplicateMode) Keys() [][2]string {
 	return [][2]string{{"o", "open that one"}, {"s", "save anyway"}, {"esc", "cancel"}}
 }
-
-func (dm *duplicateMode) boxed() bool { return true }
 
 func (dm *duplicateMode) View(m *model, p pal) string { return m.duplicateBox(p, dm) }
 
@@ -229,8 +211,6 @@ type buildFailMode struct{ failure *buildFailure }
 
 func (bf *buildFailMode) Keys() [][2]string { return [][2]string{{"esc", hintClose}} }
 
-func (bf *buildFailMode) boxed() bool { return true }
-
 func (bf *buildFailMode) View(m *model, p pal) string { return m.buildFailBox(p, bf) }
 
 func (bf *buildFailMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
@@ -248,8 +228,6 @@ func (bf *buildFailMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 type helpMode struct{ page, pages int }
 
 func (hm *helpMode) Keys() [][2]string { return helpModeKeys(hm.pages) }
-
-func (hm *helpMode) boxed() bool { return true }
 
 func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
 
@@ -273,8 +251,6 @@ type searchMode struct{}
 func (sm *searchMode) Keys() [][2]string {
 	return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
 }
-
-func (sm *searchMode) boxed() bool { return false }
 
 func (sm *searchMode) View(m *model, p pal) string { return "" }
 
@@ -307,7 +283,5 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 
 // Key-hint labels shared by the pop-up modes.
 const (
-	hintNext   = "next"
-	hintSave   = "save"
 	hintReview = "review"
 )

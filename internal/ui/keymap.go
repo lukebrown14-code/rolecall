@@ -5,6 +5,9 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
+// keyBackspace is the named key the search input and command palette edit with.
+const keyBackspace = "backspace"
+
 // listAction is one row action the list and detail views accept: the keys that trigger
 // it, how the help words it, its group and key-line priority, when it is listed and when
 // it runs, and what it does. The help and the dispatcher both read this one table, so the

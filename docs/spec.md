@@ -52,8 +52,6 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 - The code repo holds **no personal data**. The data repo stays private for good.
 - **Dev loop:** register `rolecall/plugin` as a local-path marketplace in Claude Code, so skill
   edits take effect without reinstalling. Other harnesses read `plugin/skills/` by path.
-- In the dashboard-era repo, `src/web/`, `src/email-worker/` and the hosted deploy are frozen now and deleted once v0.1
-  is in daily use.
 
 ## TUI (v0.1)
 
@@ -212,7 +210,7 @@ close date · Track, each shedding detail to fit rather than wrapping.
 | JD | `jd.md` rendered with Glamour, scrollable | `$EDITOR` on `jd.md` |
 | Notes | `notes.md` rendered | `$EDITOR` on `notes.md` |
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
-| Docs | list: `resume.md`, `cover-letter.md`, `gaps.md` (present/absent), each PDF in `out/`, and `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
+| Docs | list: `resume.md`, `cover-letter.md`, `gaps.md` (`✓` ready or `○` missing), each PDF in `out/`, and `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
 
 `Esc` goes back to the table. `m`, `n`, `d` and `u` work in the detail view too.
 
@@ -549,16 +547,16 @@ The detail view opens on JD and shows these tabs in order:
 
 Reader tabs render the Markdown source as written, using the JD tab's Glamour
 renderer, reading width and scroll keys. `e` opens the reader's file in `$EDITOR`.
-The current tab is tracked by identity. Left/right wraps through visible tabs.
+The current reader tab is tracked by file name. Left/right wraps through visible tabs.
 Live refresh keeps the current tab and scroll offset when text changes; newly
 written documents add tabs without moving the reader. If the current reader's
 file is deleted or emptied, move to Docs with `<file> is gone`. Moving to an
 Application without the current tab falls back to JD.
 
 Docs keeps the source files, PDFs and `sent/` inventory. Enter on a written
-Markdown document opens its reader tab; on an absent or empty document it says
-it hasn't been written yet. `e` still opens the Markdown file in `$EDITOR`, and
-Enter on a PDF opens the system viewer. Empty files are labelled `(empty)`.
+Markdown document opens its reader tab; on a missing document it says so.
+`e` still opens the Markdown file in `$EDITOR`, and
+Enter on a PDF opens the system viewer. A source file with no text reads `missing`.
 For a Resume only Application without letter text, the card and Docs show
 `not needed · Resume only` for the cover letter, and no Letter tab appears.
 Reader scroll/edit hints match JD; help explains Enter in Docs.
@@ -568,7 +566,7 @@ Acceptance:
 1. A Draft with all three written documents shows JD · Fit · Resume · Letter · Gaps · Notes · Docs; Resume scrolls and `e` edits it.
 2. A Lead without documents shows JD · Fit · Notes · Docs.
 3. A resume written through `p` adds its tab on return without moving the current tab.
-4. Enter on `resume.md` in Docs opens Resume; empty and absent documents show `(empty)` and `not written` where appropriate.
+4. Enter on `resume.md` in Docs opens Resume; a missing document reads `missing`.
 5. Resume only Applications show no Letter tab and show `not needed · Resume only` in the card and Docs.
 6. Tabs fit at 80 columns and readers work with `harness` and `plugin` unset.
 7. `scripts/check-go.sh` and `go test -race -count=3 ./internal/ui` pass.

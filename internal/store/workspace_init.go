@@ -37,19 +37,29 @@ func ValidateWorkspacePath(root string) error {
 	return nil
 }
 
-// InitializeWorkspace writes the private starter files for a new Workspace.
-func InitializeWorkspace(root string, contact map[string]string, tracks []string, search SearchArea) error {
+// InitializeWorkspace writes the private starter files for a new Workspace. The optional
+// filesystem is the injection seam for the writes and folder creation; nil uses the OS.
+func InitializeWorkspace(root string, contact map[string]string, tracks []string, search SearchArea, files ...FileSystem) error {
+	var fs FileSystem
+	if len(files) > 0 {
+		fs = files[0]
+	}
+	return initializeWorkspace(root, fs, contact, tracks, search)
+}
+
+func initializeWorkspace(root string, files FileSystem, contact map[string]string, tracks []string, search SearchArea) error {
 	if err := ValidateWorkspacePath(root); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(root, privateDirMode); err != nil {
+	fs := fsOrOS(files)
+	if err := fs.MkdirAll(root, privateDirMode); err != nil {
 		return err
 	}
 	if err := os.Chmod(root, privateDirMode); err != nil {
 		return err
 	}
 	for _, dir := range []string{"profile", "c" + "v", "jobs"} {
-		if err := os.Mkdir(filepath.Join(root, dir), privateDirMode); err != nil {
+		if err := fs.Mkdir(filepath.Join(root, dir), privateDirMode); err != nil {
 			return err
 		}
 	}
@@ -67,15 +77,15 @@ func InitializeWorkspace(root string, contact map[string]string, tracks []string
 	if err != nil {
 		return err
 	}
-	files := map[string]string{
+	starter := map[string]string{
 		"workspace.json":                 string(b) + "\n",
 		"profile/master-profile.md":      contactMarkdown(contact),
 		"profile/phrasing-bank.md":       "",
 		"profile/projects.md":            "",
 		"profile/writing-preferences.md": "",
 	}
-	for name, contents := range files {
-		if err := os.WriteFile(filepath.Join(root, name), []byte(contents), privateFileMode); err != nil {
+	for name, contents := range starter {
+		if err := atomicWrite(files, filepath.Join(root, name), []byte(contents), privateFileMode); err != nil {
 			return err
 		}
 	}

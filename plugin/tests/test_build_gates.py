@@ -22,10 +22,10 @@ def test_changed_word_cap_is_used_by_the_letter_gate(tmp_path):
     letter = tmp_path / "cover-letter.md"
     letter.write_text("# Alex Quinn\n\n" + " ".join(["word"] * 200) + "\n")
     build = load_build(tmp_path)
-    build.check_letter_length(letter)  # 200 words is within the default cap of 350
+    build.check_letter_length(letter.read_text())  # 200 words is within the default cap of 350
 
     (tmp_path / "workspace.json").write_text(json.dumps({"letterWordCap": 180}, indent=2))
     build = load_build(tmp_path)
     assert build.LETTER_MAX_WORDS == 180
     with pytest.raises(SystemExit):
-        build.check_letter_length(letter)
+        build.check_letter_length(letter.read_text())

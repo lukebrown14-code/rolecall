@@ -50,20 +50,37 @@ const (
 	lightBg = "#FFFFFF"
 )
 
-var darkRoles = Roles{
-	Bg: darkBg, Panel: "#161B22", Text: "#E6EDF3", Sub: "#C9D1D9", Muted: "#8B949E",
-	Faint: "#6E7681", Rule: "#6E7681", Accent: "#5EEAD4", OnFill: darkBg, Sel: "#1F3D3D",
-	Ok: "#3FB950", Info: "#58A6FF", Warn: "#F0883E", Danger: "#FF7B72", Purple: "#BC8CFF",
-	Gold: "#F2CC60", Lead: "#8FA1B3", Draft: "#A5D6FF", Dimmed: "#768390", DimmedOnFill: darkBg,
-}
+// rolePair is one role's dark and light value, in that order. Every role's two values sit
+// together in one table, so the two themes cannot drift apart and a new role is added once.
+type rolePair [2]string
 
-// lightRoles are the same Roles on white. Warn is orange rather than amber, so it never
-// reads as Offer's gold.
-var lightRoles = Roles{
-	Bg: lightBg, Panel: "#E8EDF1", Text: "#1F2328", Sub: "#424A53", Muted: "#59636E",
-	Faint: "#6E7985", Rule: "#6E7985", Accent: "#0F766E", OnFill: lightBg, Sel: "#E2EEEB",
-	Ok: "#14702F", Info: "#0759B8", Warn: "#9A3D00", Danger: "#B01A25", Purple: "#6F3BC8",
-	Gold: "#6E5600", Lead: "#4B6076", Draft: "#3A6490", Dimmed: "#656D76", DimmedOnFill: lightBg,
+// rolePalette names every role's dark/light pair. darkBg and lightBg are the two
+// backgrounds; text on an accent fill reuses them. Warn is orange rather than amber in
+// light mode, so it never reads as Offer's gold.
+var rolePalette = struct {
+	Bg, Panel, Text, Sub, Muted, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Danger,
+	Purple, Gold, Lead, Draft, Dimmed, DimmedOnFill rolePair
+}{
+	Bg:           rolePair{darkBg, lightBg},
+	Panel:        rolePair{"#161B22", "#E8EDF1"},
+	Text:         rolePair{"#E6EDF3", "#1F2328"},
+	Sub:          rolePair{"#C9D1D9", "#424A53"},
+	Muted:        rolePair{"#8B949E", "#59636E"},
+	Faint:        rolePair{"#6E7681", "#6E7985"},
+	Rule:         rolePair{"#6E7681", "#6E7985"},
+	Accent:       rolePair{"#5EEAD4", "#0F766E"},
+	OnFill:       rolePair{darkBg, lightBg},
+	Sel:          rolePair{"#1F3D3D", "#E2EEEB"},
+	Ok:           rolePair{"#3FB950", "#14702F"},
+	Info:         rolePair{"#58A6FF", "#0759B8"},
+	Warn:         rolePair{"#F0883E", "#9A3D00"},
+	Danger:       rolePair{"#FF7B72", "#B01A25"},
+	Purple:       rolePair{"#BC8CFF", "#6F3BC8"},
+	Gold:         rolePair{"#F2CC60", "#6E5600"},
+	Lead:         rolePair{"#8FA1B3", "#4B6076"},
+	Draft:        rolePair{"#A5D6FF", "#3A6490"},
+	Dimmed:       rolePair{"#768390", "#656D76"},
+	DimmedOnFill: rolePair{darkBg, lightBg},
 }
 
 // Mode picks a set of Roles.
@@ -75,10 +92,18 @@ const (
 )
 
 func (t Mode) Roles() Roles {
+	p := rolePalette
+	i := 0
 	if t == Light {
-		return lightRoles
+		i = 1
 	}
-	return darkRoles
+	return Roles{
+		Bg: p.Bg[i], Panel: p.Panel[i], Text: p.Text[i], Sub: p.Sub[i], Muted: p.Muted[i],
+		Faint: p.Faint[i], Rule: p.Rule[i], Accent: p.Accent[i], OnFill: p.OnFill[i],
+		Sel: p.Sel[i], Ok: p.Ok[i], Info: p.Info[i], Warn: p.Warn[i], Danger: p.Danger[i],
+		Purple: p.Purple[i], Gold: p.Gold[i], Lead: p.Lead[i], Draft: p.Draft[i],
+		Dimmed: p.Dimmed[i], DimmedOnFill: p.DimmedOnFill[i],
+	}
 }
 
 // themeEnv overrides terminal detection: auto (the default), dark or light.

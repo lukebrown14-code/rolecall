@@ -16,9 +16,6 @@ import (
 // writingFor is how long a document reads as being written after its file last changed.
 const writingFor = 4 * time.Second
 
-// pdfChip is the file key of the PDF chip: any PDF landing in out/.
-const pdfChip = watch.PDFDocument
-
 // writingDone puts out one document's writing mark, unless a later write renewed it.
 type writingDone struct {
 	key string

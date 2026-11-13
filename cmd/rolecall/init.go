@@ -123,10 +123,10 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if err := config.Patch(config.Path(home), "workspace", root); err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "Created a private Workspace.")
-	fmt.Fprintln(out, "The Harness can send your Profile, resume and job text to an AI service using your credentials; review its privacy practices.")
-	fmt.Fprintln(out, "Keep this Workspace's git repository private. It contains personal data.")
-	fmt.Fprintln(out, "Make your documents yours: see README → Make your documents yours.")
+	_, _ = fmt.Fprintln(out, "Created a private Workspace.")
+	_, _ = fmt.Fprintln(out, "The Harness can send your Profile, resume and job text to an AI service using your credentials; review its privacy practices.")
+	_, _ = fmt.Fprintln(out, "Keep this Workspace's git repository private. It contains personal data.")
+	_, _ = fmt.Fprintln(out, "Make your documents yours: see README → Make your documents yours.")
 	return finishProfile(o, root, home, out, launcher)
 }
 
@@ -257,7 +257,7 @@ func promptsNeeded(fs *flag.FlagSet, o initOptions) bool {
 
 func finishProfile(o initOptions, root, home string, out io.Writer, launcher profileLauncher) error {
 	if o.profile == profileLater {
-		fmt.Fprintf(out, "Run this when you are ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
+		_, _ = fmt.Fprintf(out, "Run this when you are ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
 		return nil
 	}
 	resume := ""
@@ -270,9 +270,9 @@ func finishProfile(o initOptions, root, home string, out io.Writer, launcher pro
 	}
 	if c.Harness == "" {
 		if resume != "" {
-			fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s --resume %s\n", ui.QuoteShellArgument(root), ui.QuoteShellArgument(resume))
+			_, _ = fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s --resume %s\n", ui.QuoteShellArgument(root), ui.QuoteShellArgument(resume))
 		} else {
-			fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
+			_, _ = fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
 		}
 		return nil
 	}

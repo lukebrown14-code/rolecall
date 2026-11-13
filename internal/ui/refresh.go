@@ -17,6 +17,7 @@ func (m model) refresh(folders []string) model {
 		apps = m.rescanInto(apps, folder)
 	}
 	m.apps = apps
+	m.dropBodies()
 	m.keepCursor(cursorFolder)
 	// If the cursor Application left this table the index stays, clamped, so the
 	// cursor lands on the nearest row.

@@ -96,10 +96,10 @@ func readyCount(a store.Application) (int, int) {
 // text and only the build is wanting.
 func (p pal) DocsLabel(a store.Application) (string, color.Color) {
 	n, total := readyCount(a)
-	switch {
-	case a.Documents == store.DocsReady:
+	switch a.Documents {
+	case store.DocsReady:
 		return "✓ " + docReady, p.Ok
-	case a.Documents == store.DocsWritten:
+	case store.DocsWritten:
 		return fmt.Sprintf("○ %d/%d %s", n, total, docReady), p.Warn
 	}
 	return fmt.Sprintf("○ %d/%d %s", n, total, docReady), p.Dim

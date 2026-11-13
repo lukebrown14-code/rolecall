@@ -3,11 +3,14 @@ linters:
   default: none
   enable:
     - dupl
+    - errcheck
     - goconst
     - mnd
+    - staticcheck
+    - unused
   settings:
     dupl:
-      threshold: 100
+      threshold: 60
     goconst:
       # Domain names (Status, table, Fit, meta.yml keys) must be constants. Bubble Tea
       # key names, pop-up hint words and YAML booleans read better as literals.
@@ -15,7 +18,22 @@ linters:
       min-occurrences: 3
       ignore-string-values:
         - '^(esc|enter|tab|shift\+tab|up|down|left|right|ctrl\+c|cancel|true|false)$'
+    staticcheck:
+      # staticcheck's own defaults, minus ST1005: error messages begin with domain terms
+      # (Workspace, Track, Status) and are often sentences shown in the TUI, so they are
+      # capitalised by design and frozen with the rest of the Owner-visible text.
+      checks:
+        - all
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        - -ST1005
   exclusions:
     rules:
+      # Test fixtures set up files and environment by hand; an unchecked MkdirAll or
+      # Close in a test is not worth an explicit branch.
       - path: _test\.go
-        linters: [dupl, goconst, mnd]
+        linters: [dupl, errcheck, goconst, mnd]

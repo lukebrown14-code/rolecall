@@ -35,8 +35,6 @@ func (pm *paletteMode) Keys() [][2]string {
 	return [][2]string{{"↑↓", "select"}, {"enter", "run"}, {"esc", hintClose}}
 }
 
-func (pm *paletteMode) boxed() bool { return true }
-
 // matches is the items the query fits, best first: a description starting with it, then
 // one containing it, then the key itself, then the letters in order anywhere.
 func (pm *paletteMode) matches() []helpKey {

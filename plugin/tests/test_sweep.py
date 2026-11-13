@@ -475,6 +475,10 @@ def test_fixture_workspace_has_search_area_and_track_references():
     assert sw.config(FIXTURE)["search_area"] == {"places": ["Australia"], "remote": "in-places"}
     catalogue = sw.load_role_catalogue(FIXTURE)
     assert {role["track"] for role in catalogue["roles"]} == {"SWE", "Platform"}
+    # The shared fixture also exercises the documented sources/blockers shape.
+    assert sw.resolve_sources(FIXTURE) == [("greenhouse", ["cultureamp", "buildkite"])]
+    blockers, _ = sw.load_blockers(FIXTURE)
+    assert blockers
 
 
 def test_gazetteer_is_neutral_data():

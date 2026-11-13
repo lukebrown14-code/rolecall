@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "plugin" / "scripts"))
-import identity  # noqa: E402
+import contact  # noqa: E402
 
 SKILL = ROOT / "plugin" / "skills" / "create-profile" / "SKILL.md"
 WORKSPACE = ROOT / "fixtures" / "workspace"
@@ -22,7 +22,7 @@ def test_skill_documents_resume_and_questionnaire_paths_and_final_approval():
 
 def test_documented_profile_shape_has_contact_readable_by_plugin():
     text = (WORKSPACE / "profile" / "master-profile.md").read_text()
-    fields = identity.read(WORKSPACE).fields
+    fields = contact.parse_contact(text)
 
     assert fields == {
         "Name": "Alex Quinn",

@@ -21,13 +21,6 @@ func WithASCII(on bool) Option { return func(m *model) { m.ascii = on } }
 const (
 	keyFollowUpDays = "follow_up_days"
 	keyEditor       = "editor"
-	keyBackspace    = "backspace"
-)
-
-// Follow-up days bounds, as the issue states them.
-const (
-	minFollowUpDays = 1
-	maxFollowUpDays = 90
 )
 
 // machineSetting is an editable config.toml row.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,7 +61,6 @@ type detailState struct {
 // docEntry is one line of the Docs tab.
 type docEntry struct {
 	name    string // path relative to the Application folder
-	present bool
 	hasText bool
 }
 
@@ -108,12 +108,12 @@ func (e docEntry) displayStatus(a store.Application) (string, bool) {
 }
 
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{jdFile, a.HasJD, a.JDHasText}, {resumeFile, a.HasResume, a.ResumeHasText}, {coverLetterFile, a.HasCoverLetter, a.CoverLetterHasText}, {gapsFile, a.HasGaps, a.GapsHasText}}
+	entries := []docEntry{{jdFile, a.JDHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}, {gapsFile, a.GapsHasText}}
 	for _, pdf := range a.PDFs {
-		entries = append(entries, docEntry{"out/" + pdf, true, false})
+		entries = append(entries, docEntry{"out/" + pdf, false})
 	}
 	if a.HasSent {
-		entries = append(entries, docEntry{"sent/", true, false})
+		entries = append(entries, docEntry{"sent/", false})
 	}
 	return entries
 }
@@ -225,12 +225,15 @@ func (m model) syncDetail() model {
 	return m
 }
 
-// mdCache keeps one Glamour renderer per wrap width: building one is slow, and the
-// detail view re-renders on every key. Shared by copies of the model.
+// mdCache keeps one Glamour renderer per wrap width, and the bodies rendered with it,
+// so the detail, preview and Profile views do not re-render a Document on every key.
+// Shared by copies of the model.
 type mdCache struct {
-	width int
-	theme theme
-	r     *glamour.TermRenderer
+	width  int
+	theme  theme
+	r      *glamour.TermRenderer
+	gen    int               // the Workspace generation bodies were rendered from
+	bodies map[string]string // rendered bodies, keyed by width and Document; dropped when gen changes
 }
 
 func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
@@ -247,19 +250,50 @@ func (c *mdCache) renderer(width int, t theme) (*glamour.TermRenderer, error) {
 	return r, err
 }
 
+// body returns the cached body built for one Document key at the current Workspace
+// generation and wrap width, building it with render on a miss. A new generation (the
+// file watcher or a rescan) drops the cache, so a changed Document is never served stale.
+// The cache is keyed on the Document and the wrap width, so a resize, or a switch between
+// a screen at width 0 (the preview) and one at the body width, keeps the other's renders
+// instead of discarding them.
+func (c *mdCache) body(gen, width int, key string, render func() string) string {
+	if c == nil {
+		return render()
+	}
+	if c.gen != gen {
+		c.gen, c.bodies = gen, nil
+	}
+	if c.bodies == nil {
+		c.bodies = map[string]string{}
+	}
+	full := strconv.Itoa(width) + "\x00" + key
+	if body, ok := c.bodies[full]; ok {
+		return body
+	}
+	body := render()
+	c.bodies[full] = body
+	return body
+}
+
+// renderText draws Markdown with a prepared renderer; a var so a test can count renders.
+var renderText = func(r *glamour.TermRenderer, text string) (string, error) { return r.Render(text) }
+
 // markdownBody renders one of the Markdown tabs, or its empty state, which says what to
 // press to fill it.
 func (m model) markdownBody(a store.Application, tab detailTab, name string) string {
-	var out string
-	b, err := m.store.ReadDocument(a.Folder, name)
-	empty := err != nil || strings.TrimSpace(string(b)) == ""
-	if tab == tabFit {
-		out = "Fit: " + fitSummary(a, !empty) + "\n\n"
-	}
-	if empty {
-		return out + m.emptyDocument(a, tab, name)
-	}
-	return out + m.renderMarkdown(string(b), m.bodyWidth())
+	key := a.Folder + "\x00" + name
+	return m.md.body(m.gen, m.bodyWidth(), key, func() string {
+		var out string
+		b, err := m.store.ReadDocument(a.Folder, name)
+		empty := err != nil || strings.TrimSpace(string(b)) == ""
+		if tab == tabFit {
+			out = "Fit: " + fitSummary(a, !empty) + "\n\n"
+		}
+		if empty {
+			return out + m.emptyDocument(a, tab, name)
+		}
+		return out + m.renderMarkdown(string(b), m.bodyWidth())
+	})
 }
 
 // emptyDocument is a tab's empty state: what is missing and the key that fills it.
@@ -298,7 +332,7 @@ func fitSummary(a store.Application, reasoning bool) string {
 func (m model) renderMarkdown(text string, width int) string {
 	r, err := m.md.renderer(width, m.theme)
 	if err == nil {
-		if rendered, err := r.Render(text); err == nil {
+		if rendered, err := renderText(r, text); err == nil {
 			return strings.Trim(rendered, "\n")
 		}
 	}

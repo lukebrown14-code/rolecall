@@ -453,6 +453,7 @@ def plan(workspace):
 
     reserved = set()
     day = _last_swept(workspace / "jobs" / "SHORTLIST.md") or date.today().isoformat()
+    default_track = _default_track(workspace)
     rows, _ = read_shortlist(workspace)
     for row in rows:
         if row["status"] != "New":
@@ -463,7 +464,7 @@ def plan(workspace):
                 )
             )
             continue
-        track = _default_track(workspace)
+        track = default_track
         if track is None:
             reports.append(
                 Report(
@@ -504,7 +505,7 @@ def plan(workspace):
                 Report(f'DISMISSED row {row["title"]!r} has no valid date; skipped')
             )
             continue
-        track = _default_track(workspace)
+        track = default_track
         if track is None:
             reports.append(
                 Report(
@@ -593,9 +594,7 @@ def apply(workspace, changes):
             continue
         change.folder.mkdir(parents=True, exist_ok=True, mode=0o700)
         if change.had_meta:
-            meta.patch(change.folder, change.fields)
-            if change.status_log is not None:
-                meta.set_status_log(change.folder, change.status_log)
+            meta.update(change.folder, change.fields, change.status_log)
         else:
             if not (change.folder / "jd.md").exists():
                 meta.atomic_write(change.folder / "jd.md", b"", 0o600)

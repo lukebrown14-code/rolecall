@@ -19,7 +19,6 @@ const (
 	fallbackHeight = 30
 	rowPad         = 1 // keeps the last label off the edge of the selection bar
 	soonDays       = 7 // "closes in Nd" turns amber at or below this
-	labelWidth     = 13
 	hoursPerDay    = 24
 	percent        = 100
 	minTitle       = 8 // a title never shrinks below this
@@ -607,50 +606,72 @@ func (m model) scopeLine(p pal) string {
 // listBody lays out the rows with section dividers. Rows get a blank line between them
 // when everything fits, and run dense when the list is longer than the screen.
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
-	blocks, cur := m.listBlocks(p, rows, w, h)
-	return scroll(p, blocks, cur, h)
+	blocks, cur := m.listBlocks(rows, h)
+	show := m.columns(rows)
+	return scroll(p, m, rows, show, w, blocks, cur, h)
 }
 
 // listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block,
-// spaced when they all fit in h and dense when they do not.
-func (m model) listBlocks(p pal, rows []store.Application, w, h int) ([]block, int) {
-	show := m.columns(rows)
+// spaced when they all fit in h and dense when they do not. Heights are measured without
+// rendering: a row is two lines, a divider one or two, and a gap adds a third. This is the
+// one place a block's height is computed; renderBlock draws content and scroll pads it.
+func (m model) listBlocks(rows []store.Application, h int) ([]block, int) {
 	dividers := m.dividers(rows)
-	build := func(gap bool) ([]block, int, int) {
-		var blocks []block
-		cur, total := 0, 0
-		for i, a := range rows {
-			if d, ok := dividers[i]; ok {
-				lines := []string{p.GroupHeader(d.label, tableStatus(d.label), d.n, w)}
-				if i > 0 {
-					lines = append([]string{""}, lines...) // air above each section
-				}
-				blocks = append(blocks, block{lines: lines})
-				total += len(lines)
+	rowHeight := func(i int, gap bool) int {
+		n := 2
+		if gap && i+1 < len(rows) {
+			if _, next := dividers[i+1]; !next {
+				n++
 			}
-			if i == m.cursor {
-				cur = len(blocks)
-			}
-			lines := m.row(p, a, i == m.cursor, show, w)
-			if _, next := dividers[i+1]; gap && i+1 < len(rows) && !next {
-				lines = append(lines, "")
-			}
-			blocks = append(blocks, block{lines: lines, row: true, idx: i})
-			total += len(lines)
 		}
-		return blocks, cur, total
+		return n
 	}
-	blocks, cur, total := build(true)
-	if total > h {
-		blocks, cur, _ = build(false)
+	dividerHeight := func(i int) int {
+		n := 1
+		if i > 0 {
+			n++ // the air above a section
+		}
+		return n
+	}
+	total := 0
+	for i := range rows {
+		if _, ok := dividers[i]; ok {
+			total += dividerHeight(i)
+		}
+		total += rowHeight(i, true)
+	}
+	gap := total <= h
+	var blocks []block
+	cur := 0
+	for i := range rows {
+		if d, ok := dividers[i]; ok {
+			blocks = append(blocks, block{height: dividerHeight(i), padTop: i > 0, label: d.label, n: d.n})
+		}
+		if i == m.cursor {
+			cur = len(blocks)
+		}
+		blocks = append(blocks, block{height: rowHeight(i, gap), row: true, idx: i})
 	}
 	return blocks, cur
 }
 
+// renderBlock renders one block's content lines, without the height padding: scroll pads
+// every block to the height listBlocks measured. It is a var so a test can count the calls
+// and assert only the visible blocks are rendered.
+var renderBlock = func(m model, p pal, b block, rows []store.Application, show slotSet, w int) []string {
+	if b.row {
+		return m.row(p, rows[b.idx], b.idx == m.cursor, show, w)
+	}
+	return []string{p.GroupHeader(b.label, tableStatus(b.label), b.n, w)}
+}
+
 type block struct {
-	lines []string
-	row   bool // an Application, as opposed to a section divider
-	idx   int  // the row's index in the view, when row is set
+	height int    // lines the block occupies, without rendering
+	row    bool   // an Application, as opposed to a section divider
+	padTop bool   // the blank line that spaces a section goes above the header
+	idx    int    // the row's index in the view, when row is set
+	label  string // the divider's label, when row is false
+	n      int    // the divider's count, when row is false
 }
 
 type divider struct {
@@ -695,8 +716,9 @@ func (m model) expired(a store.Application) bool {
 }
 
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
-// when rows are really hidden, and count rows, not dividers.
-func scroll(p pal, blocks []block, cur, h int) string {
+// when rows are really hidden, and count rows, not dividers. Only the visible blocks are
+// rendered.
+func scroll(p pal, m model, rows []store.Application, show slotSet, w int, blocks []block, cur, h int) string {
 	start, end := scrollWindow(blocks, cur, h)
 	count := func(bs []block) int {
 		n := 0
@@ -714,7 +736,15 @@ func scroll(p pal, blocks []block, cur, h int) string {
 		out = append(out, cueIndent+p.MoreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
-		out = append(out, b.lines...)
+		lines := renderBlock(m, p, b, rows, show, w)
+		for len(lines) < b.height {
+			if b.padTop {
+				lines = append([]string{""}, lines...)
+			} else {
+				lines = append(lines, "")
+			}
+		}
+		out = append(out, lines...)
 	}
 	// The ↓ cue sits on the body's last line, where it is on every screen.
 	for len(out) < h-1 {
@@ -738,13 +768,13 @@ func scrollWindow(blocks []block, cur, h int) (start, end int) {
 			avail--
 		}
 		used, end := 0, start
-		for end < len(blocks) && used+len(blocks[end].lines) <= avail {
-			used += len(blocks[end].lines)
+		for end < len(blocks) && used+blocks[end].height <= avail {
+			used += blocks[end].height
 			end++
 		}
 		for end < len(blocks) && used+1 > avail && end > start {
 			end--
-			used -= len(blocks[end].lines)
+			used -= blocks[end].height
 		}
 		return end
 	}
@@ -1055,15 +1085,19 @@ func (m model) fitEmpty(p pal, a store.Application) string {
 // docText is a document's text with Markdown headings and list markers dropped, for
 // short previews. Missing files read as "".
 func (m model) docText(a store.Application, name string) string {
-	b, err := m.store.ReadDocument(a.Folder, name)
-	if err != nil {
-		return ""
-	}
-	var keep []string
-	for _, l := range strings.Split(string(b), "\n") {
-		if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") && !strings.HasPrefix(l, "---") {
-			keep = append(keep, strings.TrimLeft(l, "-* "))
+	// docText is width-independent, so it shares the render cache at width 0; the body
+	// key is the Document, so the three preview Documents do not evict one another.
+	return m.md.body(m.gen, 0, a.Folder+"\x00"+name, func() string {
+		b, err := m.store.ReadDocument(a.Folder, name)
+		if err != nil {
+			return ""
 		}
-	}
-	return strings.Join(keep, " ")
+		var keep []string
+		for _, l := range strings.Split(string(b), "\n") {
+			if l = strings.TrimSpace(l); l != "" && !strings.HasPrefix(l, "#") && !strings.HasPrefix(l, "---") {
+				keep = append(keep, strings.TrimLeft(l, "-* "))
+			}
+		}
+		return strings.Join(keep, " ")
+	})
 }

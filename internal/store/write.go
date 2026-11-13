@@ -51,6 +51,9 @@ func (s *Store) Patch(folder string, keys map[string]string) error {
 }
 
 func (s *Store) update(folder string, change func([]string) ([]string, error)) error {
+	if err := s.applicationRecord(folder); err != nil {
+		return err
+	}
 	path := filepath.Join(folder, "meta.yml")
 	b, err := os.ReadFile(path)
 	if err != nil {

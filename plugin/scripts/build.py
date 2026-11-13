@@ -22,11 +22,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import identity as owner_identity_module  # noqa: E402
+import contact as owner_contact_module  # noqa: E402
 import meta as meta_module  # noqa: E402
 from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
@@ -58,14 +59,32 @@ def need(tool):
         sys.exit(f"{tool} not found. Run: brew install pandoc typst poppler")
 
 
-def owner_identity():
-    """The Owner's identity from the Profile's `## Contact` table.
+def _read(path):
+    """A file's text, or "" when it is absent."""
+    path = Path(path)
+    return path.read_text() if path.exists() else ""
 
-    Read at call time, not captured at import: the Workspace changes per
-    --data run. Name, contact line, filenames and the PDF identity check all
-    come from here -- nothing about the Owner is hardcoded.
+
+@dataclass
+class Profile:
+    """The Profile text, read once per run and passed into every gate.
+
+    ``master`` carries the Contact table, headline table, Experience facts and
+    the Key Skills pool; ``projects`` the manual-project metrics. Reading once
+    keeps the contact gate, the headline and the fact gates on the same text.
     """
-    return owner_identity_module.read(DATA)
+
+    master: str = ""
+    projects: str = ""
+
+    @classmethod
+    def read(cls, data):
+        directory = Path(data) / "profile"
+        return cls(_read(directory / "master-profile.md"), _read(directory / "projects.md"))
+
+    def contact(self):
+        """The Owner's Contact from the Contact table in ``master``."""
+        return owner_contact_module.Contact(owner_contact_module.parse_contact(self.master))
 
 
 def titlecase(s):
@@ -89,15 +108,16 @@ def titlecase(s):
     )
 
 
-def to_typst(md_path):
-    """Markdown -> Typst markup via pandoc."""
+def to_typst(text, name):
+    """Markdown -> Typst markup via pandoc, reading the already-loaded text."""
     r = subprocess.run(
-        ["pandoc", "--from", "markdown+smart", "--to", "typst", "--wrap", "none", str(md_path)],
+        ["pandoc", "--from", "markdown+smart", "--to", "typst", "--wrap", "none", "-"],
+        input=text,
         capture_output=True,
         text=True,
     )
     if r.returncode != 0:
-        sys.exit(f"pandoc failed on {md_path.name}:\n{r.stderr}")
+        sys.exit(f"pandoc failed on {name}:\n{r.stderr}")
     return r.stdout
 
 
@@ -106,21 +126,20 @@ def strip_first_heading(typst_body):
     return re.sub(r"^\s*=\s+[^\n]*\n+", "", typst_body, count=1)
 
 
-def letter_word_count(md_path):
+def letter_word_count(text):
     """Words in the cover letter body, excluding the markdown scaffolding.
 
     The practical note counts -- it is part of the letter the reader receives,
     and excluding it would just let the letter creep past the cap.
     """
-    text = md_path.read_text()
     text = re.sub(r"^#.*$", "", text, flags=re.M)  # headings (the name line)
     text = re.sub(r"^>.*$", "", text, flags=re.M)  # any block quotes
     text = re.sub(r"[*_`#>|-]", " ", text)  # inline markup
     return len(text.split())
 
 
-def check_letter_length(md_path):
-    n = letter_word_count(md_path)
+def check_letter_length(text):
+    n = letter_word_count(text)
     if n > LETTER_MAX_WORDS:
         sys.exit(
             f"\n  cover-letter.md is {n} words. The hard cap is {LETTER_MAX_WORDS}"
@@ -154,19 +173,13 @@ def key_skills(md_text):
     return [k.strip() for k in m.group(1).replace("\n", " ").split(",") if k.strip()], m.end()
 
 
-def profile_text(name="master-profile.md"):
-    f = Path(DATA) / "profile" / name
-    return f.read_text() if f.exists() else ""
-
-
-def check_key_skills(md_path):
+def check_key_skills(text, profile):
     """The Key Skills block is 8-12 keywords and every one must be evidenced.
 
     It is the most ATS-visible part of the resume and so the easiest place to
     overclaim by accident. A resume with no block is an error: it is the
     primary ATS-scanned section on Seek.
     """
-    text = md_path.read_text()
     found = key_skills(text)
     if found is None:
         sys.exit(
@@ -185,7 +198,7 @@ def check_key_skills(md_path):
     # Strip the gap list before matching. It names skills the Owner does NOT
     # have, so leaving it in would let the exact terms the list exists to
     # exclude pass as evidence.
-    pool = profile_text().split("\n## Facts that are NOT available")[0]
+    pool = profile.split("\n## Facts that are NOT available")[0]
     orphans = [k for k in kws if not kw_in(k, body) and not kw_in(k, pool)]
     if orphans:
         sys.exit(
@@ -358,13 +371,11 @@ def fact_errors(text, kind, profile, projects=""):
     return errs
 
 
-def check_facts(md_path, kind, extra_errs=()):
-    errs = list(extra_errs) + fact_errors(
-        md_path.read_text(), kind, profile_text(), profile_text("projects.md")
-    )
+def check_facts(name, text, kind, profile, projects="", extra_errs=()):
+    errs = list(extra_errs) + fact_errors(text, kind, profile, projects)
     if errs:
         sys.exit(
-            f"\n  {md_path.name} fails the fact gate:\n    - "
+            f"\n  {name} fails the fact gate:\n    - "
             + "\n    - ".join(errs)
             + "\n  Facts come only from profile/. Cut the line or add the fact to the profile."
         )
@@ -439,10 +450,12 @@ def letter_errors(text, company):
     return errs
 
 
-def check_letter_content(md_path, company):
-    errs = letter_errors(md_path.read_text(), company)
+def check_letter_content(text, company):
+    errs = letter_errors(text, company)
     if errs:
-        sys.exit(f"\n  {md_path.name} fails the letter checks:\n    - " + "\n    - ".join(errs))
+        sys.exit(
+            "\n  cover-letter.md fails the letter checks:\n    - " + "\n    - ".join(errs)
+        )
     print("        letter: ok")
 
 
@@ -478,10 +491,10 @@ def lift_subject(typst_body):
     return first.strip(), rest
 
 
-def build(md_path, template_name, out_pdf, substitutions):
-    body = strip_first_heading(to_typst(md_path))
+def build(md_text, md_name, template_name, out_pdf, substitutions):
+    body = strip_first_heading(to_typst(md_text, md_name))
     if template_name == "resume.typ":
-        body = skills_as_chips(body, md_path.read_text())
+        body = skills_as_chips(body, md_text)
     else:
         substitutions["SUBJECT"], body = lift_subject(body)
     doc = (TEMPLATES / template_name).read_text()
@@ -531,12 +544,12 @@ def build(md_path, template_name, out_pdf, substitutions):
             text=True,
         )
         if r.returncode != 0:
-            sys.exit(f"typst failed on {md_path.name}:\n{r.stdout}\n{r.stderr}")
+            sys.exit(f"typst failed on {md_name}:\n{r.stdout}\n{r.stderr}")
     return out_pdf
 
 
-def identity_failure(text, name, email):
-    """Why a built PDF's extracted text fails the Profile identity check, or None.
+def contact_failure(text, name, email):
+    """Why a built PDF's extracted text fails the Profile contact check, or None.
 
     The document must carry the Owner's own name and email, so a stale template
     that still prints someone else's is caught before the PDF is sent.
@@ -548,20 +561,20 @@ def identity_failure(text, name, email):
     return None
 
 
-def ats_check(pdf, md_name, ident):
+def ats_check(pdf, md_name, contact):
     """Confirm the PDF yields clean, ordered text for an ATS parser, and carries
-    the Owner's identity from the Profile. A mismatch fails the build."""
+    the Owner's Contact from the Profile. A mismatch fails the build."""
     if not shutil.which("pdftotext"):
         return None
     r = subprocess.run(
         ["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True
     )
     text = r.stdout
-    reason = identity_failure(text, ident.name, ident.email)
+    reason = contact_failure(text, contact.name, contact.email)
     if reason:
         sys.exit(
-            f"\n  {md_name} fails the identity gate: {reason}."
-            "\n  The document must carry the Profile's identity -- check the workspace templates."
+            f"\n  {md_name} fails the contact gate: {reason}."
+            "\n  The document must carry the Profile's Contact -- check the workspace templates."
         )
     pages = max(1, text.count("\f"))
     return f"ok, {len(text.split()):,} words, {pages} page(s)", pages
@@ -587,25 +600,31 @@ def fit_verdict(job_dir):
 # --- document gates ------------------------------------------------------------
 
 
-def run_gates(md_name, md, company, subs, job_dir):
-    """Every hard document gate for one file, in the build's own order."""
+def run_gates(md_name, text, company, subs, profile, jd_text):
+    """Every hard document gate for one file, in the build's own order.
+
+    The Profile and the JD text were read once in ``main`` and are passed in.
+    """
     if md_name == "cover-letter.md":
-        check_letter_length(md)
-        check_letter_content(md, company)
-        check_facts(md, "letter")
+        check_letter_length(text)
+        check_letter_content(text, company)
+        check_facts(md_name, text, "letter", profile.master, profile.projects)
     else:
-        check_key_skills(md)
-        jd_text = (Path(job_dir) / "jd.md").read_text()
-        check_facts(md, "resume", check_headline(subs["HEADLINE"], jd_text, profile_text()))
+        check_key_skills(text, profile.master)
+        check_facts(
+            md_name,
+            text,
+            "resume",
+            profile.master,
+            profile.projects,
+            check_headline(subs["HEADLINE"], jd_text, profile.master),
+        )
 
 
-def check_letter_present(job_dir):
+def check_letter_present(application, letter_text):
     """Require a letter unless the Application explicitly chose Resume only."""
-    job_dir = Path(job_dir)
-    letter = job_dir / "cover-letter.md"
-    if letter.exists() and letter.read_text().strip():
+    if letter_text.strip():
         return
-    application = meta_module.rescan(job_dir)
     if application is None:
         sys.exit("\nGate: cover-letter.md is empty and the folder has no meta.yml.")
     if application.malformed:
@@ -633,12 +652,14 @@ def main(argv=None):
     load_config()
 
     # Who the Owner is comes from the Profile. A missing Name or Email is a
-    # hard gate: it would otherwise build documents that identify nobody.
-    ident = owner_identity()
-    missing = ident.missing()
+    # hard gate: it would otherwise build documents that identify nobody. The
+    # Profile is read once here and passed into the headline and every gate.
+    profile = Profile.read(DATA)
+    contact = profile.contact()
+    missing = contact.missing()
     if missing:
         sys.exit(
-            "\n  identity gate: profile/master-profile.md has no "
+            "\n  contact gate: profile/master-profile.md has no "
             + ", ".join(missing)
             + " in its ## Contact table.\n  Add the field(s) and build again."
         )
@@ -660,24 +681,27 @@ def main(argv=None):
     role = titlecase(application.title)
     label = f"{company} {role}"
 
+    # Each source Document is read once here and passed into the gates and build.
+    jd_text = (d / "jd.md").read_text()
+    documents = {name: _read(d / name) for name in ("resume.md", "cover-letter.md")}
+
     subs = {
-        "NAME": ident.name,
-        "CONTACT": ident.contact_line(),
-        "CONTACT2": ident.work_rights,
+        "NAME": contact.name,
+        "CONTACT": contact.contact_line(),
+        "CONTACT2": contact.work_rights,
         "DATELINE": date.today().strftime("%d %B %Y"),
-        "HEADLINE": headline_for(profile_text(), application.track),
+        "HEADLINE": headline_for(profile.master, application.track),
     }
 
-    check_letter_present(d)
+    check_letter_present(application, documents["cover-letter.md"])
 
     candidates = [
-        ("resume.md", "resume.typ", f"{ident.name} Resume {label}.pdf"),
-        ("cover-letter.md", "cover-letter.typ", f"{ident.name} {label} Cover Letter.pdf"),
+        ("resume.md", "resume.typ", f"{contact.name} Resume {label}.pdf"),
+        ("cover-letter.md", "cover-letter.typ", f"{contact.name} {label} Cover Letter.pdf"),
     ]
     jobs = []
     for job in candidates:
-        md = d / job[0]
-        if not md.exists() or not md.read_text().strip():
+        if not documents[job[0]].strip():
             print(f"  skip  {job[0]} is empty -- ask the agent to write it first")
             continue
         jobs.append(job)
@@ -687,7 +711,7 @@ def main(argv=None):
     # Gate every document before anything is compiled: a later gate failure
     # must leave no PDF of an earlier one behind.
     for md_name, _template, _pdf_name in jobs:
-        run_gates(md_name, d / md_name, company, subs, d)
+        run_gates(md_name, documents[md_name], company, subs, profile, jd_text)
 
     # Build into a staging folder in the Application. Only a fully successful
     # build publishes anything into out/, so a failure leaves out/ untouched.
@@ -695,9 +719,9 @@ def main(argv=None):
     staging = Path(tempfile.mkdtemp(dir=d, prefix=".build-"))
     try:
         for md_name, template, pdf_name in jobs:
-            pdf = build(d / md_name, template, staging / pdf_name, dict(subs))
+            pdf = build(documents[md_name], md_name, template, staging / pdf_name, dict(subs))
             print(f"  built {pdf.name}")
-            result = ats_check(pdf, md_name, ident)
+            result = ats_check(pdf, md_name, contact)
             if result:
                 message, pages = result
                 print(f"        ATS: {message}")

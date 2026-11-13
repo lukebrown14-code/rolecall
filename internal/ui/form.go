@@ -17,12 +17,10 @@ var newFormOf = forms.New
 
 const (
 	formOpen      = forms.Open
-	formSubmit    = forms.Submit
 	formCancel    = forms.Cancel
 	formMark      = 2
 	formReq       = 2
 	formUnderline = 24
-	keyCtrlS      = "ctrl+s"
 	keyNoEsc      = "n esc"
 )
 
@@ -149,8 +147,6 @@ type formPopup struct {
 }
 
 func (fp *formPopup) Keys() [][2]string { return fp.form.Keys() }
-
-func (fp *formPopup) boxed() bool { return true }
 
 func (fp *formPopup) View(m *model, p pal) string { return m.formBox(p, fp.form, fp.width) }
 

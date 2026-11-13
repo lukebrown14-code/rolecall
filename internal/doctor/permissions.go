@@ -109,7 +109,7 @@ func remoteURLs(configPath string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	var urls []string
 	inRemote := false
 	scanner := bufio.NewScanner(file)
@@ -187,7 +187,7 @@ func lookupGitHubVisibility(client *http.Client, owner, repo string) (Visibility
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode == http.StatusNotFound {
 		return VisibilityPrivate, nil
 	}
@@ -208,7 +208,10 @@ func lookupGitHubVisibility(client *http.Client, owner, repo string) (Visibility
 
 func shellQuote(s string) string {
 	if s != "" && strings.IndexFunc(s, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("/._-", r))
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			return false
+		}
+		return !strings.ContainsRune("/._-", r)
 	}) == -1 {
 		return s
 	}

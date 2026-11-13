@@ -466,29 +466,50 @@ def _update(folder, change):
     atomic_write(path, out, path.stat().st_mode & 0o777)
 
 
+def _patch_lines(lines, keys):
+    """Set scalar keys in place, keeping every other byte and inline comment."""
+    for name in sorted(keys):
+        if not KEY.fullmatch(name) or name == "status_log":
+            raise MetaError(f"invalid scalar key {name!r}")
+        value = quote_scalar(keys[name])
+        found = False
+        for index, line in enumerate(lines):
+            if line.startswith(name + ":"):
+                _, suffix = _scalar_parts(line[len(name) + 1 :])
+                lines[index] = name + ": " + value + suffix
+                found = True
+                break
+        if not found:
+            index = len(lines)
+            for position, line in enumerate(lines):
+                if line.startswith("status_log:"):
+                    index = position
+                    break
+            lines.insert(index, name + ": " + value)
+    return lines
+
+
 def patch(folder, keys):
     """Set scalar keys, keeping every other byte and inline comment."""
+    _update(folder, lambda lines: _patch_lines(lines, keys))
+
+
+def update(folder, keys, status_log):
+    """Patch scalar keys and replace the status_log in one read-modify-validate-write.
+
+    Migration's single write path: one validation and one atomic publication per
+    Application, rather than a ``patch`` followed by a second ``set_status_log``.
+    ``status_log`` of None leaves the existing log untouched.
+    """
+    entries = (
+        None
+        if status_log is None
+        else [_entry_line(status, at, approx) for status, at, approx in status_log]
+    )
 
     def change(lines):
-        for name in sorted(keys):
-            if not KEY.fullmatch(name) or name == "status_log":
-                raise MetaError(f"invalid scalar key {name!r}")
-            value = quote_scalar(keys[name])
-            found = False
-            for index, line in enumerate(lines):
-                if line.startswith(name + ":"):
-                    _, suffix = _scalar_parts(line[len(name) + 1 :])
-                    lines[index] = name + ": " + value + suffix
-                    found = True
-                    break
-            if not found:
-                index = len(lines)
-                for position, line in enumerate(lines):
-                    if line.startswith("status_log:"):
-                        index = position
-                        break
-                lines.insert(index, name + ": " + value)
-        return lines
+        lines = _patch_lines(lines, keys)
+        return lines if entries is None else _set_status_log_lines(lines, entries)
 
     _update(folder, change)
 
@@ -659,35 +680,36 @@ def create_migrated(folder, fields, status_log):
     atomic_write(folder / "meta.yml", text.encode("utf-8"), 0o600)
 
 
+def _set_status_log_lines(lines, entries):
+    """Replace the status_log entries in place, keeping every other byte and comment."""
+    index = -1
+    for position, line in enumerate(lines):
+        if line.startswith("status_log:"):
+            index = position
+            break
+    if index < 0:
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines.append("status_log:")
+        lines.extend(entries)
+        return lines
+    lines[index] = "status_log:"
+    # Keep indented comments inside the block; replace only entry lines.
+    kept = []
+    end = index + 1
+    while end < len(lines) and (
+        lines[end].startswith((" ", "\t")) or not lines[end].strip()
+    ):
+        if lines[end].strip() and not lines[end].lstrip().startswith("- "):
+            kept.append(lines[end])
+        end += 1
+    return lines[: index + 1] + entries + kept + lines[end:]
+
+
 def set_status_log(folder, status_log):
     """Replace the status_log entries, keeping every other byte and comment."""
     entries = [_entry_line(status, at, approx) for status, at, approx in status_log]
-
-    def change(lines):
-        index = -1
-        for position, line in enumerate(lines):
-            if line.startswith("status_log:"):
-                index = position
-                break
-        if index < 0:
-            while lines and not lines[-1].strip():
-                lines.pop()
-            lines.append("status_log:")
-            lines.extend(entries)
-            return lines
-        lines[index] = "status_log:"
-        # Keep indented comments inside the block; replace only entry lines.
-        kept = []
-        end = index + 1
-        while end < len(lines) and (
-            lines[end].startswith((" ", "\t")) or not lines[end].strip()
-        ):
-            if lines[end].strip() and not lines[end].lstrip().startswith("- "):
-                kept.append(lines[end])
-            end += 1
-        return lines[: index + 1] + entries + kept + lines[end:]
-
-    _update(folder, change)
+    _update(folder, lambda lines: _set_status_log_lines(lines, entries))
 
 
 def find_by_url(workspace, url):

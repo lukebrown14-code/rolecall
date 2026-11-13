@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -134,13 +135,15 @@ def meta_text(resume_only=None, status="Lead", extra="legacy_key: \"kept\" # unk
     [(None, False), ('""', False), ('"false"', False), ('"true"', True), ("true", True)],
 )
 def test_empty_letter_requires_explicit_resume_only(tmp_path, value, allowed):
-    (tmp_path / "cover-letter.md").write_text("  \n")
+    letter = tmp_path / "cover-letter.md"
+    letter.write_text("  \n")
     (tmp_path / "meta.yml").write_text(meta_text(resume_only=value))
+    application = build.meta_module.rescan(tmp_path)
     if allowed:
-        build.check_letter_present(tmp_path)
+        build.check_letter_present(application, letter.read_text())
     else:
         with pytest.raises(SystemExit):
-            build.check_letter_present(tmp_path)
+            build.check_letter_present(application, letter.read_text())
 
 
 def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
@@ -157,7 +160,7 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
     monkeypatch.setattr(build, "ats_check", lambda *args: None)
     monkeypatch.setattr(sys, "argv", ["build.py", str(job), "--data", str(tmp_path)])
 
-    def make_pdf(md, template, output, subs):
+    def make_pdf(md_text, md_name, template, output, subs):
         output.write_text("pdf")
         return output
 
@@ -171,38 +174,38 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
     assert "status: Draft" in (job / "meta.yml").read_text()
 
 
-# --- identity gate -------------------------------------------------------------
+# --- contact gate -------------------------------------------------------------
 
 
-def test_identity_failure_accepts_matching_text():
+def test_contact_failure_accepts_matching_text():
     text = "Alex Quinn\n" + "alex.quinn" + "@example.test\n"
-    assert build.identity_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
+    assert build.contact_failure(text, "Alex Quinn", "alex.quinn@example.test") is None
 
 
-def test_identity_failure_matches_the_name_case_insensitively():
+def test_contact_failure_matches_the_name_case_insensitively():
     assert (
-        build.identity_failure(
+        build.contact_failure(
             "ALEX QUINN\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
         )
         is None
     )
 
 
-def test_identity_failure_reports_a_wrong_name():
-    reason = build.identity_failure(
+def test_contact_failure_reports_a_wrong_name():
+    reason = build.contact_failure(
         "Sam Rivers\n" + "alex.quinn" + "@example.test\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "Alex Quinn" in reason
 
 
-def test_identity_failure_reports_a_missing_email():
-    reason = build.identity_failure(
+def test_contact_failure_reports_a_missing_email():
+    reason = build.contact_failure(
         "Alex Quinn\n", "Alex Quinn", "alex.quinn@example.test"
     )
     assert "alex.quinn@example.test" in reason
 
 
-def test_build_fails_and_names_the_missing_identity_field(tmp_path, monkeypatch):
+def test_build_fails_and_names_the_missing_contact_field(tmp_path, monkeypatch):
     monkeypatch.setattr(build, "need", lambda *args: None)
     (tmp_path / "profile").mkdir()
     (tmp_path / "profile" / "master-profile.md").write_text(
@@ -234,6 +237,55 @@ CHECK_LETTER = (
     "One practical note: I hold full working rights in Australia.\n\n"
     "Kind regards,\nAlex Quinn\n"
 )
+
+
+# --- one read per input --------------------------------------------------------
+
+def test_build_reads_each_input_once_per_run(tmp_path, monkeypatch):
+    """A run reads the Profile and every source Document exactly once."""
+    job = tmp_path / "jobs" / "SWE" / "acme"
+    job.mkdir(parents=True)
+    (job / "jd.md").write_text(CHECK_JD)
+    (job / "resume.md").write_text(CHECK_RESUME)
+    (job / "cover-letter.md").write_text(CHECK_LETTER)
+    (job / "meta.yml").write_text(meta_text())
+    # Ready documents: meta.rescan then never reads resume.md itself, so the
+    # count below is the build's own reads alone.
+    out = job / "out"
+    out.mkdir()
+    (out / "Alex Quinn Resume Acme Developer.pdf").write_text("pdf")
+    (out / "Alex Quinn Acme Developer Cover Letter.pdf").write_text("pdf")
+    (tmp_path / "profile").mkdir()
+    (tmp_path / "profile" / "master-profile.md").write_text(CONTACT_PROFILE)
+    (tmp_path / "profile" / "projects.md").write_text("")
+    monkeypatch.setattr(build, "need", lambda *args: None)
+    monkeypatch.setattr(build, "ats_check", lambda *args: None)
+
+    def make_pdf(md_text, md_name, template, output, subs):
+        output.write_text("pdf")
+        return output
+
+    monkeypatch.setattr(build, "build", make_pdf)
+    monkeypatch.setattr(sys, "argv", ["build.py", str(job), "--data", str(tmp_path)])
+
+    reads = Counter()
+    real = Path.read_text
+
+    def counting(path, *args, **kwargs):
+        reads[Path(path)] += 1
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counting)
+    build.main()
+
+    for path in (
+        tmp_path / "profile" / "master-profile.md",
+        tmp_path / "profile" / "projects.md",
+        job / "jd.md",
+        job / "resume.md",
+        job / "cover-letter.md",
+    ):
+        assert reads[path] == 1, f"{path.name} read {reads[path]} times"
 
 
 # --- titlecase -----------------------------------------------------------------
@@ -290,62 +342,52 @@ def test_kw_in_word_boundaries():
 
 
 def test_key_skills_ok(data):
-    f = data / "r.md"
-    f.write_text(resume(EIGHT, "Python Docker SQL Git REST CI/CD Java Linux"))
-    build.check_key_skills(f)
+    text = resume(EIGHT, "Python Docker SQL Git REST CI/CD Java Linux")
+    build.check_key_skills(text, PROFILE)
 
 
 def test_key_skills_go_not_evidenced_by_going(data):
-    f = data / "r.md"
-    f.write_text(
-        resume(
-            "Python, Docker, SQL, Git, REST, CI/CD, Java, Rust",
-            "Python Docker SQL Git REST CI/CD Java Rusty",
-        )
+    text = resume(
+        "Python, Docker, SQL, Git, REST, CI/CD, Java, Rust",
+        "Python Docker SQL Git REST CI/CD Java Rusty",
     )
     with pytest.raises(SystemExit) as e:
-        build.check_key_skills(f)
+        build.check_key_skills(text, PROFILE)
     assert "Rust" in str(e.value)
 
 
 def test_key_skills_count_range(data):
-    f = data / "r.md"
-    f.write_text(resume("Python, Docker, Git", "Python Docker Git"))
+    text = resume("Python, Docker, Git", "Python Docker Git")
     with pytest.raises(SystemExit) as e:
-        build.check_key_skills(f)
+        build.check_key_skills(text, PROFILE)
     assert "3 keywords" in str(e.value)
 
 
 def test_key_skills_block_missing_is_error(data):
-    f = data / "r.md"
-    f.write_text("# Alex Quinn\n\n## Professional Summary\n\nText.\n")
+    text = "# Alex Quinn\n\n## Professional Summary\n\nText.\n"
     with pytest.raises(SystemExit) as e:
-        build.check_key_skills(f)
+        build.check_key_skills(text, PROFILE)
     assert "Key Skills" in str(e.value)
 
 
 def test_key_skills_not_evidenced_by_gap_list(data):
-    f = data / "r.md"
-    f.write_text(
-        resume(
-            "Python, Docker, SQL, Git, REST, CI/CD, Java, Kubernetes",
-            "Python Docker SQL Git REST CI/CD Java",
-        )
+    text = resume(
+        "Python, Docker, SQL, Git, REST, CI/CD, Java, Kubernetes",
+        "Python Docker SQL Git REST CI/CD Java",
     )
     with pytest.raises(SystemExit):
-        build.check_key_skills(f)
+        build.check_key_skills(text, PROFILE)
 
 
 # --- word count ----------------------------------------------------------------
 
 
 def test_letter_word_count_and_cap(tmp_path):
-    f = tmp_path / "cover-letter.md"
-    f.write_text("# Alex Quinn\n\n" + " ".join(["word"] * 100) + "\n")
-    assert build.letter_word_count(f) == 100
-    f.write_text("# Alex Quinn\n\n" + " ".join(["word"] * (build.LETTER_MAX_WORDS + 1)) + "\n")
+    text = "# Alex Quinn\n\n" + " ".join(["word"] * 100) + "\n"
+    assert build.letter_word_count(text) == 100
+    text = "# Alex Quinn\n\n" + " ".join(["word"] * (build.LETTER_MAX_WORDS + 1)) + "\n"
     with pytest.raises(SystemExit):
-        build.check_letter_length(f)
+        build.check_letter_length(text)
 
 
 # --- fact gate -----------------------------------------------------------------
@@ -423,9 +465,7 @@ def fake_tools(tmp_path):
     """Fake pandoc/typst/pdftotext so the CLI runs without the real toolchain."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "pandoc").write_text(
-        '#!/bin/sh\nfor last; do :; done\ncat "$last"\n'
-    )
+    (bin_dir / "pandoc").write_text("#!/bin/sh\ncat\n")
     (bin_dir / "typst").write_text(
         '#!/bin/sh\nfor arg; do last="$arg"; case "$arg" in *.typ) source="$arg";; esac; done\n'
         'cp "$(dirname "$source")/templates/brand.typ" "$ROLECALL_TEST_BRAND_CAPTURE"\n'
