@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Job Search Plan</title>
+<style>
+:root{
+  --bg:#f7f6f2;--surface:#ffffff;--surface2:#efede6;--ink:#1d1c1a;--muted:#5f5b53;--line:#dcd8cd;
+  --accent:#b4532a;--accent-soft:#f4e3d9;
+  --c-find:#2f6f8f;--c-find-soft:#dcebf2;
+  --c-doc:#5b6f2a;--c-doc-soft:#e6eed6;
+  --c-apply:#7a3f8c;--c-apply-soft:#efe1f3;
+  --warn:#9a6b00;--warn-soft:#f6ecd0;--bad:#a23b3b;--bad-soft:#f5dede;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161513;--surface:#1f1e1b;--surface2:#2a2925;--ink:#ecebe6;--muted:#a7a397;--line:#3a3833;
+  --accent:#e58a5f;--accent-soft:#3b2a21;
+  --c-find:#79b8d6;--c-find-soft:#1d3240;--c-doc:#a9c46a;--c-doc-soft:#2a3319;--c-apply:#c995d8;--c-apply-soft:#352540;
+  --warn:#e2b44d;--warn-soft:#3a3018;--bad:#e88080;--bad-soft:#3d2222;}}
+:root[data-theme="dark"]{
+  --bg:#161513;--surface:#1f1e1b;--surface2:#2a2925;--ink:#ecebe6;--muted:#a7a397;--line:#3a3833;
+  --accent:#e58a5f;--accent-soft:#3b2a21;
+  --c-find:#79b8d6;--c-find-soft:#1d3240;--c-doc:#a9c46a;--c-doc-soft:#2a3319;--c-apply:#c995d8;--c-apply-soft:#352540;
+  --warn:#e2b44d;--warn-soft:#3a3018;--bad:#e88080;--bad-soft:#3d2222;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em}
+h2{font-size:24px;margin:56px 0 6px;letter-spacing:-.01em}
+h3{font-size:17px;margin:0 0 6px}
+p{margin:0 0 12px}
+.lede{font-size:18px;color:var(--muted);max-width:760px}
+.kicker{font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:14px}
+.sub{color:var(--muted);margin-bottom:20px;max-width:760px}
+code{font:13px var(--mono);background:var(--surface2);padding:1px 5px;border-radius:4px}
+a{color:var(--accent)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 0}
+nav.toc a{font-size:13px;text-decoration:none;color:var(--ink);border:1px solid var(--line);padding:5px 10px;border-radius:99px;background:var(--surface)}
+nav.toc a:hover{border-color:var(--accent)}
+.rule{margin-top:28px;border-left:4px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 8px 8px 0;font-weight:500}
+
+/* journey */
+.journey{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.lane{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;border-top:5px solid var(--c)}
+.lane.find{--c:var(--c-find);--cs:var(--c-find-soft)}
+.lane.doc{--c:var(--c-doc);--cs:var(--c-doc-soft)}
+.lane.apply{--c:var(--c-apply);--cs:var(--c-apply-soft)}
+.lane h3{color:var(--c)}
+.steps{list-style:none;margin:10px 0 0;padding:0;counter-reset:s}
+.steps li{position:relative;padding:8px 0 8px 34px;border-bottom:1px dashed var(--line);font-size:14px}
+.steps li:last-child{border-bottom:0}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;width:22px;height:22px;border-radius:50%;background:var(--cs);color:var(--c);font:700 12px/22px var(--mono);text-align:center}
+.steps b{display:block}
+.steps span{color:var(--muted);font-size:13px}
+.status-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;align-items:center;font:12px var(--mono)}
+.status-strip .s{padding:3px 8px;border-radius:4px;background:var(--surface2)}
+.status-strip .arr{color:var(--muted)}
+
+/* architecture */
+.arch{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;overflow:hidden}
+.arch svg{width:100%;height:auto;display:block}
+.arch text{font-family:var(--sans);fill:var(--ink)}
+.arch .m{fill:var(--muted)}
+.arch .box{fill:var(--surface2);stroke:var(--line)}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.tier{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface);font-size:14px}
+.tier .n{font:700 11px var(--mono);color:var(--accent);letter-spacing:.1em}
+
+/* features */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
+.filters button{font:500 13px var(--sans);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 12px;border-radius:99px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.card.find{--c:var(--c-find);--cs:var(--c-find-soft)}
+.card.doc{--c:var(--c-doc);--cs:var(--c-doc-soft)}
+.card.apply{--c:var(--c-apply);--cs:var(--c-apply-soft)}
+.card[hidden]{display:none}
+.card .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.card .id{font:700 11px var(--mono);color:var(--c)}
+.card p{font-size:14px;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font:11px var(--mono);padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--muted)}
+.tag.tool{background:var(--cs);color:var(--c)}
+.tag.eff{font-weight:700}
+.tag.adr{background:var(--warn-soft);color:var(--warn)}
+.files{font:12px var(--mono);color:var(--muted)}
+.risk{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.risk b{color:var(--bad);font-weight:600}
+.star{color:var(--accent);font-weight:700}
+
+/* matrix */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font:600 12px var(--sans);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface2)}
+tr:last-child td{border-bottom:0}
+td.c{text-align:center;font-family:var(--mono)}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%}
+.dot.f{background:var(--c-find)}.dot.d{background:var(--c-doc)}.dot.a{background:var(--c-apply)}
+.dot.o{border:2px solid var(--muted);background:transparent}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.phase{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.phase .v{font:700 13px var(--mono);color:var(--accent)}
+.phase .t{font-size:13px;color:var(--muted);margin-bottom:8px}
+.phase ul{margin:0;padding-left:16px;font-size:13px}
+.phase li{margin-bottom:4px}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.panel ul{margin:0;padding-left:18px;font-size:14px}
+.panel li{margin-bottom:6px}
+.panel.no{border-color:var(--bad);background:var(--bad-soft)}
+.panel.ok{border-color:var(--c-doc)}
+.sources{font-size:13px;columns:2;column-gap:28px}
+.sources li{break-inside:avoid;margin-bottom:5px;word-break:break-word}
+.unv{font:11px var(--mono);color:var(--warn);background:var(--warn-soft);padding:1px 5px;border-radius:3px}
+footer{margin-top:56px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+
+@media (max-width:860px){
+  .journey,.tiers,.two{grid-template-columns:1fr}
+  .road{grid-template-columns:1fr 1fr}
+  .sources{columns:1}
+}
+@media (max-width:520px){.road{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="kicker">rolecall · research plan · 13 Nov 2026</div>
+<h1>Claude across the whole job search</h1>
+<p class="lede">How rolecall can use Claude to find the right roles, write an honest CV and cover letter that recruiters can find, and help with applying and everything after. Three research agents each covered one stage, and this page joins their findings into one plan that fits rolecall's existing rules.</p>
+
+<div class="rule">The one rule every idea below follows: <strong>Claude does the legwork and writes files; the Owner decides.</strong> Claude never invents a fact, never submits an application, never sends an email, and never moves a Status on its own.</div>
+
+<nav class="toc">
+  <a href="#journey">Journey</a><a href="#arch">Architecture</a><a href="#features">24 features</a><a href="#matrix">Tool map</a><a href="#road">Roadmap</a><a href="#adrs">ADRs needed</a><a href="#guard">Guardrails</a><a href="#sources">Sources</a>
+</nav>
+
+<!-- JOURNEY -->
+<h2 id="journey">The journey, end to end</h2>
+<p class="sub">Each stage names the Claude tool that does the work. Arrows run left to right; each lane hands its files to the next.</p>
+<div class="journey">
+  <div class="lane find">
+    <h3>1 · Find the right roles</h3>
+    <ol class="steps">
+      <li><b>Sweep the Sources</b><span><code>sweep.py</code> pulls from ATS APIs (Greenhouse, Ashby, Lever…)</span></li>
+      <li><b>Read job-alert emails</b><span>Gmail connector covers Seek and LinkedIn without crawling them</span></li>
+      <li><b>Cheap triage</b><span>Haiku subagent keeps or drops each candidate, giving a reason</span></li>
+      <li><b>Judge &amp; create Leads</b><span>Opus via <code>find-jobs</code> → <code>meta.py create</code> + <code>jd.md</code></span></li>
+      <li><b>Score Fit</b><span><code>assess-fit</code> → <code>fit.md</code>, <code>requirements.json</code></span></li>
+    </ol>
+  </div>
+  <div class="lane doc">
+    <h3>2 · Write the documents</h3>
+    <ol class="steps">
+      <li><b>Extract requirements</b><span>schema-checked must-haves and nice-to-haves</span></li>
+      <li><b>Match against the Profile</b><span><code>evidence.md</code> traces every claim to a Profile line</span></li>
+      <li><b>Draft</b><span><code>prepare-documents</code>; a hook checks each write as it lands</span></li>
+      <li><b>Independent review</b><span>recruiter and fact-checker subagents → <code>review.md</code></span></li>
+      <li><b>Build &amp; ATS check</b><span><code>build.py</code> gates → PDFs → Ready</span></li>
+    </ol>
+  </div>
+  <div class="lane apply">
+    <h3>3 · Apply and follow through</h3>
+    <ol class="steps">
+      <li><b>Assisted submit</b><span>Claude in Chrome fills the form and uploads the PDFs, <em>then stops</em></span></li>
+      <li><b>Owner clicks Submit</b><span>TUI confirms → Applied, <code>sent/</code> frozen</span></li>
+      <li><b>Reply triage</b><span>Gmail → <code>proposal.yml</code>, which the Owner accepts with <code>y</code></span></li>
+      <li><b>Follow-ups &amp; interviews</b><span>scheduled drafts; Calendar → <code>interview.md</code></span></li>
+      <li><b>Offers</b><span><code>offer.md</code> comparison plus a negotiation draft</span></li>
+    </ol>
+  </div>
+</div>
+<div class="status-strip" aria-label="Status flow">
+  <span class="s">Lead</span><span class="arr">→</span><span class="s">Draft</span><span class="arr">→</span><span class="s">Applied</span><span class="arr">→</span><span class="s">Interviewing</span><span class="arr">→</span><span class="s">Offer</span>
+  <span class="arr">&nbsp;·&nbsp;Only the TUI and the Owner move a Status after Lead (the one automatic move, Lead → Draft, stays)</span>
+</div>
+
+<!-- ARCH -->
+<h2 id="arch">Integration architecture</h2>
+<p class="sub">Three tiers, one rule: every tier writes files into the Workspace. This keeps ADR-0003 (files are the only contract) and ADR-0005 (Owner data stays local).</p>
+<div class="arch">
+<svg viewBox="0 0 1000 340" role="img" aria-label="Architecture: Owner and TUI exchange files with Claude Code, which runs interactively or headless and reaches Gmail, Calendar and Chrome through the Owner's own account">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+  </defs>
+  <rect x="10" y="10" width="610" height="320" rx="14" fill="none" stroke="var(--accent)" stroke-dasharray="6 5"/>
+  <text x="26" y="34" font-size="13" class="m">THIS MACHINE · the Workspace never leaves it except through the Owner's own Claude account</text>
+
+  <rect class="box" x="30" y="70" width="130" height="80" rx="10"/>
+  <text x="95" y="105" font-size="16" font-weight="700" text-anchor="middle">Owner</text>
+  <text x="95" y="126" font-size="12" class="m" text-anchor="middle">decides · submits</text>
+
+  <rect class="box" x="30" y="200" width="130" height="90" rx="10"/>
+  <text x="95" y="237" font-size="16" font-weight="700" text-anchor="middle">TUI</text>
+  <text x="95" y="257" font-size="12" class="m" text-anchor="middle">keys s f p b A i y</text>
+  <text x="95" y="274" font-size="12" class="m" text-anchor="middle">rescans on change</text>
+
+  <rect x="210" y="120" width="170" height="130" rx="10" fill="var(--accent-soft)" stroke="var(--accent)"/>
+  <text x="295" y="148" font-size="15" font-weight="700" text-anchor="middle">Workspace files</text>
+  <text x="295" y="172" font-size="12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">meta.yml · jd.md</text>
+  <text x="295" y="190" font-size="12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">requirements.json</text>
+  <text x="295" y="208" font-size="12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">evidence.md · review.md</text>
+  <text x="295" y="226" font-size="12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">proposal.yml · out/*.pdf</text>
+
+  <rect class="box" x="430" y="60" width="170" height="90" rx="10"/>
+  <text x="515" y="88" font-size="12" font-weight="700" fill="var(--accent)" text-anchor="middle">TIER 1</text>
+  <text x="515" y="108" font-size="15" font-weight="700" text-anchor="middle">Interactive Handoff</text>
+  <text x="515" y="128" font-size="11" class="m" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">claude "/rolecall:{skill} {dir}"</text>
+
+  <rect class="box" x="430" y="200" width="170" height="90" rx="10"/>
+  <text x="515" y="228" font-size="12" font-weight="700" fill="var(--accent)" text-anchor="middle">TIER 2</text>
+  <text x="515" y="248" font-size="15" font-weight="700" text-anchor="middle">Headless jobs</text>
+  <text x="515" y="268" font-size="11" class="m" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">claude -p --json-schema</text>
+
+  <rect x="680" y="40" width="300" height="270" rx="14" fill="none" stroke="var(--line)"/>
+  <text x="830" y="66" font-size="12" font-weight="700" fill="var(--accent)" text-anchor="middle">TIER 3 · Owner's own accounts</text>
+  <rect class="box" x="705" y="85" width="250" height="56" rx="8"/>
+  <text x="830" y="110" font-size="15" font-weight="700" text-anchor="middle">Gmail</text>
+  <text x="830" y="128" font-size="12" class="m" text-anchor="middle">read · draft · send blocked by hook</text>
+  <rect class="box" x="705" y="155" width="250" height="56" rx="8"/>
+  <text x="830" y="180" font-size="15" font-weight="700" text-anchor="middle">Google Calendar</text>
+  <text x="830" y="198" font-size="12" class="m" text-anchor="middle">read · create only after asking</text>
+  <rect class="box" x="705" y="225" width="250" height="56" rx="8"/>
+  <text x="830" y="250" font-size="15" font-weight="700" text-anchor="middle">Claude in Chrome</text>
+  <text x="830" y="268" font-size="12" class="m" text-anchor="middle">fill · upload · human submits</text>
+
+  <g stroke="var(--muted)" stroke-width="1.6" fill="none">
+    <line x1="95" y1="150" x2="95" y2="198" marker-end="url(#ah)" marker-start="url(#ah)"/>
+    <line x1="160" y1="240" x2="208" y2="210" marker-end="url(#ah)" marker-start="url(#ah)"/>
+    <line x1="382" y1="160" x2="428" y2="115" marker-end="url(#ah)" marker-start="url(#ah)"/>
+    <line x1="382" y1="215" x2="428" y2="245" marker-end="url(#ah)" marker-start="url(#ah)"/>
+    <line x1="602" y1="105" x2="703" y2="113" marker-end="url(#ah)"/>
+    <line x1="602" y1="110" x2="703" y2="250" marker-end="url(#ah)"/>
+    <line x1="602" y1="245" x2="703" y2="120" marker-end="url(#ah)"/>
+    <line x1="602" y1="250" x2="703" y2="183" marker-end="url(#ah)"/>
+  </g>
+</svg>
+<div class="tiers">
+  <div class="tier"><div class="n">TIER 1 · EXISTS (v0.2)</div>The TUI suspends and runs the skill in the Owner's terminal. Claude can ask questions, drive Chrome and use connectors. Used for anything that writes documents or acts on the web.</div>
+  <div class="tier"><div class="n">TIER 2 · NEW · amends ADR-0003</div><code>claude -p</code> with structured JSON output, started by the TUI (<code>RunCaptured</code>), a Desktop local scheduled task or launchd. It writes drafts and <code>proposal.yml</code> only, never documents.</div>
+  <div class="tier"><div class="n">TIER 3 · CONNECTORS</div>Gmail, Calendar and Chrome reached through either tier. Remote Control on a phone is a window onto tier 1, not a new data path. Cloud routines don't fit: they need a GitHub remote.</div>
+</div>
+</div>
+
+<!-- FEATURES -->
+<h2 id="features">Proposed features</h2>
+<p class="sub">Each card gives the behaviour, the Claude tool, the files and keys it touches, the roadmap slot and the effort. <span class="star">★</span> marks the recommended first build.</p>
+<div class="filters" role="group" aria-label="Filter features">
+  <button data-f="all" aria-pressed="true">All</button>
+  <button data-f="find" aria-pressed="false">Find</button>
+  <button data-f="doc" aria-pressed="false">Documents</button>
+  <button data-f="apply" aria-pressed="false">Apply &amp; after</button>
+  <button data-f="star" aria-pressed="false">★ Build first</button>
+</div>
+<div class="cards" id="cards">
+
+<!-- FIND -->
+<article class="card find" data-star="1">
+  <div class="top"><h3><span class="star">★</span> Sweep key <code>s</code></h3><span class="id">FIND·1</span></div>
+  <p>From the Leads screen, <code>s</code> hands off to <code>find-jobs</code> for the whole Workspace. New Leads appear when the TUI resumes.</p>
+  <div class="meta"><span class="tag tool">Plugin skill · Handoff</span><span class="tag">v0.2</span><span class="tag eff">S</span><span class="tag adr">ADR-0003 note</span></div>
+  <div class="files">needs a {workspace} variable in the harness template</div>
+  <div class="risk"><b>Risk:</b> a long run blocks the TUI; captured mode with a spinner could host it.</div>
+</article>
+<article class="card find" data-star="1">
+  <div class="top"><h3><span class="star">★</span> Two-tier triage</h3><span class="id">FIND·2</span></div>
+  <p>A Haiku subagent screens every candidate (keep / drop + reason); Opus judges only the ones kept. Cheaper and faster at the same quality.</p>
+  <div class="meta"><span class="tag tool">Subagent model: haiku</span><span class="tag tool">--json-schema</span><span class="tag">v0.2.x</span><span class="tag eff">M</span></div>
+  <div class="files">plugin/agents/sweep-triage.md</div>
+  <div class="risk"><b>Risk:</b> Haiku drops good roles. Keep when unsure, and list everything screened out.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>Scheduled local Sweep</h3><span class="id">FIND·3</span></div>
+  <p>A daily unattended Sweep, so new Leads are waiting each morning.</p>
+  <div class="meta"><span class="tag tool">Desktop local scheduled task</span><span class="tag tool">claude -p</span><span class="tag">v1.0</span><span class="tag eff">S–M</span><span class="tag adr">tier-2 ADR</span></div>
+  <div class="files">--max-budget-usd cap · cap on new Leads per run</div>
+  <div class="risk"><b>Risk:</b> unattended permissions and runaway cost. Not cloud routines: they clone from GitHub, which breaks ADR-0005.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>Job-alert email intake</h3><span class="id">FIND·4</span></div>
+  <p>Subscribe to Seek and LinkedIn alerts; Claude reads them, resolves each link to the employer's own posting, and creates Leads. This covers those boards without crawling them.</p>
+  <div class="meta"><span class="tag tool">Gmail connector</span><span class="tag">v1.0</span><span class="tag eff">M</span><span class="tag adr">opt-in</span></div>
+  <div class="files">jobs/alerts-seen · deduped by URL</div>
+  <div class="risk"><b>Risk:</b> email goes through the connector; tracking redirects; needs a Pro plan or higher.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>More Platforms, fresher data</h3><span class="id">FIND·5</span></div>
+  <p>Add Workable and the Lever EU host; use Ashby remote and salary fields; drop stale ads by their published dates.</p>
+  <div class="meta"><span class="tag tool">Claude Code writes the collectors</span><span class="tag">v1.0</span><span class="tag eff">S each</span></div>
+  <div class="files">sweep.py · sweep-candidates.md gains posted-date and salary columns</div>
+  <div class="risk"><b>Risk:</b> the Workable endpoint and SmartRecruiters' key requirement are unverified.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>Source discovery</h3><span class="id">FIND·6</span></div>
+  <p>Claude finds employers on supported ATSs, e.g. “Acme uses Ashby, so add <code>ashby:acme</code>?”, using <code>site:</code> searches plus <code>sweep.py --probe</code>.</p>
+  <div class="meta"><span class="tag tool">WebSearch / WebFetch</span><span class="tag">v1.0</span><span class="tag eff">M</span></div>
+  <div class="files">writes nothing until the Owner accepts</div>
+  <div class="risk"><b>Risk:</b> noisy results; the Track filter still has to do the work.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>Sweep log &amp; feedback loop</h3><span class="id">FIND·7</span></div>
+  <p>Stats <code>4</code> shows Leads per Source and the share that reach Good+ Fit. Dismissals feed suggested <code>roles.json</code> changes, which the Owner approves.</p>
+  <div class="meta"><span class="tag tool">Claude review step</span><span class="tag">v0.2 / v1.0</span><span class="tag eff">M</span></div>
+  <div class="files">jobs/sweep-log.jsonl (SCHEMA entry)</div>
+  <div class="risk"><b>Risk:</b> small samples; never auto-apply the suggestions.</div>
+</article>
+<article class="card find">
+  <div class="top"><h3>Logged-in boards via Chrome</h3><span class="id">FIND·8</span></div>
+  <p>The Owner watches Claude browse a board they're signed in to and capture roles. <strong>Recommended against for LinkedIn.</strong></p>
+  <div class="meta"><span class="tag tool">claude --chrome</span><span class="tag">post-1.0 / non-goal</span><span class="tag eff">S</span></div>
+  <div class="files">reuses capture-job</div>
+  <div class="risk"><b>Risk:</b> LinkedIn's User Agreement §8.2 bans bots and scraping plugins, so the account could be banned.</div>
+</article>
+
+<!-- DOCS -->
+<article class="card doc" data-star="1">
+  <div class="top"><h3><span class="star">★</span> Structured requirements</h3><span class="id">DOC·1</span></div>
+  <p>Extract the job ad into numbered requirements (must / nice, skill / domain / credential, the ad's exact keywords). Fit, Key Skills and Gaps all cite the same ids.</p>
+  <div class="meta"><span class="tag tool">--json-schema / structured outputs</span><span class="tag">v0.2.x</span><span class="tag eff">S</span></div>
+  <div class="files">requirements.json (new agent file)</div>
+  <div class="risk"><b>Risk:</b> reading “nice to have” as “must”; keep the ad's phrase. The Sweep's ranking can reuse it.</div>
+</article>
+<article class="card doc" data-star="1">
+  <div class="top"><h3><span class="star">★</span> Stronger ATS check</h3><span class="id">DOC·2</span></div>
+  <p><code>Built 2 PDFs · 11/12 must-haves found in parsed text</code>. Checks heading order, contact details in the body, file size under 2.5 MB, and keyword coverage.</p>
+  <div class="meta"><span class="tag tool">deterministic script</span><span class="tag">v0.2</span><span class="tag eff">S</span></div>
+  <div class="files">build.py (already runs pdftotext)</div>
+  <div class="risk"><b>Risk:</b> pressure to keyword-stuff. Coverage stays a warning, and the evidence gate still applies.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>Evidence ledger + hook</h3><span class="id">DOC·3</span></div>
+  <p>Every bullet and letter claim maps to a requirement id and a verbatim Profile quote. A <code>PostToolUse</code> hook runs <code>build.py --check-only</code> on every write, so a fabrication is caught while Claude writes.</p>
+  <div class="meta"><span class="tag tool">Claude Code hooks</span><span class="tag">v0.2.x</span><span class="tag eff">M</span></div>
+  <div class="files">evidence.md · hooks/hooks.json</div>
+  <div class="risk"><b>Risk:</b> other harnesses ignore hooks, so <code>build.py</code> stays the final authority.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>Recruiter + fact-checker subagents</h3><span class="id">DOC·4</span></div>
+  <p>Two independent readers: a 7-second skim verdict and must-have coverage from one, overclaims quoted against the Profile from the other. At most two fix rounds.</p>
+  <div class="meta"><span class="tag tool">Plugin subagents</span><span class="tag">v0.2.x · tab v0.3</span><span class="tag eff">M</span></div>
+  <div class="files">review.md · new Review reader tab</div>
+  <div class="risk"><b>Risk:</b> the reviewer “improves” wording by adding facts; it may only cut, reorder and flag.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>Eval suite</h3><span class="id">DOC·5</span></div>
+  <p>Score document quality and catch fabrication whenever a skill, rule or model changes, with planted traps (a skill the Profile marks not available, inflated seniority).</p>
+  <div class="meta"><span class="tag tool">claude plugin eval</span><span class="tag">pre-1.0</span><span class="tag eff">M</span></div>
+  <div class="files">plugin/evals/ over fixtures/workspace</div>
+  <div class="risk"><b>Risk:</b> cost per run (cases × 3 runs × 2 arms) and judge drift.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>CV import with provenance</h3><span class="id">DOC·6</span></div>
+  <p>Import old PDF or DOCX CVs. Every Profile fact keeps its source line; conflicting dates become questions; responsibilities are flagged as having no outcome yet.</p>
+  <div class="meta"><span class="tag tool">Read PDF · Citations API</span><span class="tag">v0.2.x</span><span class="tag eff">M</span></div>
+  <div class="files">cv/ · profile/provenance.md</div>
+  <div class="risk"><b>Risk:</b> OCR errors become “facts”, so the Owner approval step stays.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>Learn from the Owner's edits</h3><span class="id">DOC·7</span></div>
+  <p>Diff the agent's draft against what was actually sent, then propose rule lines (“never ‘spearheaded’”) for writing-preferences.</p>
+  <div class="meta"><span class="tag tool">Skill + git diff</span><span class="tag">v0.3+</span><span class="tag eff">S</span></div>
+  <div class="files">profile/writing-preferences.md (Owner approves each line)</div>
+  <div class="risk"><b>Risk:</b> turning one-off edits into rules; propose only, and show the diffs behind each.</div>
+</article>
+<article class="card doc">
+  <div class="top"><h3>Gaps → interview prep</h3><span class="id">DOC·8</span></div>
+  <p>Each gap gets its adjacent honest evidence and a suggested answer. Hands off to the interview skill in Apply·4.</p>
+  <div class="meta"><span class="tag tool">Skill · adaptive thinking</span><span class="tag">post-v0.3</span><span class="tag eff">M</span></div>
+  <div class="files">gaps.md (richer)</div>
+  <div class="risk"><b>Risk:</b> invented STAR detail; the evidence ledger applies here too.</div>
+</article>
+
+<!-- APPLY -->
+<article class="card apply" data-star="1">
+  <div class="top"><h3><span class="star">★</span> Status proposals</h3><span class="id">APPLY·1</span></div>
+  <p>The foundation. Agents write <code>proposal.yml</code>; the row shows ◆; the detail view reads <code>Proposed: Rejected · y accept · n dismiss</code>.</p>
+  <div class="meta"><span class="tag tool">Any tool writes it</span><span class="tag">1.x first</span><span class="tag eff">M</span><span class="tag adr">new ADR</span></div>
+  <div class="files">proposal.yml per folder (ADR-0002)</div>
+  <div class="risk"><b>Risk:</b> stale proposals; drop one once its Status is already current.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Assisted submission <code>A</code></h3><span class="id">APPLY·2</span></div>
+  <p>Claude opens the ad in the Owner's Chrome, fills the ATS form, uploads the PDFs and drafts screening answers, then <strong>stops before Submit</strong>.</p>
+  <div class="meta"><span class="tag tool">Claude in Chrome</span><span class="tag">1.x</span><span class="tag eff">M</span><span class="tag adr">“human submits” ADR</span></div>
+  <div class="files">answers.md (reuses past answers)</div>
+  <div class="risk"><b>Risk:</b> prompt injection from job pages; brittle Workday flows; some sites' terms forbid automation.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Reply triage <code>i</code></h3><span class="id">APPLY·3</span></div>
+  <p>Searches Gmail for mail from each Applied company, sorts each into rejection / invite / info request / offer, and logs an excerpt plus a proposal.</p>
+  <div class="meta"><span class="tag tool">Gmail connector</span><span class="tag tool">PreToolUse deny send</span><span class="tag">1.x</span><span class="tag eff">M</span><span class="tag adr">amend ADR-0001</span></div>
+  <div class="files">replies.md · proposal.yml</div>
+  <div class="risk"><b>Risk:</b> agency mail doesn't name the company, so also match on contact and domain.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Interview prep</h3><span class="id">APPLY·4</span></div>
+  <p>Finds the Calendar event, writes when, who and format, likely questions and Profile-only STAR stories, and offers to add prep blocks. Practise in Claude mobile voice mode.</p>
+  <div class="meta"><span class="tag tool">Calendar connector</span><span class="tag tool">Voice mode</span><span class="tag">1.x</span><span class="tag eff">M</span></div>
+  <div class="files">interview.md · Interview reader tab</div>
+  <div class="risk"><b>Risk:</b> Calendar write scope varies (unverified); over-claiming in stories.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Follow-up nudges</h3><span class="id">APPLY·5</span></div>
+  <p>A daily local job finds overdue follow-ups, runs <code>draft-follow-up</code>, optionally makes a Gmail <em>draft</em>, and sends an OS notification: “3 follow-ups drafted”.</p>
+  <div class="meta"><span class="tag tool">Local scheduled task</span><span class="tag tool">Stop hook</span><span class="tag">1.x</span><span class="tag eff">S–M</span></div>
+  <div class="files">follow-up.md · Gmail draft only</div>
+  <div class="risk"><b>Risk:</b> skipped while the machine sleeps; stalls on permission prompts.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Headless harness mode</h3><span class="id">APPLY·6</span></div>
+  <p>A <code>harness_batch</code> template run through <code>RunCaptured</code>: no suspend, a spinner, and a summary like <code>Checked 9 · 2 proposals</code>. This is what makes the scheduled features possible.</p>
+  <div class="meta"><span class="tag tool">claude -p --json-schema</span><span class="tag">1.x</span><span class="tag eff">M</span><span class="tag adr">amends ADR-0003</span></div>
+  <div class="files">results still land as files</div>
+  <div class="risk"><b>Risk:</b> silent failures; check <code>structured_output</code> and the exit code.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Offer comparison</h3><span class="id">APPLY·7</span></div>
+  <p>Base, super, equity, leave and deadline per offer; a side-by-side comparison when there are two or more; a negotiation reply as a draft. Never accepts.</p>
+  <div class="meta"><span class="tag tool">Skill + Gmail drafts</span><span class="tag">1.x</span><span class="tag eff">S</span></div>
+  <div class="files">offer.md · Workspace-level comparison</div>
+  <div class="risk"><b>Risk:</b> salary data is sensitive; it stays in the Workspace.</div>
+</article>
+<article class="card apply">
+  <div class="top"><h3>Away from the desk</h3><span class="id">APPLY·8</span></div>
+  <p>Run <code>claude remote-control</code> in the Workspace and steer the skills from the Claude app. A <code>rolecall mcp</code> server is deferred.</p>
+  <div class="meta"><span class="tag tool">Remote Control</span><span class="tag tool">MCP (later)</span><span class="tag">v1.0 docs</span><span class="tag eff">S / L</span><span class="tag adr">amend ADR-0001</span></div>
+  <div class="files">no new files (MCP would be a second writer)</div>
+  <div class="risk"><b>Risk:</b> approving from a phone; turn on Trusted Devices.</div>
+</article>
+</div>
+
+<!-- MATRIX -->
+<h2 id="matrix">Which Claude tool does what</h2>
+<p class="sub">Every Claude surface the research found useful, and the stages it serves. A hollow dot means possible but not recommended.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Claude tool</th><th>Find</th><th>Documents</th><th>Apply &amp; after</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>Claude Code plugin skills</td><td class="c"><span class="dot f"></span></td><td class="c"><span class="dot d"></span></td><td class="c"><span class="dot a"></span></td><td>All agent work via TUI Handoffs (existing six skills + new ones)</td></tr>
+<tr><td>Subagents (model per agent)</td><td class="c"><span class="dot f"></span></td><td class="c"><span class="dot d"></span></td><td class="c"></td><td>Haiku triage; recruiter and fact-checker reviewers</td></tr>
+<tr><td>Hooks (PreToolUse / PostToolUse / Stop)</td><td class="c"></td><td class="c"><span class="dot d"></span></td><td class="c"><span class="dot a"></span></td><td>Early fact gate; block Gmail send; OS notifications</td></tr>
+<tr><td>Headless <code>claude -p --json-schema</code></td><td class="c"><span class="dot f"></span></td><td class="c"><span class="dot d"></span></td><td class="c"><span class="dot a"></span></td><td>Background Sweeps, requirement extraction, reply checks</td></tr>
+<tr><td>Desktop local scheduled tasks / cron</td><td class="c"><span class="dot f"></span></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Daily Sweep, follow-up nudges</td></tr>
+<tr><td>Cloud routines (<code>/schedule</code>)</td><td class="c"><span class="dot o"></span></td><td class="c"></td><td class="c"><span class="dot o"></span></td><td>Rejected: they need a GitHub remote (ADR-0005)</td></tr>
+<tr><td>WebSearch / WebFetch</td><td class="c"><span class="dot f"></span></td><td class="c"></td><td class="c"></td><td>Seek and LinkedIn gap-fill, Source discovery, URL capture</td></tr>
+<tr><td>Gmail connector</td><td class="c"><span class="dot f"></span></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Job-alert intake, reply triage, drafts</td></tr>
+<tr><td>Google Calendar connector</td><td class="c"></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Interview events and prep blocks</td></tr>
+<tr><td>Claude in Chrome</td><td class="c"><span class="dot o"></span></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Form fill and upload; the human submits</td></tr>
+<tr><td><code>claude plugin eval</code></td><td class="c"></td><td class="c"><span class="dot d"></span></td><td class="c"></td><td>Regression tests for quality and fabrication</td></tr>
+<tr><td>Claude API (structured outputs, Citations, Batch, caching)</td><td class="c"><span class="dot f"></span></td><td class="c"><span class="dot d"></span></td><td class="c"></td><td>Only if rolecall ever calls the API directly (v1.0+)</td></tr>
+<tr><td>Voice mode (mobile)</td><td class="c"></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Mock interviews from <code>interview.md</code></td></tr>
+<tr><td>Remote Control</td><td class="c"></td><td class="c"></td><td class="c"><span class="dot a"></span></td><td>Steering local skills from a phone</td></tr>
+<tr><td>Artifacts / Claude Docs</td><td class="c"></td><td class="c"><span class="dot o"></span></td><td class="c"><span class="dot o"></span></td><td>Rejected for Owner data: it would leave the machine (ADR-0005)</td></tr>
+<tr><td>Computer use (desktop)</td><td class="c"></td><td class="c"></td><td class="c"><span class="dot o"></span></td><td>Rejected: browsers are view-only there; Chrome is the right tool</td></tr>
+</tbody></table></div>
+
+<!-- ROADMAP -->
+<h2 id="road">Suggested build order</h2>
+<p class="sub">Ordered so each step pays off on its own, and the riskiest work (acting on the web, background runs) comes after the safety rails exist.</p>
+<div class="road">
+  <div class="phase"><div class="v">v0.2</div><div class="t">Quick wins on today's seams</div><ul><li><code>s</code> Sweep key</li><li>Stronger ATS check</li><li>Sweep log → Stats <code>4</code></li></ul></div>
+  <div class="phase"><div class="v">v0.2.x</div><div class="t">Honest, better documents</div><ul><li><code>requirements.json</code></li><li>Evidence ledger + hook</li><li>Reviewer subagents</li><li>Haiku triage</li><li>CV import with provenance</li></ul></div>
+  <div class="phase"><div class="v">v0.3 → pre-1.0</div><div class="t">Read &amp; harden</div><ul><li>Review tab</li><li>Eval suite in CI</li><li>Learn from edits</li><li>Richer Gaps</li></ul></div>
+  <div class="phase"><div class="v">v1.0</div><div class="t">Wider discovery</div><ul><li>More Platforms</li><li>Source discovery</li><li>Job-alert intake</li><li>Scheduled Sweep recipe</li><li>Remote Control guide</li></ul></div>
+  <div class="phase"><div class="v">1.x</div><div class="t">Apply &amp; after</div><ul><li>ADRs first (below)</li><li>Status proposals</li><li>Headless mode</li><li>Assisted submit</li><li>Replies · follow-ups · interviews · offers</li></ul></div>
+</div>
+
+<!-- ADRS -->
+<h2 id="adrs">Decisions to record first</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>ADR</th><th>Decision</th><th>Unlocks</th></tr></thead>
+<tbody>
+<tr><td>New</td><td><strong>Agents propose Status changes; only the Owner applies them</strong> (<code>proposal.yml</code>, accepted with <code>y</code>)</td><td>APPLY·1, 3, 5</td></tr>
+<tr><td>New</td><td><strong>A human always submits</strong>: no auto-submit, one Application per Handoff, no bulk apply, stop at CAPTCHAs</td><td>APPLY·2</td></tr>
+<tr><td>Amend 0003</td><td>Headless runs are allowed for draft and proposal skills only; documents and web actions stay interactive</td><td>FIND·3, APPLY·5, 6</td></tr>
+<tr><td>Amend 0003</td><td>Harness template gains a Workspace-level <code>{workspace}</code> variable</td><td>FIND·1</td></tr>
+<tr><td>Amend 0001</td><td>Owner-run email triage and Remote Control are allowed (still no email intake into the app itself)</td><td>FIND·4, APPLY·3, 8</td></tr>
+<tr><td>Later</td><td>A <code>rolecall mcp</code> server as a second contract surface beside files</td><td>APPLY·8 (MCP)</td></tr>
+</tbody></table></div>
+
+<!-- GUARDRAILS -->
+<h2 id="guard">Guardrails</h2>
+<div class="two">
+  <div class="panel ok"><h3>Always</h3><ul>
+    <li>Every document claim traces to a Profile line; <code>build.py</code> stays the final gate.</li>
+    <li>The Owner clicks Submit, accept and send.</li>
+    <li>One Application per run.</li>
+    <li>Screening answers come only from the Profile and the Owner.</li>
+    <li>Disclose AI use where a form asks.</li>
+    <li>Cap budget and new Leads on every unattended run.</li>
+  </ul></div>
+  <div class="panel no"><h3>Never</h3><ul>
+    <li>Auto-apply, mass apply or “spray and pray”.</li>
+    <li>Solve or bypass CAPTCHAs, or touch identity or payment steps.</li>
+    <li>Scrape LinkedIn with a bot or browser plugin (User Agreement §8.2).</li>
+    <li>Send Owner data to a hosted page (Artifacts, Docs) or a cloud routine without a new opt-in ADR.</li>
+    <li>Keyword-stuff to “beat the ATS”: auto-rejection is mostly a myth, and recruiters <em>search</em> by the ad's skills.</li>
+  </ul></div>
+</div>
+
+<h2>Before you start</h2>
+<div class="panel"><ul>
+  <li>The <strong>Gmail and Google Calendar connectors aren't authorised</strong> in this environment yet. Connect them in claude.ai connector settings before prototyping FIND·4, APPLY·3, APPLY·4 or APPLY·5.</li>
+  <li>Claude in Chrome needs a direct Anthropic plan login, not an API key, and a project's settings can't turn it on.</li>
+  <li>Unverified items to check while prototyping: <span class="unv">Workable endpoint</span> <span class="unv">SmartRecruiters key</span> <span class="unv">Seek terms</span> <span class="unv">connector tool names in Claude Code</span> <span class="unv">Calendar write scope</span> <span class="unv">push reliability</span> <span class="unv">Read tool on PDFs</span>.</li>
+</ul></div>
+
+<!-- SOURCES -->
+<h2 id="sources">Sources</h2>
+<ul class="sources">
+<li>Headless / <code>-p</code> / <code>--json-schema</code>: <a href="https://code.claude.com/docs/en/headless">code.claude.com/docs/en/headless</a></li>
+<li>Subagents: <a href="https://code.claude.com/docs/en/sub-agents">code.claude.com/docs/en/sub-agents</a></li>
+<li>Hooks: <a href="https://code.claude.com/docs/en/hooks">code.claude.com/docs/en/hooks</a></li>
+<li>Skills: <a href="https://code.claude.com/docs/en/skills">code.claude.com/docs/en/skills</a></li>
+<li>Plugins reference: <a href="https://code.claude.com/docs/en/plugins-reference">code.claude.com/docs/en/plugins-reference</a></li>
+<li>Plugin evals: <a href="https://code.claude.com/docs/en/plugin-evals">code.claude.com/docs/en/plugin-evals</a></li>
+<li>Memory: <a href="https://code.claude.com/docs/en/memory">code.claude.com/docs/en/memory</a></li>
+<li>MCP: <a href="https://code.claude.com/docs/en/mcp">code.claude.com/docs/en/mcp</a></li>
+<li>Claude in Chrome: <a href="https://code.claude.com/docs/en/chrome">code.claude.com/docs/en/chrome</a></li>
+<li>Chrome safety: <a href="https://support.claude.com/en/articles/12902428-use-claude-in-chrome-safely">support.claude.com/…/12902428</a></li>
+<li>Routines (cloud): <a href="https://code.claude.com/docs/en/routines">code.claude.com/docs/en/routines</a></li>
+<li>Desktop scheduled tasks: <a href="https://code.claude.com/docs/en/desktop-scheduled-tasks">code.claude.com/docs/en/desktop-scheduled-tasks</a></li>
+<li>Remote Control: <a href="https://code.claude.com/docs/en/remote-control">code.claude.com/docs/en/remote-control</a></li>
+<li>Computer use: <a href="https://code.claude.com/docs/en/computer-use">code.claude.com/docs/en/computer-use</a></li>
+<li>Google Workspace connectors: <a href="https://support.claude.com/en/articles/10166901-use-google-workspace-connectors">support.claude.com/…/10166901</a></li>
+<li>Voice mode: <a href="https://support.claude.com/en/articles/11101966-use-voice-mode">support.claude.com/…/11101966</a></li>
+<li>Structured outputs: <a href="https://platform.claude.com/docs/en/build-with-claude/structured-outputs">platform.claude.com/…/structured-outputs</a></li>
+<li>Citations: <a href="https://platform.claude.com/docs/en/build-with-claude/citations">platform.claude.com/…/citations</a></li>
+<li>PDF support: <a href="https://platform.claude.com/docs/en/build-with-claude/pdf-support">platform.claude.com/…/pdf-support</a></li>
+<li>Batch processing: <a href="https://platform.claude.com/docs/en/build-with-claude/batch-processing">platform.claude.com/…/batch-processing</a></li>
+<li>Web search tool: <a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool">platform.claude.com/…/web-search-tool</a></li>
+<li>Greenhouse Job Board API: <a href="https://docs.greenhouse.io/job-board.html">docs.greenhouse.io/job-board.html</a></li>
+<li>Ashby posting API: <a href="https://developers.ashbyhq.com/docs/public-job-posting-api">developers.ashbyhq.com</a></li>
+<li>Lever postings API: <a href="https://github.com/lever/postings-api">github.com/lever/postings-api</a></li>
+<li>SmartRecruiters Posting API: <a href="https://developers.smartrecruiters.com/docs/posting-api">developers.smartrecruiters.com</a></li>
+<li>Greenhouse, resume parse failures: <a href="https://support.greenhouse.io/hc/en-us/articles/200989175-Unsuccessful-resume-parse">support.greenhouse.io/…/200989175</a></li>
+<li>Jobscan ATS / recruiter search study: <a href="https://www.jobscan.co/blog/99-percent-fortune-500-ats/">jobscan.co</a></li>
+<li>Recruiter 7.4 s eye-tracking (via HR Dive): <a href="https://www.hrdive.com/news/recruiters-spend-74-seconds-looking-at-your-resume/541582/">hrdive.com</a></li>
+<li>LinkedIn User Agreement §8.2: <a href="https://www.linkedin.com/legal/user-agreement">linkedin.com/legal/user-agreement</a></li>
+</ul>
+
+<footer>Put together from three parallel research agents (discovery, documents, applying and architecture) on 13 Nov 2026, checked against rolecall's spec, GLOSSARY, SCHEMA and ADR-0001 to 0005. Feature ids are local to this page.</footer>
+</div>
+<script>
+(function(){
+  var btns=document.querySelectorAll('.filters button'),cards=document.querySelectorAll('#cards .card');
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    var f=b.getAttribute('data-f');
+    btns.forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+    cards.forEach(function(c){
+      var show=f==='all'||(f==='star'?c.getAttribute('data-star')==='1':c.classList.contains(f));
+      c.hidden=!show;
+    });
+  });});
+})();
+</script>
+</body>
+</html>
