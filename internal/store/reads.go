@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // workspace is workspace.json read once. Keys and Values are the ordered top-level keys
@@ -74,7 +75,32 @@ func (s *Store) Tracks() ([]string, error) {
 			return nil, fmt.Errorf("%s: invalid Workspace settings", w.Path)
 		}
 	}
+	if err := checkTracks(tracks); err != nil {
+		return nil, fmt.Errorf("%s: tracks: %w", w.Path, err)
+	}
 	return tracks, nil
+}
+
+// checkTracks applies the Track name rules Settings applies to a new Track to a
+// hand-edited list: each one non-empty, without surrounding spaces, and listed once.
+func checkTracks(tracks []string) error {
+	for i, t := range tracks {
+		if t != strings.TrimSpace(t) {
+			return fmt.Errorf("Track %q has spaces around it", DisplayText(t))
+		}
+		if t != DisplayText(t) {
+			return fmt.Errorf("Track %q contains a control character", DisplayText(t))
+		}
+		if err := ValidTrackName(t, nil); err != nil {
+			return err
+		}
+		for _, earlier := range tracks[:i] {
+			if strings.EqualFold(earlier, t) {
+				return fmt.Errorf("Track %s is listed twice", DisplayText(t))
+			}
+		}
+	}
+	return nil
 }
 
 // workspaceSchemaVersion reads the schema key of workspace.json. Absent or 1 is accepted;
