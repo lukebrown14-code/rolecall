@@ -54,7 +54,10 @@ rolecall          # opens the app
 
 `rolecall init` asks nothing: it creates the Workspace (a private folder with its own local git
 repository) and remembers where it is in `config.toml` (`$XDG_CONFIG_HOME/rolecall/config.toml`
-when `XDG_CONFIG_HOME` is set, otherwise `~/.config/rolecall/config.toml`). Then:
+when `XDG_CONFIG_HOME` is set, otherwise `~/.config/rolecall/config.toml`). If `config.toml`
+already opens another Workspace, init leaves it as your default and prints how to open the new
+one (`rolecall --dir DIR`); `rolecall init --switch DIR` makes DIR the default instead. If
+`config.toml` has an error, `rolecall` and `rolecall doctor` name the line and the reason. Then:
 
 1. Run `rolecall`. The first time it opens it asks for your Contact (Name and Email are
    required; the rest is optional). Press Esc to skip, and it asks again next time.
