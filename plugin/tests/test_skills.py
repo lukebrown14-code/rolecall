@@ -86,3 +86,33 @@ def test_every_plugin_skill_has_matching_front_matter():
 
         assert fields.get("name") == path.parent.name, f"{path} name mismatch"
         assert fields.get("description"), f"{path} has no description"
+
+
+HELP = PLUGIN / "skills" / "help"
+# Hyphenated words in the help guide that are plain English, not skill names.
+HELP_WORDS = {"re-read", "re-reads"}
+
+
+def test_help_names_only_skills_that_exist():
+    import re
+
+    text = read(HELP / "app.md")
+    skills = {p.parent.name for p in (PLUGIN / "skills").glob("*/SKILL.md")}
+    # A hyphenated word that is not a file name (no extension or slash after it).
+    named = set(re.findall(r"\b([a-z]+(?:-[a-z]+)+)\b(?![./\w-])", text)) - HELP_WORDS
+    assert named, "app.md names no skills"
+    assert named <= skills, f"app.md names skills that do not exist: {sorted(named - skills)}"
+
+
+def test_help_lists_every_machine_setting():
+    import re
+
+    keys = set(re.findall(r'toml:"([a-z_]+)"', read(ROOT / "internal" / "config" / "config.go")))
+    app = read(HELP / "app.md")
+    missing = sorted(k for k in keys if f"`{k}`" not in app)
+    assert not missing, f"app.md is missing config.toml keys: {missing}"
+
+
+def test_help_is_read_only():
+    text = read(HELP / "SKILL.md").lower()
+    assert "read only" in text and "changes nothing" in text

@@ -2,7 +2,9 @@
 
 The skills and scripts a coding harness loads to work a rolecall Workspace:
 creating the Profile, capturing jobs, assessing Fit, preparing documents, drafting follow-ups,
-sweeping Sources and keeping the Profile's project facts current.
+sweeping Sources and keeping the Profile's project facts current. The `help` skill answers
+questions about the other skills and the app, from `skills/*/SKILL.md` and
+`skills/help/app.md`; keep `app.md` in step when screens, keys or settings change.
 
 ## Registering the local marketplace (Claude Code)
 

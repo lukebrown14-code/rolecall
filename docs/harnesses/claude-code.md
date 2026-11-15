@@ -39,6 +39,9 @@ or `prepare-documents`, and `{dir}` with the current Application folder. The Plu
 these skills available as `/rolecall:assess-fit` and `/rolecall:prepare-documents` in
 Claude Code.
 
+To ask how rolecall or any of its skills works, run `/rolecall:help` (or just ask: "which
+rolecall skill finds jobs?"). It reads the skills and the app guide and changes nothing.
+
 ## Check the handoff
 
 Start rolecall with your Workspace, open a Lead or Draft Application, then press `f` to run
