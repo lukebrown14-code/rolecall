@@ -17,6 +17,27 @@ const (
 	fieldMinVal = 3 // the least value kept before the action words are dropped
 )
 
+// untitled stands in for a blank Title wherever one is drawn: a row, the preview, a
+// header, a pop-up or a message.
+const untitled = "(untitled)"
+
+// titleLabel is a Title as a row or header draws it: as stored, or untitled when blank.
+func titleLabel(title string) string {
+	if strings.TrimSpace(title) == "" {
+		return untitled
+	}
+	return title
+}
+
+// companySuffix is " · Company" after a title, or nothing when the company is blank, so
+// no separator is left hanging.
+func companySuffix(company string) string {
+	if strings.TrimSpace(company) == "" {
+		return ""
+	}
+	return " · " + company
+}
+
 // notNeededMark marks a Document the Application does not need (a Resume only Cover letter).
 // The em dash is the frame's "none", as an empty NOTES row shows it.
 const notNeededMark = "—"

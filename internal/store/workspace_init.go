@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // SearchArea configures which role locations the Plugin's Sweep keeps.
@@ -93,13 +92,5 @@ func initializeWorkspace(root string, files FileSystem, contact map[string]strin
 }
 
 func contactMarkdown(fields map[string]string) string {
-	var b strings.Builder
-	b.WriteString("# Master Profile\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n")
-	for _, field := range []string{"Name", "Email", "Phone", "Location", "LinkedIn", "GitHub", "Work rights"} {
-		value := strings.TrimSpace(fields[field])
-		if value != "" {
-			fmt.Fprintf(&b, "| %s | %s |\n", field, strings.ReplaceAll(value, "|", "\\|"))
-		}
-	}
-	return b.String()
+	return "# Master Profile\n\n" + contactSection(fields)
 }

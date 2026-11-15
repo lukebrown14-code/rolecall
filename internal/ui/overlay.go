@@ -22,7 +22,7 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 	a := mv.app
 	cw := popSmall - popInset
 	var b strings.Builder
-	b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(a.Title, cw, "…")) + "\n")
+	b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(titleLabel(a.Title), cw, "…")) + "\n")
 	b.WriteString(p.Text(p.Dim).Render(xansi.Truncate(a.Company, cw-statusColumn-gutter, "…")+" · now ") + p.StatusChip(a.Status) + "\n\n")
 	likely := likelyCount[a.Status]
 	for i, s := range mv.options {
@@ -84,8 +84,11 @@ func (m model) buildFailBox(p pal, bf *buildFailMode) string {
 
 func (m model) duplicateBox(p pal, dm *duplicateMode) string {
 	d := dm.existing
-	body := p.Text(p.Fg).Bold(true).Render(d.Title) + p.Text(p.Dim).Render(" · "+d.Company) + "\n" +
+	body := p.Text(p.Fg).Bold(true).Render(titleLabel(d.Title)) + p.Text(p.Dim).Render(companySuffix(d.Company)) + "\n" +
 		p.Text(p.Sub).Render("is already saved with this URL (") + p.StatusChip(d.Status) + p.Text(p.Sub).Render(").")
+	if dm.others > 0 {
+		body += "\n" + p.Text(p.Dim).Render(fmt.Sprintf("+%d more with the same URL", dm.others))
+	}
 	return popup(p, "Duplicate URL", true, popForm, m.viewWidth(), body,
 		p.Keys(dm.Keys()))
 }

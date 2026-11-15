@@ -174,7 +174,7 @@ Status (the log stays append-only) and says so on the feedback line (`Undone · 
 
 ### Add form (`a`)
 
-Form fields: **Title*** · **Company*** · **Track** (choice from `workspace.json`) · URL ·
+Form fields: URL · **Title*** · **Company*** · **Track** (choice from `workspace.json`) ·
 Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). Track needs no `*`: it is a choice and
 always holds a track. `Enter` checks the field and moves on; on the last field it checks them
 all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
@@ -186,14 +186,17 @@ changes? y/n` first. Every form pop-up (Add, Edit, Search area, gates, machine s
 add and rename) follows these rules.
 
 On save:
-1. If the URL matches another Application's `url`, warn and offer to open that one instead.
+1. If the URL matches another Application's `url`, warn (naming an open match before a closed
+   one, with `+N more` when several share it): `o` discards this form and opens that one's
+   Detail, `s` saves anyway, `esc` goes back to the form with every value kept.
 2. Create `jobs/<track>/<slug>/` (SCHEMA → Folder name), write `meta.yml` (`schema: 1`, the
    fields, `status_log` with one `Lead` entry), and an empty `jd.md`.
 3. Open `jd.md` in `$EDITOR` so the description can be pasted. On return, select the new row.
+   If the save fails, the form stays open with its values and the error under the field.
 
 ### Edit form (`e` in a table)
 
-The same fields as Add, plus **Resume only** (yes/no). Saving patches only the keys that
+The same fields as Add, in the same order, plus **Resume only** (yes/no). Saving patches only the keys that
 changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)
@@ -580,7 +583,7 @@ Documents state rules, Build and the Plugin are unchanged.
 ### v1.0: public
 | Area | Features |
 |---|---|
-| Onboarding | `rolecall init` setup wizard (name, contact, location, tracks, workspace path, `git init`; spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
+| Onboarding | `rolecall init [DIR]` creates the Workspace and runs `git init` with no prompts; the app's first-run form asks for the Contact (spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
 | Profile | read-only Profile screen (screen 5; editing in 1.x) · `create-profile` skill (resume, LinkedIn export or guided questions → approved Profile) |
 | Settings | Settings screen (screen 6): Tracks, Search area, gates, follow-up days, downloads, editor, harness and plugin (the theme follows the terminal or ROLECALL_THEME, so no row) |
 | Documents | neutral default template + workspace brand override · 2–3 template choices (style packs AU/UK/US move to 1.x) |
@@ -612,7 +615,7 @@ opening stays but is best-effort, with no CI.
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
 | 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
 | 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
-| 7 | `init` wizard | Huh v2 prompts with matching flags: Contact (Name and Email required), Tracks, Search area (optional), Workspace path. Ends with "Create your Profile now?": from resume, answer questions, or later. Builds on #80 |
+| 7 | `init` and first run | `rolecall init [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
 | 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
 | 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
 | 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |

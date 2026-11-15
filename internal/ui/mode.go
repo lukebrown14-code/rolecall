@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/forms"
 )
 
 // mode is one overlay that owns the keyboard: a pop-up, a prompt or the search input.
@@ -72,17 +73,13 @@ func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	fields := createFields(v)
 	if fields.URL != "" {
 		if matches, err := m.store.FindByURL(fields.URL); err != nil {
-			m.err = err
-			return nil, nil
+			f.Focused().Err = m.errorText(err)
+			return fm, nil
 		} else if len(matches) > 0 {
-			return &duplicateMode{existing: matches[0], fields: fields}, nil
+			return &duplicateMode{existing: duplicateOf(matches), others: len(matches) - 1, fields: fields, back: fm}, nil
 		}
 	}
-	jd := ""
-	if f.Fetched {
-		jd = f.Jd
-	}
-	return nil, m.createLead(fields, jd)
+	return fm.submitAdd(m, fields)
 }
 
 // moveMode is the Move pop-up: every Status but the current one, likely next steps first.
@@ -177,14 +174,17 @@ func (dm *downloadMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return m.answerDownload(dm.state, k.String())
 }
 
-// duplicateMode warns that the URL is already saved.
+// duplicateMode warns that the URL is already saved. back is the Add form it came from,
+// kept whole so esc returns to it.
 type duplicateMode struct {
 	existing store.Application
+	others   int // more saved Applications with the same URL
 	fields   store.CreateFields
+	back     *formMode
 }
 
 func (dm *duplicateMode) Keys() [][2]string {
-	return [][2]string{{"o", "open that one"}, {"s", "save anyway"}, {"esc", "cancel"}}
+	return [][2]string{{"o", "discard this, open that one"}, {"s", "save anyway"}, {"esc", "back to form"}}
 }
 
 func (dm *duplicateMode) View(m *model, p pal) string { return m.duplicateBox(p, dm) }
@@ -197,11 +197,19 @@ func (dm *duplicateMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	switch k.String() {
 	case "o", "enter":
 		m.selectFolder(dm.existing.Folder)
+		m.openDetail(dm.existing.Folder)
 		return nil, nil
 	case "s":
-		return nil, m.createLead(dm.fields, "")
+		return dm.back.submitAdd(m, dm.fields)
 	case "esc":
-		return nil, nil
+		// Back to the form with every value kept, on the URL, the field to change.
+		f := dm.back.form
+		for i := range f.Fields {
+			if f.Fields[i].Role == forms.RoleURL {
+				f.Focus = i
+			}
+		}
+		return dm.back, nil
 	}
 	return dm, nil
 }

@@ -191,6 +191,13 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	h.advance()
 	h.tm.Type("2026-13-45")
 	h.enter()
+	// The shape is right, so the error says the date is not real rather than repeating it.
+	h.wait("Closes isn't a real date (YYYY-MM-DD)")
+	for range len("2026-13-45") {
+		h.tm.Type("backspace")
+	}
+	h.tm.Type("1 March")
+	h.enter()
 	h.wait("Closes must be YYYY-MM-DD")
 	h.esc()
 	h.quit()
@@ -263,6 +270,9 @@ func TestAddDuplicateURLWarnsAndOpensExisting(t *testing.T) {
 	h.fillAdd("Backend Engineer", "Acme", "https://example.com/status-dismissed", "")
 	h.wait("Duplicate URL")
 	h.tm.Type("o")
+	// o opens the existing one's Detail; esc back from it lands on its row.
+	h.wait("‹ esc  Engineer #1")
+	h.esc()
 	view := h.quit()
 	if !sameSnapshot(before, h.snapshot()) {
 		t.Fatal("opening the existing Application wrote to the Workspace")
@@ -327,4 +337,54 @@ func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	if !strings.Contains(string(meta), "title: \"Quokka Wrangler\"\n") {
 		t.Fatalf("meta.yml fields changed by moves:\n%s", meta)
 	}
+}
+
+// esc in the Duplicate URL pop-up goes back to the Add form with everything typed, on the
+// URL, so the Owner can fix it; nothing is written.
+func TestAddDuplicateURLEscReturnsToFormWithValues(t *testing.T) {
+	h := newAddHarness(t)
+	before := h.snapshot()
+	h.fillAdd("Backend Engineer", "Acme", "https://example.com/status-dismissed", "2027-03-01")
+	h.wait("Duplicate URL", "esc back to form")
+	h.esc()
+	h.wait("Add a Lead", "Backend Engineer", "Acme", "2027-03-01", "▌     URL  https://example.com/status-dismissed")
+	if !sameSnapshot(before, h.snapshot()) {
+		t.Fatal("going back to the form wrote to the Workspace")
+	}
+	h.tm.Type("-2")
+	h.tm.Type("ctrl+s")
+	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-backend-engineer-"+fixtureDay, "jd.md"), "Pasted JD")
+}
+
+// Several saved Applications share a URL: the pop-up names one still open, not a
+// Dismissed one, and says how many more there are.
+func TestAddDuplicateURLPrefersOpenMatchAndCountsOthers(t *testing.T) {
+	h := newAddHarness(t)
+	h.fillAdd("Backend Engineer", "Acme", "https://example.test/shared", "")
+	h.wait("Duplicate URL", "+5 more with the same URL")
+	if strings.Contains(h.tm.plain(), "Dismissed).") {
+		t.Fatalf("named a closed match:\n%s", h.tm.plain())
+	}
+}
+
+// A Title too long for a folder name still saves (the slug is capped). A save the store
+// refuses keeps the form open with every value and the reason inside it.
+func TestAddLongTitleSavesAndCreateErrorKeepsForm(t *testing.T) {
+	h := newAddHarness(t)
+	long := strings.TrimSpace(strings.Repeat("Engineer ", 30))
+	h.fillAdd(long, "Acme", "", "")
+	h.waitForFile(filepath.Join(h.root, "jobs", "SWE", "acme-engineer-engineer-engineer-engineer-engineer-engineer-"+fixtureDay, "jd.md"), "Pasted JD")
+
+	// jobs/SWE cannot take a new folder: Create fails, and the form stays.
+	jobs := filepath.Join(h.root, "jobs", "SWE")
+	if err := os.Chmod(jobs, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(jobs, 0o700) })
+	if f, err := os.Create(filepath.Join(jobs, "probe")); err == nil {
+		f.Close()
+		t.Skip("directory permissions are not enforced (running as root)")
+	}
+	h.fillAdd("Site Reliability Engineer", "Acme", "", "")
+	h.wait("Add a Lead", "Site Reliability Engineer", "permission denied")
 }

@@ -54,7 +54,8 @@ func parseFix(pe *store.ParseError) string {
 // malformedName is the Application folder a parse failure belongs to, as the Owner
 // knows it: "SWE/malformed".
 func (m model) malformedName(pe *store.ParseError) string {
-	return strings.TrimPrefix(m.rel(filepath.Dir(pe.Path)), "jobs"+string(filepath.Separator))
+	// A folder name is whatever is on disk, so it is cleaned like a meta.yml string.
+	return store.DisplayText(strings.TrimPrefix(m.rel(filepath.Dir(pe.Path)), "jobs"+string(filepath.Separator)))
 }
 
 // malformedTitle is the list row's title for an Application whose meta.yml cannot be read.
@@ -62,7 +63,7 @@ func (m model) malformedTitle(a store.Application) string {
 	if pe, ok := parseError(a.Malformed); ok {
 		return "Can't read " + m.malformedName(pe)
 	}
-	return "Can't read " + filepath.Base(a.Folder)
+	return "Can't read " + store.DisplayText(filepath.Base(a.Folder))
 }
 
 // malformedReason is where and how to fix it: "meta.yml line 4: …".

@@ -535,12 +535,25 @@ func (m model) breadcrumbLine(p pal) string {
 			room -= len(keyGap) + xansi.StringWidth(keys)
 		}
 		right = joinNonEmpty(keyGap, xansi.Truncate(msg, max(1, room), "…"), keys)
+	} else if warn := m.legacyWarning(); warn != "" {
+		room := max(1, w-rightMargin-gutter-inset-breadcrumbMin)
+		right = p.Text(p.Warn).Render(xansi.Truncate(warn, room, "…"))
 	}
 	room := w - rightMargin
 	if right != "" {
 		room -= gutter + xansi.StringWidth(right)
 	}
 	return contextRow(m.breadcrumbLeft(p, room), right, w)
+}
+
+// legacyWarning names a dashboard-era file in the Workspace, such as jobs/SHORTLIST.md,
+// that nothing reads: a Harness writing it has old instructions, so its roles never
+// appear here. It stays on the footer while no toast or error needs the space.
+func (m model) legacyWarning() string {
+	if len(m.legacy) == 0 {
+		return ""
+	}
+	return "⚠ " + filepath.ToSlash(m.legacy[0]) + " isn't read by rolecall · run rolecall doctor"
 }
 
 // keyGap separates the feedback from its keys, as the key line separates its keys.
@@ -643,7 +656,7 @@ func (m model) withSheet(p pal, list string) string {
 // sheetLines is the detail sheet: a title line, the tabs, then the tab's content, h lines.
 func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 	pad := strings.Repeat(" ", inset)
-	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(" · "+a.Company)
+	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.Company))
 	if a.Malformed != nil {
 		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	} else {
@@ -1056,7 +1069,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	right := buildRight()
 	// The Status glyph leads the title; the second line lines up under the title.
 	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
-	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(a.Title, max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
+	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
 	// The bar spans both lines, so the selected row reads as one block.
@@ -1077,7 +1090,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		}
 		return dim.Render(prefix + m.agoEntry(e))
 	}
-	out := []string{dim.Render(a.Company), dim.Render(a.Track)}
+	var out []string
+	if strings.TrimSpace(a.Company) != "" {
+		out = append(out, dim.Render(a.Company))
+	}
+	out = append(out, dim.Render(a.Track))
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
 		// No close date is a quiet dash, not the same words on every row.
@@ -1151,7 +1168,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 		b.WriteString(p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
 	} else {
-		b.WriteString(wrap(a.Title, p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
+		b.WriteString(wrap(titleLabel(a.Title), p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
 		b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())

@@ -40,7 +40,8 @@ defined in `GLOSSARY.md`.
 ### Folder name
 
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
-`[a-z0-9]` becomes `-`, trimmed, with the creation date. If the name is taken, append `-2`,
+`[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
+date. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
 `-3`, and so on. The name is an identifier only. Never parse meaning out of it.
 
 ## Application folder
@@ -154,8 +155,8 @@ patch it without reformatting.
 
 ## Profile
 
-`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and never
-writes it. The Profile files are free Markdown, apart from the Contact table below.
+`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and writes
+only the Contact table below, from its first-run form; it never touches the rest. The Profile files are free Markdown, apart from the Contact table below.
 
 ### Contact table
 

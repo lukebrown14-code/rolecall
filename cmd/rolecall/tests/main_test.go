@@ -1,7 +1,6 @@
 package main_test
 
 import (
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +9,29 @@ import (
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
+
+// A dashboard-era SHORTLIST.md is never read, so doctor names it and the migration.
+func TestCLIDoctorWarnsAboutLegacyShortlist(t *testing.T) {
+	binary := buildRolecall(t)
+	workspace := filepath.Join(t.TempDir(), "ws")
+	home := t.TempDir()
+	initCmd := exec.Command(binary, "init", workspace)
+	initCmd.Env = append(os.Environ(), "HOME="+home)
+	if out, err := initCmd.CombinedOutput(); err != nil {
+		t.Fatalf("init failed: %s %v", out, err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "jobs", "SHORTLIST.md"), []byte("# Shortlist\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, _ := cmd.CombinedOutput()
+	for _, want := range []string{"WARNING: jobs/SHORTLIST.md is from an older rolecall", "migrate.py", "--dry-run"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("doctor output missing %q:\n%s", want, out)
+		}
+	}
+}
 
 func TestCLI(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "rolecall")
@@ -210,13 +232,13 @@ func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	binary := buildRolecall(t)
 	workspace := filepath.Join(t.TempDir(), "private")
 	home := t.TempDir()
-	cmd := exec.Command(binary, "init", "--workspace", workspace, "--name", "Alex Quinn", "--email", "alex@example.test", "--phone", "+61 400", "--location", "Melbourne", "--linkedin", "linkedin.com/in/alex", "--tracks", "SWE, Platform", "--search-places", "Australia, Melbourne", "--search-remote", "anywhere", "--profile", "later")
+	cmd := exec.Command(binary, "init", workspace) // reads no input: no terminal needed
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("init failed: %s %v", out, err)
 	}
-	for _, text := range []string{"Harness", "AI service", "Profile", "resume", "job text", "private"} {
+	for _, text := range []string{workspace, "Harness", "AI service", "private", "run `rolecall`"} {
 		if !strings.Contains(strings.ToLower(string(out)), strings.ToLower(text)) {
 			t.Errorf("init output %q does not mention %q", out, text)
 		}
@@ -254,27 +276,13 @@ func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	if apps, err := s.Scan(); err != nil || len(apps) != 0 {
 		t.Errorf("scan initialized Workspace = %v, %v; want no Applications", apps, err)
 	}
+	// Contact is asked for by the app's first-run form, not by init.
 	profile, err := s.Profile()
-	if err != nil || profile.Contact["Name"] != "Alex Quinn" || profile.Contact["Email"] != "alex@example.test" || len(profile.Missing) != 0 {
-		t.Errorf("initialized Contact = %+v, %v; want required fields read by Store.Profile", profile, err)
+	if err != nil || len(profile.Missing) != 2 {
+		t.Errorf("initialized Profile = %+v, %v; want Name and Email still missing", profile, err)
 	}
-	contact, err := os.ReadFile(filepath.Join(workspace, "profile/master-profile.md"))
-	if err != nil || !strings.Contains(string(contact), "| Email | alex@example.test |") || !strings.Contains(string(contact), "| LinkedIn | linkedin.com/in/alex |") {
-		t.Errorf("Contact table = %q, %v", contact, err)
-	}
-	settings, err := os.ReadFile(filepath.Join(workspace, "workspace.json"))
-	var decoded struct {
-		Tracks     []string `json:"tracks"`
-		SearchArea struct {
-			Places []string `json:"places"`
-			Remote string   `json:"remote"`
-		} `json:"search_area"`
-	}
-	if err == nil {
-		err = json.Unmarshal(settings, &decoded)
-	}
-	if err != nil || strings.Join(decoded.Tracks, ",") != "SWE,Platform" || strings.Join(decoded.SearchArea.Places, ",") != "Australia,Melbourne" || decoded.SearchArea.Remote != "anywhere" {
-		t.Errorf("workspace settings = %q (%+v), %v", settings, decoded, err)
+	if settings, err := os.ReadFile(filepath.Join(workspace, "workspace.json")); err != nil || !strings.Contains(string(settings), `"tracks": []`) {
+		t.Errorf("workspace settings = %q, %v; want no Tracks", settings, err)
 	}
 	if config, err := os.ReadFile(filepath.Join(home, ".config/rolecall/config.toml")); err != nil || !strings.Contains(string(config), "workspace = \""+workspace+"\"") {
 		t.Errorf("machine config = %q, %v", config, err)
@@ -291,7 +299,7 @@ func TestCLIInitRefusesNonEmptyDirectory(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("keep"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(binary, "init", "--workspace", workspace, "--name", "Alex Quinn", "--email", "alex@example.test", "--profile", "later").CombinedOutput()
+	out, err := exec.Command(binary, "init", workspace).CombinedOutput()
 	if err == nil || !strings.Contains(strings.ToLower(string(out)), "not empty") {
 		t.Fatalf("init output = %q, error = %v; want clear non-empty refusal", out, err)
 	}
@@ -320,25 +328,5 @@ func TestCLIVersionFlagDefaultsWithoutInjectingLdflags(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil || string(out) != "rolecall dev\n" {
 		t.Fatalf("--version output = %q, err = %v; want \"rolecall dev\\n\"", out, err)
-	}
-}
-
-func TestCLIInitAccessiblePromptsWorkWithoutTTY(t *testing.T) {
-	binary := buildRolecall(t)
-	home := t.TempDir()
-	workspace := filepath.Join(t.TempDir(), "accessible workspace")
-	cmd := exec.Command(binary, "init", "--accessible")
-	cmd.Env = append(os.Environ(), "HOME="+home)
-	cmd.Stdin = strings.NewReader(strings.Join([]string{
-		"Alex Quinn", "alex@example.test", "", "Melbourne", "linkedin.com/in/alex",
-		"SWE,Platform", "Australia", "2", workspace, "3",
-	}, "\n") + "\n")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("accessible init failed: %s %v", out, err)
-	}
-	settings, err := os.ReadFile(filepath.Join(workspace, "workspace.json"))
-	if err != nil || !strings.Contains(string(settings), `"remote": "in-places"`) {
-		t.Fatalf("accessible settings = %q, %v", settings, err)
 	}
 }

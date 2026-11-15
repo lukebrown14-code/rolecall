@@ -138,15 +138,6 @@ func runCapturedProcess(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd 
 	return process.RunCaptured(c, done)
 }
 
-// LaunchHarness runs a configured Plugin skill from the CLI, started in the Workspace.
-func LaunchHarness(template, workspace, skill, resume string) error {
-	if resume != "" {
-		skill += " --resume " + QuoteShellArgument(resume)
-	}
-	dir := handoffDir(workspace)
-	return process.RunShell(dir, harnessCommand(template, skill, dir))
-}
-
 // runEditor opens path in the Owner's Editor, at line when line > 0 and the Editor takes
 // one. The editor preference may include flags or quoted executable paths, so the
 // filename is passed as a shell positional argument and the path stays literal.

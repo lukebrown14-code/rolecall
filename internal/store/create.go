@@ -34,7 +34,7 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 	if err = s.fs().MkdirAll(parent, privateDirMode); err != nil {
 		return "", err
 	}
-	slug := strings.Trim(slugSeparators.ReplaceAllString(strings.ToLower(fields.Company+"-"+fields.Title), "-"), "-") + "-" + now.Format("2006-01-02")
+	slug := folderSlug(fields.Company, fields.Title, now)
 	for n := 1; ; n++ {
 		name := slug
 		if n > 1 {
@@ -66,3 +66,29 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 }
 
 var slugSeparators = regexp.MustCompile("[^a-z0-9]+")
+
+// maxSlugWords is the most of company-title a folder name keeps, so a pasted headline
+// never runs past the file system's name limit.
+const maxSlugWords = 60
+
+// slugFallback names a folder whose company and title have no [a-z0-9] at all (a CJK or
+// symbol-only name), so the name never starts with "-".
+const slugFallback = "application"
+
+// folderSlug is SCHEMA's folder name before any -N suffix: company-title cut to
+// maxSlugWords at a "-" boundary, then the date.
+func folderSlug(company, title string, now time.Time) string {
+	words := strings.Trim(slugSeparators.ReplaceAllString(strings.ToLower(company+"-"+title), "-"), "-")
+	if len(words) > maxSlugWords {
+		cut := words[:maxSlugWords+1]
+		if i := strings.LastIndexByte(cut, '-'); i > 0 {
+			words = cut[:i]
+		} else {
+			words = words[:maxSlugWords]
+		}
+	}
+	if words == "" {
+		words = slugFallback
+	}
+	return words + "-" + now.Format("2006-01-02")
+}

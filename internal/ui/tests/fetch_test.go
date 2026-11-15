@@ -128,7 +128,8 @@ func (h *fetchHarness) openAddWithURL(url string) {
 	h.enter()
 }
 
-func TestAddURLIsFirstFieldAndEditKeepsOrder(t *testing.T) {
+// Add and Edit share one field order, URL first, so the fields sit in the same place.
+func TestAddAndEditPutURLFirst(t *testing.T) {
 	h := newFetchHarness(t, ui.WithPlugin("/plugin"))
 	h.tm.Type("a")
 	h.wait("Add a Lead")
@@ -141,7 +142,7 @@ func TestAddURLIsFirstFieldAndEditKeepsOrder(t *testing.T) {
 	h.tm.Type("e") // Edit the first Lead
 	h.wait("Resume only")
 	view = h.tm.plain()
-	if u, ti := strings.Index(view, "URL"), strings.Index(view, "Title"); u < 0 || ti < 0 || ti > u {
+	if u, ti := strings.Index(view, "URL"), strings.Index(view, "Title"); u < 0 || ti < 0 || u > ti {
 		t.Fatalf("Edit order: URL at %d, Title at %d:\n%s", u, ti, view)
 	}
 }
@@ -267,6 +268,8 @@ func TestAddURLFetchSkippedWhenDuplicate(t *testing.T) {
 		t.Fatalf("duplicate URL still fetched: %v", calls)
 	}
 	h.tm.Type("o") // open the existing Application
+	h.wait("‹ esc  Engineer #1")
+	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 	h.wait("Leads › Dismissed")
 	if row := selectedRow(t, h.tm.plain()); !strings.HasPrefix(row, "Engineer #1") {
 		t.Fatalf("selected row = %q", row)

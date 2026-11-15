@@ -57,8 +57,9 @@ func TestEditPatchesOnlyChangedKeyAndKeepsConcurrentWrites(t *testing.T) {
 	if err := os.WriteFile(path, []byte(strings.Replace(before, "fit: Good", "fit: Poor", 1)+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	h.advance() // past URL, the first field
 	h.tm.Type(" Two")
-	h.saveForm(7)
+	h.saveForm(6)
 	h.wait("Saved · Engineer #1 Two")
 	h.quit()
 
@@ -96,9 +97,10 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	h.wait("Platform Engineer")
 	h.advance()
 	h.advance()
+	h.advance()
 	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyUp}) // Platform → SWE
 	h.advance()
-	h.saveForm(4)
+	h.saveForm(3)
 	view := h.quit()
 
 	b, err := os.ReadFile(filepath.Join(folder, "meta.yml"))

@@ -62,6 +62,10 @@ func TestCreateSlugAndCollisions(t *testing.T) {
 		{"Acme, Inc.", "Senior Engineer!", "acme-inc-senior-engineer-2026-11-11"},
 		{"  Acme  ", "-- Engineer --", "acme-engineer-2026-11-11"},
 		{"Café 東京", "Déveloper", "caf-d-veloper-2026-11-11"},
+		// No [a-z0-9] at all: a fallback word, never a name starting with "-".
+		{"株式会社", "エンジニア", "application-2026-11-11"},
+		// A pasted headline is cut at a word boundary, well under the 255-byte name limit.
+		{"Acme", strings.Repeat("Engineer ", 30), "acme-engineer-engineer-engineer-engineer-engineer-engineer-2026-11-11"},
 	} {
 		t.Run(tc.want, func(t *testing.T) {
 			root := t.TempDir()

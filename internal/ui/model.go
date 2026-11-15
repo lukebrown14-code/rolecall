@@ -72,6 +72,7 @@ type model struct {
 	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
 	writing               map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
 	writingGen            int
+	legacy                []string // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -100,6 +101,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		// An invalid workspace.json stops startup with a sanitised error. Once running,
 		// Settings shows a file that breaks later and offers e.
 		m.tracks, e = s.Tracks()
+		m.legacy = s.LegacyFiles()
 	}
 	if e != nil {
 		m.watch.Close()

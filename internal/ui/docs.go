@@ -30,7 +30,7 @@ func appName(title string) string {
 	t := strings.TrimSpace(title)
 	switch {
 	case t == "":
-		return "(untitled)"
+		return untitled
 	case t != title, !strings.Contains(t, " ") && strings.ContainsAny(t, "-_/."):
 		return "“" + t + "”"
 	}
