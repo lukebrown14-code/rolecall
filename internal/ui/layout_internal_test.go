@@ -29,12 +29,6 @@ func TestSizeLayoutBreakpoints(t *testing.T) {
 			if l.class != c.class || l.detail != c.mode || l.filterLines != c.filters {
 				t.Errorf("%dx%d: class %v detail %v filters %d; want %v %v %d", c.w, h, l.class, l.detail, l.filterLines, c.class, c.mode, c.filters)
 			}
-			if l.flagCol != 6 || l.stageCol != 11 || l.fitCol != 13 {
-				t.Errorf("%dx%d: columns %d/%d/%d; want 6/11/13", c.w, h, l.flagCol, l.stageCol, l.fitCol)
-			}
-			if l.subtitleW < 0 {
-				t.Errorf("%dx%d: subtitle width %d is negative", c.w, h, l.subtitleW)
-			}
 			if l.footerRow != h-1 {
 				t.Errorf("%dx%d: footer row %d; want %d", c.w, h, l.footerRow, h-1)
 			}

@@ -410,7 +410,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   dense: rows in a section sit together, and only a section's header has a blank line above
   it (none in a bottom sheet, which cannot spare it). A blank Company is left out rather than
   leaving a separator hanging; an empty title reads `(untitled)`. Right-hand columns are
-  flag · age · Fit, Fit flush right and labelled (`fit Good`, `fit —`), at least a cell apart at their widest. The age is the last change's (`6d`, `~Jan 2026`, `today`, years past two years: `7y`) without the Status, which the glyph and section already say; a column empty
+  flag · age · Fit, Fit flush right and labelled (`fit Good`, `fit —`), each as wide as its widest value in the view and two cells apart. The age is the last change's (`6d`, `~Jan 2026`, `today`, years past two years: `7y`) without the Status, which the glyph and section already say; a column empty
   for the whole view is hidden. No close date is a muted `—`. Dates older than about three
   months read as the month (`applied Jan 2025`), not `21mo ago`. Expired Leads and Drafts
   sort last under an **Expired** section. Titles that would not read as a name (a bare

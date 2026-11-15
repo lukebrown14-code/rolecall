@@ -716,7 +716,7 @@ func (m model) scopeLine(p pal) string {
 // section's header has a blank line above it (see listBlocks).
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 	blocks, cur := m.listBlocks(rows)
-	return scroll(p, m, rows, fixedSlots, w, blocks, cur, h)
+	return scroll(p, m, rows, m.slotsFor(rows), w, blocks, cur, h)
 }
 
 // rowLines is a list row's height: the title line and the meta line. Rows in a group sit
@@ -949,12 +949,39 @@ func scrollWindow(blocks []block, cur, h int, folded bool) (start, end int) {
 	return start, end
 }
 
-// slotSet is the width of each right-hand column. The columns are fixed (see the layout
-// constants), so every row's columns start at the same cell and nothing wraps.
+// slotSet is the width of each right-hand column, gap included: the Follow-up due flag,
+// the last change's age, and Fit. Every row in a view uses the same set, so each column
+// starts at the same cell on every row and nothing wraps. A width of 0 hides the column.
 type slotSet struct{ stateW, flagW, fitW int }
 
-// fixedSlots are the list row's right-hand columns: stage and date, Follow-up due flag, Fit.
-var fixedSlots = slotSet{stateW: stageColumn, flagW: flagColumn, fitW: fitColumn}
+// slotsFor sizes each right-hand column to its widest value in rows, the whole view rather
+// than the rows in sight, so the columns hold still while scrolling. A column empty on
+// every row is hidden, and the title takes the room. columnGap cells part each column
+// from the one before it; the first shown column is parted from the title by the title's
+// own one cell and columnGap-1 more, so the title keeps the same gap.
+func (m model) slotsFor(rows []store.Application) slotSet {
+	var flagW, stateW, fitW int
+	for _, a := range rows {
+		state, flag, fit := m.slotText(a)
+		flagW = max(flagW, xansi.StringWidth(flag))
+		stateW = max(stateW, xansi.StringWidth(state))
+		fitW = max(fitW, xansi.StringWidth(fit))
+	}
+	lead := columnGap - 1
+	col := func(widest int) int {
+		if widest == 0 {
+			return 0
+		}
+		w := lead + widest
+		lead = columnGap
+		return w
+	}
+	var s slotSet
+	s.flagW = col(flagW)
+	s.stateW = col(stateW)
+	s.fitW = col(fitW)
+	return s
+}
 
 // stageText is how long ago the latest change was: "3d", "~Jan 2026" or "today". The
 // Status is not repeated: the row's glyph and its section already say it, so no Status
@@ -1039,8 +1066,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	slot := func(width int, c color.Color, s string) string {
 		return st(c).Width(width).Align(lipgloss.Right).Render(s)
 	}
-	// The right-hand columns are fixed: a row without a value holds the column blank, so
-	// every column starts at the same cell on every row.
+	// The right-hand columns are the view's (slotsFor): a row without a value holds the
+	// column blank, so every column starts at the same cell on every row.
 	buildRight := func() string {
 		heat := slot(show.flagW, heatC, flag)
 		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due && followUpLate(past) {
