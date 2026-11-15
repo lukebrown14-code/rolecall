@@ -115,13 +115,63 @@ func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 	}
 }
 
-func TestSettingsExplicitZeroFollowUpDaysIsKept(t *testing.T) {
-	h := newSourcesHarness(t, 140, "follow_up_days = 0\n", nil)
+// A hand-edited follow_up_days outside 1-90 is clamped on load, and its row says so.
+func TestSettingsFollowUpDaysOutOfRangeIsClampedWithAWarning(t *testing.T) {
+	h := newSourcesHarness(t, 140, "follow_up_days = -3\n", nil)
 	h.d.Type("6")
 	h.d.Type("]")
 	h.d.Type("]")
-	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 0 days config.toml") {
-		t.Fatalf("explicit 0 lost:\n%s", h.d.plain())
+	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 1 day config.toml") ||
+		!strings.Contains(v, "follow_up_days = -3 is outside 1-90; using 1") {
+		t.Fatalf("clamped value or warning missing:\n%s", h.d.plain())
+	}
+}
+
+// A config.toml that stops parsing never blanks Settings: the workspace.json groups still
+// show, This machine says what is wrong and where, Enter on a config.toml row is refused,
+// and e opens config.toml from any group.
+func TestSettingsBrokenConfigKeepsTheScreenAndEOpensConfig(t *testing.T) {
+	h := newSourcesHarness(t, 140, "editor = \"nvim\"\n", func(p string) {
+		_ = os.WriteFile(p, []byte("editor = \"nvim\nfollow_up_days = 7\n"), 0o600)
+	})
+	h.machine()
+	h.d.Type("e")
+	v := squash(h.d.plain())
+	for _, w := range []string{"config.toml has an error (line 1, column 15)", "basic strings cannot have new lines", "Editor nvim config.toml"} {
+		if !strings.Contains(v, w) {
+			t.Fatalf("This machine lacks %q:\n%s", w, h.d.plain())
+		}
+	}
+	h.d.Type("esc") // clear the error
+	h.d.Type("esc") // back out of Settings
+	h.d.Type("6")   // and in again: config.toml is re-read, still broken
+	for range 3 {
+		h.d.Type("[") // This machine back to Search
+	}
+	v = squash(h.d.plain())
+	if !strings.Contains(v, "[Search]") || !strings.Contains(v, "Places") || !strings.Contains(v, "config.toml line 1, column 15") {
+		t.Fatalf("Settings blank or error lost on re-entry:\n%s", h.d.plain())
+	}
+	h.d.Type("e")
+	if last := h.cmds[len(h.cmds)-1]; !strings.HasSuffix(last[len(last)-1], "config.toml") {
+		t.Fatalf("e on Search should open the broken config.toml: %q", h.cmds)
+	}
+	h.d.Type("]")
+	h.d.Type("]")
+	h.d.Type("G")     // Follow-up due after, a config.toml row
+	h.d.Type("enter") // refused: no inline field opens
+	if v := h.d.plain(); !strings.Contains(v, "[Tracking]") || strings.Contains(v, "enter save") || !strings.Contains(v, "✘") {
+		t.Fatalf("Enter on a config.toml row should be refused while it is broken:\n%s", v)
+	}
+}
+
+// main opens a --dir Workspace on defaults when config.toml is broken, with the error on
+// the feedback line.
+func TestBrokenConfigAtStartupShowsTheError(t *testing.T) {
+	err := &config.FileError{Path: "/h/.config/rolecall/config.toml", Line: 2, Column: 15, Reason: "basic strings cannot have new lines"}
+	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 100, 30, ui.WithConfigProblem(err, nil))
+	if v := d.plain(); !strings.Contains(v, "config.toml line 2, column 15: basic strings cannot have new lines") {
+		t.Fatalf("startup error missing:\n%s", v)
 	}
 }
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,6 +24,83 @@ func WithInheritTerminal(on bool) Option { return func(m *model) { m.inherit = o
 
 // WithASCII turns ASCII glyphs on, as the ascii key in config.toml does.
 func WithASCII(on bool) Option { return func(m *model) { m.ascii = on } }
+
+// WithConfigProblem opens the app with config.toml's load error (a *config.FileError, the
+// app then running on defaults) and its warnings on the feedback line, and on This machine.
+func WithConfigProblem(err error, warnings []config.Warning) Option {
+	return func(m *model) {
+		m.configErr, m.configWarnings = err, warnings
+		if f := m.configFeedback(); f != nil {
+			m.err = f
+		}
+	}
+}
+
+// configBroken reports a config.toml that does not parse: its rows show the last good
+// values, Enter on them is refused, and e opens config.toml.
+func (m model) configBroken() bool {
+	var fe *config.FileError
+	return errors.As(m.configErr, &fe)
+}
+
+// configFeedback is the feedback-line form of config.toml's problem: short enough to read
+// at 100 columns, with where to go to fix it. nil when config.toml is fine.
+func (m model) configFeedback() error {
+	var fe *config.FileError
+	switch {
+	case errors.As(m.configErr, &fe):
+		where := ""
+		if w := fe.Where(); w != "" {
+			where = " " + w
+		}
+		return fmt.Errorf("%s%s: %s · 6 Settings, e to fix it", configFile, where, fe.Reason)
+	case m.configErr != nil:
+		return m.configErr
+	case len(m.configWarnings) > 0:
+		return errors.New(configFile + ": " + m.configWarnings[0].Text)
+	}
+	return nil
+}
+
+// configWarning is the warning Load gave for key, or "", for that setting's row.
+func (m model) configWarning(key string) string {
+	for _, w := range m.configWarnings {
+		if w.Key == key {
+			return w.Text
+		}
+	}
+	return ""
+}
+
+// configNotice is the lines This machine shows above its rows while config.toml has a
+// problem: what and where, and how to fix it.
+func (m model) configNotice(p pal, width int) []string {
+	var lines []string
+	add := func(text string, c color.Color) {
+		for _, l := range wrapWords(text, max(1, width-profileMarkerWidth)) {
+			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Text(c).Render(l))
+		}
+	}
+	var fe *config.FileError
+	switch {
+	case errors.As(m.configErr, &fe):
+		head := configFile + " has an error"
+		if w := fe.Where(); w != "" {
+			head += " (" + w + ")"
+		}
+		add(head, p.Bad)
+		add(fe.Reason, p.Fg)
+		add(fe.Path, p.Fg)
+		add("Press e to fix it in your editor. Until then rolecall uses the values below.", p.Dim)
+	case m.configErr != nil:
+		add(m.configErr.Error(), p.Bad)
+	}
+	// Warnings sit on their own setting's row (configWarning), not here.
+	if len(lines) > 0 {
+		lines = append(lines, "")
+	}
+	return lines
+}
 
 const (
 	keyFollowUpDays = "follow_up_days"
@@ -149,6 +227,11 @@ func (m model) activateSetting() (tea.Model, tea.Cmd) {
 	st := *m.settings
 	s, ok := m.rowSetting(st.Group, st.Row, len(m.settingsRows(st.Group)))
 	if !ok {
+		return m, nil
+	}
+	if m.configBroken() {
+		// A save would patch a file that does not parse; fix it first.
+		m.err = m.configFeedback()
 		return m, nil
 	}
 	if s.toggle {
@@ -324,12 +407,18 @@ func (m model) patchMachine(s machineSetting, value any) model {
 	return m.loadMachine()
 }
 
-// loadMachine re-reads config.toml into the model.
+// loadMachine re-reads config.toml into the model. On an error the values in use stay,
+// and the error goes on the feedback line and This machine.
 func (m model) loadMachine() model {
 	c, err := config.Load(m.configHome, m.store.Root())
+	m.configErr, m.configWarnings = err, c.Warnings
 	if err != nil {
-		m.err = err
+		m.configWarnings = nil
+		m.err = m.configFeedback()
 		return m
+	}
+	if f := m.configFeedback(); f != nil {
+		m.err = f
 	}
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
 	m.followUpDays, m.ascii, m.inherit = c.FollowUpDays, c.ASCII, c.InheritTerminal
@@ -365,7 +454,7 @@ func pluginWarning(plugin string) string {
 
 // machineHelpKeys is Enter on an editable config.toml row.
 func (m model) machineHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.configBroken() {
 		return nil
 	}
 	s, ok := m.rowSetting(m.settings.Group, m.settings.Row, len(m.settingsRows(m.settings.Group)))

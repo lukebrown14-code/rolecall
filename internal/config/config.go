@@ -33,6 +33,16 @@ type Config struct {
 	DownloadsSource    string `toml:"-"`
 	PluginSource       string `toml:"-"`
 	HarnessSource      string `toml:"-"`
+
+	// Warnings are problems Load worked around, such as a follow_up_days outside 1-90
+	// that it clamped into range.
+	Warnings []Warning `toml:"-"`
+}
+
+// Warning is one config key Load could not use as written: Text says what it did
+// instead, without the file's path.
+type Warning struct {
+	Key, Text string
 }
 
 // Where an effective value came from, as the Settings view names it.
@@ -83,11 +93,70 @@ func Ensure(path string) error {
 // defaultFollowUpDays is the Follow-up threshold when config sets none.
 const defaultFollowUpDays = 14
 
+// The follow_up_days range Settings accepts; Load clamps a hand-edited value into it.
+const (
+	MinFollowUpDays = 1
+	MaxFollowUpDays = 90
+)
+
 // ErrNoWorkspace reports that neither config.toml nor --dir names a Workspace. Load
 // still returns every other setting alongside it, so doctor can check the rest.
 var ErrNoWorkspace = errors.New("no Workspace configured")
 
-// Load reads settings under home; dir overrides the configured Workspace.
+// FileError is a config.toml rolecall cannot read: not valid TOML, or a key holding the
+// wrong kind of value. Line and Column are 1-based, 0 when the parser gave no position.
+// Reason never quotes the file's values, which may be private paths.
+type FileError struct {
+	Path         string
+	Line, Column int
+	Reason       string
+}
+
+func (e *FileError) Error() string {
+	if where := e.Where(); where != "" {
+		return e.Path + " " + where + ": " + e.Reason
+	}
+	return e.Path + ": " + e.Reason
+}
+
+// Where is "line 2, column 15", or "" without a position.
+func (e *FileError) Where() string {
+	switch {
+	case e.Line == 0:
+		return ""
+	case e.Column == 0:
+		return fmt.Sprintf("line %d", e.Line)
+	}
+	return fmt.Sprintf("line %d, column %d", e.Line, e.Column)
+}
+
+// fileError turns the parser's error into a FileError with its position and reason.
+func fileError(path string, err error) *FileError {
+	fe := &FileError{Path: path, Reason: strings.TrimPrefix(err.Error(), "toml: ")}
+	var de *toml.DecodeError
+	if errors.As(err, &de) {
+		fe.Line, fe.Column = de.Position()
+		if key := strings.Join(de.Key(), "."); key != "" && strings.Contains(fe.Reason, "cannot decode") {
+			fe.Reason = key + " must be " + keyKind(key)
+		}
+	}
+	return fe
+}
+
+// keyKind is what a config key holds, for the wrong-type message.
+func keyKind(key string) string {
+	switch key {
+	case "follow_up_days":
+		return "a whole number of days, like 14"
+	case "ascii", "inherit_terminal":
+		return "true or false"
+	}
+	return "a quoted string"
+}
+
+// Load reads settings under home; dir overrides the configured Workspace. A config.toml
+// that cannot be read returns a *FileError together with every setting at its default
+// (and dir, when given), so the caller can carry on and show the error.
 func Load(home, dir string) (Config, error) {
 	var c Config
 	path := Path(home)
@@ -95,8 +164,9 @@ func Load(home, dir string) (Config, error) {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return c, err
 	}
+	var bad *FileError
 	if err := toml.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("%s: invalid TOML", path)
+		bad, b, c = fileError(path, err), nil, Config{}
 	}
 	// A pointer tells an explicit follow_up_days = 0 from an absent key.
 	var present struct {
@@ -112,6 +182,10 @@ func Load(home, dir string) (Config, error) {
 	c.FollowUpDaysSource = set(present.FollowUpDays != nil)
 	if present.FollowUpDays == nil {
 		c.FollowUpDays = defaultFollowUpDays
+	} else if days := max(MinFollowUpDays, min(c.FollowUpDays, MaxFollowUpDays)); days != c.FollowUpDays {
+		c.Warnings = append(c.Warnings, Warning{Key: "follow_up_days", Text: fmt.Sprintf(
+			"follow_up_days = %d is outside %d-%d; using %d", c.FollowUpDays, MinFollowUpDays, MaxFollowUpDays, days)})
+		c.FollowUpDays = days
 	}
 	c.DownloadsSource = set(c.Downloads != "")
 	c.HarnessSource = set(c.Harness != "")
@@ -147,6 +221,9 @@ func Load(home, dir string) (Config, error) {
 	}
 	if c.Downloads == "" {
 		c.Downloads = filepath.Join(home, "Downloads")
+	}
+	if bad != nil {
+		return c, bad
 	}
 	if c.Workspace == "" {
 		return c, fmt.Errorf("%w in %s", ErrNoWorkspace, path)

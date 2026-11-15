@@ -22,7 +22,7 @@ func TestCLIHelpListsSubcommandsAndExitsZero(t *testing.T) {
 			t.Errorf("%v prints the flag package's error:\n%s", args, out)
 		}
 		if args[0] == "--help" {
-			for _, want := range []string{"rolecall init", "rolecall doctor", "-dir", "-version"} {
+			for _, want := range []string{"rolecall init", "--switch", "rolecall doctor", "-dir", "-version"} {
 				if !strings.Contains(string(out), want) {
 					t.Errorf("--help missing %q:\n%s", want, out)
 				}

@@ -76,13 +76,16 @@ func (m model) loadSettings() model {
 		st.Ws.Err = err
 	}
 	if m.configHome != "" {
-		// Only an error loading config.toml stops here, not one already on the footer.
-		was := m.err
-		m.err = nil
-		if m = m.loadMachine(); m.err != nil {
-			return m
+		// A config.toml problem takes the footer; otherwise the error already there stays,
+		// unless it was config.toml's own, now re-read.
+		was, stale := m.err, m.configFeedback()
+		if was != nil && stale != nil && was.Error() == stale.Error() {
+			was = nil
 		}
-		m.err = was
+		m.err = nil
+		if m = m.loadMachine(); m.err == nil {
+			m.err = was
+		}
 	}
 
 	m.settings = &st
@@ -125,7 +128,7 @@ func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.Undo != nil {
 		keys = append(keys, help(groupAction, "u", "undo").at(prioPinned)) // the toast's offer stays reachable
 	}
-	if m.settings != nil && settingsGroups[m.settings.Group] == groupMachineName {
+	if m.eOpensConfig() {
 		if m.configHome != "" {
 			keys = append(keys, help(groupAction, "e", "edit "+configFile))
 		}
@@ -162,8 +165,7 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, m.quit()
 	case "e":
-		// On This machine e opens config.toml (Editor and the rest); elsewhere workspace.json.
-		if m.settings != nil && settingsGroups[m.settings.Group] == groupMachineName {
+		if m.eOpensConfig() {
 			if m.configHome == "" {
 				return m, nil
 			}
@@ -200,6 +202,16 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	m.settings = &st
 	return m, nil
+}
+
+// eOpensConfig reports whether e opens config.toml rather than workspace.json: on This
+// machine (Editor and the rest), or anywhere while config.toml does not parse and
+// workspace.json is fine, so e always leads to the broken file.
+func (m model) eOpensConfig() bool {
+	if m.settings == nil {
+		return m.configBroken()
+	}
+	return settingsGroups[m.settings.Group] == groupMachineName || (m.configBroken() && m.settings.Ws.Err == nil)
 }
 
 // saved reports a Settings save on the feedback line, naming the file it went to, and
@@ -405,6 +417,9 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 	marked := !m.settings.Header
 	editing := m.settings.Edit
 	var lines []string
+	if settingsGroups[m.settings.Group] == groupMachineName {
+		lines = m.configNotice(p, width)
+	}
 	selLine := 0
 	for i, r := range rows {
 		if r.Section != "" {
@@ -570,7 +585,8 @@ const (
 func (m model) settingsMachine() settings.Machine {
 	mc := settings.Machine{Workspace: m.store.Root(), EditorSource: m.editorSource, Downloads: m.downloads, Harness: m.harness,
 		Plugin: m.plugin, ASCII: m.ascii, Inherit: m.inherit, FollowUpDays: m.followUpDays, Sources: m.sources,
-		HarnessWarning: harnessWarning(m.harness), PluginWarning: pluginWarning(m.plugin)}
+		HarnessWarning: harnessWarning(m.harness), PluginWarning: pluginWarning(m.plugin),
+		FollowUpWarning: m.configWarning(keyFollowUpDays)}
 	mc.Editor = ResolveEditor(m.editor)
 	mc.EditorAvailable = editorOnPath(mc.Editor)
 	return mc
