@@ -160,7 +160,7 @@ func TestTooSmallNoticeSaysWhatItNeeds(t *testing.T) {
 	if len(lines) != 12 {
 		t.Fatalf("notice is %d lines, want 12:\n%s", len(lines), view)
 	}
-	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue"} {
+	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue · q quit"} {
 		found := false
 		for i, l := range lines {
 			if c := strings.Index(l, want); c >= 0 {

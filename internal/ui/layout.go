@@ -379,8 +379,14 @@ func (m model) tooSmall() bool {
 
 // tooSmallView replaces the layout on a terminal too small for it, centred.
 func (m model) tooSmallView(p pal) string {
-	msg := p.Text(p.Warn).Bold(true).Render("⚠ ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("rolecall needs %d×%d", minTermWidth, minTermHeight)) + "\n" +
-		p.Text(p.Dim).Render(fmt.Sprintf("now %d×%d · resize to continue", m.width, m.height))
+	// Say how to leave too: with a large font the Owner may not be able to resize.
+	head := p.Text(p.Warn).Bold(true).Render("⚠ ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("rolecall needs %d×%d", minTermWidth, minTermHeight))
+	now := p.Text(p.Dim).Render(fmt.Sprintf("now %d×%d · resize to continue", m.width, m.height))
+	quit := p.Key().Render("q") + p.Text(p.Dim).Render(" quit")
+	msg := head + "\n" + now + p.Text(p.Dim).Render(" · ") + quit
+	if xansi.StringWidth(now)+len(" · q quit") > m.width {
+		msg = head + "\n" + now + "\n" + quit
+	}
 	block := strings.Split(msg, "\n")
 	for i, l := range block {
 		block[i] = xansi.Truncate(l, m.width, "")
@@ -397,7 +403,11 @@ func (m model) tooSmallView(p pal) string {
 func (m model) overlayBody(p pal, base, box string) string {
 	l, ctx := m.layout(), m.contextLines()
 	top, h := l.bodyTop(ctx), l.bodyHeight(ctx)
-	lines := clipBox(p, strings.Split(box, "\n"), h)
+	pin := 0
+	if pm, ok := m.overlay.(pinnedMode); ok {
+		pin = pm.pinned()
+	}
+	lines := clipBox(p, strings.Split(box, "\n"), h, pin)
 	boxW := 0
 	for _, line := range lines {
 		boxW = max(boxW, xansi.StringWidth(line))
@@ -421,14 +431,28 @@ func (m model) overlayBody(p pal, base, box string) string {
 }
 
 // clipBox fits a pop-up into h lines. Its borders stay; the lines between them scroll to
-// keep the first selection bar in view, with a moreCue where lines are hidden.
-func clipBox(p pal, lines []string, h int) []string {
+// keep the first selection bar in view, with a moreCue where lines are hidden. The first
+// pin lines of the body (a Move pop-up's subject) stay above the scrolling part, and the
+// blank spacers around them go, as the room is short.
+func clipBox(p pal, lines []string, h, pin int) []string {
 	const borders = 2
 	if len(lines) <= h || len(lines) <= borders {
 		return lines
 	}
 	inner := lines[1 : len(lines)-1]
-	avail := max(1, h-borders)
+	blank := inner[0] // popup pads its body with a blank line top and bottom
+	var head []string
+	if pin > 0 && len(inner) > pin+1 {
+		head, inner = inner[1:1+pin], inner[1+pin:]
+		for len(inner) > 1 && strings.Trim(xansi.Strip(inner[0]), "│ ") == "" { // a blank row between its borders
+			inner = inner[1:]
+		}
+	}
+	top := append([]string{lines[0]}, head...)
+	avail := max(1, h-borders-len(head))
+	if len(inner) <= avail {
+		return append(append(top, inner...), lines[len(lines)-1])
+	}
 	focus := 0
 	for i, l := range inner {
 		if strings.Contains(xansi.Strip(l), "▌") {
@@ -438,7 +462,6 @@ func clipBox(p pal, lines []string, h int) []string {
 	}
 	start := min(max(0, focus-avail/bothSides), len(inner)-avail)
 	kept := append([]string{}, inner[start:start+avail]...)
-	blank := inner[0] // popup pads its body with a blank line top and bottom
 	cue := func(text string) string {
 		w := xansi.StringWidth(blank)
 		pad := popEdges/bothSides + gutter // the border and the padding
@@ -459,5 +482,5 @@ func clipBox(p pal, lines []string, h int) []string {
 	if hidden > 0 && avail > 1 {
 		kept[avail-1] = cue(p.MoreCue(false, hidden))
 	}
-	return append(append([]string{lines[0]}, kept...), lines[len(lines)-1])
+	return append(append(top, kept...), lines[len(lines)-1])
 }

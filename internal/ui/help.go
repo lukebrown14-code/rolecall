@@ -419,10 +419,19 @@ func (m model) helpBox(p pal) string {
 	// A page fills the body between the rules, less the pop-up's borders and padding.
 	const popChrome = 4
 	size := max(1, m.layout().bodyHeight(m.contextLines())-popChrome)
-	lines := append(strings.Split(body, "\n"), "")
+	// Lines are wrapped to the box before paging, as the pop-up would wrap them, so a page
+	// is never taller than the room for it.
+	wrapTo := func(s string) []string {
+		var out []string
+		for _, l := range strings.Split(s, "\n") {
+			out = append(out, strings.Split(xansi.Wrap(l, popWidth(popLarge, m.viewWidth())-popInset, ""), "\n")...)
+		}
+		return out
+	}
+	lines := append(wrapTo(body), "")
 	// The legend starts a page of its own rather than leaving its heading behind, when
 	// it fits on one.
-	legend := strings.Split(glyphLegend(p, m.followUpDays), "\n")
+	legend := wrapTo(glyphLegend(p, m.followUpDays))
 	if at := len(lines) % size; at != 0 && at+len(legend) > size && len(legend) <= size {
 		lines = append(lines, make([]string, size-at)...)
 	}

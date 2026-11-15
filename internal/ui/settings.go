@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"image/color"
 	"strconv"
 	"strings"
@@ -69,10 +70,19 @@ func (m model) loadSettings() model {
 		m.err = err
 		return m
 	}
+	// A Track list that breaks the name rules (one listed twice) stops the screen like a
+	// broken file: its rows would offer edits on a list rolecall cannot use.
+	if _, err := m.store.Tracks(); st.Ws.Err == nil && badTrackList(err) {
+		st.Ws.Err = err
+	}
 	if m.configHome != "" {
+		// Only an error loading config.toml stops here, not one already on the footer.
+		was := m.err
+		m.err = nil
 		if m = m.loadMachine(); m.err != nil {
 			return m
 		}
+		m.err = was
 	}
 
 	m.settings = &st
@@ -286,12 +296,16 @@ func (m model) settingsContextRow(p pal, w int) string {
 func (m model) settingsBody(p pal, w, h int) string {
 	pad := strings.Repeat(" ", inset)
 	if m.settings != nil && m.settings.Ws.Err != nil {
-		head := "workspace.json is not valid JSON"
-		if m.settings.Ws.NewerSchema {
+		head, why := "workspace.json is not valid JSON", m.settings.Ws.Err
+		var tle *store.TrackListError
+		switch {
+		case m.settings.Ws.NewerSchema:
 			head = "workspace.json is schema " + strconv.Itoa(m.settings.Ws.Schema) + ", from a newer rolecall"
+		case errors.As(why, &tle):
+			head, why = "workspace.json lists a Track rolecall can't use", tle.Err
 		}
 		text := pad + p.Text(p.Bad).Render(head) + "\n" + pad +
-			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(m.settings.Ws.Err.Error()) +
+			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(why.Error()) +
 			"\n\n" + pad + p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written.")
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
 	}
