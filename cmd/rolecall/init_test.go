@@ -143,3 +143,14 @@ func TestProfileSetupRoutesToHarnessOrPrintsCommand(t *testing.T) {
 		})
 	}
 }
+
+// The interactive form needs the terminal itself so Bubble Tea can enter raw mode;
+// only accessible prompts get the one-line-per-read wrapper.
+func TestPromptInputKeepsTheTerminalForInteractiveForms(t *testing.T) {
+	if got := promptInput(os.Stdin, false); got != io.Reader(os.Stdin) {
+		t.Fatalf("interactive prompt input = %T, want the terminal file itself", got)
+	}
+	if _, ok := promptInput(os.Stdin, true).(*promptLineReader); !ok {
+		t.Fatal("accessible prompt input is not limited to one line per read")
+	}
+}

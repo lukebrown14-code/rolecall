@@ -86,9 +86,7 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if f, ok := in.(*os.File); ok && !term.IsTerminal(f.Fd()) && !o.accessible && promptsNeeded(fs, o) {
 		return errors.New("rolecall init needs a terminal for its prompts; pass the fields as flags or run with --accessible")
 	}
-	// Huh makes a new Scanner for each accessible prompt. Limit each read to
-	// one line so a scanner cannot consume answers meant for later prompts.
-	if err := promptMissing(&o, fs, &promptLineReader{reader: bufio.NewReader(in)}, out); err != nil {
+	if err := promptMissing(&o, fs, promptInput(in, o.accessible), out); err != nil {
 		return err
 	}
 	o.tracks, o.search.Places = splitList(o.tracksText), splitList(o.placesText)
@@ -128,6 +126,18 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	_, _ = fmt.Fprintln(out, "Keep this Workspace's git repository private. It contains personal data.")
 	_, _ = fmt.Fprintln(out, "Make your documents yours: see README → Make your documents yours.")
 	return finishProfile(o, root, home, out, launcher)
+}
+
+// promptInput returns the reader the wizard's forms read from. The interactive form
+// must get the terminal itself: given any other reader, Bubble Tea cannot switch it
+// to raw mode, so keys arrive a line at a time and arrows echo as ^[[B. Accessible
+// prompts read lines, and huh makes a new Scanner for each one, so each read is
+// limited to one line there; otherwise a scanner would consume later answers.
+func promptInput(in io.Reader, accessible bool) io.Reader {
+	if accessible {
+		return &promptLineReader{reader: bufio.NewReader(in)}
+	}
+	return in
 }
 
 type promptLineReader struct {
