@@ -389,6 +389,9 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		m.rescanAll()
 		return m.loadProfile(), nil
+	case "u":
+		// Undo is global: it moves the last moved Application back, or says there is none.
+		return m, m.undoLast()
 	case "?":
 		m.overlay = &helpMode{}
 		return m, nil

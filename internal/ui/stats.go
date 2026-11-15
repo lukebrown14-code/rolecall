@@ -77,6 +77,9 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.statsTop = m.statsMaxTop()
 	case "r":
 		m.rescanAll()
+	case "u":
+		// Undo is global: it moves the last moved Application back, or says there is none.
+		return m, m.undoLast()
 	case "?":
 		m.overlay = &helpMode{}
 	case "esc":

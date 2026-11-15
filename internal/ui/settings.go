@@ -178,7 +178,12 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.settings == nil || m.settings.Ws.Err != nil {
 		return m, nil // an invalid file offers e and nothing else
 	}
-	if k.String() == "u" && m.settings.Undo != nil {
+	if k.String() == "u" {
+		if m.settings.Undo == nil {
+			// u reverts Settings changes here, not moves; with none it still answers.
+			m.toast, m.toastKind = "Nothing to undo in Settings", toastNote
+			return m, nil
+		}
 		return m.undoSetting(), nil
 	}
 	for _, h := range settingsHandlers {

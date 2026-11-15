@@ -202,9 +202,10 @@ func (m *model) undoLast() tea.Cmd {
 }
 
 // hiddenByFilter reports that a track or text filter is in force and the row is not among
-// the rows now shown, so the toast can say where it went.
+// the rows now shown, so the toast can say where it went. Off the lists (an undo from
+// Stats or Profile) no rows are shown, so none is hidden.
 func (m model) hiddenByFilter(folder string) bool {
-	if !m.filtered() {
+	if !m.filtered() || !m.hasTables() {
 		return false
 	}
 	return !slices.ContainsFunc(m.rows(), func(r store.Application) bool { return r.Folder == folder })
