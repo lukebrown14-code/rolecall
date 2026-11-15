@@ -58,6 +58,7 @@ date. When nothing is left (a CJK or symbol-only name) it is `application`. If t
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
 | `sent/` | — | TUI (on → Applied) | frozen copy of what was sent. Never overwritten |
+| `sent.undone-<YYYY-MM-DD>/` | — | TUI (undo of → Applied) | a `sent/` renamed aside when the move that made it is undone, so the next real Applied freezes a fresh `sent/`. `-2`, `-3`… when taken. Not read |
 
 `jd.md` has no front matter. Older folders may still have it, and readers ignore it.
 
