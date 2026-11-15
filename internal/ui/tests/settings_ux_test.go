@@ -70,7 +70,7 @@ func TestSettingsOffListTrackCanBeAddedAndRenamed(t *testing.T) {
 		h.tm.Type("j")
 	}
 	requireAll(t, h.tm.plain(), "▌ Unknown")
-	requireAll(t, keyLineOf(h.tm.View()), "Enter add to Tracks")
+	requireAll(t, keyLineOf(h.tm.View()), "enter add to Tracks")
 	h.tm.Type("enter")
 	requireAll(t, h.file(), `"Unknown"`)
 	requireAll(t, h.tm.plain(), "Added Track Unknown · workspace.json", "▌ Unknown")

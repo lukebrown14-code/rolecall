@@ -22,10 +22,10 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 		keys           []string
 		want, unwanted []string
 	}{
-		{"leads 80", 80, 24, []string{"1"}, []string{"Enter open", "m move", "a add", "/ search", "? help", "space menu"}, []string{"1-6 screen"}},
-		{"leads 60", 60, 16, []string{"1"}, []string{"Enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
-		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "Enter open", "space menu"}, []string{"1-6 screen"}},
-		{"settings 60", 60, 16, []string{"6"}, []string{"Enter edit", "? help", "space menu"}, []string{"1-6 screen"}},
+		{"leads 80", 80, 24, []string{"1"}, []string{"enter open", "m move", "a add", "/ search", "? help", "space menu"}, []string{"1-6 screen"}},
+		{"leads 60", 60, 16, []string{"1"}, []string{"enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
+		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "space menu"}, []string{"1-6 screen"}},
+		{"settings 60", 60, 16, []string{"6"}, []string{"enter edit", "? help", "space menu"}, []string{"1-6 screen"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			line := keyLineOf(runKeysSized(t, fixtureCopy(t, nil), tc.w, tc.h, tc.keys...))

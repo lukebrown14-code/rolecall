@@ -8,8 +8,8 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
-// The filter row: the status filter and the Track filter on one line,
-// "STATUS s [All 9] Applied 1 Interviewing 2 │ TRACK t [All 9] SWE 8 Platform 1". Each
+// The filter row: the view (a status filter) and the Track filter on one line,
+// "VIEW s [All 9] Applied 1 Interviewing 2 │ TRACK t [All 9] SWE 8 Platform 1". Each
 // count is the rows that option would show, so the chosen ones match the list.
 
 // noTrack is how the Track filter names Applications with no track.
@@ -138,7 +138,7 @@ func (m model) statusPart(p pal, form trackForm) filterPart {
 	if len(views) <= 1 {
 		key = "" // one view: nothing to cycle
 	}
-	return m.options(p, "STATUS", key, views, counts, m.table, form, false)
+	return m.options(p, "VIEW", key, views, counts, m.table, form, false)
 }
 
 // trackPart is the Track filter: All and each Track (see filterTracks), with the rows each

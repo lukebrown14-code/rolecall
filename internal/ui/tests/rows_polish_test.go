@@ -67,7 +67,7 @@ func TestNextActionLine(t *testing.T) {
 	}{
 		{"lead without a JD", []string{"1"}, "NEXT    add the JD", "enter open"},
 		{"applied", []string{"3"}, "NEXT    wait to hear back", "m move"},
-		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago", "n note"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago", "m move"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT    decide on the offer", "m move"},
 		{"detail on the JD tab", []string{"1", "enter"}, "NEXT    add the JD", "e open jd.md"},
 	} {

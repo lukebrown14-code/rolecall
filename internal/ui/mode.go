@@ -239,6 +239,8 @@ func (hm *helpMode) Keys() [][2]string { return helpModeKeys(hm.pages) }
 
 func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
 
+// Update pages with ↑↓; any other key closes the help. esc, ? and q only close it; every
+// other key also runs on the screen beneath, so "? m" opens Move as the help just said.
 func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
@@ -246,8 +248,10 @@ func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 			hm.page = min(hm.page+1, max(0, hm.pages-1))
 		case "up", "k", "pgup":
 			hm.page = max(0, hm.page-1)
-		default:
+		case "esc", "?", "q":
 			return nil, nil
+		default:
+			return nil, func() tea.Msg { return k }
 		}
 	}
 	return hm, nil

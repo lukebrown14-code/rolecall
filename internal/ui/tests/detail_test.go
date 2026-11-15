@@ -285,15 +285,19 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h.finalView()
 }
 
-func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
+// Enter on a document not written yet opens it in the Editor, as e does: writing it is the
+// next step, not an error.
+func TestDetailDocsEnterOnAbsentMarkdownOpensEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
 	h.tm.Type("jjj") // JD, Resume, Cover letter → gaps.md is absent
 	h.key(tea.KeyEnter)
-	h.show("Gaps is missing · e to open gaps.md")
-	if len(h.runs) != 0 {
-		t.Fatalf("ran %q", h.runs)
+	if len(h.runs) != 1 || !strings.Contains(strings.Join(h.runs[0], " "), "gaps.md") {
+		t.Fatalf("ran %q, want the Editor on gaps.md", h.runs)
+	}
+	if v := h.tm.plain(); strings.Contains(v, "is missing") {
+		t.Fatalf("an error for a normal action:\n%s", v)
 	}
 }
 

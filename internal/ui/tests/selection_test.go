@@ -103,14 +103,14 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 				t.Errorf("malformed row offers %q:\n%s", k, view)
 			}
 		}
-		if !strings.Contains(view, "Enter open") {
+		if !strings.Contains(view, "enter open") {
 			t.Errorf("malformed row hides detail:\n%s", view)
 		}
 	})
 	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
 		// At this width n notes makes way for the pinned a add and / search; ? lists it.
 		view := chipped(finalView(t))
-		for _, k := range []string{"Enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
+		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)
 			}

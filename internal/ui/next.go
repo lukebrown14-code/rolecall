@@ -16,7 +16,7 @@ type nextStep struct {
 // Words the next step repeats.
 const (
 	followUpLabel = "FOLLOW-UP"
-	descNudge     = "draft nudge"
+	descNudge     = "draft follow-up"
 	descMove      = "move"
 	descOpen      = "open"
 	stepAddJD     = "add the JD"
@@ -46,9 +46,9 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		case a.Fit == "" && harness:
 			return nextStep{what: "assess the fit", key: "f", desc: "assess fit"}, true
 		case !a.ResumeHasText:
-			return m.writeStep("write the resume"), true
+			return m.writeStep(a, "write the resume", resumeFile), true
 		case !a.ResumeOnly && !a.CoverLetterHasText:
-			return m.writeStep("write the cover letter"), true
+			return m.writeStep(a, "write the cover letter", coverLetterFile), true
 		case a.Documents != store.DocsReady:
 			if m.plugin != "" && buildable(a) {
 				return nextStep{what: "build the PDFs", key: "b", desc: "build"}, true
@@ -58,9 +58,11 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
 		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
-			step := nextStep{label: followUpLabel, what: followUpWords(past), key: "n", desc: "note"}
+			// The flag runs from the last Status change, so only a move clears it: a note
+			// would not, and NEXT does not suggest one.
+			step := nextStep{label: followUpLabel, what: followUpWords(past), why: "clears when the Status changes", key: "m", desc: descMove}
 			if harness {
-				step.key, step.desc = "r", descNudge
+				step.key, step.desc = "F", descNudge
 			}
 			return step, true
 		}
@@ -74,16 +76,27 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 	return nextStep{}, false
 }
 
-// writeStep is a document still to write: the Harness writes it with p, when there is one.
-func (m model) writeStep(what string) nextStep {
+// writeStep is a document still to write: the Harness writes it with p, when there is
+// one. Without one the Owner writes it: from the list, enter opens the detail; on the
+// Docs tab, enter on the document opens it in the Editor.
+func (m model) writeStep(a store.Application, what, file string) nextStep {
 	if m.harness != "" {
 		return nextStep{what: what, key: "p", desc: "prepare docs"}
 	}
-	return nextStep{what: what}
+	switch {
+	case m.detail == nil:
+		return nextStep{what: what, key: "enter", desc: descOpen}
+	case m.detail.tab == tabDocs:
+		if e := docEntries(a); m.detail.docs < len(e) && e[m.detail.docs].name == file {
+			return nextStep{what: what, key: "enter", desc: "open " + file}
+		}
+		return nextStep{what: what, why: "select " + docName(file)}
+	}
+	return nextStep{what: what, why: "on the Docs tab"}
 }
 
 // nextLine is the next step as a field row, "NEXT    add the JD   enter open" or
-// "FOLLOW-UP  due 9 days ago   r draft nudge", inside w cells. The reason joins the
+// "FOLLOW-UP  due 9 days ago   F draft follow-up", inside w cells. The reason joins the
 // words only when the whole row fits. When even the words and the key do not fit, wrap
 // puts the key and its action on a second line at the same right edge (the card is
 // narrow); without wrap the row cuts as every field row does.

@@ -67,7 +67,7 @@ func TestHelpSectionsChipsAndWording(t *testing.T) {
 			t.Errorf("help contains %q:\n%s", bad, v)
 		}
 	}
-	if !helpLists(v, "s status") || !helpLists(v, "o sort newest") {
+	if !helpLists(v, "s view") || !helpLists(v, "o sort newest") {
 		t.Errorf("help lacks the new keys:\n%s", v)
 	}
 }

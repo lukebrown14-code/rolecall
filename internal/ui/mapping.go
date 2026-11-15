@@ -68,8 +68,7 @@ func init() {
 // handler so table, Stats and Profile screens all accept the same digits.
 func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 	key := k.String()
-	last := byte('0') + byte(len(screenDefs))
-	if len(key) != 1 || key[0] < '1' || key[0] > last {
+	if !isScreenKey(key) {
 		return m, false
 	}
 	target := int(key[0] - '1')
@@ -89,6 +88,12 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 		m = m.loadSettings()
 	}
 	return m, true
+}
+
+// isScreenKey reports whether key is one of the screen digits, 1 to the last screen.
+func isScreenKey(key string) bool {
+	last := byte('0') + byte(len(screenDefs))
+	return len(key) == 1 && key[0] >= '1' && key[0] <= last
 }
 
 // views returns the views within the active screen.

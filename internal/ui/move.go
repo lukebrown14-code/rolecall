@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -31,7 +32,12 @@ func MoveOptions(from, previous string) []string {
 	return out
 }
 
-type undoMove struct{ folder, status string }
+// undoMove is one move u can undo: the Application, the Status it goes back to, and
+// whether the move created sent/, which the undo then sets aside.
+type undoMove struct {
+	folder, status string
+	sent           bool
+}
 
 // requestMove moves immediately, except that a non-Ready Application going to Applied
 // first asks the Owner, returning the confirm mode. A malformed Application skips the
@@ -51,7 +57,9 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		return nil
 	}
 	var sentErr error
+	madeSent := false
 	if status == store.StatusApplied && !undo {
+		madeSent = !a.HasSent
 		sentErr = m.store.RecordSent(a.Folder)
 	}
 	// The append is final even when the copy failed, so the rows are refreshed either way.
@@ -70,7 +78,7 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.toast, m.toastKind = "Undid "+verb+" "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
-	m.undo = append(m.undo, undoMove{a.Folder, a.Status})
+	m.undo = append(m.undo, undoMove{a.Folder, a.Status, madeSent})
 	m.toast, m.toastHint, m.movedTo = "Moved "+name+" → "+status, undoHint, status
 	const hiddenNote = " (hidden by filter)"
 	hidden := m.hiddenByFilter(a.Folder)
@@ -89,8 +97,11 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 			m.toast += hiddenNote
 		}
 		// Land on the Application's new home so the celebration sits over its row, not
-		// an empty list left behind.
-		m.followAfterMove(a.Folder)
+		// an empty list left behind. A view that still shows it (Applied › All) is kept:
+		// reload has put the cursor on the row's new place.
+		if !hidden && !m.shown(a.Folder) {
+			m.followAfterMove(a.Folder)
+		}
 	}
 	return m.startFlash(a.Folder)
 }
@@ -114,6 +125,78 @@ func moveName(a store.Application) string {
 		return c
 	}
 	return appName(a.Title)
+}
+
+// effectiveLog is the Status log the rows, timeline and ages read: undone moves taken out
+// (reporting.EffectiveLog), as Stats reads it, so a fat-fingered move and its undo leave no
+// phantom stop and do not reset the age in Status. It falls back to the whole log if the
+// two ever disagree on the current Status.
+func effectiveLog(a store.Application) []store.StatusEntry {
+	log := reporting.EffectiveLog(a.StatusLog)
+	if len(log) == 0 || log[len(log)-1].Status != a.Status {
+		return a.StatusLog
+	}
+	return log
+}
+
+// lastChange is when the Application reached its current Status, ignoring undone moves:
+// the store's LastChange unless an undo took entries out.
+func lastChange(a store.Application) *store.StatusEntry {
+	log := effectiveLog(a)
+	if len(log) == len(a.StatusLog) {
+		return a.LastChange
+	}
+	e := log[len(log)-1]
+	return &e
+}
+
+// appliedDate is the Application's first Applied entry that was not undone, or nil: the
+// store's AppliedDate unless an undo took entries out.
+func appliedDate(a store.Application) *store.StatusEntry {
+	log := effectiveLog(a)
+	if len(log) == len(a.StatusLog) {
+		return a.AppliedDate
+	}
+	for _, e := range log {
+		if e.Status == store.StatusApplied {
+			return &e
+		}
+	}
+	return nil
+}
+
+// shown reports whether the active view lists folder's row.
+func (m model) shown(folder string) bool {
+	return slices.ContainsFunc(m.rows(), func(r store.Application) bool { return r.Folder == folder })
+}
+
+// undoLast is u: it moves the last moved Application back, and sets aside the sent/ that
+// move created, so a later real Apply freezes what is really sent.
+func (m *model) undoLast() tea.Cmd {
+	if len(m.undo) == 0 {
+		m.toast, m.toastKind = "Nothing to undo", toastUndo
+		return nil
+	}
+	last := m.undo[len(m.undo)-1]
+	a, ok := m.application(last.folder)
+	if !ok {
+		return nil
+	}
+	cmd := m.move(a, last.status, true)
+	if m.err != nil {
+		return cmd
+	}
+	m.undo = m.undo[:len(m.undo)-1]
+	if last.sent {
+		name, err := m.store.SetAsideSent(a.Folder, m.now())
+		if err != nil {
+			m.err = err
+			return cmd
+		}
+		m.reload(m.cursorFolder())
+		m.toast += " · sent/ kept as " + name + "/"
+	}
+	return cmd
 }
 
 // hiddenByFilter reports that a track or text filter is in force and the row is not among

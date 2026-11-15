@@ -79,7 +79,7 @@ func TestWorkspaceMenuCursorIsSpacedAndLabelsAlign(t *testing.T) {
 		for _, label := range []string{"Drafts", "Applied", "Settings"} {
 			row := ""
 			for _, l := range strings.Split(view, "\n") {
-				if strings.HasPrefix(l, box) && strings.Contains(l, label) && colOf(l, label) < colOf(sel, "1│") {
+				if strings.HasPrefix(l, box) && strings.Contains(l, label) && colOf(l, label) < colOf(sel, "1  │") {
 					row = l
 					break
 				}
@@ -168,8 +168,8 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 	}{
 		{"next", []string{"3"}, "NEXT    wait to hear back", "m move", false},
 		{"lead next", []string{"1"}, "NEXT    add the JD", "enter open", false},
-		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "n note", false},
-		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "r draft nudge", true},
+		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "m move", false},
+		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "F draft follow-up", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []ui.Option
@@ -266,13 +266,13 @@ func TestMalformedRowNamesTheFolderWithARelativeDir(t *testing.T) {
 	}
 }
 
-// The detail's sections carry the key that changes them even before a Harness or Plugin is
-// set (#177): pressing one then says which setting turns it on.
-func TestDetailRowsShowTheirKeysWithoutAHarness(t *testing.T) {
+// A key is offered only where it works: without a Harness or Plugin the detail's DOCS row
+// offers neither p nor b, as the key line and NEXT do not.
+func TestDetailRowsHideHarnessKeysWithoutAHarness(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1"))
-	for _, want := range []string{"p prepare docs"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("detail lacks %q:\n%s", want, view)
+	for _, bad := range []string{"p prepare docs", "b build"} {
+		if strings.Contains(view, bad) {
+			t.Errorf("detail offers %q with nothing set:\n%s", bad, view)
 		}
 	}
 	if strings.Contains(view, "read-only") {

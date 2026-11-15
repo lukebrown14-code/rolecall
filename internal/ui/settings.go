@@ -125,7 +125,7 @@ func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.Ws.Err == nil {
 		// ←→ switch sections as they switch views elsewhere; tab and [ ] do too, unlisted, as
 		// help says tab switches panes and would wrap [ ] in brackets.
-		keys = append(keys, help(groupNav, "←→", "section").at(prioCore), help(groupNav, "j k", "move"),
+		keys = append(keys, help(groupNav, "←→", "section").at(prioCore), help(groupNav, "j k", "select"),
 			help(groupNav, "g G", "first, last").at(prioHelpOnly))
 	}
 	if m.err != nil {

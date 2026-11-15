@@ -159,9 +159,9 @@ func TestReaderFilesFollowRefresh(t *testing.T) {
 			if v := chipped(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "Resume is gone") {
 				t.Fatalf("missing fallback:\n%s", v)
 			}
-			m = driveModel(t, m, "down", "enter")
-			if v := chipped(m.View().Content); !strings.Contains(v, "Resume is missing · e to open resume.md") {
-				t.Fatalf("missing feedback:\n%s", v)
+			m = driveModel(t, m, "down", "enter") // the missing Resume opens in the Editor
+			if v := chipped(m.View().Content); strings.Contains(v, "is missing") {
+				t.Fatalf("an error for opening a missing document:\n%s", v)
 			}
 		})
 	}

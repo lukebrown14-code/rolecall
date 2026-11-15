@@ -429,15 +429,12 @@ func (p Palette) Keys(pairs [][2]string) string {
 }
 
 // KeyRow renders the footer's key line and the tab bar's keys: Keys with two spaces
-// between pairs and Enter capitalised, as a row of hints rather than a list.
+// between pairs, as a row of hints rather than a list. Key names are lower case
+// everywhere (enter, esc, ctrl+s), as the pop-up borders and help write them.
 func (p Palette) KeyRow(pairs [][2]string) string {
 	parts := make([]string, len(pairs))
 	for i, kv := range pairs {
-		k := kv[0]
-		if k == "enter" {
-			k = "Enter"
-		}
-		parts[i] = p.Key().Render(k) + p.Text(p.Dim).Render(" "+kv[1])
+		parts[i] = p.Key().Render(kv[0]) + p.Text(p.Dim).Render(" "+kv[1])
 	}
 	return strings.Join(parts, "  ")
 }

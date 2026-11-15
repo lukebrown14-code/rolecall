@@ -119,7 +119,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 |---|---|---|
 | `1` `2` `3` | global | switch screen |
 | `←` `→` | screen | previous / next view (table); in the detail view, previous / next tab |
-| `Tab` / `Shift-Tab` | screen | next / previous pane (Profile); next / previous group (Settings); on a table screen, which has one pane, next / previous view |
+| `Tab` / `Shift-Tab` | screen | next / previous pane (Profile); next / previous section (Settings); on a table screen and in the detail view, which have one pane, the same as `→` / `←` |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom |
 | `a` | global | Add form |
 | `v` / `Enter` | row | detail view |
@@ -170,7 +170,7 @@ table, and the feedback line says `<Title> → Interviewing` with `u undo`.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
-Status (the log stays append-only) and says so on the feedback line (`Undone · Title back to Applied`). It does not remove `sent/`.
+Status (the log stays append-only) and says so on the feedback line (`Undone · Title back to Applied`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
 
 ### Add form (`a`)
 
@@ -468,17 +468,17 @@ separate track.
   - **captured**: run in the background without suspending, keep stdout/stderr, report a
     message when done, then rescan the folder. Used by `b` and URL fetch. One at a time;
     other keys keep working.
-- Unset `harness` hides `f`/`p` from the help bar; pressing one shows
-  `Set harness in ~/.config/rolecall/config.toml`. Unset `plugin` does the same for `b` and
+- Unset `harness` hides `f`/`p`/`F` everywhere (help bar, NEXT, the DOCS row); pressing one shows
+  `No Harness set · 6 Settings › This machine › Harness`. Unset `plugin` does the same for `b` and
   fetch (Add still works by hand).
 
-#### Handoff: `f`, `p` and `r`
+#### Handoff: `f`, `p` and `F`
 
 | Key | Skill | Applications | From |
 |---|---|---|---|
 | `f` | `assess-fit` | any | table row, detail view |
 | `p` | `prepare-documents` | Lead, Draft | table row, detail view |
-| `r` | `draft-follow-up` | Follow-up due | table row, detail view |
+| `F` | `draft-follow-up` | Follow-up due | table row, detail view. Its own key, so `r` is always rescan |
 
 Interactive mode: the Owner talks to the agent in their terminal (ADR-0003). On exit the
 folder is rescanned. A non-zero exit shows `Harness exited with status N` in the feedback

@@ -107,9 +107,18 @@ func TestDetailNotAssessedFit(t *testing.T) {
 }
 
 // DOCS offers the one key that fixes the next missing Document: prepare docs while a
-// source Document is missing, build once only the PDF is.
+// source Document is missing and the JD is there to write from, build once only the PDF is.
 func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 	view := detailPane(t, "2", "docs-none", 120, 36, nil)
+	if docs := lineWith(view, "DOCS"); strings.Contains(docs, "p prepare docs") {
+		t.Errorf("prepare docs offered with no JD: DOCS %q:\n%s", docs, view)
+	}
+	withJD := func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-none", "jd.md"), []byte("# JD\n"), 0o600); err != nil {
+			panic(err)
+		}
+	}
+	view = detailPane(t, "2", "docs-none", 120, 36, withJD)
 	if docs := lineWith(view, "DOCS"); !strings.Contains(docs, "p prepare docs") || strings.Contains(view, "b build") {
 		t.Errorf("Draft missing its letter: DOCS %q:\n%s", docs, view)
 	}

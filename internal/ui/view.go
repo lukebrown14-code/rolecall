@@ -933,7 +933,7 @@ var stageNames = map[string]string{store.StatusInterviewing: "Interv.", store.St
 // stageText is the latest stage and its date, "Applied 3d", cut back to the date alone
 // (or the stage alone) when both do not fit the column: it is never truncated.
 func (m model) stageText(a store.Application) string {
-	e := a.LastChange
+	e := lastChange(a)
 	if e == nil {
 		return ""
 	}
@@ -981,7 +981,7 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 		return "", "", ""
 	}
 	if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
-		flag = followUpHeat(past) + " " + m.since(a.LastChange)
+		flag = followUpHeat(past) + " " + m.since(lastChange(a))
 	}
 	return m.stageText(a), flag, fitCell(a.Fit)
 }
@@ -1089,19 +1089,19 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 			out = append(out, st(c).Render(label))
 		}
 	case tableDismissed:
-		if a.LastChange != nil {
-			out = append(out, when(a.LastChange, "dismissed "))
+		if lastChange(a) != nil {
+			out = append(out, when(lastChange(a), "dismissed "))
 		}
 	case tableClosed:
-		if a.LastChange != nil {
-			out = append(out, when(a.LastChange, "closed "))
+		if lastChange(a) != nil {
+			out = append(out, when(lastChange(a), "closed "))
 		}
 	default:
-		if a.AppliedDate != nil {
-			out = append(out, when(a.AppliedDate, "applied "))
+		if appliedDate(a) != nil {
+			out = append(out, when(appliedDate(a), "applied "))
 		}
-		if a.LastChange != nil && a.LastChange.At != entryAt(a.AppliedDate) {
-			out = append(out, when(a.LastChange, strings.ToLower(a.LastChange.Status)+" "))
+		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
+			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
 		}
 	}
 	return out

@@ -41,7 +41,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		docs = "○"
 	}
 	if table == tableDismissed {
-		return append(out, entryDate(a.LastChange))
+		return append(out, entryDate(lastChange(a)))
 	}
 	if beforeApplied(table) {
 		closes := a.Closes
@@ -58,7 +58,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	if followUpDue(a, now, followUpDays) {
 		flag = followUpFlag
 	}
-	return append(out, entryDate(a.AppliedDate), fit, docs, flag)
+	return append(out, entryDate(appliedDate(a)), fit, docs, flag)
 }
 
 func SortApplications(rows []store.Application, table string) {
@@ -67,13 +67,13 @@ func SortApplications(rows []store.Application, table string) {
 			return a.Closes
 		}
 		if table == tableDismissed {
-			if a.LastChange != nil {
-				return a.LastChange.At
+			if lastChange(a) != nil {
+				return lastChange(a).At
 			}
 			return ""
 		}
-		if a.AppliedDate != nil {
-			return a.AppliedDate.At
+		if appliedDate(a) != nil {
+			return appliedDate(a).At
 		}
 		return ""
 	}
