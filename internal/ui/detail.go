@@ -483,7 +483,7 @@ func (m model) detailView(p pal) string {
 	h := m.layout().bodyHeight(m.detailContextLines())
 	pad := strings.Repeat(" ", inset)
 	// Title first, then Company, as the list reads.
-	title := pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(" · "+a.Company)
+	title := pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.Company))
 	when := ""
 	switch text, s := closeInfo(a.Closes, m.now()); {
 	case a.Malformed != nil:

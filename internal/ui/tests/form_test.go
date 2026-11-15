@@ -86,6 +86,7 @@ func TestEditFormMarksChangedFields(t *testing.T) {
 	if strings.Contains(d.plain(), "●") {
 		t.Fatalf("an untouched Edit form marks a field:\n%s", d.plain())
 	}
+	d.Type("\t") // past URL, the first field
 	d.Type("x")
 	if l := rowWith(strings.Split(d.plain(), "\n"), "Title"); !strings.Contains(l, "●") {
 		t.Fatalf("the edited Title is not marked: %q", l)

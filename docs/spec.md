@@ -174,7 +174,7 @@ Status (the log stays append-only) and says so on the feedback line (`Undone · 
 
 ### Add form (`a`)
 
-Form fields: **Title*** · **Company*** · **Track** (choice from `workspace.json`) · URL ·
+Form fields: URL · **Title*** · **Company*** · **Track** (choice from `workspace.json`) ·
 Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). Track needs no `*`: it is a choice and
 always holds a track. `Enter` checks the field and moves on; on the last field it checks them
 all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
@@ -186,14 +186,17 @@ changes? y/n` first. Every form pop-up (Add, Edit, Search area, gates, machine s
 add and rename) follows these rules.
 
 On save:
-1. If the URL matches another Application's `url`, warn and offer to open that one instead.
+1. If the URL matches another Application's `url`, warn (naming an open match before a closed
+   one, with `+N more` when several share it): `o` discards this form and opens that one's
+   Detail, `s` saves anyway, `esc` goes back to the form with every value kept.
 2. Create `jobs/<track>/<slug>/` (SCHEMA → Folder name), write `meta.yml` (`schema: 1`, the
    fields, `status_log` with one `Lead` entry), and an empty `jd.md`.
 3. Open `jd.md` in `$EDITOR` so the description can be pasted. On return, select the new row.
+   If the save fails, the form stays open with its values and the error under the field.
 
 ### Edit form (`e` in a table)
 
-The same fields as Add, plus **Resume only** (yes/no). Saving patches only the keys that
+The same fields as Add, in the same order, plus **Resume only** (yes/no). Saving patches only the keys that
 changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)

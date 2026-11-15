@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,10 +22,16 @@ func validCloses(s string) error {
 		return nil
 	}
 	if _, err := time.Parse("2006-01-02", s); err != nil {
+		if datePattern.MatchString(s) {
+			// The shape is right, so saying "must be YYYY-MM-DD" would read as wrong.
+			return errors.New("Closes isn't a real date (YYYY-MM-DD)")
+		}
 		return errors.New("Closes must be YYYY-MM-DD")
 	}
 	return nil
 }
+
+var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 // openAdd starts the Add form, or reports why it cannot.
 func (m *model) openAdd() tea.Cmd {
@@ -45,8 +52,8 @@ func (m *model) openAdd() tea.Cmd {
 	return nil
 }
 
-// newForm builds the fields shared by Add and Edit. Add puts URL first (v0.2 URL
-// fetch); Edit keeps the v0.1 order and adds Resume only.
+// newForm builds the fields shared by Add and Edit, in one order: URL first (v0.2 URL
+// fetch), so the fields sit in the same place in both. Edit adds Resume only.
 func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	trackChoices := make([]choice, len(tracks))
 	for i, t := range tracks {
@@ -62,7 +69,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	if !withResumeOnly {
 		return newFormOf("Add a Lead", fields...)
 	}
-	f := newFormOf("Edit "+v.title, titleField, company, track, url, closes, fit,
+	f := newFormOf("Edit "+titleLabel(v.title), url, titleField, company, track, closes, fit,
 		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}})
 	f.ShowDirty = true
 	return f
@@ -79,19 +86,14 @@ func createFields(v addValues) store.CreateFields {
 	return store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: v.track, URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
 }
 
-// createLead saves the Lead through the store. Without fetched text it opens jd.md for
-// pasting the description; with it, the fetched ad is written straight to jd.md and no
-// editor is opened.
-func (m *model) createLead(fields store.CreateFields, jd string) tea.Cmd {
-	folder, err := m.store.Create(fields, m.now())
-	if err != nil {
-		m.err = err
-		return nil
-	}
+// afterCreate shows the new Lead. Without fetched text it opens jd.md for pasting the
+// description; with it, the fetched ad is written straight to jd.md and no editor is
+// opened. The folder exists by now, so a failure here goes to the feedback line.
+func (m *model) afterCreate(folder string, fields store.CreateFields, jd string) tea.Cmd {
 	if !m.reload("") {
 		return nil
 	}
-	m.toast = "Added Lead · " + fields.Title
+	m.toast = "Added Lead · " + titleLabel(fields.Title)
 	if jd != "" {
 		if err := m.store.WriteDocument(folder, "jd.md", []byte(jd)); err != nil {
 			m.err = err
@@ -102,6 +104,32 @@ func (m *model) createLead(fields store.CreateFields, jd string) tea.Cmd {
 	}
 	m.selectAfter = folder
 	return m.editFile(folder, "jd.md")
+}
+
+// submitAdd creates the Lead from the Add form, or keeps the form open with the error
+// under its focused field: nothing typed is lost to a failed save.
+func (fm *formMode) submitAdd(m *model, fields store.CreateFields) (mode, tea.Cmd) {
+	folder, err := m.store.Create(fields, m.now())
+	if err != nil {
+		fm.form.Focused().Err = m.errorText(err)
+		return fm, nil
+	}
+	jd := ""
+	if fm.form.Fetched {
+		jd = fm.form.Jd
+	}
+	return nil, m.afterCreate(folder, fields, jd)
+}
+
+// duplicateOf picks the match the Duplicate URL pop-up names: the first one still open,
+// since a closed one is the least likely reason the Owner is adding the ad again.
+func duplicateOf(matches []store.Application) store.Application {
+	for _, a := range matches {
+		if !closedStatus(a.Status) {
+			return a
+		}
+	}
+	return matches[0]
 }
 
 // selectFolder moves the cursor to an Application's row, widening filters that would hide it.
