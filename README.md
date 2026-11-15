@@ -95,6 +95,7 @@ move through rows. Press `?` in rolecall for the complete help for the current s
 | `e` | Edit a row, or open the current document in your editor |
 | `f` / `p` | Ask the Harness to assess fit or prepare documents |
 | `b` | Build PDFs for the selected Application |
+| `w` / `c` | Open the job ad's link in your browser / copy it to the clipboard |
 | `/` | Filter the current table by title or company |
 | `t` | Change the Track filter |
 | `?` | Show screen and key help |
