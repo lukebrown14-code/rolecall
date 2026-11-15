@@ -304,7 +304,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   bar's sparkline. Text keeps a 4.5:1 contrast floor on either theme's background, pop-up
   fill and selection bar (coloured words on the bar take the secondary colour), and rules,
   pane dividers and Status glyphs 3:1, including the frame behind a pop-up, which dims
-  without going below the floor. The inherit-terminal-colours option draws all readable
+  without going below the floor. No text is drawn in the faint role or terminal faint (SGR 2). The inherit-terminal-colours option draws all readable
   text in the terminal's default foreground; ANSI 8 is for rules only. The `?` pop-up's
   legend is generated from the glyph table the frame draws with (`internal/ui/theme/glyphs.go`),
   one meaning per glyph:
@@ -366,7 +366,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   other screens' counts (and the sparkline with them), the word "rolecall", then other
   screens' names (their digits stay), then the mark; the active screen keeps its name and
   count. It sheds to the level every screen's bar fits at, so switching screens never sheds
-  or restores a count. The sparkline is the same series Stats draws, over 8 weeks; it is
+  or restores a count. The sparkline is the same series Stats draws, over 8 weeks, drawn muted; it is
   hidden when no week has an Applied and under `ROLECALL_PLAIN`.
 - **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
   Stats), read once by its key: `TRACK t [All 4] SWE 3  Platform 1`, or `t [All 4]▸` when short
@@ -412,7 +412,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   dense: rows in a section sit together, and only a section's header has a blank line above
   it (none in a bottom sheet, which cannot spare it). A blank Company is left out rather than
   leaving a separator hanging; an empty title reads `(untitled)`. Right-hand columns are
-  flag · age · Fit, Fit flush right and labelled (`fit Good`, `fit —`), at least a cell apart at their widest. The age is the last change's (`6d`, `~Jan 2026`, `today`, years past two years: `7y`) without the Status, which the glyph and section already say; a column empty
+  flag · age · Fit, Fit flush right and labelled (`fit Good`, `fit —`), each as wide as its widest value in the view and two cells apart. The age is the last change's (`6d`, `~Jan 2026`, `today`, years past two years: `7y`) without the Status, which the glyph and section already say; a column empty
   for the whole view is hidden. No close date is a muted `—`. Dates older than about three
   months read as the month (`applied Jan 2025`), not `21mo ago`. Expired Leads and Drafts
   sort last under an **Expired** section. Titles that would not read as a name (a bare
@@ -607,9 +607,11 @@ empty log is Lead.
 1. **Funnel**: Applications that **ever reached** each Status: Lead → Draft → Applied →
    Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
    optional starts, so a rung can be higher than the one before and there is no drop-off:
-   each rung says what share of the previous rung reached it first (`29% of Applied`, left
-   out when that rung is empty) and how many reached it without the previous one before
-   it (`5 weren't Drafts first`). Rejected, Withdrawn and Dismissed on a muted `closed` line.
+   a rung that all came through the previous one says what share of it reached it
+   (`29% of Applied`); a rung with Applications that never were on the previous one says
+   where they came from, as counts (`3 came from Drafts · 8 didn't`, `none came from
+   Leads`), never `0% of`. Nothing when the previous rung is empty. Rejected, Withdrawn and
+   Dismissed on a muted `closed` line.
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
    leaving out Applications whose Applied date (an implied one takes the date of the Status
    implying it) is within `follow_up_days`, with a meter. A line says how many were left

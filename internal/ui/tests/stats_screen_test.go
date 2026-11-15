@@ -136,17 +136,17 @@ func TestStatsIgnoresAnUndoneMove(t *testing.T) {
 	}
 }
 
-// The funnel never calls a rise or a flat count a drop: each rung says what share of the
-// one before reached it and how many were not on it first, in one wording. A later
-// Status implies Applied, so the numbers match the screens. Everything fits 80x24 with
-// no cue.
+// The funnel never calls a rise or a flat count a drop: a rung that all came through the
+// one before says what share of it reached it; one that did not says where it came from,
+// as counts, never "0% of". A later Status implies Applied, so the numbers match the
+// screens. Everything fits 80x24 with no cue.
 func TestStatsFunnelExplainsEachRung(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
 	for _, want := range []string{
 		"Applications that ever reached each Status",
-		"◌ Lead ██████ 4",
-		"2 0% of Lead · 2 weren't Leads first",
-		"11 0% of Draft · 11 weren't Drafts first",
+		"◌ Lead ████████ 4",
+		"2 none came from Leads",
+		"11 none came from Drafts",
 		"4 36% of Applied",
 		"2 50% of Interviewing",
 		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 2",

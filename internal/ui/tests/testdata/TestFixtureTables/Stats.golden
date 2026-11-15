@@ -4,8 +4,8 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    FUNNEL          Applications that ever reached each Status
    ◌ Lead          ████████                  4
-   ✎ Draft         ████                      2  0% of Lead · 2 weren't Leads first
-   ● Applied       ████████████████████████ 11  0% of Draft · 11 weren't Drafts first
+   ✎ Draft         ████                      2  none came from Leads
+   ● Applied       ████████████████████████ 11  none came from Drafts
    ◆ Interviewing  ████████                  4  36% of Applied
    ★ Offer         ████                      2  50% of Interviewing
    closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 2

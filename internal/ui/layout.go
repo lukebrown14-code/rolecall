@@ -63,15 +63,12 @@ const (
 	sheetRule      = 1 // the rule between the list and the sheet
 )
 
-// The list row's fixed right columns, in cells. The columns are right-aligned, and each
-// after the first holds its widest value plus columnGap, so neighbours never touch.
 const (
 	filtersFull      = 2 // filter lines when the filters have room
 	filtersCollapsed = 1 // and when collapsed to one line
-	columnGap        = 2
-	flagColumn       = 6             // the Follow-up due flag at its widest: "⚑ 23mo"
-	stageColumn      = columnGap + 9 // the last change's age at its widest: "~Jan 2026"
-	fitColumn        = 1 + 12        // Fit at its widest, "fit Marginal": its label sets it apart, so one cell will do
+	// columnGap is the cells between a list row's right-hand columns, and between the
+	// title and the first of them, so neighbours never touch (see slotsFor).
+	columnGap = 2
 )
 
 // layout is one frame's size budget: everything a view needs to place itself, from the
@@ -85,10 +82,6 @@ type layout struct {
 	// pane, listW + the divider + detailW is the width.
 	detail         detailMode
 	listW, detailW int
-	// flagCol, stageCol and fitCol are the list row's fixed right columns, and subtitleW
-	// what is left of the list for the subtitle after the marker, the inset and those.
-	flagCol, stageCol, fitCol int
-	subtitleW                 int
 	// filterLines is the lines the status and Track filters take: two, or one collapsed.
 	filterLines int
 	// footerRow is the row the footer sits on: always the last.
@@ -111,7 +104,7 @@ func (m model) layout() layout {
 // sizeLayout is the pure layout for a terminal of w by h: no rendering, no model, no clock.
 func sizeLayout(w, h int) layout {
 	l := layout{w: w, h: h, short: h <= shortHeight, detail: detailFull, filterLines: filtersFull, listW: w,
-		flagCol: flagColumn, stageCol: stageColumn, fitCol: fitColumn, footerRow: max(0, h-1), status: statusAreaPlain}
+		footerRow: max(0, h-1), status: statusAreaPlain}
 	switch {
 	case w >= wideWidth:
 		l.class = classWide
@@ -125,7 +118,6 @@ func sizeLayout(w, h int) layout {
 	if w < mediumWidth {
 		l.filterLines = filtersCollapsed
 	}
-	l.subtitleW = max(0, l.listW-edge-inset-l.flagCol-l.stageCol-l.fitCol)
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
 	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
