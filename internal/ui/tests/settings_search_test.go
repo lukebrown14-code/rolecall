@@ -1,6 +1,9 @@
 package ui_test
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // searchHarness opens Settings on the Search group with the settings pane focused.
 func searchHarness(t *testing.T, workspaceJSON string) *settingsHarness {
@@ -25,15 +28,20 @@ func TestSettingsEditSearchAreaSavesImmediatelyKeepingOtherKeys(t *testing.T) {
 	requireAll(t, h.tm.plain(), "Australia, APAC", "anywhere")
 }
 
-func TestSettingsSearchAreaRejectsEmptyPlaces(t *testing.T) {
+// Empty Places clears the Search area, the state init starts in: every location is kept.
+func TestSettingsSearchAreaCanBeCleared(t *testing.T) {
 	h := searchHarness(t, `{"search_area":{"places":["Old"],"remote":"no"}}`)
 	h.tm.Type("enter")
 	for range 3 {
 		h.tm.Type("backspace")
 	}
 	h.tm.Type("enter")
-	requireAll(t, h.tm.plain(), "Places is required")
-	requireAll(t, h.file(), `"Old"`)
-	h.tm.Type("esc")
+	h.tm.Type("enter")
+	requireAll(t, h.tm.plain(), "Cleared Search area: every location is kept")
+	requireAll(t, h.file(), `"places": []`)
+	if strings.Contains(h.file(), `"Old"`) {
+		t.Fatalf("Places kept:\n%s", h.file())
+	}
+	h.tm.Type("u")
 	requireAll(t, h.file(), `"Old"`)
 }

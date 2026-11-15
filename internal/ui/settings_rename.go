@@ -70,6 +70,15 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
+// renameImpactLine is how many Applications a rename rewrites, with the verb agreeing:
+// "1 Application changes its Track", "3 Applications change their Track".
+func renameImpactLine(n int) string {
+	if n == 1 {
+		return "1 Application changes its Track in meta.yml, archived ones included."
+	}
+	return fmt.Sprintf("%d Applications change their Track in meta.yml, archived ones included.", n)
+}
+
 func (rm *renameMode) View(m *model, p pal) string {
 	w := popSmall - popInset
 	para := func(s string) string {
@@ -84,8 +93,7 @@ func (rm *renameMode) View(m *model, p pal) string {
 		body = strings.Join([]string{
 			p.Text(p.Fg).Bold(true).Render(rm.old + " → " + rm.name),
 			"",
-			para(fmt.Sprintf("%s change Track in meta.yml, archived ones included.",
-				plural(rm.impact.Applications, "Application", "Applications"))),
+			para(renameImpactLine(rm.impact.Applications)),
 			para(roles),
 			p.Text(p.Dim).Width(w).Render("Folders stay where they are, under jobs/" + rm.old + "/."),
 			"",

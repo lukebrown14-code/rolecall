@@ -43,12 +43,12 @@ func TestMenuBlanksTheRowsBehindIt(t *testing.T) {
 	}
 }
 
-// While there is something to save, ctrl+s is on the key line at every size.
-func TestSaveKeyShowsWhileDirty(t *testing.T) {
+// After a Settings save, u undo is on the key line at every size.
+func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 	for _, sz := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		line := lastLine(t, sz[0], sz[1], "6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter")
-		if !strings.Contains(line, "ctrl+s save") {
-			t.Errorf("%dx%d: unsaved change but no save key: %q", sz[0], sz[1], line)
+		line := lastLine(t, sz[0], sz[1], "6", "]", "enter", "backspace", "backspace", "backspace", "300", "enter")
+		if !strings.Contains(line, "u undo") || strings.Contains(line, "ctrl+s") {
+			t.Errorf("%dx%d: saved change but no undo key: %q", sz[0], sz[1], line)
 		}
 	}
 }

@@ -32,14 +32,55 @@ func TestNavigationSkipsReadOnlyRowsAndPreservesPreviousState(t *testing.T) {
 	}
 }
 
-func TestPendingEditsAreCopiedNotShared(t *testing.T) {
-	a := settings.State[string]{}.With("editor", "nano")
-	b := a.With("downloads", "/x")
-	if a.Dirty() != 1 || b.Dirty() != 2 {
-		t.Fatalf("pending leaked between copies: %d, %d", a.Dirty(), b.Dirty())
+func TestArrowsSwitchSectionsAndGGoesToTheEnds(t *testing.T) {
+	machine := settings.Machine{Editor: "vi", EditorAvailable: true}
+	st := settings.State[string]{}.Navigate("right", machine)
+	if st.Group != settings.GroupDocuments {
+		t.Fatalf("right did not switch section: %+v", st)
 	}
-	if c := b.Without("editor"); c.Dirty() != 1 || b.Dirty() != 2 {
-		t.Fatalf("Without mutated or miscounted: %d, %d", c.Dirty(), b.Dirty())
+	if st = st.Navigate("left", machine).Navigate("left", machine); st.Group != settings.GroupMachine {
+		t.Fatalf("left did not wrap to the last section: %+v", st)
+	}
+	st = st.Navigate("G", machine)
+	if rows := st.Rows(st.Group, machine); rows[st.Row].Label != settings.LabelInherit {
+		t.Fatalf("G did not reach the last row: %+v", st)
+	}
+	if st = st.Navigate("g", machine); st.Rows(st.Group, machine)[st.Row].Label != settings.LabelEditor {
+		t.Fatalf("g did not reach the first editable row: %+v", st)
+	}
+}
+
+// A Track Applications use but workspace.json does not list gets its own row, so it can
+// be added and renamed; an Application with no Track at all does not.
+func TestOffListTracksAreListedAfterTheTracks(t *testing.T) {
+	st := settings.State[string]{TrackUse: map[string]int{"SWE": 3, "Unknown": 2, "": 1, "Gone": 0}}
+	st.Ws.Tracks = []string{"SWE"}
+	if got := st.OffList(); len(got) != 1 || got[0] != "Unknown" {
+		t.Fatalf("OffList = %v", got)
+	}
+	rows := st.Rows(settings.GroupTracking, settings.Machine{})
+	if rows[1].Label != "Unknown" || !rows[1].OffList || rows[2].Label != settings.LabelAddTrack {
+		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+func TestEmptyPlacesMeanNoSearchArea(t *testing.T) {
+	if got := settings.SplitPlaces(" , "); len(got) != 0 {
+		t.Fatalf("SplitPlaces = %v", got)
+	}
+	if got := settings.SplitPlaces("Australia, APAC"); len(got) != 2 {
+		t.Fatalf("SplitPlaces = %v", got)
+	}
+}
+
+func TestEveryEditableRowSaysWhatItIs(t *testing.T) {
+	machine := settings.Machine{Editor: "vi", EditorAvailable: true}
+	for g := range settings.Groups {
+		for _, r := range (settings.State[string]{}).Rows(g, machine) {
+			if r.About == "" && r.Label != settings.LabelWorkspace {
+				t.Errorf("%s has no about text", r.Label)
+			}
+		}
 	}
 }
 

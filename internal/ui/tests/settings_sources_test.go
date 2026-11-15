@@ -267,17 +267,6 @@ func TestCommaOpensSettingsFromAnywhereAndEscReturns(t *testing.T) {
 	}
 }
 
-func TestEscInSettingsOpenedByDigitDoesNotLeave(t *testing.T) {
-	h := newSourcesHarness(t, 140, "", nil)
-	h.d.Type("1")
-	h.d.Type("6")
-	before := h.d.plain()
-	h.d.Type("esc")
-	if h.d.plain() != before {
-		t.Fatal("Esc left a Settings screen that was not opened with a comma")
-	}
-}
-
 func TestCommaTypesIntoFilterInsteadOfOpeningSettings(t *testing.T) {
 	h := newSourcesHarness(t, 140, "", nil)
 	h.d.Type("1")
