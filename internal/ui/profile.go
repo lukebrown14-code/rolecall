@@ -240,7 +240,7 @@ func (m model) profileMarkdown(st profileState) string {
 		if _, ok := st.file(); ok {
 			label = "FILE"
 		}
-		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit", width), ""}
+		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit file", width), ""}
 		if warning != "" {
 			lines = append(lines, warning)
 		}
@@ -292,7 +292,7 @@ func (m model) fieldTable(body string, width int) (lines []string, ok bool) {
 	p := m.pal()
 	for _, r := range rows {
 		// One row per field, the value cut to the room beside its key.
-		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "e", "edit", width))
+		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "", "", width))
 	}
 	return lines, true
 }
@@ -345,8 +345,13 @@ func (m model) scrollProfile(delta int) model {
 func (m model) profileHelpKeys() []helpKey {
 	var keys []helpKey
 	if m.profileLoaded() {
-		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", "section"),
-			help(groupNav, "tab", "focus").at(prioScreen))
+		// The key line follows focus: j k scroll the content once tab has moved there.
+		move := "section"
+		if m.profile.focus == profileContent && m.profileListShown(m.viewWidth()) {
+			move = "scroll"
+		}
+		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", move),
+			help(groupNav, "g G", "first, last").at(prioHelpOnly), help(groupNav, "tab", "focus").at(prioScreen))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -399,6 +404,24 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.scrollProfile(-1), nil
 		}
 		return m.selectProfile(-1), nil
+	case "g", "home", "G", "end":
+		// g and G go to the top and bottom, as in lists: of the content once it has focus,
+		// else to the first and last section.
+		top := k.String() == "g" || k.String() == "home"
+		if m.profile.focus == profileContent && listShown {
+			st := *m.profile
+			if top {
+				st.body.GotoTop()
+			} else {
+				st.body.GotoBottom()
+			}
+			m.profile = &st
+			return m, nil
+		}
+		if top {
+			return m.selectProfile(-m.profile.entries()), nil
+		}
+		return m.selectProfile(m.profile.entries()), nil
 	}
 	return m, nil
 }
