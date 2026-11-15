@@ -76,10 +76,20 @@ func (s *Store) Tracks() ([]string, error) {
 		}
 	}
 	if err := checkTracks(tracks); err != nil {
-		return nil, fmt.Errorf("%s: tracks: %w", w.Path, err)
+		return nil, &TrackListError{Path: w.Path, Err: err}
 	}
 	return tracks, nil
 }
+
+// TrackListError is a workspace.json whose tracks list breaks the Track name rules.
+// The file still parses, so the app can start without a Track filter and say why.
+type TrackListError struct {
+	Path string
+	Err  error
+}
+
+func (e *TrackListError) Error() string { return fmt.Sprintf("%s: tracks: %v", e.Path, e.Err) }
+func (e *TrackListError) Unwrap() error { return e.Err }
 
 // checkTracks applies the Track name rules Settings applies to a new Track to a
 // hand-edited list: each one non-empty, without surrounding spaces, and listed once.

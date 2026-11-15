@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -104,7 +105,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		if p, err := s.Profile(); err == nil {
 			m.profileStarted = profileBeyondContact(p)
 		}
-		if e != nil && invalidWorkspaceFile(s) {
+		if e != nil && (invalidWorkspaceFile(s) || badTrackList(e)) {
 			// An invalid workspace.json does not stop startup: the app opens with no Track
 			// filter, and Settings shows the path and the parse error with e to fix it.
 			// Only a schema this build cannot use still stops it.
@@ -120,6 +121,13 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 
 // invalidWorkspaceFile reports a workspace.json that is not valid JSON or has a key of the
 // wrong shape, as opposed to one from a schema this build cannot read.
+// badTrackList reports a workspace.json that parses but lists a bad Track: like an
+// invalid file, it opens with no Track filter rather than stopping startup.
+func badTrackList(err error) bool {
+	var tle *store.TrackListError
+	return errors.As(err, &tle)
+}
+
 func invalidWorkspaceFile(s *store.Store) bool {
 	ws, err := s.Settings()
 	return err == nil && ws.Err != nil && ws.Schema == 1
