@@ -25,27 +25,34 @@ type Setup struct {
 // harnessExample is a working harness value the hint can show.
 const harnessExample = `harness = "claude \"/{skill} {dir}\""`
 
+// The tools doctor checks, by the command it looks for on PATH.
+const (
+	toolTypst  = "typst"
+	toolPandoc = "pandoc"
+	toolPython = "python3"
+)
+
 // installHints says how to install each tool doctor looks for, per OS. macOS uses
 // Homebrew; Linux names the common package managers; anything else gets the project page.
 func installHints(goos string) map[string]string {
 	switch goos {
 	case "darwin":
 		return map[string]string{
-			"typst":   "brew install typst",
-			"pandoc":  "brew install pandoc",
-			"python3": "brew install python",
+			toolTypst:  "brew install typst",
+			toolPandoc: "brew install pandoc",
+			toolPython: "brew install python",
 		}
 	case "linux":
 		return map[string]string{
-			"typst":   "install it with your package manager or from https://github.com/typst/typst#installation",
-			"pandoc":  "sudo apt install pandoc (Debian, Ubuntu) or sudo dnf install pandoc (Fedora)",
-			"python3": "sudo apt install python3 (Debian, Ubuntu) or sudo dnf install python3 (Fedora)",
+			toolTypst:  "install it with your package manager or from https://github.com/typst/typst#installation",
+			toolPandoc: "sudo apt install pandoc (Debian, Ubuntu) or sudo dnf install pandoc (Fedora)",
+			toolPython: "sudo apt install python3 (Debian, Ubuntu) or sudo dnf install python3 (Fedora)",
 		}
 	}
 	return map[string]string{
-		"typst":   "see https://github.com/typst/typst#installation",
-		"pandoc":  "see https://pandoc.org/installing.html",
-		"python3": "see https://www.python.org/downloads/",
+		toolTypst:  "see https://github.com/typst/typst#installation",
+		toolPandoc: "see https://pandoc.org/installing.html",
+		toolPython: "see https://www.python.org/downloads/",
 	}
 }
 

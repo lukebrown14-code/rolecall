@@ -40,7 +40,7 @@ func main() {
 		flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 		dir := flags.String("dir", "", "Workspace path (default: workspace in config.toml)")
 		flags.Usage = func() {
-			fmt.Fprintln(flags.Output(), "usage: rolecall doctor [--dir PATH]\n\nChecks the Workspace, its privacy, and the tools rolecall uses.")
+			_, _ = fmt.Fprintln(flags.Output(), "usage: rolecall doctor [--dir PATH]\n\nChecks the Workspace, its privacy, and the tools rolecall uses.")
 			flags.PrintDefaults()
 		}
 		if err := flags.Parse(os.Args[2:]); errors.Is(err, flag.ErrHelp) {
@@ -72,7 +72,7 @@ func main() {
 // script can find init and doctor from the binary, then the TUI's own flags.
 func usage() {
 	out := flag.CommandLine.Output()
-	fmt.Fprint(out, `usage: rolecall [--dir PATH]    open the Workspace in the terminal app
+	_, _ = fmt.Fprint(out, `usage: rolecall [--dir PATH]    open the Workspace in the terminal app
        rolecall init [DIR]       create a Workspace (default: ./rolecall)
        rolecall doctor [--dir PATH]
                                  check the Workspace and the tools rolecall uses
