@@ -44,6 +44,16 @@ func (m model) offListTrack() (string, bool) {
 func (m model) addOffList(name string) model {
 	was := m.settings.Ws.Tracks
 	tracks := append(slices.Clone(was), name)
+	// The list is checked as Tracks will read it, so a name it would refuse (a case twin
+	// of a listed Track, a slash) is never written.
+	if err := validTrackName(name, was); err != nil {
+		m.err = fmt.Errorf("Can't list %s: %w", name, err)
+		return m
+	}
+	if err := store.ValidTrackList(tracks); err != nil {
+		m.err = fmt.Errorf("Can't list %s: %w", name, err)
+		return m
+	}
 	if m = m.saveTracks(tracks); m.err != nil {
 		return m
 	}

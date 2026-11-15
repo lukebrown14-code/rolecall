@@ -117,7 +117,7 @@ func TestReadCleansControlCharactersFromDisplayedStrings(t *testing.T) {
 			t.Fatalf("control character kept: %q", got)
 		}
 	}
-	if a.Title != "Evil]0;PWNED title here next" || a.Company != "Co[2J" || a.Track != "SWE " || a.URL != "https://x.test/a" {
+	if a.Title != "Evil]0;PWNED title here next" || a.Company != "Co[2J" || a.Track != "SWE" || a.URL != "https://x.test/a" {
 		t.Fatalf("%q %q %q %q", a.Title, a.Company, a.Track, a.URL)
 	}
 }
