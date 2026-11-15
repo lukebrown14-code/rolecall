@@ -25,7 +25,7 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := initWorkspace(os.Args[2:]); err != nil {
+		if err := initCommand(os.Args[2:], os.Stdout, os.Stderr); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -57,24 +57,12 @@ func main() {
 	}
 }
 
-func initWorkspace(args []string) error {
-	return runInit(args, os.Stdin, os.Stdout, os.Stderr, launchProfile)
-}
-
-// runInit is the CLI seam for onboarding; launcher is injected so tests can
-// exercise the profile handoff without starting an external Harness.
-func runInit(args []string, in *os.File, out, errOut *os.File, launcher profileLauncher) error {
-	return initWizard(args, in, out, errOut, launcher)
-}
-
-func initWorkspaceFiles(root string, contact contactDetails, tracks []string, search store.SearchArea) error {
-	if err := store.InitializeWorkspace(root, contact.fields(), tracks, search); err != nil {
+// initWorkspaceFiles writes the starter Workspace and its private local git repository.
+func initWorkspaceFiles(root string) error {
+	if err := store.InitializeWorkspace(root, nil, nil, store.SearchArea{}); err != nil {
 		return err
 	}
-	if err := process.InitGit(root); err != nil {
-		return err
-	}
-	return nil
+	return process.InitGit(root)
 }
 
 // noWorkspaceError tells someone who has installed rolecall but not run init
@@ -154,7 +142,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce), ui.WithFirstRunSetup())
 	if err != nil {
 		return err
 	}

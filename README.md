@@ -22,14 +22,8 @@ The script downloads the latest release for your platform, verifies its checksum
 rolecall with the Plugin into `~/.local` (`~/.local/bin/rolecall`). Make sure `~/.local/bin` is
 on your `PATH`.
 
-On a first install it then starts the setup wizard (`rolecall init`), suggesting a `rolecall`
-folder inside the directory you ran the command from as your Workspace. Run the command from
-where you want your job-search files to live, or type another path. Press Ctrl+C to skip and run
-`rolecall init` later; set `ROLECALL_NO_INIT=1` to never start it.
-
-Run the same command again to update; your Workspace and settings are kept and the wizard is
-skipped. Set `ROLECALL_VERSION=v0.2.2` to pick a release or `ROLECALL_PREFIX=/usr/local` to
-install elsewhere.
+Run the same command again to update; your Workspace and settings are kept. Set
+`ROLECALL_VERSION=v0.2.2` to pick a release or `ROLECALL_PREFIX=/usr/local` to install elsewhere.
 
 To install by hand instead, download `rolecall_<os>_<arch>.tar.gz` from
 [Releases](https://github.com/lukebrown14-code/rolecall/releases), extract it, and keep the
@@ -52,16 +46,16 @@ and the install script include the Plugin automatically.
 
 ## Get started
 
-If the install script did not already run it, create a Workspace with the setup wizard, then
-launch rolecall:
-
 ```sh
-rolecall init
-rolecall
+rolecall init     # creates a rolecall folder here; or pass one: rolecall init ~/jobs
+rolecall          # opens the app
 ```
 
-The wizard asks where to create the Workspace and helps set up your Profile. To check local
-dependencies or diagnose a setup, run `rolecall doctor`.
+`rolecall init` asks nothing: it creates the Workspace (a private folder with its own local git
+repository) and remembers where it is. The first time the app opens it asks for your Contact
+(Name and Email are required; the rest is optional). Press Esc to skip, and it asks again next
+time. Add Tracks and a Search area later under Settings (`6`), and create your Profile with your
+Harness's `create-profile` skill. To check local dependencies, run `rolecall doctor`.
 
 To try the interface with the fictional example Workspace from a source checkout, run:
 
