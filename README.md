@@ -148,6 +148,11 @@ When you ask your Harness to work on your Profile, CV, or job text, the Harness 
 content to the AI provider you configured. Review that provider's privacy practices. See
 [ADR-0005](docs/adr/0005-owner-data-never-leaves-the-workspace.md) for the privacy decisions.
 
+To help trace a problem, rolecall can keep a diagnostics log on your machine (panics, failed
+programs, errors it showed you). It is off in releases unless you set `ROLECALL_DIAGNOSTICS=1`,
+it never leaves your machine, and `rolecall diagnostics` shows it. Review it before attaching
+it to an issue. See [ADR-0006](docs/adr/0006-local-diagnostics-log.md).
+
 ## Supported platforms
 
 macOS and Linux are supported. On Windows, use WSL. Native Windows file opening is best-effort.

@@ -9,5 +9,6 @@ import (
 // never under the developer's real config directory.
 func TestMain(m *testing.M) {
 	os.Unsetenv("XDG_CONFIG_HOME")
+	os.Unsetenv("XDG_STATE_HOME")
 	os.Exit(m.Run())
 }

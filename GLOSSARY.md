@@ -132,3 +132,7 @@ _Avoid_: AI action, job (for this), task
 **Plugin**:
 The skills, scripts and templates rolecall ships for the Harness. It is how the Harness knows the Workspace's files and rules.
 _Avoid_: extension, integration
+
+**Diagnostics log**:
+The local record of what went wrong in rolecall (panics, failed programs, feedback-line errors, slow updates), kept on the Owner's machine and never sent. `rolecall diagnostics` shows it (ADR-0006).
+_Avoid_: telemetry, analytics, crash report

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/lukebrown14-code/rolecall/internal/diag"
 	"image/color"
 	"path/filepath"
 	"strings"
@@ -130,6 +131,7 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 }
 
 func (m model) View() tea.View {
+	defer diag.Guard("view")
 	p := m.pal()
 	var body string
 	switch box := m.overlayView(p); {

@@ -9,8 +9,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/lukebrown14-code/rolecall/internal/diag"
 )
 
 type ExternalRunner func(*exec.Cmd, tea.ExecCallback) tea.Cmd
@@ -25,13 +28,24 @@ type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 func Command(name string, args ...string) *exec.Cmd { return exec.Command(name, args...) }
 
-func Exec(c *exec.Cmd, done tea.ExecCallback) tea.Cmd { return tea.ExecProcess(c, done) }
+// Exec hands the terminal to c until it exits. Its stderr goes to the terminal, so the
+// diagnostics entry has only the exit status.
+func Exec(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+	start := time.Now()
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		diag.Command(c, time.Since(start), err, "")
+		return done(err)
+	})
+}
 
+// RunCaptured runs c in the background and keeps its output.
 func RunCaptured(c *exec.Cmd, done func(CapturedResult) tea.Msg) tea.Cmd {
 	return func() tea.Msg {
 		var stdout, stderr bytes.Buffer
 		c.Stdout, c.Stderr = &stdout, &stderr
+		start := time.Now()
 		err := c.Run()
+		diag.Command(c, time.Since(start), err, stderr.String())
 		return done(CapturedResult{Stdout: stdout.String(), Stderr: stderr.String(), Err: err})
 	}
 }
@@ -61,7 +75,10 @@ func CopyToClipboard(text string) error {
 		}
 		c := Command(argv[0], argv[1:]...)
 		c.Stdin = strings.NewReader(text)
-		if output, err := c.CombinedOutput(); err != nil {
+		start := time.Now()
+		output, err := c.CombinedOutput()
+		diag.Command(c, time.Since(start), err, string(output))
+		if err != nil {
 			return fmt.Errorf("%s failed: %s: %w", argv[0], strings.TrimSpace(string(output)), err)
 		}
 		return nil
@@ -72,7 +89,10 @@ func CopyToClipboard(text string) error {
 // InitGit creates a local repository for a newly initialized Workspace.
 func InitGit(root string) error {
 	cmd := Command("git", "init", "--quiet", root)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	start := time.Now()
+	output, err := cmd.CombinedOutput()
+	diag.Command(cmd, time.Since(start), err, string(output))
+	if err != nil {
 		return fmt.Errorf("git init failed: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil

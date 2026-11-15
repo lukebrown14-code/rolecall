@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/diag"
 	"github.com/lukebrown14-code/rolecall/internal/doctor"
 	"github.com/lukebrown14-code/rolecall/internal/process"
 	"github.com/lukebrown14-code/rolecall/internal/store"
@@ -25,16 +26,27 @@ const usageErrorExitCode = 2
 var version = "dev"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "diagnostics" {
+		os.Exit(diagnosticsCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
+	stop := startDiagnostics(os.Args[1:])
+	code := dispatch()
+	stop(code)
+	os.Exit(code)
+}
+
+// dispatch runs the subcommand or the TUI and returns the exit code.
+func dispatch() int {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
 		err := initCommand(os.Args[2:], os.Stdout, os.Stderr)
 		if errors.Is(err, flag.ErrHelp) {
-			return
+			return 0
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
-		return
+		return 0
 	}
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
 		flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
@@ -44,15 +56,15 @@ func main() {
 			flags.PrintDefaults()
 		}
 		if err := flags.Parse(os.Args[2:]); errors.Is(err, flag.ErrHelp) {
-			return
+			return 0
 		} else if err != nil {
-			os.Exit(usageErrorExitCode)
+			return usageErrorExitCode
 		}
 		if err := runDoctor(*dir); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
-		return
+		return 0
 	}
 	flag.Usage = usage
 	showVersion := flag.Bool("version", false, "Print the version and exit")
@@ -60,12 +72,14 @@ func main() {
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("rolecall %s\n", version)
-		return
+		return 0
 	}
 	if err := run(*dir); err != nil {
+		diag.Error("run_failed", err)
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 // usage is `rolecall --help`: the subcommands first, so someone who skipped the install
@@ -78,6 +92,8 @@ func usage() {
                                  makes DIR the default when config.toml names another
        rolecall doctor [--dir PATH]
                                  check the Workspace and the tools rolecall uses
+       rolecall diagnostics [-n N] [--json]
+                                 show the local diagnostics log (never sent anywhere)
 
 Flags:
 `)
@@ -177,6 +193,9 @@ func runDoctor(dir string) error {
 		fmt.Printf("WARNING: %s; %s\n", message, check.Hint)
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
+	if diag.Enabled(version) {
+		fmt.Printf("Diagnostics log on (%s); `rolecall diagnostics` shows it.\n", diag.Path(home))
+	}
 	return errors.Join(configProblem, workspaceErr)
 }
 

@@ -697,7 +697,7 @@ Documents state rules, Build and the Plugin are unchanged.
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
 | Finding | per-workspace sources and locations, no default city |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
-| Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
+| Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry (the local diagnostics log, ADR-0006, is off in releases) |
 
 #### What v1.0 still needs (agreed 2026-11-12)
 

@@ -226,7 +226,9 @@ func (m model) matches(a store.Application) bool {
 	track, on := m.selectedTrack()
 	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+// update is Update without the diagnostics around it (diagnostics.go).
+func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The Stats report is built at most once per interaction; this drops the previous
 	// interaction's copy so the next access to Stats rebuilds it.
 	m.resetStats()

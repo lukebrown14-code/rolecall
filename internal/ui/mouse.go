@@ -27,7 +27,7 @@ func (m model) mouse(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
 		if key, ok := wheelKey(msg.Button); ok && !m.tooSmall() {
-			next, cmd := m.Update(keyPress(key))
+			next, cmd := m.update(keyPress(key))
 			return next, cmd, true
 		}
 	case tea.MouseClickMsg:
@@ -48,7 +48,7 @@ func (m model) click(x, y int) (tea.Model, tea.Cmd, bool) {
 	line := view[y]
 	if y == 0 {
 		if si, ok := m.tabAt(x); ok {
-			next, cmd := m.Update(keyPress(fmt.Sprint(si + 1)))
+			next, cmd := m.update(keyPress(fmt.Sprint(si + 1)))
 			return next, cmd, true
 		}
 		return m, nil, false
