@@ -92,10 +92,10 @@ const (
 // followUpDaysPast is how many whole days past its follow-up date a sent Application is
 // (0 on the day it falls due), and whether it is Follow-up due at all.
 func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
-	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || a.LastChange == nil {
+	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || lastChange(a) == nil {
 		return 0, false
 	}
-	t, ok := parseDay(a.LastChange.At)
+	t, ok := parseDay(lastChange(a).At)
 	if !ok {
 		return 0, false
 	}

@@ -197,7 +197,9 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	}
 }
 
-func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
+// Undoing the move to Applied that made sent/ sets it aside, deleting nothing, so the
+// next real Applied freezes the documents as they are then.
+func TestUndoAfterAppliedSetsSentAside(t *testing.T) {
 	root, folder := appliedWorkspace(t, map[string]string{"resume.md": "original"})
 	tm, wait := appliedSession(t, root)
 
@@ -207,14 +209,47 @@ func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
 	wait("→ Applied")
 	tm.Type("u")
 	wait("Undid move ")
-	quit(t, tm)
+	wait("sent/ kept as sent.undone-2026-02-01/")
 
-	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "original"}) {
-		t.Fatalf("sent/ after undo = %v", got)
+	aside, err := os.ReadFile(filepath.Join(folder, "sent.undone-2026-02-01", "resume.md"))
+	if err != nil || string(aside) != "original" {
+		t.Fatalf("set-aside copy = %q, %v", aside, err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "sent")); !os.IsNotExist(err) {
+		t.Fatalf("sent/ still there after undo: %v", err)
 	}
 	meta, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.HasSuffix(meta, []byte("{status: Draft, at: 2026-02-01T00:00:00Z}\n")) {
 		t.Fatalf("undo did not append Draft: %q", meta)
+	}
+
+	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("finished"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tm.Type("r")
+	tm.Type("ma")
+	wait("Docs not Ready")
+	tm.Type("y")
+	wait("→ Applied")
+	quit(t, tm)
+	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "finished"}) {
+		t.Fatalf("sent/ after the real Applied = %v", got)
+	}
+}
+
+// An undo of a move whose sent/ was already there leaves it alone.
+func TestUndoKeepsASentItDidNotMake(t *testing.T) {
+	root, folder := appliedWorkspace(t, map[string]string{"resume.md": "original", "sent/resume.md": "earlier"})
+	tm, wait := appliedSession(t, root)
+	tm.Type("ma")
+	wait("Docs not Ready")
+	tm.Type("y")
+	wait("→ Applied")
+	tm.Type("u")
+	wait("Undid move ")
+	quit(t, tm)
+	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "earlier"}) {
+		t.Fatalf("sent/ after undo = %v", got)
 	}
 }
 

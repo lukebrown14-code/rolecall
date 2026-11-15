@@ -123,7 +123,14 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return onRow(m) && usable(m) },
 		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
-			if a, ok := m.current(); ok {
+			a, ok := m.current()
+			if ok && a.Malformed != nil {
+				// Refused at the key, as x is: the pop-up would offer Statuses for an
+				// Application the store cannot read. The error offers e fix in editor.
+				m.err = a.Malformed
+				return nil
+			}
+			if ok {
 				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
 			}
 			return nil
@@ -132,24 +139,11 @@ var listActions = []listAction{
 	{
 		keys: []string{"u"}, keyLabel: "u", desc: text("undo"),
 		group: groupAction, prio: fixed(prioMinor), alwaysInHelp: true,
-		listed:  func(m model) bool { return usable(m) && len(m.undo) > 0 },
-		enabled: func(m model) bool { return len(m.undo) > 0 },
-		run: func(m *model, _ string) tea.Cmd {
-			if len(m.undo) == 0 {
-				return nil
-			}
-			last := m.undo[len(m.undo)-1]
-			for _, a := range m.apps {
-				if a.Folder == last.folder {
-					cmd := m.move(a, last.status, true)
-					if m.err == nil {
-						m.undo = m.undo[:len(m.undo)-1]
-					}
-					return cmd
-				}
-			}
-			return nil
-		},
+		// Undo acts on the last move, not the row under the cursor, so it stays listed on a
+		// malformed row too.
+		listed:  func(m model) bool { return len(m.undo) > 0 },
+		enabled: always,
+		run:     func(m *model, _ string) tea.Cmd { return m.undoLast() },
 	},
 	{
 		keys: []string{"x"}, keyLabel: "x", desc: text("dismiss"),
@@ -217,9 +211,9 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillAssessFit) },
 	},
 	{
-		// Only on a Follow-up due Application; elsewhere r is the global rescan.
-		keys: []string{"r"}, keyLabel: "r", desc: text(descNudge),
-		group: groupAction, prio: fixed(prioNav),
+		// Only on a Follow-up due Application. It has its own key so r is always rescan.
+		keys: []string{"F"}, keyLabel: "F", desc: text(descNudge),
+		group: groupAction, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return followUpRow(m) && usable(m) && m.harness != "" },
 		enabled: followUpRow,
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillDraftFollowUp) },
@@ -232,7 +226,8 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
-		keys: []string{"s"}, keyLabel: "s", desc: text("status"),
+		// "view", not "status": s changes which rows show, while m changes a Status.
+		keys: []string{"s"}, keyLabel: "s", desc: text("view"),
 		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
 		enabled: func(m model) bool { return m.detail == nil && len(m.views()) > 1 },

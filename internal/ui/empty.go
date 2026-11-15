@@ -78,9 +78,20 @@ func (m model) emptyViewLine(table string) (string, []emptyHint) {
 	return msg, m.availableHints(hints...)
 }
 
-// emptySearchLine is the line for a search with no matches.
+// emptySearchLine is the line for a search with no matches here. When other screens or
+// views have matches it says where, "No match for \"orbit\" in Leads · 1 in Applied", with the
+// key to the first of them.
 func (m model) emptySearchLine() (string, []emptyHint) {
-	return "No Applications match \"" + m.text + "\"", m.availableHints(emptyHint{"esc", "clear search"})
+	clear := emptyHint{"esc", "clear search"}
+	if where, key, words := m.searchElsewhere(); len(where) > 0 {
+		msg := "No match for \"" + m.text + "\" in " + m.contextName() + " · " + strings.Join(where, " · ")
+		hints := m.availableHints(clear)
+		if key != "" {
+			hints = append([]emptyHint{{key, "go to " + words}}, hints...)
+		}
+		return msg, hints
+	}
+	return "No Applications match \"" + m.text + "\"", m.availableHints(clear)
 }
 
 // The first-run welcome shows on a table screen of a Workspace with no Applications at

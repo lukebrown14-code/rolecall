@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -20,12 +21,19 @@ type paletteMode struct {
 	items []helpKey
 }
 
-// openPalette lists the runnable keys of the current context and the global ones.
+// openPalette lists the runnable keys of the current context and the global ones, then
+// one entry per other screen: the registry's "1-6 screen" names a range, which the palette
+// cannot send, so each screen gets its own "Stats screen  4".
 func (m model) openPalette() *paletteMode {
 	var items []helpKey
 	for _, k := range m.screenKeys() {
 		if k.press != "" && k.press != ":" {
 			items = append(items, k)
+		}
+	}
+	for i, d := range screenDefs {
+		if i != m.screen || m.detail != nil {
+			items = append(items, help(groupGlobal, strconv.Itoa(i+1), d.name+" screen"))
 		}
 	}
 	return &paletteMode{items: items}
@@ -147,6 +155,8 @@ func keyPress(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	case keyBackspace:
 		return tea.KeyPressMsg{Code: tea.KeyBackspace}
+	case spaceKey:
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 	}
 	r, _ := utf8.DecodeRuneInString(name)
 	return tea.KeyPressMsg{Code: r, Text: name}

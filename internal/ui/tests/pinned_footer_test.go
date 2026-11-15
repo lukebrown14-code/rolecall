@@ -123,7 +123,7 @@ func TestEnterHasOneLabel(t *testing.T) {
 	for _, sz := range footerSizes {
 		for _, keys := range [][]string{{"1"}, {"3"}} {
 			lines := plainAt(t, sz[0], sz[1], keys...)
-			if last := lines[len(lines)-1]; strings.Contains(last, "Enter detail") {
+			if last := lines[len(lines)-1]; strings.Contains(last, "enter detail") {
 				t.Errorf("%dx%d keys %q: Enter labelled detail: %q", sz[0], sz[1], keys, last)
 			}
 		}

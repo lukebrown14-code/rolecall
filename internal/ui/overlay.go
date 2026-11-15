@@ -59,11 +59,22 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 func (m model) confirmBox(p pal, cm *confirmMode) string {
 	a := cm.app
 	n, total := readyCount(a)
-	state := fmt.Sprintf("%d of %d documents ready", n, total)
-	if a.Documents == store.DocsWritten {
-		state += "; the PDF is missing until you build"
+	// Name what is missing, as that is what the Owner weighs before y.
+	var missing []string
+	for _, c := range docChips(a) {
+		if !c.ready {
+			missing = append(missing, c.name)
+		}
 	}
-	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(appName(a.Title))+": "+state+".") +
+	state := fmt.Sprintf("%d of %d documents ready", n, total)
+	if len(missing) > 0 {
+		state += ". Missing: " + strings.Join(missing, ", ")
+	}
+	name := appName(a.Title)
+	if c := strings.TrimSpace(a.Company); c != "" {
+		name += " · " + c
+	}
+	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(name)+": "+state+".") +
 		"\n\n" + p.Text(p.Sub).Render("Mark it Applied anyway?")
 	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.Keys(cm.Keys()))
 }

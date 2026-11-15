@@ -16,9 +16,9 @@ import (
 // narrow key line). The key line, the `?` pop-up and the `:` command palette all read
 // the same list from helpKeys, so a key is declared once and shows up everywhere.
 //
-// Keys held back for features still to come, so no one else takes them: space opens the
-// Workspace menu (#174) and r drafts a Follow-up nudge (#179). g and G are go-to-top and
-// bottom; M is not bound. The Leads sort is o and the status filter is s.
+// r is always rescan; F drafts a Follow-up on a Follow-up due row. space opens the
+// Workspace menu. g and G are go-to-top and bottom; M is not bound. The Leads sort is o
+// and s cycles the view.
 //
 // To add an action: append help(group, key, description) to the list for its context —
 // the list view below, a screen's help func in screenDefs, or a mode's Keys — and raise
@@ -166,8 +166,12 @@ func (m model) contextKeys() []helpKey {
 			vertical = "select"
 		}
 		// Reading is what the detail view is for, so its navigation outlasts the actions.
-		return append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
-			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
+		keys = append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
+			help(groupCursor, "g G", "top / bottom"))
+		if m.detail.tab != tabDocs {
+			keys = append(keys, help(groupCursor, "pgup pgdn", "page"))
+		}
+		return append(keys, help(groupNav, "esc", "back").at(prioPinned))
 	}
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
@@ -194,7 +198,8 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		keys = append(keys, help(groupFilter, "t", "track").at(prioMinor), help(groupFilter, "T", "previous track"))
 	}
 	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
-		keys = append(keys, help(groupFilter, "esc", "clear search"))
+		// A search follows the Owner to every screen, so how to end it is never dropped.
+		keys = append(keys, help(groupFilter, "esc", "clear search").at(prioPinned))
 	}
 	if m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, ",", "settings"))

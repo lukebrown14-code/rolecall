@@ -87,7 +87,7 @@ func TestFollowUpHeatGlyphs(t *testing.T) {
 func TestDetailShowsFollowUpLine(t *testing.T) {
 	m := driveStart(t, heatWorkspace(t), fixtureClock, 120, 40, ui.WithHarness("x {skill} {dir}"))
 	v := plain(driveModel(t, m, "3", "/Highco", "enter", "enter"))
-	if !strings.Contains(v, "FOLLOW-UP  due 10 days ago") || !strings.Contains(v, "r draft nudge") {
+	if !strings.Contains(v, "FOLLOW-UP  due 10 days ago") || !strings.Contains(v, "F draft follow-up") {
 		t.Fatalf("no follow-up line:\n%s", v)
 	}
 }
@@ -96,7 +96,7 @@ func TestNudgeStartsHandoffAndNamesDraft(t *testing.T) {
 	root := heatWorkspace(t)
 	f := &fakeHarness{}
 	m := driveStart(t, root, fixtureClock, 120, 40, ui.WithExternalRunner(f.runner), ui.WithHarness(`claude "/{skill} {dir}"`))
-	m = driveModel(t, m, "3", "/Highco", "enter", "r")
+	m = driveModel(t, m, "3", "/Highco", "enter", "F")
 	folder := filepath.Join(root, "jobs", "SWE", "heat-high")
 	want := `claude "/draft-follow-up '` + folder + `'"`
 	if len(f.calls) != 1 || f.calls[0][2] != want {
@@ -111,19 +111,19 @@ func TestNudgeDisabledWhenNotDue(t *testing.T) {
 	root := heatWorkspace(t)
 	f := &fakeHarness{}
 	m := driveStart(t, root, fixtureClock, 200, 40, ui.WithExternalRunner(f.runner), ui.WithHarness("x {skill} {dir}"))
-	m = driveModel(t, m, "3", "/Noneco", "enter", "r")
+	m = driveModel(t, m, "3", "/Noneco", "enter", "F")
 	if len(f.calls) != 0 {
-		t.Fatalf("r ran on a not-due Application: %v", f.calls)
+		t.Fatalf("F ran on a not-due Application: %v", f.calls)
 	}
-	if v := plain(m); strings.Contains(v, "draft nudge") {
-		t.Fatalf("draft nudge offered on a not-due Application:\n%s", v)
+	if v := plain(m); strings.Contains(v, "draft follow-up") {
+		t.Fatalf("draft follow-up offered on a not-due Application:\n%s", v)
 	}
 }
 
 func TestHelpListsNudgeUnderAct(t *testing.T) {
 	m := driveStart(t, heatWorkspace(t), fixtureClock, 200, 50, ui.WithHarness("x {skill} {dir}"))
 	v := plain(driveModel(t, m, "3", "/Highco", "enter", "?"))
-	if !helpLists(v, "r draft nudge") {
-		t.Fatalf("help lacks r draft nudge:\n%s", v)
+	if !helpLists(v, "F draft follow-up") {
+		t.Fatalf("help lacks F draft follow-up:\n%s", v)
 	}
 }

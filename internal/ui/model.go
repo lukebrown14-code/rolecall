@@ -372,8 +372,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t", "T":
 				m.cycleTrack(k.String() == "T")
 			case "esc":
-				m.text = ""
-				m.cursor = 0
+				// esc clears a search; otherwise it only hides the toast, so the cursor
+				// stays where the Owner was working.
+				if m.text != "" {
+					m.text = ""
+					m.cursor = 0
+				}
 			case "q", "ctrl+c":
 				return m, m.quit()
 			case "right", "tab":

@@ -17,27 +17,29 @@ const menuLead = 4
 // menuTitle names the Workspace menu; its top border also carries "esc".
 const menuTitle = "Menu"
 
-// The menu's key hints.
+// The menu's key hints. "select", not "move": m moves an Application.
 const (
-	menuHintMove = "move"
+	menuHintMove = "select"
 	menuHintRun  = "run"
 )
 
 // menuItem is one row of the Workspace menu: a label and the direct key that does the
-// same thing.
-type menuItem struct{ label, key string }
+// same thing. desc, when set, is the registry description the key must have here: r is
+// rescan on most screens but renames a Track in Settings.
+type menuItem struct{ label, key, desc string }
 
 // menuActions are the registry keys the menu offers after the screens, with the menu's
-// own wording for each. A key joins the menu only when the keymap registry lists it for
-// the screen the menu was opened from, so the menu cannot offer a key that does nothing
-// there or drift from the keys the footer and Help show.
+// own wording for each, sentence case. A key joins the menu only when the keymap registry
+// lists it for the screen the menu was opened from, so the menu cannot offer a key that
+// does nothing there or drift from the keys the footer, Help and the palette show.
 var menuActions = []menuItem{
-	{"add Application", "a"},
-	{"search", "/"},
-	{"status filter", "s"},
-	{"Track filter", "t"},
-	{"command palette", ":"},
-	{"Help", "?"},
+	{"Add Application", "a", ""},
+	{"Search", "/", ""},
+	{"Switch view", "s", "view"},
+	{"Track filter", "t", ""},
+	{"Rescan", "r", "rescan"},
+	{"Command palette", ":", ""},
+	{"Help", "?", ""},
 }
 
 // workspaceMenu is the menu `space` opens: the screens and the commands that cut across
@@ -52,15 +54,16 @@ type workspaceMenu struct {
 func (m model) openMenu() *workspaceMenu {
 	items := make([]menuItem, 0, len(screenDefs)+len(menuActions))
 	for i, d := range screenDefs {
-		items = append(items, menuItem{d.name, strconv.Itoa(i + 1)})
+		items = append(items, menuItem{d.name, strconv.Itoa(i + 1), ""})
 	}
-	listed := map[string]bool{}
+	listed := map[string]string{}
 	for _, k := range m.screenKeys() {
-		listed[k.Help().Key] = true
+		if _, seen := listed[k.Help().Key]; !seen {
+			listed[k.Help().Key] = k.Help().Desc
+		}
 	}
 	for _, it := range menuActions {
-		// The registry labels the Track filter "t"; the palette key is global.
-		if listed[it.key] {
+		if desc, ok := listed[it.key]; ok && (it.desc == "" || it.desc == desc) {
 			items = append(items, it)
 		}
 	}
@@ -86,6 +89,16 @@ func (wm *workspaceMenu) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	case "enter":
 		press := wm.items[wm.sel].key
 		return nil, func() tea.Msg { return keyPress(press) }
+	case " ", spaceKey, "q":
+		return nil, nil // space toggles the menu closed
+	default:
+		// Each row shows its key, so the key fires from inside the menu too.
+		for _, it := range wm.items {
+			if it.key == k.String() {
+				press := it.key
+				return nil, func() tea.Msg { return keyPress(press) }
+			}
+		}
 	}
 	return wm, nil
 }

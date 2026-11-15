@@ -1,13 +1,13 @@
  ▞ rolecall  1 Leads 4 [2 Drafts 2] 3 Applied 9  4 Stats       █   5 Profile  6 Settings             space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   STATUS [Drafts 2] │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
+   VIEW [Drafts 2] │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✎ Drafts · 2 ──────────────────────────────────────────────── │ docs-none                                            
  ▌ ✎ docs-none                                  Draft ~7d     ·  │ Fictional Labs · SWE · ○ 0/4 ready                   
  ▌   Fictional Labs · SWE · — · ○ 0/4 ready                      │                                                      
    ✎ Engineer #1                                ~Jan 2026  Good  │ ✎ Draft                            fit not assessed  
      Example · Unknown · — · ○ 0/3 ready                         │                                                      
-                                                                 │ DOCS    □□□□ 0/4                     p prepare docs  
+                                                                 │ DOCS    □□□□ 0/4                                     
                                                                  │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
                                                                  │ NEXT    add the JD                       enter open  
@@ -37,4 +37,4 @@
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
    Drafts › All tracks · 1/2 · list
- Enter open  e edit  m move  x dismiss  n notes  a add  / search  t track                1-6 screen  : commands  ? help
+ enter open  e edit  m move  x dismiss  n notes  a add  / search  t track                1-6 screen  : commands  ? help

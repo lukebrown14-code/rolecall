@@ -2,8 +2,10 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // sentFiles are the Application files frozen into sent/ when it is first created.
@@ -49,6 +51,30 @@ func (s *Store) RecordSent(folder string) error {
 		}
 	}
 	return nil
+}
+
+// SetAsideSent renames an Application's sent/ to sent.undone-<date>/ (with -2, -3… when
+// that name is taken), for an undone move to Applied whose RecordSent made it: a later
+// real Apply then freezes a fresh sent/, instead of the mistaken move's copy standing as
+// what was sent. Nothing is deleted. It returns the new folder name.
+func (s *Store) SetAsideSent(folder string, at time.Time) (string, error) {
+	if err := s.applicationRecord(folder); err != nil {
+		return "", err
+	}
+	base := "sent.undone-" + at.Format("2006-01-02")
+	name := base
+	for n := 2; ; n++ {
+		if _, err := os.Lstat(filepath.Join(folder, name)); errors.Is(err, os.ErrNotExist) {
+			break
+		} else if err != nil {
+			return "", err
+		}
+		name = fmt.Sprintf("%s-%d", base, n)
+	}
+	if err := s.fs().Rename(filepath.Join(folder, "sent"), filepath.Join(folder, name)); err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 func (s *Store) copyIfPresent(from, to string) error {

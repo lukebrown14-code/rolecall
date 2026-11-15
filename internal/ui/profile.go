@@ -374,7 +374,7 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, m.quit()
 	case "esc":
-		m.text = "" // an error is cleared before the screen sees esc
+		m.clearSearch() // an error is cleared before the screen sees esc
 		return m, nil
 	}
 	if !m.profileLoaded() {

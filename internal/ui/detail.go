@@ -388,19 +388,22 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	switch key {
 	case "esc":
 		return m.closeDetail(), nil, true
-	case "right", "left":
+	case "right", "left", "tab", "shift+tab":
+		// ←→ switch tabs as they switch views on a list; tab and shift+tab do too, as the
+		// detail has one pane.
 		tabs := m.detailTabs(a)
 		step := 1
-		if key == "left" {
+		if key == "left" || key == "shift+tab" {
 			step = len(tabs) - 1
 		}
 		d.tab = tabs[(slices.Index(tabs, d.tab)+step)%len(tabs)]
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "b", "f", "p", "?", "q", "ctrl+c",
-		// screen digits fall through to screenKey, which closes the detail
-		"1", "2", "3", "4", "5":
+	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "?", "q", "ctrl+c":
 		return m, nil, false
+	}
+	if isScreenKey(key) {
+		return m, nil, false // screenKey switches screen and closes the detail
 	}
 	if a.Malformed != nil {
 		if pe, ok := parseError(a.Malformed); ok && key == "e" {
@@ -419,7 +422,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.ScrollDown(1)
 	case "up", "k":
 		d.body.ScrollUp(1)
-	case "pgdown", spaceKey:
+	case "pgdown":
 		d.body.PageDown()
 	case "pgup":
 		d.body.PageUp()
@@ -461,10 +464,10 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 					return m.syncDetail(), nil, true
 				}
 			}
-		case e.markdown() && key == "e":
-			return m, m.editFile(a.Folder, e.name), true
 		case e.markdown():
-			m.err = fmt.Errorf("%s is missing · e to open %s", e.title(), e.name)
+			// e on any document, and Enter on one not written yet, open it in the Editor:
+			// writing a missing document is the normal next step, not an error.
+			return m, m.editFile(a.Folder, e.name), true
 		}
 	}
 	return m, nil, true
@@ -490,18 +493,18 @@ func (m model) detailView(p pal) string {
 		title = pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case s != closeNone && beforeApplied(tableOf(a)):
 		when = p.CloseStyle(s, p.Text, p.Dim).Render(text)
-	case a.AppliedDate != nil:
-		if m.futureDate(a.AppliedDate) {
+	case appliedDate(a) != nil:
+		if m.futureDate(appliedDate(a)) {
 			when = p.Text(p.Warn).Render("applied " + futureFlag)
 		} else {
 			// The exact applied date shows once: here beside the card, on the strip's
 			// timeline track without it.
 			exact := ""
 			if m.cardShown() {
-				exact = entryDate(a.AppliedDate) + " · "
+				exact = entryDate(appliedDate(a)) + " · "
 			}
-			rel := m.agoEntry(a.AppliedDate)
-			if _, days, _ := daysFrom(a.AppliedDate.At, m.now()); exact != "" && -days >= monthYearAfter {
+			rel := m.agoEntry(appliedDate(a))
+			if _, days, _ := daysFrom(appliedDate(a).At, m.now()); exact != "" && -days >= monthYearAfter {
 				// An old date already reads as a month: the exact date says it all.
 				exact, rel = strings.TrimSuffix(exact, " · "), ""
 			}
@@ -634,8 +637,9 @@ func (m model) trackStops(p pal, a store.Application) (past, pastDated []string,
 		}
 		return p.Text(p.Dim).Render(" " + d)
 	}
-	for i, e := range a.StatusLog {
-		if i == len(a.StatusLog)-1 {
+	log := effectiveLog(a) // an undone move leaves no stop
+	for i, e := range log {
+		if i == len(log)-1 {
 			current = p.StatusMark(e.Status) + " " + p.Text(p.StatusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
 			continue
 		}

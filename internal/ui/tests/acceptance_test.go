@@ -64,10 +64,11 @@ func TestMalformedMovePreservesBytes(t *testing.T) {
 	}
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("⚠")) })
+	// m is refused at the key with the parse error: no Move pop-up for a record the
+	// store cannot read.
 	tm.Type("Gm")
-	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Move")) })
-	tm.Type("d")
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Can't read SWE/malformed")) })
+	tm.Type("d")
 	tm.Type("q")
 	io.ReadAll(tm.FinalOutput(t, teatest.WithFinalTimeout(3*time.Second)))
 	after, err := os.ReadFile(path)

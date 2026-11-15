@@ -94,16 +94,16 @@ func (p pal) fieldRowIn(labelW int, label, value, key, action string, w int) str
 var markdownMarks = strings.NewReplacer("**", "", "*", "", "`", "")
 
 // needsPrepare reports whether a missing Document is one prepare-documents writes, which
-// only a Lead or Draft is offered. The key shows before a Harness is set too: pressing it
-// then names the setting that turns it on.
+// only a Lead or Draft with a JD is offered, and only with a Harness set: a key is offered
+// only where it works.
 func (m model) needsPrepare(a store.Application, c docChip) bool {
-	return !c.ready && c.name != docPDF && m.handoffAllowed(a, skillPrepareDocuments)
+	return m.harness != "" && a.JDHasText && !c.ready && c.name != docPDF && m.handoffAllowed(a, skillPrepareDocuments)
 }
 
-// needsBuild reports whether a missing PDF can be built: a Lead or Draft. Without a Plugin
-// set, b names the setting.
+// needsBuild reports whether a missing PDF can be built now: b works (buildable), with a
+// Plugin set.
 func (m model) needsBuild(a store.Application, c docChip) bool {
-	return !c.ready && c.name == docPDF && a.Malformed == nil && a.Unsent()
+	return m.plugin != "" && !c.ready && c.name == docPDF && buildable(a)
 }
 
 // logDate is a Status entry's date as the timeline words it, "~" for an approximate one.
@@ -143,8 +143,9 @@ func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
 			stop(a.Status, p.Text(p.Dim).Render("not logged"), true)
 		}
 	}
-	for i, e := range a.StatusLog {
-		stop(e.Status, m.logDate(p, e), i == len(a.StatusLog)-1)
+	log := effectiveLog(a) // an undone move leaves no stop
+	for i, e := range log {
+		stop(e.Status, m.logDate(p, e), i == len(log)-1)
 	}
 	if next := nextStatus(a.Status); next != "" {
 		line(p.Text(p.StatusColor(next)).Faint(true).Render(p.StatusGlyph(next)+" "+next), p.Text(p.Dim).Render("next"))
