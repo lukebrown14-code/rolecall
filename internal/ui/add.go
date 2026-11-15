@@ -14,8 +14,20 @@ import (
 // addValues holds the Add/Edit form's answers.
 type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
 
-// fieldURL is the Add/Edit form's URL field label.
-const fieldURL = "URL"
+// fieldURL and fieldTrack are the Add/Edit form's URL and Track field labels.
+const (
+	fieldURL   = "URL"
+	fieldTrack = "Track"
+)
+
+// validFirstTrack applies the Track name rules to a typed first Track; blank is left to
+// the required check.
+func validFirstTrack(s string) error {
+	if name := strings.TrimSpace(s); name != "" {
+		return store.ValidTrackList([]string{name})
+	}
+	return nil
+}
 
 func validCloses(s string) error {
 	if s == "" {
@@ -33,13 +45,19 @@ func validCloses(s string) error {
 
 var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
-// openAdd starts the Add form, or reports why it cannot.
+// openAdd starts the Add form, or reports why it cannot. With no Tracks yet, as in a
+// fresh Workspace, the Track is typed in and saving adds it to workspace.json, so the
+// first Lead needs no trip to Settings. A tracks list the app refused is not written
+// over: the Owner fixes it in Settings first.
 func (m *model) openAdd() tea.Cmd {
-	if len(m.tracks) == 0 {
-		m.err = errors.New("Add needs at least one track in workspace.json")
+	first := ""
+	if len(m.tracks) > 0 {
+		first = m.tracks[0]
+	} else if _, err := m.store.Tracks(); err != nil {
+		m.err = errors.New("Add needs a Track, and workspace.json's tracks can't be read · 6 Settings › Tracking shows why")
 		return nil
 	}
-	f := newForm(&addValues{track: m.tracks[0]}, m.tracks, false)
+	f := newForm(&addValues{track: first}, m.tracks, false)
 	if m.plugin != "" {
 		// With the Plugin, enter on a URL fetches the ad and fills the fields below it.
 		for i := range f.Fields {
@@ -62,7 +80,12 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	url := formField{Label: fieldURL, Role: forms.RoleURL, Value: v.url, Placeholder: "https://…", Note: "optional"}
 	titleField := formField{Label: "Title", Required: true, Value: v.title}
 	company := formField{Label: "Company", Required: true, Value: v.company}
-	track := formField{Label: "Track", Value: v.track, Choices: trackChoices}
+	track := formField{Label: fieldTrack, Value: v.track, Choices: trackChoices}
+	if len(tracks) == 0 {
+		// No Track to choose yet: the first one is typed here and saved with the Lead.
+		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "SWE", Note: "your first Track",
+			Validate: validFirstTrack}
+	}
 	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD", Validate: validCloses}
 	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: "—"}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
 	fields := []formField{url, titleField, company, track, closes, fit}
@@ -77,13 +100,13 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 
 // addValues reads the form's answers.
 func readAddValues(f *form) addValues {
-	return addValues{title: f.Value("Title"), company: f.Value("Company"), track: f.Value("Track"), url: f.Value(fieldURL),
+	return addValues{title: f.Value("Title"), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
 		closes: f.Value("Closes"), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
 }
 
 // createFields turns the form's answers into the store's create fields.
 func createFields(v addValues) store.CreateFields {
-	return store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: v.track, URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
+	return store.CreateFields{Title: strings.TrimSpace(v.title), Company: strings.TrimSpace(v.company), Track: strings.TrimSpace(v.track), URL: strings.TrimSpace(v.url), Closes: v.closes, Fit: v.fit}
 }
 
 // afterCreate shows the new Lead. Without fetched text it opens jd.md for pasting the
@@ -109,6 +132,22 @@ func (m *model) afterCreate(folder string, fields store.CreateFields, jd string)
 // submitAdd creates the Lead from the Add form, or keeps the form open with the error
 // under its focused field: nothing typed is lost to a failed save.
 func (fm *formMode) submitAdd(m *model, fields store.CreateFields) (mode, tea.Cmd) {
+	if len(m.tracks) == 0 {
+		// The first Track goes into workspace.json before the folder is made, so the new
+		// Lead is never on a Track the list does not know.
+		if err := m.store.AddTrack(fields.Track); err != nil {
+			for i := range fm.form.Fields {
+				if fm.form.Fields[i].Label == fieldTrack {
+					fm.form.Focus = i
+				}
+			}
+			fm.form.Focused().Err = m.errorText(err)
+			return fm, nil
+		}
+		if tracks, err := m.store.Tracks(); err == nil {
+			m.tracks = tracks
+		}
+	}
 	folder, err := m.store.Create(fields, m.now())
 	if err != nil {
 		fm.form.Focused().Err = m.errorText(err)

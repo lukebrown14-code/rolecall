@@ -101,7 +101,9 @@ func readApplication(dir string, b []byte) Application {
 		case keyCompany:
 			a.Company = DisplayText(v)
 		case keyTrack:
-			a.Track = DisplayText(v)
+			// Spaces around a Track are noise from a hand edit: " SWE " is SWE, not a
+			// second Track that workspace.json could never list.
+			a.Track = strings.TrimSpace(DisplayText(v))
 		case "url":
 			a.URL = DisplayText(v)
 		case "closes":

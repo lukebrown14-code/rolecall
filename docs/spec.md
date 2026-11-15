@@ -190,7 +190,9 @@ Status (the log stays append-only) and says so on the feedback line (`Undone · 
 
 Form fields: URL · **Title*** · **Company*** · **Track** (choice from `workspace.json`) ·
 Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). Track needs no `*`: it is a choice and
-always holds a track. `Enter` checks the field and moves on; on the last field it checks them
+always holds a track. With no Tracks yet (a fresh `rolecall init` Workspace), Track is a
+required text field instead (`Track*`, placeholder `SWE`), and saving adds that Track to
+`workspace.json` before the Lead's folder is made. `Enter` checks the field and moves on; on the last field it checks them
 all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
 which enter does. Choices change with `←` `→` (or `↑` `↓`). Pasting fills the focused text field;
 a long value shows its end, and a field's error sits on its own line below it (`✘ Title is
@@ -772,7 +774,8 @@ below are built.
     (`workspace.json`; the Build defaults 350, 150, 8 and 12 when unset).
   - Tracking: Tracks (`workspace.json`), then any Track Applications use that
     `workspace.json` does not list (`Unknown · 6 applications · not listed`; Enter adds it, after
-    which it renames like any other), and follow-up days (`config.toml`).
+    which it renames like any other; a name the list could not hold, such as a case twin of a
+    listed Track, is refused and nothing is written), and follow-up days (`config.toml`).
   - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
     harness, plugin.
 - **Keys:** `←`/`→` switch the group, as they switch views elsewhere (`tab` and `[` `]` too);

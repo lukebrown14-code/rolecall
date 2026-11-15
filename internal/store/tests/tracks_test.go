@@ -106,3 +106,40 @@ func TestTracksRejectsBlankDuplicateAndUntrimmedNames(t *testing.T) {
 		}
 	}
 }
+
+// SetTracks refuses any list Tracks would reject, so the app never writes a file it then
+// refuses to load.
+func TestSetTracksRefusesAListTracksWouldReject(t *testing.T) {
+	s := fixtureProfileStore(t)
+	before := readWorkspaceJSON(t, s.Root())
+	for _, tracks := range [][]string{{" SWE "}, {"SWE", "swe"}, {"a/b"}, {"x\x1b]0;y"}, {""}} {
+		if err := s.SetTracks(tracks); err == nil {
+			t.Fatalf("SetTracks(%q) accepted", tracks)
+		}
+	}
+	if got := readWorkspaceJSON(t, s.Root()); got != before {
+		t.Fatalf("workspace.json rewritten:\n%s", got)
+	}
+}
+
+// AddTrack appends to the list, creating the first Track of an empty one, and never
+// writes over a list Tracks refuses.
+func TestAddTrack(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeWorkspaceJSON(t, s.Root(), `{"tracks": []}`)
+	for _, name := range []string{" Data ", "Data", "SWE"} {
+		if err := s.AddTrack(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, _ := s.Tracks(); !reflect.DeepEqual(got, []string{"Data", "SWE"}) {
+		t.Fatalf("tracks = %q", got)
+	}
+	writeWorkspaceJSON(t, s.Root(), `{"tracks": ["SWE", "swe"]}`)
+	if err := s.AddTrack("Data"); err == nil {
+		t.Fatal("AddTrack wrote over a refused list")
+	}
+	if got := readWorkspaceJSON(t, s.Root()); got != `{"tracks": ["SWE", "swe"]}` {
+		t.Fatalf("workspace.json rewritten: %s", got)
+	}
+}

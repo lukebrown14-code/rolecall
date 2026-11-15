@@ -75,7 +75,7 @@ func (s *Store) Tracks() ([]string, error) {
 			return nil, fmt.Errorf("%s: invalid Workspace settings", w.Path)
 		}
 	}
-	if err := checkTracks(tracks); err != nil {
+	if err := ValidTrackList(tracks); err != nil {
 		return nil, &TrackListError{Path: w.Path, Err: err}
 	}
 	return tracks, nil
@@ -91,9 +91,10 @@ type TrackListError struct {
 func (e *TrackListError) Error() string { return fmt.Sprintf("%s: tracks: %v", e.Path, e.Err) }
 func (e *TrackListError) Unwrap() error { return e.Err }
 
-// checkTracks applies the Track name rules Settings applies to a new Track to a
-// hand-edited list: each one non-empty, without surrounding spaces, and listed once.
-func checkTracks(tracks []string) error {
+// ValidTrackList applies the Track name rules to a whole list, as Tracks reads it and
+// SetTracks writes it: each one a valid name without surrounding spaces or control
+// characters, and listed once (ignoring case).
+func ValidTrackList(tracks []string) error {
 	for i, t := range tracks {
 		if t != strings.TrimSpace(t) {
 			return fmt.Errorf("Track %q has spaces around it", DisplayText(t))

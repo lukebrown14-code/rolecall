@@ -6,12 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 )
 
 // SetTracks writes tracks to workspace.json. Only the tracks key changes: every other key
 // keeps its value and its place, and the file is re-indented with 2 spaces. A missing file
-// is created; an invalid one is never written over.
+// is created; an invalid one is never written over. A list that breaks the Track name
+// rules is refused, so the app never writes a file Tracks would then reject.
 func (s *Store) SetTracks(tracks []string) error {
+	if err := ValidTrackList(tracks); err != nil {
+		return err
+	}
 	if tracks == nil {
 		tracks = []string{}
 	}
@@ -20,6 +26,21 @@ func (s *Store) SetTracks(tracks []string) error {
 		return err
 	}
 	return s.setWorkspaceKey("tracks", value)
+}
+
+// AddTrack appends a Track to workspace.json, as the first Lead of a fresh Workspace
+// does. A Track already listed is left as it is; a tracks list Tracks refuses is never
+// written over.
+func (s *Store) AddTrack(name string) error {
+	name = strings.TrimSpace(name)
+	tracks, err := s.Tracks()
+	if err != nil {
+		return err
+	}
+	if slices.Contains(tracks, name) {
+		return nil
+	}
+	return s.SetTracks(append(tracks, name))
 }
 
 // setWorkspaceKey replaces one top-level key of workspace.json, appending it when absent.
