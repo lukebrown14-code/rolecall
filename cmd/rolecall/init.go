@@ -74,7 +74,7 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 		return errors.New("Workspace path is required")
 	}
 	if o.workspace != "" {
-		if err := store.ValidateWorkspacePath(o.workspace); err != nil {
+		if err := store.ValidateWorkspacePath(expandHome(o.workspace)); err != nil {
 			return err
 		}
 	}
@@ -105,7 +105,7 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if len(o.search.Places) > 0 && o.search.Remote == "" {
 		o.search.Remote = "in-places"
 	}
-	root, err := filepath.Abs(o.workspace)
+	root, err := filepath.Abs(expandHome(strings.TrimSpace(o.workspace)))
 	if err != nil {
 		return err
 	}
@@ -190,11 +190,12 @@ func promptMissing(o *initOptions, fs *flag.FlagSet, in io.Reader, out io.Writer
 		fields = append(fields, huh.NewSelect[string]().Title("Remote roles").Options(huh.NewOption("No Search area", ""), huh.NewOption("In my places", "in-places"), huh.NewOption("Anywhere", "anywhere"), huh.NewOption("No remote roles", "no")).Value(&o.search.Remote))
 	}
 	if !wasSet(fs, "workspace") && fs.NArg() == 0 {
+		o.workspace = defaultWorkspacePath()
 		fields = append(fields, huh.NewInput().Title("Workspace path").Value(&o.workspace).Validate(func(v string) error {
 			if strings.TrimSpace(v) == "" {
 				return errors.New("required")
 			}
-			return nil
+			return store.ValidateWorkspacePath(expandHome(strings.TrimSpace(v)))
 		}))
 	}
 	if len(fields) > 0 {
@@ -220,6 +221,29 @@ func promptMissing(o *initOptions, fs *flag.FlagSet, in io.Reader, out io.Writer
 		}
 	}
 	return nil
+}
+
+// defaultWorkspacePath suggests a rolecall folder in the directory init runs from:
+// the folder the install script was run from when it launches init.
+func defaultWorkspacePath() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(cwd, "rolecall")
+}
+
+// expandHome turns a leading ~ into the home directory, as a shell would; typed
+// into the prompt, "~/rolecall" would otherwise create a folder named "~".
+func expandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	return filepath.Join(home, strings.TrimPrefix(path, "~"))
 }
 
 func wasSet(fs *flag.FlagSet, name string) bool {

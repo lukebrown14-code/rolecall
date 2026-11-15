@@ -77,27 +77,41 @@ func initWorkspaceFiles(root string, contact contactDetails, tracks []string, se
 	return nil
 }
 
+// noWorkspaceError tells someone who has installed rolecall but not run init
+// what to do next, instead of only naming the empty config file.
+func noWorkspaceError(home string) error {
+	return fmt.Errorf("No Workspace yet. Run `rolecall init` to create one, or set workspace in %s", config.Path(home))
+}
+
 func runDoctor(dir string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
+	// A Workspace problem does not end the diagnosis: the tool, Plugin and Editor
+	// checks below still help someone setting up. doctor fails with it at the end.
+	var workspaceErr error
 	c, err := config.Load(home, dir)
-	if err != nil {
+	if errors.Is(err, config.ErrNoWorkspace) {
+		workspaceErr = noWorkspaceError(home)
+		c.Workspace = ""
+	} else if err != nil {
 		return err
-	}
-	if _, err := store.Open(c.Workspace); err != nil {
-		return fmt.Errorf("open Workspace: %w", err)
-	}
-	warnings, err := doctor.Check(c.Workspace, doctor.GitHubVisibilityLookup)
-	if err != nil {
-		return fmt.Errorf("check Workspace permissions: %w", err)
-	}
-	if len(warnings) == 0 {
-		fmt.Println("Workspace permissions are private.")
+	} else if _, err := store.Open(c.Workspace); err != nil {
+		workspaceErr = fmt.Errorf("open Workspace: %w", err)
+		c.Workspace = ""
 	} else {
-		for _, warning := range warnings {
-			fmt.Printf("WARNING: %s\n", warning)
+		warnings, err := doctor.Check(c.Workspace, doctor.GitHubVisibilityLookup)
+		if err != nil {
+			return fmt.Errorf("check Workspace permissions: %w", err)
+		}
+		fmt.Printf("OK: Workspace found (%s)\n", c.Workspace)
+		if len(warnings) == 0 {
+			fmt.Println("Workspace permissions are private.")
+		} else {
+			for _, warning := range warnings {
+				fmt.Printf("WARNING: %s\n", warning)
+			}
 		}
 	}
 
@@ -114,7 +128,7 @@ func runDoctor(dir string) error {
 		fmt.Printf("WARNING: %s; %s\n", message, check.Hint)
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
-	return nil
+	return workspaceErr
 }
 
 func run(dir string) error {
@@ -123,6 +137,9 @@ func run(dir string) error {
 		return err
 	}
 	c, err := config.Load(home, dir)
+	if errors.Is(err, config.ErrNoWorkspace) {
+		return noWorkspaceError(home)
+	}
 	if err != nil {
 		return err
 	}

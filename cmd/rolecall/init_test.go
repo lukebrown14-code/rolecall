@@ -154,3 +154,31 @@ func TestPromptInputKeepsTheTerminalForInteractiveForms(t *testing.T) {
 		t.Fatal("accessible prompt input is not limited to one line per read")
 	}
 }
+
+func TestWorkspacePathDefaultsBesideTheCurrentDirectory(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := defaultWorkspacePath(), filepath.Join(cwd, "rolecall"); got != want {
+		t.Fatalf("default Workspace path = %q, want %q", got, want)
+	}
+}
+
+func TestExpandHomeTurnsTildeIntoTheHomeDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	for in, want := range map[string]string{
+		"~":           home,
+		"~/rolecall":  filepath.Join(home, "rolecall"),
+		"/abs/path":   "/abs/path",
+		"~other/path": "~other/path",
+		"rel/path":    "rel/path",
+	} {
+		if got := expandHome(in); got != want {
+			t.Errorf("expandHome(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

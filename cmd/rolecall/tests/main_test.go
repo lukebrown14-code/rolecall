@@ -20,8 +20,26 @@ func TestCLI(t *testing.T) {
 	cmd := exec.Command(binary)
 	cmd.Env = append(os.Environ(), "HOME="+home, "GOCACHE="+filepath.Join(t.TempDir(), "cache"))
 	out, err := cmd.CombinedOutput()
-	if err == nil || !strings.HasPrefix(string(out), "no Workspace configured in "+filepath.Join(home, ".config/rolecall/config.toml")+"\n") {
+	if err == nil || string(out) != "No Workspace yet. Run `rolecall init` to create one, or set workspace in "+filepath.Join(home, ".config/rolecall/config.toml")+"\n" {
 		t.Fatalf("%s %v", out, err)
+	}
+}
+
+// Before init there is no config file: doctor still runs its setup checks, then
+// fails with the next step instead of stopping at the missing Workspace.
+func TestCLIDoctorWithoutConfigRunsChecksAndPointsToInit(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	cmd := exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err := cmd.CombinedOutput()
+	if err == nil || !strings.Contains(string(out), "Run `rolecall init` to create one") {
+		t.Fatalf("doctor output = %q, err = %v; want a failure pointing to rolecall init", out, err)
+	}
+	for _, check := range []string{"typst", "Plugin path", "Harness command", "Template in use"} {
+		if !strings.Contains(string(out), check) {
+			t.Errorf("doctor output missing %s: %q", check, out)
+		}
 	}
 }
 
@@ -173,6 +191,9 @@ func TestCLIDoctorRejectsWorkspaceThatCannotBeOpened(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "open Workspace") {
 		t.Fatalf("doctor output = %q, err = %v; want Workspace open failure", out, err)
+	}
+	if !strings.Contains(string(out), "Plugin path") {
+		t.Errorf("doctor stopped before its setup checks: %q", out)
 	}
 }
 

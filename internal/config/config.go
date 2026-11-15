@@ -76,6 +76,10 @@ func Ensure(path string) error {
 // defaultFollowUpDays is the Follow-up threshold when config sets none.
 const defaultFollowUpDays = 14
 
+// ErrNoWorkspace reports that neither config.toml nor --dir names a Workspace. Load
+// still returns every other setting alongside it, so doctor can check the rest.
+var ErrNoWorkspace = errors.New("no Workspace configured")
+
 // Load reads settings under home; dir overrides the configured Workspace.
 func Load(home, dir string) (Config, error) {
 	var c Config
@@ -138,7 +142,7 @@ func Load(home, dir string) (Config, error) {
 		c.Downloads = filepath.Join(home, "Downloads")
 	}
 	if c.Workspace == "" {
-		return c, fmt.Errorf("no Workspace configured in %s", path)
+		return c, fmt.Errorf("%w in %s", ErrNoWorkspace, path)
 	}
 	return c, nil
 }

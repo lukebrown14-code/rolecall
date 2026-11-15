@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,7 +15,7 @@ import (
 func TestLoader(t *testing.T) {
 	home := t.TempDir()
 	c, err := config.Load(home, "")
-	if err == nil || err.Error() != "no Workspace configured in "+filepath.Join(home, ".config/rolecall/config.toml") {
+	if !errors.Is(err, config.ErrNoWorkspace) || err.Error() != "no Workspace configured in "+filepath.Join(home, ".config/rolecall/config.toml") {
 		t.Fatalf("missing: %v", err)
 	}
 	p := filepath.Join(home, ".config/rolecall")
