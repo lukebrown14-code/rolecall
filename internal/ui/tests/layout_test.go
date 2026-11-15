@@ -216,10 +216,10 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 			split := strings.Contains(lines[rules[0]], "┬")
 			want := tc.lists
 			switch keys[0] {
-			case "1", "3":
-				want = tc.preview
-			case "4", "6":
-				want = false // Stats and Settings draw no divider: Settings sections are tabs
+			case "1", "3", "6":
+				want = tc.preview // Settings' about pane sits beside the rows only when wide
+			case "4":
+				want = false // Stats draws no divider
 			}
 			if split != want || split != strings.Contains(lines[rules[1]], "┴") {
 				t.Errorf("%dx%d keys %q: divider = %v, want %v:\n%s", tc.w, tc.h, keys, split, want, strings.Join(lines, "\n"))
@@ -270,7 +270,7 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 // Text wraps only at spaces: a flag such as "--wait" and a phrase such as "Fit: not
 // assessed" stay whole.
 func TestWrapsOnlyAtSpaces(t *testing.T) {
-	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "6", "]", "]", "]"))
+	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, "6", "]", "]", "]"))
 	if !strings.Contains(machine, "--wait") || strings.Contains(machine, "-\n") {
 		t.Errorf("editor examples split a flag:\n%s", machine)
 	}

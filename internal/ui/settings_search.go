@@ -41,8 +41,8 @@ func newSearchAreaForm(places []string, remote string) *form {
 		choices = append(choices, choice{Value: r, Label: remoteLabels[r]})
 	}
 	f := newFormOf("Edit Search area",
-		formField{Label: fieldPlaces, Required: true, Value: strings.Join(places, ", "), Placeholder: "Australia, APAC",
-			Note: "comma-separated"},
+		formField{Label: fieldPlaces, Value: strings.Join(places, ", "), Placeholder: "Australia, APAC",
+			Note: "comma-separated · empty keeps every location"},
 		formField{Label: fieldRemote, Value: remote, Choices: choices})
 	f.ShowDirty = true
 	return f
@@ -52,17 +52,18 @@ func newSearchAreaForm(places []string, remote string) *form {
 func (m model) searchAreaPopup() mode {
 	wasPlaces, wasRemote := slices.Clone(m.settings.Ws.Places), m.settings.Ws.Remote
 	return &formPopup{form: newSearchAreaForm(wasPlaces, wasRemote), width: popSmall, save: func(m *model, f *form) (mode, error) {
-		places, err := splitPlaces(f.Value(fieldPlaces))
-		if err != nil {
-			return nil, err
-		}
+		places := splitPlaces(f.Value(fieldPlaces))
 		if err := m.store.SetSearchArea(places, f.Value(fieldRemote)); err != nil {
 			m.err = err
 			return nil, nil
 		}
 		m.err = nil
 		*m = m.loadSettings()
-		*m = m.saved("Saved Search area", settingsFile, &settingsUndo{
+		msg := "Saved Search area"
+		if len(places) == 0 {
+			msg = "Cleared Search area: every location is kept"
+		}
+		*m = m.saved(msg, settingsFile, &settingsUndo{
 			what: "Search area as it was",
 			restore: func(m model) model {
 				remote := wasRemote

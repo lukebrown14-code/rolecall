@@ -299,6 +299,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The feedback line: a success clears on the next key; an error stays until esc.
 		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
 		if k.String() == "ctrl+c" {
+			if next, held := m.quitHeld(); held {
+				return next, nil // typed Settings text is never dropped without asking
+			}
 			return m, m.quit()
 		}
 	}

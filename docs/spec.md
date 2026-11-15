@@ -119,7 +119,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 |---|---|---|
 | `1` `2` `3` | global | switch screen |
 | `←` `→` | screen | previous / next view (table); in the detail view, previous / next tab |
-| `Tab` / `Shift-Tab` | screen | next / previous pane (Profile, Settings); on a table screen, which has one pane, next / previous view |
+| `Tab` / `Shift-Tab` | screen | next / previous pane (Profile); next / previous group (Settings); on a table screen, which has one pane, next / previous view |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom |
 | `a` | global | Add form |
 | `v` / `Enter` | row | detail view |
@@ -654,8 +654,10 @@ prose, so the 1.x edit form covers the Contact only.
 - **Counts** beside each section: entries for `###` sections, rows for tables, bullets for
   lists, items for comma lists, none for prose. Contact shows ✓, or ✗ with the reason in the
   content pane when Name or Email is missing (builds would fail).
-- **Keys:** `j`/`k` section, `tab` focus, `e` opens the current file in `$EDITOR` (as on the
-  Resume tab).
+- **Keys:** `j`/`k` section (scroll once `tab` moves focus to the content; the key line says
+  which), `g`/`G` first and last section (top and bottom of the content), `tab` focus, `e`
+  opens the current file in `$EDITOR` (as on the Resume tab). `e edit file` shows once, on the
+  section row, not on each Contact field.
 - **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
   found` and `e` does nothing; a file with no `##` headings is one section, "Profile"; below
   80 columns the section list hides and the header names the section.
@@ -667,28 +669,39 @@ prose, so the 1.x edit form covers the Contact only.
 
 Laid out like Profile. Parent spec: #58; this section covers the read-only first slice (#66).
 
-- **Screen 6**, after Profile (`6 Settings` in the header). Groups on the left (**Search ·
-  Documents · Tracking · This machine**), the selected group's settings on the right.
+- **Screen 6**, after Profile (`6 Settings` in the header). The groups (**Search ·
+  Documents · Tracking · This machine**) are tabs in the context row, the active one bracketed
+  (`[Search]`); every group is named while they fit, else only the active one and its place
+  (`[Search] 1/4`). At wide sizes an about pane beside the rows says, in one plain sentence,
+  what the focused setting is, with an example and the file it is kept in; narrower, the
+  sentence sits under the rows and is the first thing a short terminal drops.
 - **Values shown**, each from the file that owns it:
   - Search: Places and Remote rule (`workspace.json` → `search_area`), then `Sources · N` and
     `Blockers · N` count rows.
   - Documents: cover letter word cap and minimum, Key Skills minimum and maximum
     (`workspace.json`; the Build defaults 350, 150, 8 and 12 when unset).
-  - Tracking: Tracks (`workspace.json`) and follow-up days (`config.toml`).
+  - Tracking: Tracks (`workspace.json`), then any Track Applications use that
+    `workspace.json` does not list (`Unknown · 6 applications · not listed`; Enter adds it, after
+    which it renames like any other), and follow-up days (`config.toml`).
   - This machine (`config.toml`): workspace path (shown, never editable), editor, downloads,
     harness, plugin.
-- **Keys:** `j`/`k` move the group, or the row once `tab` moves focus to the settings; the
-  accent `▸` marks the focused pane, and the selected group keeps a muted `▸` while the rows
-  have focus; the cursor skips read-only rows (Workspace, Sources, Blockers), which say why
-  they are fixed. Tracking lists each Track with its Application count and a `+ add a Track`
+- **Keys:** `←`/`→` switch the group, as they switch views elsewhere (`tab` and `[` `]` too);
+  `j`/`k` move the row, `g`/`G` go to the first and last; `k` above the first row rests on the
+  tabs. The cursor skips read-only rows (Workspace, Sources, Blockers), which say what they are
+  and why they are fixed. Tracking lists each Track with its Application count and a `+ add a Track`
   row; `a` add, `r` rename, `x` remove and `J`/`K` reorder act on the selected Track. `e`
   opens `workspace.json` in the Editor, or `config.toml` while This machine is selected; `r`
-  rescans. Each save says what and where (`Saved Editor: nano · config.toml`), and `u` puts
-  the last Settings change back (not a Track rename).
+  rescans. One save model in every group: Enter saves at once (a pop-up's last field, an
+  inline field, a Yes/No toggle), says what and where (`Saved Editor: nano · config.toml`), and
+  `u` puts the last Settings change back (not a Track rename). There is no staged save. An
+  inline field over a set value opens with it selected, so typing replaces it; over an unset
+  value it opens empty with the default in effect as its placeholder. Emptying a text setting
+  clears it, so the default applies again; emptying Places clears the Search area (every
+  location kept). `ctrl+c` over typed text in a field or Settings pop-up asks `Discard changes?
+  y/n` first; a second `ctrl+c` quits.
 - **`,`** opens Settings from any screen, including the detail view and Stats. `Esc` returns to
-  the screen, table, cursor, open detail and filter it was opened from; a Settings screen
-  reached with `6` has no previous screen, so `Esc` does nothing there. In a text filter `,` is
-  typed, not a key.
+  the screen, table, cursor, open detail and filter it was opened from, whether it was opened
+  with `,` or `6`. In a text filter `,` is typed, not a key.
 - **Source:** every value is followed by where it came from: `workspace.json`, `config.toml`,
   `from $VISUAL`, `from $EDITOR` (Editor only), `from $ROLECALL_PLUGIN` (Plugin only), `from
   --dir` (Workspace only) or `default`. Unset values show their effective default (Editor `vi`,
@@ -696,18 +709,17 @@ Laid out like Profile. Parent spec: #58; this section covers the read-only first
   carry their unit (`14 days`, `350 words`).
 - **Editor:** shows the command in effect. If the first word is not on `PATH` (quoted paths
   honoured) the row adds `⚠ not found on PATH`. This never blocks launch; `rolecall doctor`
-  reports the same condition as a warning.
+  reports the same condition as a warning. A Harness whose program is not on `PATH`, and a
+  Plugin folder that is missing or has no `skills/`, warn the same way and never block a save.
 - **Config reload:** `e` on This machine creates `config.toml` empty if missing, opens it in
   the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay and
   the feedback line shows the error. The Workspace is fixed for the session.
-- **Editor examples:** This machine lists `nvim`, `code --wait`, `zed --wait`, `hx`,
+- **Editor examples:** the Editor's about text names `nvim`, `hx`, `code --wait`, `zed --wait`,
   `subl --wait`. GUI Editors need their wait flag, or rolecall rescans before editing finishes.
 - An explicit `follow_up_days = 0` is honoured; only an absent key means the default 14.
 - **Invalid `workspace.json`:** the screen shows its path and the parse error, with `e` as the
   only action. The program still starts, with no Track filter. Nothing is written.
 - **Refresh:** both files are re-read on entering the screen, on `r`, and after `$EDITOR` closes.
-- **Narrow:** below 80 columns the group list hides and the header names the group (`Search
-  1/4`), as on Profile.
 - **Later slices:** editing Tracks (add, rename, remove, reorder), the Search area form, gates
   and machine settings as editable rows. `workspace.json` is then written by the TUI, a
   `SCHEMA.md` ownership change that lands with the first writing slice.

@@ -438,7 +438,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	before := profileFiles(t, root)
 	plain := chipped(runKeys(t, root, 120, "5"))
-	withKeys := chipped(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
+	withKeys := chipped(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "t"))
 	if plain != withKeys {
 		t.Fatalf("an Application key or t changed Profile:\n--- plain ---\n%s\n--- with keys ---\n%s", plain, withKeys)
 	}

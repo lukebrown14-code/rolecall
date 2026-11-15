@@ -65,18 +65,6 @@ func TestHelpListsMenuUndoAndOneCommandsRow(t *testing.T) {
 	}
 }
 
-// An unsaved edit's saved value sits right after the edited value, not out in the column
-// the group's longest value sets.
-func TestSettingsWasSitsBesideTheEditedValue(t *testing.T) {
-	for _, sz := range keyLineSizes {
-		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1],
-			"6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter"))
-		if row := lineWith(view, "Follow-up due after"); !strings.Contains(row, "7 days  was 14") {
-			t.Errorf("%dx%d: was 14 is not beside 7 days: %q\n%s", sz[0], sz[1], row, view)
-		}
-	}
-}
-
 // The Workspace menu's cursor stands apart from its label, "▌ ▸ Leads", and every row's
 // label starts in the same column.
 func TestWorkspaceMenuCursorIsSpacedAndLabelsAlign(t *testing.T) {

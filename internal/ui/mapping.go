@@ -72,14 +72,12 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 	if len(key) != 1 || key[0] < '1' || key[0] > last {
 		return m, false
 	}
-	if target := int(key[0] - '1'); m.screen == settingsScreen && target != settingsScreen && m.settings != nil && m.settings.Dirty() > 0 {
-		// Unsaved Settings changes are saved or discarded before the screen changes.
-		return m.leaveSettings(func(m model) model {
-			next, _ := m.screenKey(k)
-			return next
-		}), true
+	target := int(key[0] - '1')
+	if target == settingsScreen && m.screen != settingsScreen {
+		// Settings reached with 6 returns on Esc too, as it does when opened with ",".
+		return m.openSettings(), true
 	}
-	m.screen, m.table, m.cursor = int(key[0]-'1'), 0, 0
+	m.screen, m.table, m.cursor = target, 0, 0
 	m.back = nil
 	// Switching screens leaves any open detail behind, so its keys cannot shadow the
 	// new screen's.
