@@ -535,12 +535,25 @@ func (m model) breadcrumbLine(p pal) string {
 			room -= len(keyGap) + xansi.StringWidth(keys)
 		}
 		right = joinNonEmpty(keyGap, xansi.Truncate(msg, max(1, room), "…"), keys)
+	} else if warn := m.legacyWarning(); warn != "" {
+		room := max(1, w-rightMargin-gutter-inset-breadcrumbMin)
+		right = p.Text(p.Warn).Render(xansi.Truncate(warn, room, "…"))
 	}
 	room := w - rightMargin
 	if right != "" {
 		room -= gutter + xansi.StringWidth(right)
 	}
 	return contextRow(m.breadcrumbLeft(p, room), right, w)
+}
+
+// legacyWarning names a dashboard-era file in the Workspace, such as jobs/SHORTLIST.md,
+// that nothing reads: a Harness writing it has old instructions, so its roles never
+// appear here. It stays on the footer while no toast or error needs the space.
+func (m model) legacyWarning() string {
+	if len(m.legacy) == 0 {
+		return ""
+	}
+	return "⚠ " + filepath.ToSlash(m.legacy[0]) + " isn't read by rolecall · run rolecall doctor"
 }
 
 // keyGap separates the feedback from its keys, as the key line separates its keys.

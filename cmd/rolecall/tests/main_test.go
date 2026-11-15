@@ -10,6 +10,29 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
+// A dashboard-era SHORTLIST.md is never read, so doctor names it and the migration.
+func TestCLIDoctorWarnsAboutLegacyShortlist(t *testing.T) {
+	binary := buildRolecall(t)
+	workspace := filepath.Join(t.TempDir(), "ws")
+	home := t.TempDir()
+	initCmd := exec.Command(binary, "init", workspace)
+	initCmd.Env = append(os.Environ(), "HOME="+home)
+	if out, err := initCmd.CombinedOutput(); err != nil {
+		t.Fatalf("init failed: %s %v", out, err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace, "jobs", "SHORTLIST.md"), []byte("# Shortlist\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, _ := cmd.CombinedOutput()
+	for _, want := range []string{"WARNING: jobs/SHORTLIST.md is from an older rolecall", "migrate.py", "--dry-run"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("doctor output missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestCLI(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "rolecall")
 	if out, err := exec.Command("go", "build", "-o", binary, "..").CombinedOutput(); err != nil {

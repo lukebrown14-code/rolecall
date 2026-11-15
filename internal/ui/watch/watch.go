@@ -190,8 +190,12 @@ func (w *Watcher) handle(ev fsnotify.Event) {
 	switch len(p) {
 	case 1:
 		// A track folder appeared or went away: its Applications are reported by
-		// addTree on creation, and as their own removals otherwise.
+		// addTree on creation, and as their own removals otherwise. A loose file in
+		// jobs/ (a dashboard-era SHORTLIST.md) is reported too, so the refresh that
+		// follows can warn about it; it is no Application, so the rescan drops it.
 		if !created && w.forget(ev.Name) {
+			w.deb.Add(ev.Name)
+		} else if !isDir && !w.known(ev.Name) {
 			w.deb.Add(ev.Name)
 		}
 	case depthApplication:
@@ -214,6 +218,13 @@ func (w *Watcher) handle(ev fsnotify.Event) {
 		}
 		w.deb.Add(folder)
 	}
+}
+
+// known reports whether path is a watched directory.
+func (w *Watcher) known(path string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.dirs[path]
 }
 
 // forget drops a removed directory (and anything below it) from the watched set and

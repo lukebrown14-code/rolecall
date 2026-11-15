@@ -11,6 +11,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -85,7 +86,7 @@ func runDoctor(dir string) error {
 		c.Workspace = ""
 	} else if err != nil {
 		return err
-	} else if _, err := store.Open(c.Workspace); err != nil {
+	} else if s, err := store.Open(c.Workspace); err != nil {
 		workspaceErr = fmt.Errorf("open Workspace: %w", err)
 		c.Workspace = ""
 	} else {
@@ -101,6 +102,7 @@ func runDoctor(dir string) error {
 				fmt.Printf("WARNING: %s\n", warning)
 			}
 		}
+		printLegacyWarnings(s.LegacyFiles(), c.Workspace, c.Plugin)
 	}
 
 	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
@@ -117,6 +119,25 @@ func runDoctor(dir string) error {
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
 	return workspaceErr
+}
+
+// printLegacyWarnings names each dashboard-era file in the Workspace. Nothing reads them:
+// roles written there never become Leads. The fix is the one-time migration, then
+// pointing the Harness at the current Plugin.
+func printLegacyWarnings(files []string, workspace, plugin string) {
+	if len(files) == 0 {
+		return
+	}
+	for _, f := range files {
+		fmt.Printf("WARNING: %s is from an older rolecall and is not read; its roles are not Leads\n", filepath.ToSlash(f))
+	}
+	script := "<plugin>/scripts/migrate.py"
+	if plugin != "" {
+		script = ui.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
+	}
+	fmt.Printf("  Convert them to Lead folders (close rolecall first; --dry-run writes nothing):\n")
+	fmt.Printf("    python3 %s --data %s --dry-run\n", script, ui.QuoteShellArgument(workspace))
+	fmt.Println("  Then update your Harness to the current Plugin, which saves each Lead as a folder.")
 }
 
 func run(dir string) error {
