@@ -40,7 +40,7 @@ func companySuffix(company string) string {
 
 // notNeededMark marks a Document the Application does not need (a Resume only Cover letter).
 // The em dash is the frame's "none", as an empty NOTES row shows it.
-const notNeededMark = "—"
+const notNeededMark = glyphNone
 
 // keyChip is the bare key, "m", in the Keys colour.
 func (p pal) keyChip(key string) string { return p.Key().Render(key) }
@@ -180,13 +180,10 @@ func (m model) fieldBlock(p pal, a store.Application, w int) []string {
 	return append(rows, "", m.notesRow(p, a, w))
 }
 
-// statusLine is "● Applied" with the Fit at the right edge: "fit not assessed" until one is.
+// statusLine is "● Applied" with the Fit at the right edge: "fit —" until one is assessed.
 // Where both do not fit on one line, the Fit takes the line below.
 func (m model) statusLine(p pal, a store.Application, w int) []string {
-	fit := p.Text(p.Dim).Render("fit not assessed")
-	if a.Fit != "" {
-		fit = p.Text(p.Dim).Render("fit ") + p.Text(p.FitColor(a.Fit)).Render(a.Fit)
-	}
+	fit := p.fitWords(a.Fit)
 	status := p.Text(p.StatusColor(a.Status)).Bold(true).Render(p.StatusGlyph(a.Status) + " " + a.Status)
 	if xansi.StringWidth(status)+gutter+xansi.StringWidth(fit) > w {
 		return []string{xansi.Truncate(status, w, "…"), xansi.Truncate(fit, w, "…")}

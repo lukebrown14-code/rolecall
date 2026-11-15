@@ -35,7 +35,7 @@ func detailPane(t *testing.T, screen, name string, w, h int, edit func(string)) 
 // end in at most one bare key: "DOCS … p prepare docs", "NEXT … m move", "NOTES … n add".
 func TestDetailPaneSectionsEndInOneKey(t *testing.T) {
 	view := detailPane(t, "3", "docs-written", 120, 36, nil)
-	for _, want := range []string{"◆ Interviewing", "fit not assessed", "DOCS", "NEXT", "TIMELINE", "NOTES", "n notes"} {
+	for _, want := range []string{"◆ Interviewing", "fit —", "DOCS", "NEXT", "TIMELINE", "NOTES", "n notes"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}
@@ -94,14 +94,14 @@ func TestDetailTimelineRunsOldestFirst(t *testing.T) {
 // An assessed Fit shows in its colour at the Status line's right edge.
 func TestDetailAssessedFit(t *testing.T) {
 	view := detailPane(t, "3", "zedcorp", 120, 36, threeEntryLog)
-	if !strings.Contains(lineWith(view, "fit Good"), "◆ Interviewing") {
+	if !hasLineWith(view, "fit Good", "◆ Interviewing") {
 		t.Errorf("the Status line lacks the Fit:\n%s", view)
 	}
 }
 
 func TestDetailNotAssessedFit(t *testing.T) {
 	view := detailPane(t, "2", "docs-none", 120, 36, nil)
-	if !strings.Contains(lineWith(view, "fit not assessed"), "✎ Draft") {
+	if !hasLineWith(view, "fit —", "✎ Draft") {
 		t.Errorf("the Status line does not say the Fit is not assessed:\n%s", view)
 	}
 }
@@ -129,7 +129,7 @@ func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 	if strings.Contains(view, "p prepare docs") {
 		t.Errorf("an Interviewing Application is offered prepare docs:\n%s", view)
 	}
-	if docs := lineWith(view, "○ PDF"); !strings.Contains(docs, "JD   ● Resume   ● Cover letter") {
+	if docs := lineWith(view, "○ PDF"); !strings.Contains(docs, "JD   ✓ Resume   ✓ Cover letter") {
 		t.Errorf("the Documents are not side by side on one line: %q:\n%s", docs, view)
 	}
 }

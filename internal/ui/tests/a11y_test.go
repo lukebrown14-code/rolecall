@@ -87,7 +87,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 	if !strings.Contains(profile, "> Contact") {
 		t.Fatalf("ASCII fallback lost Profile's selection marker:\n%s", profile)
 	}
-	if row := requireProfileListRow(t, profile, "Contact"); !strings.HasSuffix(row, "v") {
+	if row := requireProfileListRow(t, profile, "Contact"); !strings.HasSuffix(row, "+") {
 		t.Fatalf("ASCII fallback lost Contact's mark: row %q:\n%s", row, profile)
 	}
 	if !hasProfileDivider(profile) {
@@ -130,7 +130,7 @@ func TestAsciiFallsBackWhenTheLocaleIsNotUTF8(t *testing.T) {
 // The ? pop-up explains the glyphs.
 func TestHelpExplainsTheGlyphs(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "?"))
-	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "· ◦ ● due 14+ days") || !strings.Contains(view, "· not assessed") {
+	if !strings.Contains(view, "GLYPHS") || !strings.Contains(view, "current stop") || !strings.Contains(view, "◌ Lead") || !strings.Contains(view, "⊘ Dismissed") || !strings.Contains(view, "⚑ follow-up due (14d)") || !strings.Contains(view, "— not assessed") || !strings.Contains(view, "✓ ready") {
 		t.Fatalf("help lacks the glyph legend:\n%s", view)
 	}
 }
@@ -204,7 +204,7 @@ func TestAsciiOnTheLinuxConsole(t *testing.T) {
 func TestAsciiKeepsStatusesApart(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", "x docs-ready", "- docs-resume-only"} {
+	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", "x docs-ready", "< docs-resume-only"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("ASCII lost %q:\n%s", want, view)
 		}
@@ -217,7 +217,7 @@ func TestAsciiKeepsStatusesApart(t *testing.T) {
 func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
-		"● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "– docs-resume-only"} {
+		"● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "↩ docs-resume-only"} {
 		if !strings.Contains(list, want) {
 			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
 		}
@@ -231,10 +231,10 @@ func TestStatusGlyphsShowEverywhere(t *testing.T) {
 }
 
 // The Closed group carries the ✕ group glyph (x in ASCII), and Withdrawn rows are told
-// from Rejected ones by their own – glyph.
+// from Rejected ones by their own ↩ glyph.
 func TestClosedGroupHeaderHasAGlyph(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"✕ Closed · 4", "– docs-resume-only"} {
+	for _, want := range []string{"✕ Closed · 4", "↩ docs-resume-only"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("Applied screen lacks %q:\n%s", want, view)
 		}
@@ -256,7 +256,7 @@ func TestNoColorShowsAGlyphForEveryStatus(t *testing.T) {
 		{[]string{"1"}, []string{"◌ "}},
 		{[]string{"1", "s"}, []string{"⊘ "}},
 		{[]string{"2"}, []string{"✎ "}},
-		{[]string{"3"}, []string{"● Applied", "◆ Interviewing", "★ Offer", "✕ Closed", "✕ docs-ready", "– docs-resume-only"}},
+		{[]string{"3"}, []string{"● Applied", "◆ Interviewing", "★ Offer", "✕ Closed", "✕ docs-ready", "↩ docs-resume-only"}},
 	} {
 		view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
 		for _, want := range tc.wants {

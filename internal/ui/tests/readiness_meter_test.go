@@ -29,22 +29,22 @@ func TestRowsCarryNoMeter(t *testing.T) {
 	}
 }
 
-// The detail lists each Document with ● ready or ○ missing, and a meter with the count.
+// The detail lists each Document with ✓ ready or ○ missing, and a meter with the count.
 func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	view := chipped(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
-	for _, want := range []string{"○ JD", "● Resume", "● Cover letter", "○ PDF", "■■□□ 2/4"} {
+	for _, want := range []string{"○ JD", "✓ Resume", "✓ Cover letter", "○ PDF", "■■□□ 2/4 ready"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}
 	}
 }
 
-// ASCII mode draws the meter as # and -, and keeps the ready/missing marks apart.
+// ASCII mode draws the meter as # and :, and keeps the ready/missing marks apart.
 func TestMeterFoldsToASCII(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
-	if !strings.Contains(view, "##--") {
+	if !strings.Contains(view, "##::") || !strings.Contains(view, "_ JD") || !strings.Contains(view, "+ Resume") {
 		t.Errorf("no ASCII meter:\n%s", view)
 	}
 }

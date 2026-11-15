@@ -322,7 +322,15 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 		b, err := m.store.ReadDocument(a.Folder, name)
 		empty := err != nil || strings.TrimSpace(string(b)) == ""
 		if tab == tabFit {
-			out = "Fit: " + fitSummary(a, !empty) + "\n\n"
+			// One line says the verdict and whether its reasoning is saved, and what fills it.
+			out = fitLabel + fitSummary(a, !empty)
+			if empty {
+				if hint := m.emptyDocument(a, tab, name); hint != "" {
+					out += " · " + hint
+				}
+				return out
+			}
+			out += "\n\n"
 		}
 		if empty {
 			return out + m.emptyDocument(a, tab, name)
@@ -340,7 +348,7 @@ func (m model) emptyDocument(a store.Application, tab detailTab, name string) st
 		if m.harness != "" {
 			return "f to assess fit"
 		}
-		return "No reasoning saved"
+		return ""
 	case tabNotes:
 		return "No notes yet · e to write some"
 	}
@@ -355,7 +363,7 @@ func fitSummary(a store.Application, reasoning bool) string {
 	case a.Fit == "" && reasoning:
 		return fitNone + " · reasoning saved below"
 	case a.Fit == "":
-		return fitNone
+		return fitNone + " · no reasoning saved"
 	case !reasoning:
 		return a.Fit + " · no reasoning saved"
 	}
@@ -566,11 +574,7 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	if a.Malformed != nil {
 		return make([]string, stripLines)
 	}
-	fit := a.Fit
-	if fit == "" {
-		fit = fitNone
-	}
-	parts := []string{m.fileMarks(p, a), p.Text(p.Dim).Render("Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)}
+	parts := []string{m.fileMarks(p, a), p.fitWords(a.Fit)}
 	if beforeApplied(tableOf(a)) {
 		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
 			parts = append(parts, p.CloseStyle(s, p.Text, p.Dim).Render(text))

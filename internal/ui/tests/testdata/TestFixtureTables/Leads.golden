@@ -3,11 +3,11 @@
    STATUS s [Leads 4] Dismissed 2 │ TRACK t [All 4] SWE 3  Platform 1  Unknown 0
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◌ Leads · 4 ───────────────────────────────────────────────── │ Empty                                                
- ▌ ◌ Empty                                                    ·  │ Example · SWE                                        
+ ▌ ◌ Empty                                                fit —  │ Example · SWE                                        
  ▌   Example · SWE · —                                           │                                                      
-   ◌ Empty log                                                ·  │ ◌ Lead                             fit not assessed  
+   ◌ Empty log                                            fit —  │ ◌ Lead                                        fit —  
      Fictional Labs · SWE · —                                    │                                                      
-   ◌ Platform Engineer                            Lead 7d     ·  │ DOCS    □□□□ 0/4                     p prepare docs  
+   ◌ Platform Engineer                        Lead 7d     fit —  │ DOCS    □□□□ 0/4 ready               p prepare docs  
      Fern Systems · Platform · —                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
    ⚠ Can't read SWE/malformed                                    │                                                      
      meta.yml line 4: indented lines must be status_log entri…   │ NEXT    add the JD                       enter open  

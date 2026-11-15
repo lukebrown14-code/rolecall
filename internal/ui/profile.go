@@ -29,11 +29,11 @@ const (
 // profileMarkerWidth is the cells the marker, or its indent on unselected rows, takes.
 const profileMarkerWidth = 2
 
-// Contact's mark stands in for a count: ✓ when Name and Email are both present, ✗ when
+// Contact's mark stands in for a count: ✓ when Name and Email are both present, ○ when
 // either is missing. The store's Missing decides; the screen never parses Contact again.
 const (
-	contactOK  = "✓"
-	contactBad = "✗"
+	contactOK  = glyphReady
+	contactBad = glyphMissing
 )
 
 // Profile screen sizing: the section list, the divider, and the gutter before the
@@ -544,7 +544,7 @@ func shortHeading(h string) string {
 	return h
 }
 
-// profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ✗ in
+// profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ○ in
 // place of a count, the count itself, or nothing for prose.
 func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string, color.Color) {
 	if section.Heading == "Contact" {

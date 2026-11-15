@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
 )
 
 // The keymap registry. Every screen, focus and pop-up declares the keys it accepts as
@@ -308,43 +309,81 @@ func (m model) keyLine(p pal, w int) string {
 // helpTitle names the `?` pop-up's context.
 func (m model) helpTitle() string { return "Keys · " + m.contextName() }
 
-// glyphLegend says what each glyph means; every glyph has exactly one meaning. The
-// Status glyphs are drawn in their own colours, as the list draws them.
+// legendPerLine is how many legend items share a line before a row wraps under itself.
+const legendPerLine = 3
+
+// glyphLegend says what each glyph means. It is generated from the glyph table the frame
+// draws with (theme.Legend), so a glyph cannot be drawn with one meaning and explained
+// with another; every glyph has exactly one. The Status glyphs are drawn in their own
+// colours, as the list draws them.
 func glyphLegend(p pal, followUpDays int) string {
-	row := func(label string, items ...string) string {
-		var b strings.Builder
-		b.WriteString(p.Text(p.Fg).Render(padRight(label, helpKeyWidth+1)))
-		for i, it := range items {
-			if i < len(items)-1 {
-				it += strings.Repeat(" ", max(1, helpColumn-gutter-xansi.StringWidth(it)))
-			}
-			b.WriteString(it)
-		}
-		return b.String()
-	}
-	status := func(s string) string { return p.StatusMark(s) + p.Text(p.Dim).Render(" "+s) }
-	open := []string{store.StatusLead, store.StatusDraft, store.StatusApplied, store.StatusInterviewing, store.StatusOffer}
-	closed := []string{store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed}
-	line := func(ss []string) string {
-		parts := make([]string, len(ss))
-		for i, s := range ss {
-			parts[i] = status(s)
-		}
-		return strings.Join(parts, "  ")
-	}
 	dim := func(s string) string { return p.Text(p.Dim).Render(s) }
+	indent := strings.Repeat(" ", helpKeyWidth+1)
+	row := func(label string, items ...string) string {
+		var lines []string
+		for start := 0; start < len(items); start += legendPerLine {
+			var b strings.Builder
+			if start == 0 {
+				b.WriteString(p.Text(p.Fg).Render(padRight(label, helpKeyWidth+1)))
+			} else {
+				b.WriteString(indent)
+			}
+			chunk := items[start:min(len(items), start+legendPerLine)]
+			for i, it := range chunk {
+				if i < len(chunk)-1 {
+					it += strings.Repeat(" ", max(1, helpColumn-gutter-xansi.StringWidth(it)))
+				}
+				b.WriteString(it)
+			}
+			lines = append(lines, b.String())
+		}
+		return strings.Join(lines, "\n")
+	}
+	groups := map[string][]appearance.Glyph{}
+	for _, g := range appearance.Legend() {
+		groups[g.Group] = append(groups[g.Group], g)
+	}
+	items := func(group string) []string {
+		var out []string
+		for _, g := range groups[group] {
+			switch g.Mark {
+			case meterOn:
+				// The ready meter's two cells read as one sample.
+				out = append(out, dim(meterOn+meterOn+meterOff+" 2/3 ready"))
+			case meterOff:
+			case glyphFollowUp:
+				out = append(out, dim(fmt.Sprintf("%s %s (%dd)", g.Mark, g.Meaning, followUpDays)))
+			default:
+				out = append(out, dim(g.Mark+" "+g.Meaning))
+			}
+		}
+		return out
+	}
+	var open, closed []string
+	for _, g := range groups[appearance.GroupStatus] {
+		it := p.StatusMark(g.Meaning) + dim(" "+g.Meaning)
+		if closedStatus(g.Meaning) {
+			closed = append(closed, it)
+		} else {
+			open = append(open, it)
+		}
+	}
 	// The Timeline track keeps each Status's own glyph, so the legend cannot borrow one
 	// for "current": it says in words what separates the stops instead.
 	current := p.Text(p.Fg).Bold(true).Render("bold") + dim(" current stop")
-	earlier := p.Text(p.Faint).Render("faint") + dim(" earlier & future stops")
-	return p.Heading("Glyphs") + "\n" +
-		row("Statuses", line(open)) + "\n" +
-		row("", line(closed)) + "\n" +
-		row("Timeline", current, earlier, dim("~ approximate date")) + "\n" +
-		row("Docs", dim("● ready"), dim("○ missing"), dim(meterOn+meterOff+" N/M ready")) + "\n" +
-		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
-		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("%s %s %s due %d+ days", heatLow, heatMid, heatHigh, followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
-		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor), dim(fitDot+" not assessed"))
+	others := dim("dim: other stops")
+	// Fit is a word, so its values are listed without a separator glyph between them.
+	fits := dim(strings.Join([]string{store.FitStrong, store.FitGood, store.FitMarginal, store.FitPoor}, "  "))
+	return strings.Join([]string{p.Heading("Glyphs"),
+		p.Text(p.Fg).Render(padRight(appearance.GroupStatus, helpKeyWidth+1)) + strings.Join(open, "  "),
+		indent + strings.Join(closed, "  "),
+		row(appearance.GroupTimeline, append([]string{current, others}, items(appearance.GroupTimeline)...)...),
+		row(appearance.GroupDocs, items(appearance.GroupDocs)...),
+		row(appearance.GroupAgent, items(appearance.GroupAgent)...),
+		row(appearance.GroupFlags, items(appearance.GroupFlags)...),
+		row(appearance.GroupFit, fits+"   "+strings.Join(items(appearance.GroupFit), "  ")),
+		row(appearance.GroupForms, items(appearance.GroupForms)...),
+	}, "\n")
 }
 
 // helpBox is the `?` pop-up: the keys of the context it was opened from, then the

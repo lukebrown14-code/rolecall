@@ -72,13 +72,16 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 				check(t, r.name+" on the pop-up fill", r.c, p.Panel, textFloor)
 			}
 			// The selection bar carries the title and secondary text, which reach the text
-			// floor. Coloured words on it (Fit, dates, flags) always sit beside a word or
-			// glyph and reach the graphic floor; the bar is also marked by the gutter and bold.
-			for _, r := range []role{{"text", p.Fg}, {"sub", p.Sub}, {"accent", p.Accent}} {
+			// floor. Coloured words drawn on it (close dates, warnings, document states) are
+			// drawn with OnSel, whose word roles must reach the text floor too; every Status
+			// glyph on it, open or closed, reaches the graphic floor.
+			on := p.OnSel()
+			for _, r := range []role{{"text", p.Fg}, {"sub", p.Sub}, {"accent", p.Accent},
+				{"ok word", on.Ok}, {"warn word", on.Warn}, {"danger word", on.Bad}, {"muted word", on.Dim}} {
 				check(t, r.name+" on the selection bar", r.c, p.Sel, textFloor)
 			}
-			for _, r := range []role{{"ok", p.Ok}, {"info", p.Info}, {"warn", p.Warn}, {"danger", p.Bad}} {
-				check(t, r.name+" on the selection bar", r.c, p.Sel, graphicFloor)
+			for _, s := range []string{"Lead", "Draft", "Applied", "Interviewing", "Offer", "Rejected", "Withdrawn", "Dismissed"} {
+				check(t, s+" glyph on the selection bar", on.StatusColor(s), p.Sel, graphicFloor)
 			}
 			// The fill itself is told from the page by the gutter mark as well as its tint.
 			check(t, "selection fill on background", p.Sel, p.Bg, selFillFloor[th.name])
@@ -91,6 +94,8 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 			// active tab must clear the text floor, not just look "unimportant".
 			for _, r := range []role{{"text", d.Fg}, {"muted", d.Dim}, {"sub", d.Sub}, {"accent", d.Accent}} {
 				check(t, "dimmed "+r.name+" on background", r.c, d.Bg, textFloor)
+				// The selected row behind a pop-up is filled with the dimmed Sel (the panel).
+				check(t, "dimmed "+r.name+" on the dimmed selection", r.c, d.Sel, textFloor)
 			}
 			check(t, "dimmed rule on background", d.Rule, d.Bg, graphicFloor)
 			check(t, "dimmed active tab text on its fill", d.OnFill, d.Accent, textFloor)

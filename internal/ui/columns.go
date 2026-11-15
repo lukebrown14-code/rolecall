@@ -10,7 +10,7 @@ import (
 )
 
 // followUpFlag marks an Applied or Interviewing row whose last change is older than follow_up_days.
-const followUpFlag = "⚑"
+const followUpFlag = glyphFollowUp
 
 func entryDate(e *store.StatusEntry) string {
 	if e == nil {
@@ -31,14 +31,14 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	out := []string{a.Title, a.Company, a.Track}
 	fit := a.Fit
 	if fit == "" {
-		fit = "—"
+		fit = glyphNone
 	}
 	docs := ""
 	switch strings.ToLower(a.Documents) {
 	case "ready":
-		docs = "✓"
+		docs = glyphReady
 	case "written":
-		docs = "○"
+		docs = glyphMissing
 	}
 	if table == tableDismissed {
 		return append(out, entryDate(a.LastChange))

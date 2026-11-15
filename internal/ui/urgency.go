@@ -15,7 +15,7 @@ import (
 const (
 	monthYearAfter = 90 // "~21mo ago" reads as "Jan 2025" past about three months
 	urgentDays     = 2  // "closes in 2d ▲" turns danger at or below this
-	urgentMark     = "▲"
+	urgentMark     = glyphUrgent
 )
 
 // sortNewest orders Leads by when they were added, newest first: the first Status
@@ -80,14 +80,9 @@ func followUpDue(a store.Application, now time.Time, days int) bool {
 	return ok
 }
 
-// Follow-up due heat: how far past its follow-up date an Application is.
-const (
-	heatMidAfter  = 3 // more than this many days past: heatMid
-	heatHighAfter = 7 // more than this many days past: heatHigh, bold
-	heatLow       = "·"
-	heatMid       = "◦"
-	heatHigh      = "●"
-)
+// heatHighAfter is how many days past its follow-up date a Follow-up due flag turns
+// bold: the flag is always ⚑, and its weight, not another glyph, says it is long overdue.
+const heatHighAfter = 7
 
 // followUpDaysPast is how many whole days past its follow-up date a sent Application is
 // (0 on the day it falls due), and whether it is Follow-up due at all.
@@ -103,16 +98,8 @@ func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) 
 	return past, past >= 0
 }
 
-// followUpHeat is the glyph for an Application the given days past its follow-up date.
-func followUpHeat(past int) string {
-	switch {
-	case past > heatHighAfter:
-		return heatHigh
-	case past > heatMidAfter:
-		return heatMid
-	}
-	return heatLow
-}
+// followUpLate reports a Follow-up due flag drawn bold: more than heatHighAfter days past.
+func followUpLate(past int) bool { return past > heatHighAfter }
 
 // followUpWords is "due today", "due 1 day ago" or "due 9 days ago".
 func followUpWords(past int) string {

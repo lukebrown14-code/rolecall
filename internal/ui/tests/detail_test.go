@@ -174,7 +174,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
-		{"fit", 1, []string{"Fit: not assessed", "No reasoning saved"}},
+		{"fit", 1, []string{"fit — · no reasoning saved"}},
 		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -204,7 +204,7 @@ func TestDetailNotesAndFitTabsRenderTheirFiles(t *testing.T) {
 	fit := newDetailHarness(t, setup)
 	fit.open("3", 2, "Engineer #1")
 	fit.key(tea.KeyRight)
-	fit.show("Fit: Good", "Strong platform match")
+	fit.show("fit Good", "Strong platform match")
 	back := newDetailHarness(t, setup)
 	back.open("3", 2, "Engineer #1")
 	back.key(tea.KeyRight)

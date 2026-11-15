@@ -27,6 +27,7 @@ func themeFor(dark bool) theme    { return theme(appearance.ForBackground(dark))
 var isDark = appearance.IsDark
 var noColor = appearance.NoColor
 var asciiMode = appearance.ASCIIMode
+var plainMode = appearance.PlainMode
 var inheritANSI = appearance.InheritANSI
 var stripColor = appearance.StripColor
 var asciiFold = appearance.ASCIIFold
@@ -74,6 +75,21 @@ func (m model) dimmedPal() pal {
 // drawn character — hit-testing a rule or the search chip — uses what the renderer wrote.
 func (m model) glyph(s string) string { return asciiFold(s, m.ascii) }
 
+// The glyph table's marks (theme/glyphs.go), each with one meaning.
+const (
+	glyphReady    = appearance.GlyphReady
+	glyphMissing  = appearance.GlyphMissing
+	glyphNone     = appearance.GlyphNone
+	glyphUrgent   = appearance.GlyphUrgent
+	glyphFollowUp = appearance.GlyphFollowUp
+	glyphMeterOn  = appearance.GlyphMeterOn
+	glyphMeterOff = appearance.GlyphMeterOff
+	glyphChanged  = appearance.GlyphChanged
+)
+
+// fitLabel leads a Fit wherever it is shown: "fit Good", "fit —".
+const fitLabel = "fit "
+
 // wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "#").
 const wordmark = "▞"
 
@@ -112,16 +128,16 @@ func (p pal) GroupHeader(label, status string, n int, rollup string, w int) stri
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 
-// fitNone is how a missing Fit reads in prose; list columns show "·".
-const fitNone = "not assessed"
+// fitNone is a Fit not yet assessed, wherever a Fit is shown: "fit —".
+const fitNone = glyphNone
 
-// FitText is "   Fit: Strong", the Fit beside a status chip.
-func (p pal) FitText(a store.Application) string {
-	fit := a.Fit
-	if fit == "" {
-		fit = fitNone
+// fitWords is a Fit as every surface writes it: "fit Good", or "fit —" not yet assessed.
+func (p pal) fitWords(fit string) string {
+	value := fit
+	if value == "" {
+		value = fitNone
 	}
-	return p.Text(p.Dim).Render("   Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)
+	return p.Text(p.Dim).Render(fitLabel) + p.Text(p.FitColor(fit)).Render(value)
 }
 
 // spread places left and right on one line of width w.

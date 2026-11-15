@@ -125,3 +125,25 @@ func TestActiveStatusColoursSurviveColourBlindness(t *testing.T) {
 		}
 	}
 }
+
+// The cold-to-gold ramp starts apart from the closed Statuses' grey: Lead and the muted
+// closed colour stay told apart with normal vision and under both simulations.
+func TestLeadIsNotTheClosedGrey(t *testing.T) {
+	identity := [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}
+	for _, th := range []struct {
+		name string
+		m    theme.Mode
+	}{{"dark", theme.Dark}, {"light", theme.Light}} {
+		p := th.m.Base()
+		views := map[string][3][3]float64{"normal": identity}
+		for k, v := range machado {
+			views[k] = v
+		}
+		for kind, matrix := range views {
+			lead, closed := p.StatusColor(store.StatusLead), p.StatusColor(store.StatusRejected)
+			if d := deltaE2000(simulate(lead, matrix), simulate(closed, matrix)); d < cvdFloor {
+				t.Errorf("%s palette, %s: Lead is only ΔE %.1f from the closed grey, want ≥ %.0f", th.name, kind, d, cvdFloor)
+			}
+		}
+	}
+}

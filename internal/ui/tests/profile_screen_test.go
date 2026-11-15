@@ -234,8 +234,8 @@ func TestProfileContactMarkAndWarningFollowMissingFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := fixtureCopy(t, func(root string) { removeProfileLines(t, root, tc.drop...) })
 			view := chipped(runKeys(t, root, 120, "5"))
-			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "✗") {
-				t.Fatalf("Contact row = %q, want ✗:\n%s", row, view)
+			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "○") {
+				t.Fatalf("Contact row = %q, want ○:\n%s", row, view)
 			}
 			if !strings.Contains(view, tc.warning) {
 				t.Fatalf("warning %q absent:\n%s", tc.warning, view)

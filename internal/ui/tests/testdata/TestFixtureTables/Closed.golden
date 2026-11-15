@@ -3,13 +3,13 @@
    STATUS s All 9  Applied 1  Interviewing 2  Offer 2 [Closed 4] │ TRACK t [All 4] SWE 2  Platform 0  Unknown 2
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✕ Closed · 4 ──────────────────────────────────────────────── │ Engineer #1                                          
- ▌ ✕ Engineer #1                                ~Jan 2026  Good  │ Example · Unknown · closed ~Jan 2026                 
+ ▌ ✕ Engineer #1                            ~Jan 2026  fit Good  │ Example · Unknown · closed ~Jan 2026                 
  ▌   Example · Unknown · closed ~Jan 2026                        │                                                      
-   – Engineer #1                                ~Jan 2026  Good  │ ✕ Rejected                                 fit Good  
+   ↩ Engineer #1                            ~Jan 2026  fit Good  │ ✕ Rejected                                 fit Good  
      Example · Unknown · closed ~Jan 2026                        │                                                      
-   ✕ docs-ready                                  Rej. ~7d     ·  │ DOCS    □□□ 0/3                                      
+   ✕ docs-ready                              Rej. ~7d     fit —  │ DOCS    □□□ 0/3 ready                                
      Fictional Labs · SWE · closed ~7d ago                       │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
-   – docs-resume-only                         Withdr. ~7d     ·  │                                                      
+   ↩ docs-resume-only                     Withdr. ~7d     fit —  │                                                      
      Fictional Labs · SWE · closed ~7d ago                       │ TIMELINE                                             
                                                                  │   ● Applied                             ~1 Jan 2025  
                                                                  │   ✕ Rejected                                 ~1 Jan  
