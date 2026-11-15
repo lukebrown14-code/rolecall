@@ -48,12 +48,21 @@ main() {
     *) fail "unsupported architecture $(uname -m)" ;;
   esac
 
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT INT TERM
+
   version="${ROLECALL_VERSION:-latest}"
   if [ -n "${ROLECALL_BASE_URL:-}" ]; then
     base="$ROLECALL_BASE_URL"
-  elif [ "$version" = latest ]; then
-    base="https://github.com/$repo/releases/latest/download"
   else
+    if [ "$version" = latest ]; then
+      # Resolve the tag through the API: the releases/latest/download redirect can
+      # stay cached on the previous release for a while after a new one ships.
+      download "https://api.github.com/repos/$repo/releases/latest" "$tmp/latest.json" ||
+        fail "could not look up the latest release"
+      version=$(sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' "$tmp/latest.json" | head -n 1)
+      [ -n "$version" ] || fail "could not read the latest release tag"
+    fi
     base="https://github.com/$repo/releases/download/$version"
   fi
   archive="rolecall_${os}_${arch}.tar.gz"
@@ -61,9 +70,6 @@ main() {
   prefix="${ROLECALL_PREFIX:-$HOME/.local}"
   home_dir="$prefix/share/rolecall"
   bin_dir="$prefix/bin"
-
-  tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT INT TERM
 
   echo "Downloading $archive ($version)..."
   download "$base/$archive" "$tmp/$archive" || fail "could not download $base/$archive"
