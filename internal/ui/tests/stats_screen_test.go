@@ -93,24 +93,78 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 	}
 }
 
+// The Track filter offers the off-list Tracks rows are on, after the workspace.json ones,
+// so its options add up to All, and t reaches them. Stats leaves the malformed row out of
+// its counts, as it does of every figure.
+func TestStatsTrackFilterOffersOffListTracks(t *testing.T) {
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 140, "4"))
+	// 16 well-formed: SWE 9 (docs-*, empty, empty-log, orbit), Platform 1 (fern), and the
+	// six legacy status-* rows on Unknown, which workspace.json does not list.
+	if !strings.Contains(view, "TRACK t [All 16] SWE 9 Platform 1 Unknown 6") {
+		t.Fatalf("Stats track filter does not add up:\n%s", view)
+	}
+	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "4", "t", "t", "t"))
+	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "closed  ✕ Rejected 1 · – Withdrawn 1 · ⊘ Dismissed 1") {
+		t.Fatalf("t did not reach the Unknown Track, or Stats is not filtered to it:\n%s", view)
+	}
+	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "3"))
+	if !strings.Contains(view, "TRACK t [All 9] SWE 5  Platform 0  Unknown 4") {
+		t.Fatalf("Applied track filter does not add up:\n%s", view)
+	}
+	// T from All goes back to the last option, the off-list one.
+	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "3", "T"))
+	if !strings.Contains(view, "[Unknown 4]") {
+		t.Fatalf("T did not cycle back to Unknown:\n%s", view)
+	}
+}
+
+// A move that is undone leaves Stats as it was: undo appends the earlier Status, and
+// Stats reads the pair as never having happened.
+func TestStatsIgnoresAnUndoneMove(t *testing.T) {
+	body := func(view string) string {
+		lines := strings.Split(view, "\n")
+		return strings.Join(lines[4:len(lines)-3], "\n") // below the context row, above the footer
+	}
+	before := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "4")))
+	after := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "m", "a", "y", "u", "4")))
+	if before != after {
+		t.Fatalf("an undone move changed Stats:\n--- before ---\n%s\n--- after ---\n%s", before, after)
+	}
+	moved := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "m", "a", "y", "4")))
+	if moved == before {
+		t.Fatalf("the move itself did not reach Stats, so the undo test proves nothing:\n%s", moved)
+	}
+}
+
 // The funnel never calls a rise or a flat count a drop: each rung says what share of the
-// one before reached it and how many skipped it. Everything fits 80x24 with no cue.
+// one before reached it and how many were not on it first, in one wording. A later
+// Status implies Applied, so the numbers match the screens. Everything fits 80x24 with
+// no cue.
 func TestStatsFunnelExplainsEachRung(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "4"))
 	for _, want := range []string{
 		"Applications that ever reached each Status",
-		"2 without Lead logged",
-		"50% of Draft · 6 skipped Draft",
-		"14% of Applied · 1 skipped Applied",
+		"◌ Lead ██████ 4",
+		"2 0% of Lead · 2 weren't Leads first",
+		"11 0% of Draft · 11 weren't Drafts first",
+		"4 36% of Applied",
+		"2 50% of Interviewing",
 		"closed  ✕ Rejected 2 · – Withdrawn 2 · ⊘ Dismissed 2",
 		"2 of 6",
-		"Not counted: 1 Application applied less than 14 days ago (too early to judge)",
+		"Not counted: 5 applied in the last 14 days (too new)",
 		"13 Jul → 28 Sep",
 		"0 this week · 12-week avg 0.1",
-		"Unknown               6       6          2   33%",
+		"Applied  Counted  Responses  Rate",
+		"SWE                   5        0          0     —",
+		"Unknown               6        6          2   33%",
 	} {
 		if !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(strings.Fields(want), " ")) {
 			t.Errorf("Stats lacks %q:\n%s", want, view)
+		}
+	}
+	for _, jargon := range []string{"logged", "skipped", "Judged"} {
+		if strings.Contains(view, jargon) {
+			t.Errorf("Stats uses the data-model word %q:\n%s", jargon, view)
 		}
 	}
 	if strings.Contains(view, "drop") || strings.Contains(view, "more") {

@@ -15,11 +15,12 @@ import (
 // Applications are dropped by Stats too; this keeps the screen's input honest.
 func (m model) statsApps() []store.Application {
 	var out []store.Application
+	track, on := m.selectedTrack()
 	for _, a := range m.apps {
 		if a.Malformed != nil {
 			continue
 		}
-		if m.track > 0 && a.Track != m.tracks[m.track-1] {
+		if on && a.Track != track {
 			continue
 		}
 		out = append(out, a)
@@ -32,7 +33,7 @@ func (m model) statsApps() []store.Application {
 // asking the registry here would ask Stats for its keys again.
 func (m model) statsEmptyMessage() string {
 	if m.track > 0 {
-		return "No Applications in " + m.tracks[m.track-1]
+		return "No Applications in " + m.trackName()
 	}
 	return "No Applications yet"
 }
@@ -160,14 +161,17 @@ const (
 	statsNameWidth  = 12 // the longest funnel Status, "Interviewing"
 )
 
-// statsBody renders the report top to bottom, w cells wide. The Response definition is
-// kept only when the report still fits h lines. The per-track table is hidden when the
-// track filter is on one track.
+// statsBody renders the report top to bottom, w cells wide. The Response definition,
+// then the per-track table's note, are kept only when the report still fits h lines. The
+// per-track table is hidden when the track filter is on one track.
 func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 	response, definition := m.statsResponse(p, r, w)
 	sections := [][]string{m.statsFunnel(p, r, w), response, statsWeekly(p, r, w)}
+	var trackNote []string
 	if m.track == 0 {
-		sections = append(sections, statsTracks(p, r))
+		var table []string
+		table, trackNote = m.statsTracks(p, r, w)
+		sections = append(sections, table)
 	}
 	total := len(sections) - 1 // the blank lines between sections
 	for _, sec := range sections {
@@ -175,6 +179,10 @@ func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 	}
 	if total+len(definition) <= h {
 		sections[1] = append(sections[1], definition...)
+		total += len(definition)
+	}
+	if len(trackNote) > 0 && total+len(trackNote) <= h {
+		sections[3] = append(sections[3], trackNote...)
 	}
 	var out []string
 	for i, sec := range sections {
@@ -251,22 +259,36 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 }
 
 // funnelNote explains a rung against the previous one: "29% of Applied" where the
-// previous rung has Applications, and "5 skipped Draft" for those that reached this
-// rung without it. Never a drop-off, which a rising ever-reached count makes a lie. When
-// no Application logged the previous rung at all, a "0% of" would read as a drop, so the
-// note names the missing entry instead.
+// previous rung has Applications, and "5 weren't Drafts first" for those that reached
+// this rung without the previous one before it. Never a drop-off, which a rising
+// ever-reached count makes a lie. The share is left out only when the previous rung is
+// empty, where "0% of" would read as a drop; the wording is otherwise the same.
 func funnelNote(step reporting.FunnelStep, prev string) string {
-	if step.Through == 0 && step.Skipped > 0 {
-		return fmt.Sprintf("%d without %s logged", step.Skipped, prev)
-	}
 	var parts []string
 	if step.ConversionOK {
 		parts = append(parts, fmt.Sprintf("%d%% of %s", step.Conversion, prev))
 	}
 	if step.Skipped > 0 {
-		parts = append(parts, fmt.Sprintf("%d skipped %s", step.Skipped, prev))
+		parts = append(parts, notFirst(step.Skipped, prev))
 	}
 	return strings.Join(parts, " · ")
+}
+
+// notFirst is "1 wasn't a Lead first" or "5 weren't Drafts first": Lead and Draft read as
+// nouns, the later Statuses as states ("2 weren't Applied first").
+func notFirst(n int, status string) string {
+	noun := status
+	if status == store.StatusLead || status == store.StatusDraft {
+		noun = "a " + status
+		if n != 1 {
+			noun = status + "s"
+		}
+	}
+	verb := "wasn't"
+	if n != 1 {
+		verb = "weren't"
+	}
+	return fmt.Sprintf("%d %s %s first", n, verb, noun)
 }
 
 // statsResponse is the Response rate with a meter and the Applications left out as too
@@ -280,7 +302,7 @@ func (m model) statsResponse(p pal, r reporting.StatsReport, w int) (lines, defi
 	lines = []string{statsHeading(p, "Response rate", value)}
 	textW := max(1, w-statsLabelWidth)
 	if n := r.Response.TooNew; n > 0 {
-		note := fmt.Sprintf("Not counted: %s applied less than %d days ago (too early to judge)", plural(n, "Application", "Applications"), m.followUpDays)
+		note := fmt.Sprintf("Not counted: %d applied in the last %d days (too new)", n, m.followUpDays)
 		for _, l := range wrapWords(note, textW) {
 			lines = append(lines, statsIndent+p.Text(p.Dim).Render(l))
 		}
@@ -316,11 +338,12 @@ func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
 	return lines
 }
 
-// statsTracks is the per-track table, its column names on the heading line. Applied is
-// the funnel's definition; Judged leaves out those too new to judge, as Response does.
-func statsTracks(p pal, r reporting.StatsReport) []string {
-	const cols = "%7s  %6s  %9s  %4s"
-	lines := []string{statsHeading(p, "By track", p.Text(p.Dim).Render(fmt.Sprintf(cols, "Applied", "Judged", "Responses", "Rate")))}
+// statsTracks is the per-track table, its column names on the heading line, then what
+// Counted means. Applied is the funnel's definition; Counted leaves out those too new to
+// judge, as the Response rate does, and Rate is Responses of those Counted.
+func (m model) statsTracks(p pal, r reporting.StatsReport, w int) (lines, note []string) {
+	const cols = "%7s  %7s  %9s  %4s"
+	lines = []string{statsHeading(p, "By track", p.Text(p.Dim).Render(fmt.Sprintf(cols, "Applied", "Counted", "Responses", "Rate")))}
 	for _, track := range r.Tracks {
 		rate := "—"
 		if track.OK {
@@ -329,7 +352,11 @@ func statsTracks(p pal, r reporting.StatsReport) []string {
 		name := fmt.Sprintf("%-*s", statsLabelWidth, xansi.Truncate(track.Track, statsLabelWidth-1, "…"))
 		lines = append(lines, p.Text(p.Fg).Render(name+fmt.Sprintf(cols, fmt.Sprint(track.Applied), fmt.Sprint(track.Judged), fmt.Sprint(track.Responses), rate)))
 	}
-	return lines
+	text := fmt.Sprintf("Counted: applied at least %d days ago, as in the Response rate", m.followUpDays)
+	for _, l := range wrapWords(text, max(1, w-statsLabelWidth)) {
+		note = append(note, statsIndent+p.Text(p.Dim).Render(l))
+	}
+	return lines, note
 }
 
 // statsBar is a block bar of width cells, scaled to most. A non-zero count gets at
@@ -366,8 +393,8 @@ var sparkLevels = [2][]string{
 	{"_", ".", "-", "~", "=", "+", "*", "#"},
 }
 
-// sparkline draws one cell per week, scaled to the busiest week. An empty week is the
-// lowest level; a week with any Applied is at least one above it.
+// sparkline draws one cell per week, scaled to the busiest week. An empty week is blank;
+// a week with any Applied is at least one bar. Stats and the tab bar both draw it.
 func sparkline(p pal, weeks []reporting.Week) string {
 	levels := sparkLevels[0]
 	if p.Ascii {
@@ -391,28 +418,5 @@ func sparkline(p pal, weeks []reporting.Week) string {
 	return b.String()
 }
 
-// activityWeeks is how many weeks the nav's activity sparkline covers.
+// activityWeeks is how many weeks of the Applied series the tab bar's sparkline covers.
 const activityWeeks = 8
-
-// activitySparkline draws one cell per week of Status log activity, scaled to the busiest
-// week. Unlike the Applied chart, an empty week is the lowest bar, not blank.
-func activitySparkline(p pal, counts []int) string {
-	levels := sparkLevels[0]
-	if p.Ascii {
-		levels = sparkLevels[1]
-	}
-	most := 0
-	for _, c := range counts {
-		most = max(most, c)
-	}
-	top := len(levels) - 1
-	var b strings.Builder
-	for _, c := range counts {
-		i := 0
-		if c > 0 {
-			i = max(1, int(math.Ceil(float64(c)*float64(top)/float64(most))))
-		}
-		b.WriteString(levels[i])
-	}
-	return b.String()
-}

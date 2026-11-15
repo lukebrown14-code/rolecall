@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -218,7 +219,8 @@ func (m model) totalCount(screen int, table string) int {
 	return n
 }
 func (m model) matches(a store.Application) bool {
-	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
+	track, on := m.selectedTrack()
+	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The Stats report is built at most once per interaction; this drops the previous
@@ -400,17 +402,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // cycleTrack moves the track filter to the next track, or the previous one: All, then
-// each workspace.json track in order.
+// each workspace.json track in order, then the off-list Tracks rows are on (filterTracks).
 func (m *model) cycleTrack(back bool) {
 	if len(m.tracks) == 0 {
 		return
 	}
-	n := len(m.tracks) + 1
+	n := len(m.filterTracks()) + 1
 	step := 1
 	if back {
 		step = n - 1
 	}
-	m.track = (m.track + step) % n
+	m.track = (min(m.track, n-1) + step) % n
 	m.cursor = 0
 }
 
@@ -485,9 +487,11 @@ func (m *model) rescanAll() {
 		m.err = err
 		return
 	}
+	chosen, on := m.selectedTrack()
 	m.tracks = tracks
-	if m.track > len(tracks) {
-		m.track = 0 // the filtered track is gone
+	m.track = 0 // unless the filtered Track is still an option
+	if i := slices.Index(m.filterTracks(), chosen); on && i >= 0 {
+		m.track = i + 1
 	}
 	m.reload(folder)
 }

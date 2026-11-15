@@ -2,6 +2,7 @@ package reporting_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,49 +33,72 @@ func TestStatsFunnelOverFixtures(t *testing.T) {
 	}
 	got := reporting.Build(apps, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))
 
+	// Hand-counted from fixtures/workspace/jobs/*/meta.yml (16 well-formed, malformed left
+	// out). A later Status implies Applied (and an Offer, Interviewing), so these match
+	// the screens:
+	//   Lead: fern, orbit, empty, empty-log (an empty log is Lead)              = 4
+	//   Draft: docs-none, status-draft                                          = 2
+	//   Applied: orbit, the six status-* legacy rows, and docs-partial (Offer),
+	//     docs-ready (Rejected), docs-resume-only (Withdrawn), docs-written
+	//     (Interviewing), whose Applied is implied                              = 11
+	//   Interviewing: docs-written, status-interviewing, plus docs-partial and
+	//     status-offer, whose Offer implies it                                  = 4
+	//   Offer: docs-partial, status-offer                                       = 2
 	want := []struct {
-		status string
-		count  int
+		status           string
+		count, through   int
+		skipped, percent int
 	}{
-		{store.StatusLead, 2},
-		{store.StatusDraft, 2},
-		{store.StatusApplied, 7},
-		{store.StatusInterviewing, 2},
-		{store.StatusOffer, 2},
+		{store.StatusLead, 4, 0, 0, 0},
+		// Neither Draft was a Lead first.
+		{store.StatusDraft, 2, 0, 2, 0},
+		// status-draft went Applied then Draft, so its Draft came after: no Applied came
+		// from a Draft.
+		{store.StatusApplied, 11, 0, 11, 0},
+		{store.StatusInterviewing, 4, 4, 0, 36},
+		{store.StatusOffer, 2, 2, 0, 50},
 	}
 	if len(got.Funnel) != len(want) {
 		t.Fatalf("funnel has %d steps, want %d: %+v", len(got.Funnel), len(want), got.Funnel)
 	}
 	for i, w := range want {
-		if got.Funnel[i].Status != w.status || got.Funnel[i].Count != w.count {
-			t.Errorf("funnel step %d = %+v, want %s %d", i, got.Funnel[i], w.status, w.count)
+		s := got.Funnel[i]
+		if s.Status != w.status || s.Count != w.count || s.Through != w.through || s.Skipped != w.skipped || s.Conversion != w.percent {
+			t.Errorf("funnel step %d = %+v, want %+v", i, s, w)
 		}
 	}
 	if got.Dismissed != 2 || got.Rejected != 2 || got.Withdrawn != 2 {
 		t.Errorf("side counts = %d/%d/%d, want 2/2/2", got.Dismissed, got.Rejected, got.Withdrawn)
 	}
+	// The six legacy rows were applied in 2025, so they are judged; status-interviewing
+	// and status-offer are Responses. orbit (25 Sep) and the four docs-* rows (24 Sep)
+	// are inside the 14-day window.
 	if !got.Response.OK || got.Response.Applied != 6 || got.Response.Reached != 2 || got.Response.Rate != 33 {
 		t.Errorf("response = %+v, want 2/6 at 33%%", got.Response)
+	}
+	if got.Response.TooNew != 5 {
+		t.Errorf("too new = %d, want 5 (orbit and four docs-* rows)", got.Response.TooNew)
 	}
 	if len(got.Weeks) != 12 {
 		t.Fatalf("weeks = %d, want 12", len(got.Weeks))
 	}
+	// Only orbit has a logged Applied in range; an implied Applied has no date of its own.
 	if got.Weeks[10].Count != 1 {
 		t.Errorf("week starting 21 Sep = %+v, want 1", got.Weeks[10])
 	}
 	if len(got.Tracks) != 3 || got.Tracks[0].Track != "SWE" || got.Tracks[1].Track != "Platform" || got.Tracks[2].Track != "Unknown" {
 		t.Fatalf("tracks = %+v, want SWE, Platform, Unknown", got.Tracks)
 	}
-	// SWE's one Applied (orbit, 25 Sep) is too new to judge: it counts as Applied, as
-	// in the funnel, but not toward its Response rate.
-	if got.Tracks[0].Applied != 1 || got.Tracks[0].Judged != 0 || got.Tracks[0].OK {
-		t.Errorf("SWE = %+v, want 1 applied, none judged", got.Tracks[0])
+	// SWE's five sent (orbit and four docs-*) are all too new to judge, as on the Applied
+	// screen's SWE count.
+	if tr := got.Tracks[0]; tr.Applied != 5 || tr.Judged != 0 || tr.OK {
+		t.Errorf("SWE = %+v, want 5 applied, none judged", tr)
 	}
 	if got.Tracks[1].Applied != 0 || got.Tracks[1].OK {
 		t.Errorf("Platform = %+v, want no applied", got.Tracks[1])
 	}
-	if got.Tracks[2].Applied != 6 || got.Tracks[2].Judged != 6 || got.Tracks[2].Responses != 2 || got.Tracks[2].Rate != 33 {
-		t.Errorf("Unknown = %+v, want 6/2 at 33%%", got.Tracks[2])
+	if tr := got.Tracks[2]; tr.Applied != 6 || tr.Judged != 6 || tr.Responses != 2 || tr.Rate != 33 {
+		t.Errorf("Unknown = %+v, want 6/2 at 33%%", tr)
 	}
 	applied := 0
 	for _, tr := range got.Tracks {
@@ -82,9 +106,6 @@ func TestStatsFunnelOverFixtures(t *testing.T) {
 	}
 	if applied != got.Funnel[2].Count {
 		t.Errorf("tracks sum to %d Applied, funnel says %d", applied, got.Funnel[2].Count)
-	}
-	if got.Response.TooNew != 1 {
-		t.Errorf("too new = %d, want 1 (orbit)", got.Response.TooNew)
 	}
 }
 
@@ -214,31 +235,94 @@ func TestStatsFunnelThroughAndSkipped(t *testing.T) {
 	}
 }
 
-// Status log entries are counted per week over the last n weeks, oldest first, the last
-// week ending at now. Date-only entries count on that local date; entries outside the
-// window, malformed Applications and future entries are ignored.
-func TestWeeklyActivityBucketsStatusEntries(t *testing.T) {
-	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	day := func(s string) store.StatusEntry { return store.StatusEntry{Status: "Lead", At: s} }
+// A move back is counted in log order: an Application that went Applied then Draft did
+// not reach Applied from a Draft.
+func TestStatsFunnelRespectsLogOrder(t *testing.T) {
+	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.Local)
+	old := now.AddDate(0, 0, -40)
 	apps := []store.Application{
-		{Folder: "a", StatusLog: []store.StatusEntry{day("2026-10-01"), day("2026-09-25"), day("2026-09-24")}},
-		{Folder: "b", StatusLog: []store.StatusEntry{day("2026-09-24T01:00:00Z"), day("2026-08-07"), day("2026-08-06"), day("2026-10-02")}},
-		{Folder: "bad", Malformed: errTest, StatusLog: []store.StatusEntry{day("2026-10-01")}},
+		statsApp("back", "SWE", at(store.StatusApplied, old), at(store.StatusDraft, old.AddDate(0, 0, 1))),
+		statsApp("forward", "SWE", at(store.StatusDraft, old), at(store.StatusApplied, old.AddDate(0, 0, 1))),
 	}
-	// 08-07 is 55 days back (oldest day of the window); 08-06 is outside; 10-02 is future.
-	want := []int{1, 0, 0, 0, 0, 0, 2, 2}
-	got := reporting.WeeklyActivity(apps, now, 8)
-	if len(got) != len(want) {
-		t.Fatalf("got %d weeks, want 8", len(got))
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("weeks = %v, want %v", got, want)
-		}
+	applied := reporting.Build(apps, now, 14).Funnel[2]
+	if applied.Count != 2 || applied.Through != 1 || applied.Skipped != 1 || applied.Conversion != 50 {
+		t.Fatalf("Applied = %+v, want 2 with 1 from Draft (50%%) and 1 not a Draft first", applied)
 	}
 }
 
-func TestWeeklyActivityOverFixtures(t *testing.T) {
+// A later Status implies the earlier ones it cannot happen without, so an Application
+// whose log starts at Interviewing, Offer, Rejected or Withdrawn counts as Applied, and
+// an Offer as Interviewing too.
+func TestStatsLaterStatusImpliesApplied(t *testing.T) {
+	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.Local)
+	old := now.AddDate(0, 0, -40)
+	apps := []store.Application{
+		statsApp("interviewing", "SWE", at(store.StatusInterviewing, old)),
+		statsApp("offer", "SWE", at(store.StatusDraft, old), at(store.StatusOffer, old)),
+		statsApp("rejected", "SWE", at(store.StatusRejected, old)),
+		statsApp("withdrawn", "SWE", at(store.StatusWithdrawn, old)),
+	}
+	got := reporting.Build(apps, now, 14)
+	if applied := got.Funnel[2]; applied.Count != 4 || applied.Through != 1 || applied.Skipped != 3 {
+		t.Errorf("Applied = %+v, want 4, one from Draft", applied)
+	}
+	if iv := got.Funnel[3]; iv.Count != 2 || iv.Through != 2 || iv.Conversion != 50 {
+		t.Errorf("Interviewing = %+v, want 2 of 4 Applied", iv)
+	}
+	if offer := got.Funnel[4]; offer.Count != 1 || offer.Through != 1 || offer.Skipped != 0 {
+		t.Errorf("Offer = %+v, want 1 through Interviewing", offer)
+	}
+	if got.Response.Applied != 4 || got.Response.Reached != 2 || got.Tracks[0].Applied != 4 {
+		t.Errorf("response = %+v, track = %+v, want 2 of 4", got.Response, got.Tracks[0])
+	}
+	if got := reporting.Reached(apps[1]); strings.Join(got, ",") != "Draft,Applied,Interviewing,Offer" {
+		t.Errorf("Reached(offer) = %v", got)
+	}
+	// An implied Applied takes the implying Status's date for the Response window, but
+	// has no week of its own.
+	recent := reporting.Build([]store.Application{statsApp("new", "SWE", at(store.StatusInterviewing, now.AddDate(0, 0, -2)))}, now, 14)
+	if recent.Response.TooNew != 1 || recent.Weeks[len(recent.Weeks)-1].Count != 0 {
+		t.Errorf("recent implied Applied: response %+v, weeks %+v", recent.Response, recent.Weeks)
+	}
+}
+
+// An undone move does not count: undo appends the earlier Status again within moments,
+// and Stats reads that pair as never having happened. A move back days later is a real
+// move.
+func TestStatsLeavesUndoneMovesOut(t *testing.T) {
+	now := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	old := now.AddDate(0, 0, -40)
+	apps := []store.Application{
+		// m a y u on a Draft: Applied, then Draft again a few seconds later.
+		statsApp("undone", "SWE", at(store.StatusDraft, old), at(store.StatusApplied, now), at(store.StatusDraft, now.Add(5*time.Second))),
+		// Two moves undone in turn.
+		statsApp("twice", "SWE", at(store.StatusApplied, old), at(store.StatusInterviewing, now), at(store.StatusOffer, now.Add(time.Second)),
+			at(store.StatusInterviewing, now.Add(2*time.Second)), at(store.StatusApplied, now.Add(3*time.Second))),
+		// An empty log's first move undone back to Lead.
+		statsApp("first", "SWE", at(store.StatusApplied, now), at(store.StatusLead, now.Add(time.Second))),
+		// A deliberate move back, days later, still counts.
+		statsApp("back", "SWE", at(store.StatusDraft, old), at(store.StatusApplied, old), at(store.StatusDraft, old.AddDate(0, 0, 3))),
+	}
+	got := reporting.Build(apps, now, 14)
+	if applied := got.Funnel[2]; applied.Count != 2 {
+		t.Errorf("Applied = %+v, want 2 (twice, back)", applied)
+	}
+	if got.Funnel[3].Count != 0 || got.Funnel[4].Count != 0 {
+		t.Errorf("undone Interviewing/Offer counted: %+v", got.Funnel)
+	}
+	if got.Funnel[0].Count != 1 {
+		t.Errorf("Lead = %+v, want 1 (first, undone back to Lead)", got.Funnel[0])
+	}
+	if last := got.Weeks[len(got.Weeks)-1]; last.Count != 0 {
+		t.Errorf("this week = %+v, want 0: every Applied this week was undone", last)
+	}
+	if log := reporting.EffectiveLog(apps[0].StatusLog); len(log) != 1 || log[0].Status != store.StatusDraft {
+		t.Errorf("EffectiveLog(undone) = %+v, want the first Draft only", log)
+	}
+}
+
+// The tab bar draws the same Applied series as Stats, so the two never disagree.
+func TestAppliedWeeksMatchesStats(t *testing.T) {
 	s, err := store.Open("../../../fixtures/workspace")
 	if err != nil {
 		t.Fatal(err)
@@ -247,13 +331,15 @@ func TestWeeklyActivityOverFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := reporting.WeeklyActivity(apps, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), 8)
-	// Hand-counted from the fixtures meta.yml: entries dated 2026-09-24 fall in week 7
-	// of 8 (seven days back), the one on 2026-09-25 in the last; the rest are older.
-	want := []int{0, 0, 0, 0, 0, 0, 8, 1}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("weeks = %v, want %v", got, want)
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	stats := reporting.Build(apps, now).Weeks
+	got := reporting.AppliedWeeks(apps, now, 8)
+	if len(got) != 8 {
+		t.Fatalf("got %d weeks, want 8", len(got))
+	}
+	for i, w := range got {
+		if want := stats[len(stats)-8+i]; w != want {
+			t.Fatalf("week %d = %+v, Stats has %+v", i, w, want)
 		}
 	}
 }

@@ -85,7 +85,7 @@ A sent Application whose Status hasn't changed for the follow-up period. It is a
 _Avoid_: stale, reminder
 
 **Response**:
-A sent Application that reached Interviewing or Offer. A rejection without an interview is not a Response. Response rate leaves out Applications sent within the follow-up period, because they are too new to judge.
+A sent Application that reached Interviewing or Offer. A rejection without an interview is not a Response. An Application at Interviewing, Offer, Rejected or Withdrawn was sent, whether or not its Applied was recorded. Response rate leaves out Applications sent within the follow-up period, because they are too new to judge. A move the Owner undid never happened.
 _Avoid_: reply, callback
 
 **Fit**:

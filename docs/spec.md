@@ -509,19 +509,33 @@ line. No pop-up, no retry.
 Answers "how is my search going?". No tables: `Tab` and row keys do nothing. The `t` track
 filter applies. Top to bottom:
 
-1. **Funnel**: Applications that **ever reached** each Status (from `status_log`, `approx`
-   entries included): Lead → Draft → Applied → Interviewing → Offer, one bar per Status in
-   its glyph and colour. A rung can be higher than the one before, so there is no drop-off:
-   each rung says what share of the previous rung reached it (`29% of Applied`) and how
-   many reached it without the previous one (`5 skipped Draft`). Rejected, Withdrawn and
-   Dismissed on a muted `closed` line.
+Stats reads each well-formed Application's `status_log` in order (`approx` entries
+included; malformed ones are left out of every figure and of Stats' `t` counts). A move and
+the undo that restores the Status before it within 15 minutes cancel out. A later Status
+implies the ones it cannot happen without: Interviewing, Offer, Rejected and Withdrawn
+imply Applied, and Offer implies Interviewing, so the numbers agree with the screens. An
+empty log is Lead.
+
+1. **Funnel**: Applications that **ever reached** each Status: Lead → Draft → Applied →
+   Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
+   optional starts, so a rung can be higher than the one before and there is no drop-off:
+   each rung says what share of the previous rung reached it first (`29% of Applied`, left
+   out when that rung is empty) and how many reached it without the previous one before
+   it (`5 weren't Drafts first`). Rejected, Withdrawn and Dismissed on a muted `closed` line.
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
-   leaving out Applications whose Applied date is within `follow_up_days`, with a meter.
-   A line says how many were left out as too early to judge.
-3. **Applied per week**: last 12 weeks, Monday-start, local time, by Applied date. One
-   sparkline with the week range, this week's count and the 12-week average.
-4. **By track**: track × Applied (as the funnel counts it) · Judged (the Response
-   denominator) · Responses · Rate. Hidden when the filter is on one track.
+   leaving out Applications whose Applied date (an implied one takes the date of the Status
+   implying it) is within `follow_up_days`, with a meter. A line says how many were left
+   out as too new.
+3. **Applied per week**: last 12 weeks, Monday-start, local time, by logged Applied date. One
+   sparkline with the week range, this week's count and the 12-week average. The tab bar's
+   sparkline beside Stats is the same series over 8 weeks.
+4. **By track**: track × Applied (as the funnel counts it) · Counted (the Response
+   denominator) · Responses · Rate, then a line saying what Counted means when there is
+   room. Hidden when the filter is on one track.
+
+The `t` filter's options are All, the `workspace.json` Tracks, then any other Track a row
+is on (a legacy `Unknown`, or a renamed or removed one), so the options add up to All.
+This holds on the Application screens too.
 
 With no Applications, Stats says `No Applications yet · a to add a Lead`. The fixtures fit
 80×24 without scrolling.

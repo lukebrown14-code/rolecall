@@ -342,9 +342,9 @@ func (m model) tabs(p pal) (string, []int) {
 		room -= gutter + xansi.StringWidth(r)
 	}
 	wide := m.layout().wide()
-	// The activity sparkline sits beside the Stats tab at wide sizes, until the bar is
-	// short of room.
-	spark := " " + p.Text(p.Accent).Faint(true).Render(activitySparkline(p, reporting.WeeklyActivity(m.apps, m.now(), activityWeeks)))
+	// The Applied-per-week sparkline, the same series Stats draws over its last weeks, sits
+	// beside the Stats tab at wide sizes, until the bar is short of room.
+	spark := " " + p.Text(p.Accent).Faint(true).Render(sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)))
 	build := func(level, active int) (string, []int) {
 		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
 		// in from the edge (twelve cells with its trailing space); below that the bar is the
@@ -453,17 +453,18 @@ func (m model) trackSelector(p pal, form trackForm) string {
 		return key + p.Text(p.Dim).Render(":"+m.trackName())
 	}
 	mark := p.SelChip
+	tracks := m.filterTracks()
 	label := func(i int) string {
 		name := allView
-		if i > 0 {
-			name = m.tracks[i-1]
+		if i > 0 && i <= len(tracks) {
+			name = trackLabel(tracks[i-1])
 		}
 		return fmt.Sprintf("%s %d", name, m.trackTotal(i))
 	}
 	if form == trackCompact {
 		return key + " " + mark(label(m.track)) + p.Text(p.Dim).Render("▸")
 	}
-	parts := make([]string, len(m.tracks)+1)
+	parts := make([]string, len(tracks)+1)
 	for i := range parts {
 		parts[i] = p.Text(p.Dim).Render(label(i))
 		if i == m.track {
@@ -473,31 +474,23 @@ func (m model) trackSelector(p pal, form trackForm) string {
 	return p.Text(p.Dim).Render("TRACK ") + key + " " + strings.Join(parts, " ")
 }
 
-// trackTotal is the Applications on a Track (0 is All). On a table screen it is the rows
-// the open view would show with that Track chosen, so the chosen option matches the list;
-// elsewhere it is every one the Workspace lists.
+// trackTotal is the Applications on a Track (0 is All; see filterTracks). On a table
+// screen it is the rows the open view would show with that Track chosen, so the chosen
+// option matches the list; on Stats it is the Applications Stats counts, so malformed
+// ones are left out and the options add up to All.
 func (m model) trackTotal(track int) int {
+	with := m
+	with.track = track
 	if m.hasTables() {
-		with := m
-		with.track = track
 		return len(with.rows())
 	}
-	if track == 0 {
-		return len(m.apps)
-	}
-	n := 0
-	for _, a := range m.apps {
-		if a.Track == m.tracks[track-1] {
-			n++
-		}
-	}
-	return n
+	return len(with.statsApps())
 }
 
 // trackName is the Track filter's name: All, or the Track.
 func (m model) trackName() string {
-	if m.track > 0 && m.track <= len(m.tracks) {
-		return m.tracks[m.track-1]
+	if t, ok := m.selectedTrack(); ok {
+		return trackLabel(t)
 	}
 	return allView
 }

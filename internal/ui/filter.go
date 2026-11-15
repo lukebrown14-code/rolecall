@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	xansi "github.com/charmbracelet/x/ansi"
@@ -10,6 +11,52 @@ import (
 // The filter row: the status filter and the Track filter on one line,
 // "STATUS s [All 9] Applied 1 Interviewing 2 │ TRACK t [All 9] SWE 8 Platform 1". Each
 // count is the rows that option would show, so the chosen ones match the list.
+
+// noTrack is how the Track filter names Applications with no track.
+const noTrack = "No track"
+
+// filterTracks is the Track filter's options after All: the workspace.json Tracks in
+// their order, then every other Track an Application is on (a legacy "Unknown", or one
+// renamed or removed from workspace.json) in name order, so the options add up to All.
+// m.track indexes it, 1-based.
+func (m model) filterTracks() []string {
+	listed := make(map[string]bool, len(m.tracks))
+	for _, t := range m.tracks {
+		listed[t] = true
+	}
+	var other []string
+	for _, a := range m.apps {
+		if !listed[a.Track] {
+			listed[a.Track] = true
+			other = append(other, a.Track)
+		}
+	}
+	slices.Sort(other)
+	return append(slices.Clone(m.tracks), other...)
+}
+
+// selectedTrack is the Track the filter is on; ok is false on All, or when the chosen
+// off-list Track has since gone. A workspace.json Track needs no scan of the rows.
+func (m model) selectedTrack() (track string, ok bool) {
+	switch {
+	case m.track <= 0:
+		return "", false
+	case m.track <= len(m.tracks):
+		return m.tracks[m.track-1], true
+	}
+	if all := m.filterTracks(); m.track <= len(all) {
+		return all[m.track-1], true
+	}
+	return "", false
+}
+
+// trackLabel is a Track as the filter shows it: an empty one is "No track".
+func trackLabel(track string) string {
+	if track == "" {
+		return noTrack
+	}
+	return track
+}
 
 // filterSpan is where one option sits on the filter row, for a click.
 type filterSpan struct {
@@ -94,13 +141,16 @@ func (m model) statusPart(p pal, form trackForm) filterPart {
 	return m.options(p, "STATUS", key, views, counts, m.table, form, false)
 }
 
-// trackPart is the Track filter: All and each Track, with the rows each would show in this
-// view. Empty when the Workspace has no Tracks.
+// trackPart is the Track filter: All and each Track (see filterTracks), with the rows each
+// would show in this view. Empty when the Workspace has no Tracks.
 func (m model) trackPart(p pal, form trackForm) filterPart {
 	if !m.trackApplies() {
 		return filterPart{}
 	}
-	names := append([]string{allView}, m.tracks...)
+	names := []string{allView}
+	for _, t := range m.filterTracks() {
+		names = append(names, trackLabel(t))
+	}
 	counts := make([]int, len(names))
 	for i := range names {
 		counts[i] = m.trackTotal(i)
