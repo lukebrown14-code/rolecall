@@ -45,10 +45,10 @@ func TestSetContactFillsAnEmptyStarterProfile(t *testing.T) {
 func TestSetContactKeepsEverythingOutsideTheContactTable(t *testing.T) {
 	s := fixtureProfileStore(t)
 	writeMasterProfile(t, s, "# Me\n\nIntro.\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n| Name | Old |\n| GitHub | github.com/old |\n| Website | old.test |\n\n## Experience\n\n- Job\n")
-	if err := s.SetContact(map[string]string{"Name": "New", "Email": "new@example.test"}); err != nil {
+	if err := s.SetContact(map[string]string{"Name": "New", "Email": "sam@example.test"}); err != nil {
 		t.Fatal(err)
 	}
-	want := "# Me\n\nIntro.\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n| Name | New |\n| Email | new@example.test |\n| GitHub | github.com/old |\n| Website | old.test |\n\n## Experience\n\n- Job\n"
+	want := "# Me\n\nIntro.\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n| Name | New |\n| Email | sam@example.test |\n| GitHub | github.com/old |\n| Website | old.test |\n\n## Experience\n\n- Job\n"
 	if got := readMasterProfile(t, s); got != want {
 		t.Fatalf("master-profile.md =\n%q\nwant\n%q", got, want)
 	}
@@ -57,10 +57,10 @@ func TestSetContactKeepsEverythingOutsideTheContactTable(t *testing.T) {
 func TestSetContactAddsTheSectionAfterTheTitle(t *testing.T) {
 	s := fixtureProfileStore(t)
 	writeMasterProfile(t, s, "# Me\n\n## Experience\n\n- Job\n")
-	if err := s.SetContact(map[string]string{"Name": "A", "Email": "a@example.test"}); err != nil {
+	if err := s.SetContact(map[string]string{"Name": "A", "Email": "jobs@example.test"}); err != nil {
 		t.Fatal(err)
 	}
-	want := "# Me\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n| Name | A |\n| Email | a@example.test |\n\n## Experience\n\n- Job\n"
+	want := "# Me\n\n## Contact\n\n| Field | Value |\n| :-- | :-- |\n| Name | A |\n| Email | jobs@example.test |\n\n## Experience\n\n- Job\n"
 	if got := readMasterProfile(t, s); got != want {
 		t.Fatalf("master-profile.md =\n%q\nwant\n%q", got, want)
 	}

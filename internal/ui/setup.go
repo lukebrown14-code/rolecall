@@ -35,7 +35,7 @@ func WithFirstRunSetup() Option {
 
 func newContactForm(contact map[string]string) *form {
 	placeholders := map[string]string{
-		fieldName: "Alex Quinn", fieldEmail: "alex@example.com", fieldPhone: "+61 400 000 000",
+		fieldName: "Alex Quinn", fieldEmail: "alex.quinn@example.test", fieldPhone: "+61 400 000 000",
 		fieldLocation: "Brisbane, QLD", fieldLinkedIn: "linkedin.com/in/alexquinn",
 	}
 	var fields []formField
