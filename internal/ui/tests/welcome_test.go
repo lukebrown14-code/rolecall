@@ -54,7 +54,7 @@ func TestWelcomeKeysLandOnTheirSettingsRow(t *testing.T) {
 			d := newDriver(t, contactOnly(t), fixtureClock, 120, 36, ui.WithEditorSource("default"), ui.WithConfigHome(t.TempDir()))
 			d.Type(key)
 			v := d.plain()
-			if !strings.Contains(v, "[ This machine ]") || !strings.Contains(v, "▌ "+label) {
+			if !strings.Contains(v, "[This machine]") || !strings.Contains(v, "▌ "+label) {
 				t.Fatalf("%s did not open Settings › This machine on %s:\n%s", key, label, v)
 			}
 			d.key(0x1b)
