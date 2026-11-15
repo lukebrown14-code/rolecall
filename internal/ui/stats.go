@@ -203,8 +203,8 @@ func statsHeading(p pal, label, rest string) string {
 var statsIndent = strings.Repeat(" ", statsLabelWidth)
 
 // statsFunnel is the funnel: one bar per Status in its colour and glyph, counts
-// right-aligned, and beside each rung after the first what share of the previous rung
-// reached it and how many skipped that rung. Then the closed Statuses, muted.
+// right-aligned, and beside each rung after the first how it relates to the previous rung
+// (see funnelNote). Then the closed Statuses, muted.
 func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 	var lines []string
 	for i, l := range wrapWords("Applications that ever reached each Status", max(1, w-statsLabelWidth)) {
@@ -255,37 +255,33 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 	return lines
 }
 
-// funnelNote explains a rung against the previous one: "29% of Applied" where the
-// previous rung has Applications, and "5 weren't Drafts first" for those that reached
-// this rung without the previous one before it. Never a drop-off, which a rising
-// ever-reached count makes a lie. The share is left out only when the previous rung is
-// empty, where "0% of" would read as a drop; the wording is otherwise the same.
+// funnelNote explains a rung against the previous one. Where every Application on the
+// rung came through the previous one, it is the share of that rung: "29% of Applied".
+// Lead and Draft are optional starts, so a rung can hold Applications that never were on
+// the one before; a share of the previous rung would then read as a drop beside a full
+// bar ("0% of Lead" beside 2), so it says where they came from as counts instead: "3 came
+// from Drafts · 8 didn't", or "none came from Leads". Never a drop-off, which a rising
+// ever-reached count makes a lie, and nothing when the previous rung is empty.
 func funnelNote(step reporting.FunnelStep, prev string) string {
-	var parts []string
-	if step.ConversionOK {
-		parts = append(parts, fmt.Sprintf("%d%% of %s", step.Conversion, prev))
+	switch {
+	case step.Skipped == 0 && step.ConversionOK:
+		return fmt.Sprintf("%d%% of %s", step.Conversion, prev)
+	case step.Skipped == 0:
+		return ""
+	case step.Through == 0:
+		return "none came from " + statusPlural(prev)
+	default:
+		return fmt.Sprintf("%d came from %s · %d didn't", step.Through, statusPlural(prev), step.Skipped)
 	}
-	if step.Skipped > 0 {
-		parts = append(parts, notFirst(step.Skipped, prev))
-	}
-	return strings.Join(parts, " · ")
 }
 
-// notFirst is "1 wasn't a Lead first" or "5 weren't Drafts first": Lead and Draft read as
-// nouns, the later Statuses as states ("2 weren't Applied first").
-func notFirst(n int, status string) string {
-	noun := status
+// statusPlural is a Status as a group of Applications: Leads and Drafts read as nouns,
+// the later Statuses as states ("came from Applied").
+func statusPlural(status string) string {
 	if status == store.StatusLead || status == store.StatusDraft {
-		noun = "a " + status
-		if n != 1 {
-			noun = status + "s"
-		}
+		return status + "s"
 	}
-	verb := "wasn't"
-	if n != 1 {
-		verb = "weren't"
-	}
-	return fmt.Sprintf("%d %s %s first", n, verb, noun)
+	return status
 }
 
 // statsResponse is the Response rate with a meter and the Applications left out as too

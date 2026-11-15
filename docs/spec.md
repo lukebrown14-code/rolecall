@@ -605,9 +605,11 @@ empty log is Lead.
 1. **Funnel**: Applications that **ever reached** each Status: Lead → Draft → Applied →
    Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
    optional starts, so a rung can be higher than the one before and there is no drop-off:
-   each rung says what share of the previous rung reached it first (`29% of Applied`, left
-   out when that rung is empty) and how many reached it without the previous one before
-   it (`5 weren't Drafts first`). Rejected, Withdrawn and Dismissed on a muted `closed` line.
+   a rung that all came through the previous one says what share of it reached it
+   (`29% of Applied`); a rung with Applications that never were on the previous one says
+   where they came from, as counts (`3 came from Drafts · 8 didn't`, `none came from
+   Leads`), never `0% of`. Nothing when the previous rung is empty. Rejected, Withdrawn and
+   Dismissed on a muted `closed` line.
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
    leaving out Applications whose Applied date (an implied one takes the date of the Status
    implying it) is within `follow_up_days`, with a meter. A line says how many were left
