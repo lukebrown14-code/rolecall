@@ -170,6 +170,8 @@ func (m model) feedbackMsg(p pal) (string, string) {
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Info, true
 	case m.toastKind == toastOffer:
 		icon, c = p.StatusGlyph(store.StatusOffer), p.StatusColor(store.StatusOffer)
+	case m.toastKind == toastNote:
+		icon, c = " ", p.Sub // no success mark: nothing changed
 	}
 	if msg == "" {
 		return "", ""

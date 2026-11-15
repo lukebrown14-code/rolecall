@@ -113,6 +113,7 @@ const (
 	toastPlain toastKind = iota // a ✓ in the ok colour
 	toastUndo                   // an undo: ✓ like any success (↩ is Withdrawn)
 	toastOffer                  // a move to Offer: the gold ★ celebration
+	toastNote                   // nothing happened (e.g. nothing to undo): no ✓, muted
 )
 
 // undoHint is the keys shown with the toast of every reversible action.
@@ -175,7 +176,7 @@ func (m model) shown(folder string) bool {
 // move created, so a later real Apply freezes what is really sent.
 func (m *model) undoLast() tea.Cmd {
 	if len(m.undo) == 0 {
-		m.toast, m.toastKind = "Nothing to undo", toastUndo
+		m.toast, m.toastKind = "Nothing to undo", toastNote
 		return nil
 	}
 	last := m.undo[len(m.undo)-1]

@@ -96,7 +96,7 @@ func TestMoveRefusedAtTheKeyOnAMalformedRow(t *testing.T) {
 }
 
 func TestUndoWithNothingToUndoSaysSo(t *testing.T) {
-	if v := view(t, "u"); !strings.Contains(v, "Nothing to undo") {
+	if v := view(t, "u"); !strings.Contains(v, "Nothing to undo") || strings.Contains(v, "✓ Nothing to undo") {
 		t.Fatalf("u was silent:\n%s", v)
 	}
 }
