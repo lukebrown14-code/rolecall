@@ -122,6 +122,26 @@ func TestReadCleansControlCharactersFromDisplayedStrings(t *testing.T) {
 	}
 }
 
+// Bidi controls and zero-width characters can reorder or hide a row, so they go too; the
+// joiners that shape emoji and scripts stay.
+func TestDisplayTextDropsBidiAndZeroWidth(t *testing.T) {
+	in := "👩\u200d💻 a\u202eRTL\u2066x\u2069\u200bZW\u200c\ufeff\x9b"
+	if got, want := store.DisplayText(in), "👩\u200d💻 aRTLxZW\u200c\ufffd"; got != want {
+		t.Fatalf("DisplayText(%q) = %q, want %q", in, got, want)
+	}
+}
+
+// A document keeps its lines and tabs so the Markdown still renders; every escape goes.
+func TestDocumentTextKeepsLinesAndDropsEscapes(t *testing.T) {
+	in := "# JD\r\n\n\tEvil \x1b]0;PWNED\x07 and\x1b]52;c;SGVsbG8=\x07 \u202eclip\u2028end"
+	if got, want := store.DocumentText(in), "# JD\n\n\tEvil ]0;PWNED and]52;c;SGVsbG8= clip\nend"; got != want {
+		t.Fatalf("DocumentText(%q) = %q, want %q", in, got, want)
+	}
+	if plain := "# Café\n\n- 東京 🚀\n"; store.DocumentText(plain) != plain {
+		t.Fatalf("DocumentText changed plain Markdown")
+	}
+}
+
 func TestDisplayTextLeavesPlainTextAlone(t *testing.T) {
 	for in, want := range map[string]string{"Café 東京 🚀": "Café 東京 🚀", "a\u2028b": "a b", "\x1b[31mred": "[31mred"} {
 		if got := store.DisplayText(in); got != want {
