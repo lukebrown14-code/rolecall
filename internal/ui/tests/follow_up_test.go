@@ -58,29 +58,48 @@ func heatOf(row string) string {
 	return ""
 }
 
-func TestFollowUpHeatGlyphs(t *testing.T) {
+// Follow-up due is always the ⚑ flag (? in ASCII), never a dot that could read as a
+// Status or a separator; how long overdue shows in its weight and its "10d" count.
+func TestFollowUpFlagGlyph(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		ascii bool
-		glyph [3]string
+		glyph string
 	}{
-		{"unicode", false, [3]string{"·", "◦", "●"}},
-		{"ascii", true, [3]string{".", "o", "*"}},
+		{"unicode", false, "⚑"},
+		{"ascii", true, "?"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ascii {
 				t.Setenv("ROLECALL_ASCII", "1")
 			}
 			v := plain(driveModel(t, driveStart(t, heatWorkspace(t), fixtureClock, 120, 40), "3"))
-			for i, name := range []string{"heat-low", "heat-mid", "heat-high"} {
-				if got := heatOf(rowOf(v, name)); got != tc.glyph[i] {
-					t.Errorf("%s heat = %q, want %q:\n%s", name, got, tc.glyph[i], v)
+			for _, name := range []string{"heat-low", "heat-mid", "heat-high"} {
+				if got := heatOf(rowOf(v, name)); got != tc.glyph {
+					t.Errorf("%s flag = %q, want %q:\n%s", name, got, tc.glyph, v)
 				}
 			}
 			if got := heatOf(rowOf(v, "heat-none")); got != "" {
-				t.Errorf("not-due row has heat %q", got)
+				t.Errorf("not-due row has a flag %q", got)
 			}
 		})
+	}
+}
+
+// A flag more than a week overdue is bold; a fresh one is not.
+func TestLongOverdueFlagIsBold(t *testing.T) {
+	raw := driveModel(t, driveStart(t, heatWorkspace(t), fixtureClock, 120, 40), "3").View().Content
+	bold := func(name string) bool {
+		for _, l := range strings.Split(raw, "\n") {
+			if strings.Contains(chipped(l), " "+name+" ") {
+				i := strings.Index(l, "⚑")
+				return i >= 0 && strings.Contains(l[max(0, strings.LastIndex(l[:i], "\x1b[")):i], "[1;")
+			}
+		}
+		return false
+	}
+	if !bold("heat-high") || bold("heat-low") {
+		t.Errorf("heat-high bold %v, heat-low bold %v; want true, false", bold("heat-high"), bold("heat-low"))
 	}
 }
 

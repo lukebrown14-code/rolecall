@@ -37,7 +37,7 @@ type Roles struct {
 	Danger string // closes today, errors
 	Purple string // Interviewing: magenta on dark, so it parts from Applied blue under red-green colour blindness
 	Gold   string // Offer
-	Lead   string // Lead: cool grey-blue
+	Lead   string // Lead: a grey-green (sage), apart from the closed Statuses' grey and the blues
 	Draft  string // Draft: a lighter blue than Applied, apart from the accent
 	// dimmed is everything behind a pop-up, still at the text floor; dimmedOnFill is the
 	// active tab's text on the dimmed fill.
@@ -77,9 +77,9 @@ var rolePalette = struct {
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
 	Purple:       rolePair{"#F778BA", "#7A4AD6"},
 	Gold:         rolePair{"#F2CC60", "#8A5A00"},
-	Lead:         rolePair{"#9CB0A0", "#5F6B73"},
+	Lead:         rolePair{"#9CB0A0", "#406850"},
 	Draft:        rolePair{"#A5D6FF", "#2D6A8F"},
-	Dimmed:       rolePair{"#768390", "#656D76"},
+	Dimmed:       rolePair{"#7D8996", "#656D76"},
 	DimmedOnFill: rolePair{darkBg, lightBg},
 }
 
@@ -221,6 +221,11 @@ func ASCIIMode() bool {
 	return os.Getenv("ROLECALL_ASCII") == "1" || os.Getenv("TERM") == "linux" || !utf8Capable()
 }
 
+// PlainMode reports whether ROLECALL_PLAIN=1 asks for a plainer frame, for screen readers
+// and braille displays: no mouse capture, so the terminal's own selection and review
+// cursor work, and no decorative sparkline in the tab bar.
+func PlainMode() bool { return os.Getenv("ROLECALL_PLAIN") == "1" }
+
 // utf8Capable reports whether the environment's locale can draw UTF-8. POSIX gives LC_ALL
 // priority over LC_CTYPE over LANG; the first one set decides. Nothing set is treated as
 // capable, so a bare environment keeps the glyphs.
@@ -238,7 +243,8 @@ func utf8Capable() bool {
 // sgr matches one SGR escape sequence.
 var sgr = regexp.MustCompile("\x1b\\[([0-9;]*)m")
 
-// StripColor drops colour from a rendered frame, keeping bold and underline. It runs over
+// StripColor drops colour from a rendered frame, keeping every attribute that is not
+// colour (bold, faint, italic, underline, reverse, strikethrough). It runs over
 // the whole view, so Glamour output and the pop-up fill lose colour too.
 func StripColor(s string) string {
 	return sgr.ReplaceAllStringFunc(s, func(seq string) string {
@@ -255,7 +261,9 @@ func StripColor(s string) string {
 				if i < len(nums) && nums[i] == "2" {
 					i += 3
 				}
-			case "0", "1", "4", "22", "24":
+			// bold, faint, italic, underline, reverse and strikethrough, and their resets:
+			// none is colour, and an expired date keeps its strike.
+			case "0", "1", "2", "3", "4", "7", "9", "22", "23", "24", "27", "29":
 				keep = append(keep, nums[i])
 			}
 		}
@@ -265,32 +273,6 @@ func StripColor(s string) string {
 		return "\x1b[" + strings.Join(keep, ";") + "m"
 	})
 }
-
-// asciiGlyphs maps every glyph the layout draws to an ASCII stand-in. Glyphs that mean
-// different things get different stand-ins: a Status keeps the one its palette draws, a
-// warning (!) is not the follow-up flag (?), and a missing document (0) is not a Lead (o).
-var asciiGlyphs = strings.NewReplacer(
-	"◆", "@", "▌", ">", "▸", ">", "▶", ">", "▏", "|", "‹", "<", "›", ">", "⚑", "!", "↩", "<",
-	"●", "*", "○", "0", "✓", "v", "⚠", "!", "✕", "x", "✗", "X", "✘", "X", "◌", "o", "█", "#",
-	"↑", "^", "↓", "v", "←", "<", "→", ">", "×", "x", "—", "-", "·", ".",
-	// Status glyphs; a palette in ASCII mode draws each Status's own stand-in first
-	"◐", "=", "✎", "=", "★", "*", "⊘", "/", "◦", "o", "–", "-",
-	// the wordmark's mark, distinct from every Status stand-in and from a data block
-	"▞", "R",
-	// the documents' ready meter and an urgent close date
-	"■", "#", "□", "-", "▲", "^",
-	// the Stats sparkline's eight steps fold onto five: _ . - = #
-	"▁", "_", "▂", "_", "▃", ".", "▄", ".", "▅", "-", "▆", "=", "▇", "=",
-	"░", ".", "▕", "|", "“", `"`, "”", `"`, "≤", "<",
-	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+", "…", "~",
-	// the box rules Glamour draws around a Markdown table
-	"┼", "+", "├", "+", "┤", "+", "┌", "+", "┐", "+", "└", "+", "┘", "+",
-	// Glamour pads table cells with a non-breaking space
-	"\u00a0", " ",
-	// the progress spinner's Braille frames
-	"⠋", "*", "⠙", "*", "⠹", "*", "⠸", "*", "⠼", "*", "⠴", "*",
-	"⠦", "*", "⠧", "*", "⠇", "*", "⠏", "*",
-)
 
 // ASCIIFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set or force
 // (the ascii setting) is on.
@@ -323,6 +305,17 @@ func (p Palette) SelGutter(filled bool) string {
 	return p.SelBase(filled).Foreground(p.Accent).Bold(true).Render("▌ ")
 }
 
+// OnSel is the palette for what sits on the selection fill. Coloured words there (close
+// dates, warnings, document states) take the secondary colour, which clears the 4.5:1
+// text floor on the fill where the role colours do not; the muted closed-Status glyph
+// takes it too, to clear the 3:1 glyph floor. The open Status colours stay: as glyphs
+// they clear 3:1, and a Status's colour is what the glyph is for.
+func (p Palette) OnSel() Palette {
+	q := p
+	q.Ok, q.Warn, q.Bad, q.Dim = p.Sub, p.Sub, p.Sub, p.Sub
+	return q
+}
+
 func (p Palette) SelText(filled bool) lipgloss.Style {
 	return p.SelBase(filled).Foreground(p.Fg).Bold(true)
 }
@@ -335,14 +328,17 @@ func (p Palette) SelLine(filled bool, w int, content string) string {
 func (p Palette) Key() lipgloss.Style { return p.Text(p.Accent).Bold(true) }
 
 // SelChip is the active option of a row of options (the tab bar, the pipeline strip, the
-// Track filter): the selection fill one cell wider each side, " Drafts 2 ". Where there
-// is no fill to see it by (NO_COLOR, the terminal's own colours, ASCII, or behind a
-// pop-up) the cells hold brackets instead, "[Drafts 2]", so the width never changes.
+// Track filter, the detail tabs): always bracketed, "[Drafts 2]", so it reads without
+// colour, and on the selection fill where there is one. Where there is no fill to see it
+// by (NO_COLOR, the terminal's own colours, ASCII) it is underlined as well; behind a
+// pop-up it keeps only its brackets. Inactive options hold a space in each bracket's cell,
+// so the width never changes.
 func (p Palette) SelChip(text string) string {
-	if NoColor() || p.Inherit || p.Ascii || p.Backdrop {
-		return p.SelText(!p.Backdrop).Underline(!p.Backdrop).Render("[" + text + "]")
+	if p.Backdrop {
+		return p.SelText(false).Render("[" + text + "]")
 	}
-	return p.SelText(true).Render(" " + text + " ")
+	plain := NoColor() || p.Inherit || p.Ascii
+	return p.SelText(true).Underline(plain).Render("[" + text + "]")
 }
 
 // paneRule colours a pane's rule or divider: the accent while the pane has focus, the
@@ -460,7 +456,7 @@ var statusGlyphs = map[string][2]string{
 	store.StatusInterviewing: {"◆", "@"},
 	store.StatusOffer:        {"★", "$"},
 	store.StatusRejected:     {"✕", "x"},
-	store.StatusWithdrawn:    {"–", "-"},
+	store.StatusWithdrawn:    {"↩", "<"},
 	store.StatusDismissed:    {"⊘", "/"},
 }
 

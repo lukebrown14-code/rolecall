@@ -17,7 +17,7 @@ import (
 func TestStatusGlyphsAndASCIIStandIns(t *testing.T) {
 	wantGlyph := map[string]string{
 		"Lead": "◌", "Draft": "✎", "Applied": "●", "Interviewing": "◆", "Offer": "★",
-		"Rejected": "✕", "Withdrawn": "–", "Dismissed": "⊘",
+		"Rejected": "✕", "Withdrawn": "↩", "Dismissed": "⊘",
 	}
 	for _, mode := range []theme.Mode{theme.Dark, theme.Light} {
 		p := mode.Base()
@@ -43,11 +43,42 @@ func TestStatusGlyphsAndASCIIStandIns(t *testing.T) {
 // The frame-wide fold maps each glyph to the stand-in the design names.
 func TestASCIIFoldTable(t *testing.T) {
 	for glyph, want := range map[string]string{
-		"■": "#", "□": "-", "◌": "o", "⚑": "!", "↩": "<", "▌": ">", "▶": ">", "✕": "x", "◦": "o",
-		"●": "*", "★": "*", "◆": "@", "▁": "_", "▃": ".", "▅": "-", "▆": "=", "█": "#", "–": "-", "✎": "=",
+		"■": "#", "□": ":", "◌": "o", "⚑": "?", "⚠": "!", "↩": "<", "▌": ">", "▶": ">", "✕": "x",
+		"●": "*", "★": "$", "◆": "@", "▁": "_", "▃": ".", "▅": "-", "▆": "=", "█": "#", "✎": "=",
+		"✓": "+", "○": "_", "—": "-", "…": ">", "·": ".", "⠹": "%", "▲": "^", "Δ": "&",
 	} {
 		if got := theme.ASCIIFold(glyph, true); got != want {
 			t.Errorf("%q folds to %q, want %q", glyph, got, want)
+		}
+	}
+}
+
+// One meaning, one stand-in: every glyph in the `?` legend folds to an ASCII character no
+// other legend glyph folds to, and none folds to the separator's or the ellipsis's
+// stand-in, so ASCII mode never draws two meanings alike.
+func TestLegendGlyphsFoldToDistinctASCII(t *testing.T) {
+	reserved := map[string]string{
+		theme.ASCIIFold(theme.GlyphSep, true):      "the separator",
+		theme.ASCIIFold(theme.GlyphEllipsis, true): "the ellipsis",
+	}
+	byASCII := map[string]string{}
+	for _, g := range theme.Legend() {
+		a := theme.ASCIIFold(g.Mark, true)
+		if a != g.ASCII || len(a) != 1 {
+			t.Errorf("%s %q folds to %q, want its one-cell stand-in %q", g.Meaning, g.Mark, a, g.ASCII)
+		}
+		if what, ok := reserved[a]; ok {
+			t.Errorf("%s %q folds to %q, the stand-in of %s", g.Meaning, g.Mark, a, what)
+		}
+		if other, ok := byASCII[a]; ok && other != g.Mark {
+			t.Errorf("%q and %q both fold to %q", other, g.Mark, a)
+		}
+		byASCII[a] = g.Mark
+	}
+	// No legend glyph is also the separator.
+	for _, g := range theme.Legend() {
+		if g.Mark == theme.GlyphSep {
+			t.Errorf("%s is drawn with the separator %q", g.Meaning, g.Mark)
 		}
 	}
 }

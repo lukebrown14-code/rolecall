@@ -50,22 +50,30 @@ func TestSpaceOpensTheWorkspaceMenuWithoutCoveringTheFilters(t *testing.T) {
 			if breadcrumbLine(before) == "" || breadcrumbLine(open) != breadcrumbLine(before) {
 				t.Fatalf("menu covers the breadcrumb:\nbefore %q\nafter  %q", breadcrumbLine(before), breadcrumbLine(open))
 			}
-			top := ""
+			// The pop-up template: the title in the top border, esc with the other keys in
+			// the bottom one.
+			top, bottom := "", ""
 			for _, l := range strings.Split(chipped(open), "\n") {
 				if strings.Contains(l, "╭") {
 					top = l
 				}
+				if strings.Contains(l, "╰") {
+					bottom = l
+				}
 			}
-			if !strings.Contains(top, "esc") {
-				t.Fatalf("top border lacks esc: %q", top)
+			if !strings.Contains(top, "Menu") || strings.Contains(top, "esc") || !strings.Contains(bottom, "esc close") {
+				t.Fatalf("menu borders break the template: top %q bottom %q", top, bottom)
 			}
 			if strings.Contains(chipped(open), "Close") {
 				t.Fatalf("menu has a Close row:\n%s", chipped(open))
 			}
-			// The filter row's ▸ says a filter has more options; it is not a cursor.
+			// One cursor: the selection gutter on one row, and no second ▸ beside it.
 			body := strings.SplitN(chipped(open), "\n", 3)[2]
-			if got := markedLines(strings.ReplaceAll(body, breadcrumbLine(open), ""), "▸"); len(got) != 1 {
-				t.Fatalf("want one ▸ cursor, got %d:\n%s", len(got), chipped(open))
+			if got := markedLines(strings.ReplaceAll(body, breadcrumbLine(open), ""), "▌"); len(got) != 1 {
+				t.Fatalf("want one ▌ cursor, got %d:\n%s", len(got), chipped(open))
+			}
+			if strings.Contains(body, "▌ ▸") {
+				t.Fatalf("the menu draws two cursor marks:\n%s", chipped(open))
 			}
 			if driveModel(t, m, " ", "esc").View().Content != before {
 				t.Fatal("esc did not restore the screen")

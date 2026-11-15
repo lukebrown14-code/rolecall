@@ -3,11 +3,11 @@
    VIEW s Leads 4 [Dismissed 2] │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
- ▌ ⊘ docs-dismissed                             Dism. ~7d     ·  │ Fictional Labs · SWE · dismissed ~7d ago             
+ ▌ ⊘ docs-dismissed                         Dism. ~7d     fit —  │ Fictional Labs · SWE · dismissed ~7d ago             
  ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
-   ⊘ Engineer #1                                ~Jan 2026  Good  │ ⊘ Dismissed                        fit not assessed  
+   ⊘ Engineer #1                            ~Jan 2026  fit Good  │ ⊘ Dismissed                                   fit —  
      Example · Unknown · dismissed ~Jan 2026                     │                                                      
-                                                                 │ DOCS    □□□□ 0/4                                     
+                                                                 │ DOCS    □□□□ 0/4 ready                               
                                                                  │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
                                                                  │ TIMELINE                                             

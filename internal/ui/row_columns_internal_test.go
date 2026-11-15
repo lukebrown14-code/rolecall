@@ -51,7 +51,7 @@ func TestRowColumnsAreFixed(t *testing.T) {
 	if xansi.StringWidth(f) != w || xansi.StringWidth(l) != w {
 		t.Fatalf("rows are not %d cells: %q %q", w, f, l)
 	}
-	if !strings.HasSuffix(strings.TrimRight(f, " "), "Marg.") || !strings.HasSuffix(strings.TrimRight(l, " "), "·") || !strings.Contains(l, "Applied 4d") || !strings.Contains(f, "● 9mo") {
+	if !strings.HasSuffix(strings.TrimRight(f, " "), "fit Marg.") || !strings.HasSuffix(strings.TrimRight(l, " "), "fit —") || !strings.Contains(l, "Applied 4d") || !strings.Contains(f, "⚑ 9mo") {
 		t.Fatalf("columns wrong:\n%q\n%q", f, l)
 	}
 }

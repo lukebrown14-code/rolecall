@@ -74,7 +74,7 @@ func (m model) chipText(p pal, a store.Application, c docChip) string {
 	case m.isWriting(a, c.file):
 		return m.spinner.View() + p.Text(p.Fg).Render(" "+c.name) + p.Text(p.Dim).Render(" writing…")
 	case c.ready:
-		return p.Text(p.Ok).Render("●") + p.Text(p.Fg).Render(" "+c.name)
+		return p.Text(p.Ok).Render(glyphReady) + p.Text(p.Fg).Render(" "+c.name)
 	}
-	return p.Text(p.Dim).Render("○ " + c.name)
+	return p.Text(p.Dim).Render(glyphMissing + " " + c.name)
 }

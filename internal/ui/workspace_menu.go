@@ -8,13 +8,15 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
-// menuWidth is the Workspace menu's box width, in cells.
-const menuWidth = 26
+// menuWidth is the Workspace menu's box width, in cells: room for its bottom border's
+// "enter run · esc close".
+const menuWidth = 28
 
-// menuLead is the cells before each menu label: the cursor "▌ ▸ " on the selected row.
-const menuLead = 4
+// menuLead is the cells before each menu label: the selection gutter "▌ ", as every list
+// draws its cursor.
+const menuLead = 2
 
-// menuTitle names the Workspace menu; its top border also carries "esc".
+// menuTitle names the Workspace menu, set into its top border like every pop-up's title.
 const menuTitle = "Menu"
 
 // The menu's key hints. "select", not "move": m moves an Application.
@@ -106,22 +108,25 @@ func (wm *workspaceMenu) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 // anchored: the menu sits top-left under the tab bar, not centred.
 func (wm *workspaceMenu) anchored() bool { return true }
 
+// View is the pop-up template: the title in the top border, the keys in the bottom one,
+// two cells of padding either side, and the one selection gutter as the cursor.
 func (wm *workspaceMenu) View(m *model, p pal) string {
-	cw := popWidth(menuWidth, m.viewWidth()) - popInset + gutter
+	cw := popWidth(menuWidth, m.viewWidth()) - popInset
 	lines := make([]string, len(wm.items))
 	for i, it := range wm.items {
-		// "▌ ▸ " before the selected label, four spaces before the rest, so every label
-		// starts in the same column.
+		// The gutter before the selected label, two spaces before the rest, so every label
+		// starts in the same column and every key in the column before the padding.
 		room := max(0, cw-menuLead-1-xansi.StringWidth(it.key))
 		label := padRight(xansi.Truncate(it.label, room, "…"), room)
 		if i == wm.sel {
-			mark := p.SelBase(true).Foreground(p.Accent).Bold(true).Render("▌") + p.SelText(true).Render(" ▸ ")
-			lines[i] = p.SelLine(true, cw, mark+p.SelText(true).Render(label+" "+it.key))
+			lines[i] = p.SelLine(true, cw, p.SelGutter(true)+p.SelText(true).Render(label+" ")+
+				p.Key().Background(p.Sel).Render(it.key))
 			continue
 		}
 		lines[i] = strings.Repeat(" ", menuLead) + p.Text(p.Fg).Render(label) + " " + p.Key().Render(it.key)
 	}
-	return popupNote(p, menuTitle, "esc", false, menuWidth, m.viewWidth(), strings.Join(lines, "\n"), p.Keys([][2]string{{"↑↓", menuHintMove}, {"enter", menuHintRun}}))
+	return popup(p, menuTitle, false, menuWidth, m.viewWidth(), strings.Join(lines, "\n"),
+		p.Keys([][2]string{{"enter", menuHintRun}, {"esc", hintClose}}))
 }
 
 // anchoredMode is a mode whose box sits top-left under the tab bar.

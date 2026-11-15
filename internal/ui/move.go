@@ -112,7 +112,7 @@ type toastKind int
 
 const (
 	toastPlain toastKind = iota // a ✓ in the ok colour
-	toastUndo                   // an undo: ↩
+	toastUndo                   // an undo: ✓ like any success (↩ is Withdrawn)
 	toastOffer                  // a move to Offer: the gold ★ celebration
 )
 

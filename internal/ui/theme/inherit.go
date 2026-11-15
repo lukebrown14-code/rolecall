@@ -10,21 +10,26 @@ import (
 )
 
 // The "inherit terminal colours" palette: every role is an ANSI-16 index, so the Owner's
-// terminal theme decides the actual colour, and no role paints a background. Text, sub and
-// on-fill use the terminal's default foreground. The selection and panel fills are
-// ANSI backgrounds that InheritANSI turns into reverse video, which needs no fill colour.
+// terminal theme decides the actual colour, and no role paints a background. Any text the
+// Owner must read — body, secondary and muted text, separators, Lead — uses the terminal's
+// default foreground, which every theme makes legible; ANSI 8 (bright black, the
+// background colour on Solarized Dark) is kept for rules only, and ANSI 7 and the bright
+// yellow (near-invisible on light terminals) are not used at all. Offer is yellow and bold
+// (its chip is bold while open); a close date within a week is bright red, apart from
+// Offer's yellow and from danger's red, which also carries ▲ and bold. The selection and
+// panel fills are ANSI backgrounds that InheritANSI turns into reverse video.
 func inheritColors() Palette {
 	c := func(i int) color.Color { return lipgloss.ANSIColor(i) }
 	const (
-		red, green, yellow, blue, magenta, cyan, white = 1, 2, 3, 4, 5, 6, 7
-		brightBlack, brightYellow, brightBlue          = 8, 11, 12
+		red, green, yellow, blue, magenta, cyan = 1, 2, 3, 4, 5, 6
+		brightBlack, brightRed, brightBlue      = 8, 9, 12
 	)
 	return Palette{
 		Fg: lipgloss.NoColor{}, Sub: lipgloss.NoColor{}, OnFill: lipgloss.NoColor{},
-		Dim: c(brightBlack), Faint: c(brightBlack), Rule: c(brightBlack),
-		Accent: c(cyan), Sel: c(brightBlack), Ok: c(green), Info: c(blue), Warn: c(yellow), Bad: c(red),
+		Dim: lipgloss.NoColor{}, Faint: lipgloss.NoColor{}, Rule: c(brightBlack),
+		Accent: c(cyan), Sel: c(brightBlack), Ok: c(green), Info: c(blue), Warn: c(brightRed), Bad: c(red),
 		Bg: lipgloss.NoColor{}, Panel: lipgloss.NoColor{},
-		Purple: c(magenta), Gold: c(brightYellow), Lead: c(white), Draft: c(brightBlue),
+		Purple: c(magenta), Gold: c(yellow), Lead: lipgloss.NoColor{}, Draft: c(brightBlue),
 		Inherit: true,
 	}
 }

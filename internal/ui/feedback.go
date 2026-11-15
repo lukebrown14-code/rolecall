@@ -164,14 +164,12 @@ func (m model) feedbackMsg(p pal) (string, string) {
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Info, true
 	case m.toastKind == toastOffer:
 		icon, c = p.StatusGlyph(store.StatusOffer), p.StatusColor(store.StatusOffer)
-	case m.toastKind == toastUndo:
-		icon = "↩"
 	}
 	if msg == "" {
 		return "", ""
 	}
 	if icon == "✓" && p.Ascii {
-		icon = "+" // the toast's own stand-in; Profile's ✓ folds to v
+		icon = "+" // the fold's stand-in for ✓, set here because the spinner path is raw
 	}
 	bg := lipgloss.NewStyle().Background(p.Panel)
 	var left string

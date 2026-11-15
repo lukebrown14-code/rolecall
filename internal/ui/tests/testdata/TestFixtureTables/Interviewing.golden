@@ -3,11 +3,11 @@
    VIEW s All 9  Applied 1 [Interviewing 2] Offer 2  Closed 4 │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ Engineer #1                                          
- ▌ ◆ Engineer #1                         ● 9mo  ~Jan 2026  Good  │ Example · Unknown · applied ~Jan 2025 · interviewi…  
+ ▌ ◆ Engineer #1                     ⚑ 9mo  ~Jan 2026  fit Good  │ Example · Unknown · applied ~Jan 2025 · interviewi…  
  ▌   Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │                                                      
-   ◆ docs-written                             Interv. ~7d     ·  │ ◆ Interviewing                             fit Good  
+   ◆ docs-written                         Interv. ~7d     fit —  │ ◆ Interviewing                             fit Good  
      Fictional Labs · SWE · interviewing ~7d ago                 │                                                      
-                                                                 │ DOCS    □□□ 0/3                                      
+                                                                 │ DOCS    □□□ 0/3 ready                                
                                                                  │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
                                                                  │                                                      
                                                                  │ FOLLOW-UP  due 259 days ago                  m move  

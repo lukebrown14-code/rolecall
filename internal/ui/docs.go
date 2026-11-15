@@ -100,17 +100,17 @@ func (p pal) DocsLabel(a store.Application) (string, color.Color) {
 	n, total := readyCount(a)
 	switch a.Documents {
 	case store.DocsReady:
-		return "✓ " + docReady, p.Ok
+		return glyphReady + " " + docReady, p.Ok
 	case store.DocsWritten:
-		return fmt.Sprintf("○ %d/%d %s", n, total, docReady), p.Warn
+		return fmt.Sprintf("%s %d/%d %s", glyphMissing, n, total, docReady), p.Warn
 	}
-	return fmt.Sprintf("○ %d/%d %s", n, total, docReady), p.Dim
+	return fmt.Sprintf("%s %d/%d %s", glyphMissing, n, total, docReady), p.Dim
 }
 
 // meterGlyphs are the ready meter's filled and empty cells.
 const (
-	meterOn  = "■"
-	meterOff = "□"
+	meterOn  = glyphMeterOn
+	meterOff = glyphMeterOff
 )
 
 // meterCells is the meter's cells, one per needed document: ■■□□ for two ready of four.
@@ -124,14 +124,14 @@ func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style
 	return st(c).Render(strings.Repeat(meterOn, n)) + st(p.Faint).Render(strings.Repeat(meterOff, total-n))
 }
 
-// DocsMeter is the detail's "■■■□ 3/4": the cells, then how many documents are ready.
+// DocsMeter is the detail's "■■■□ 3/4 ready": the cells, then how many documents are ready.
 func (p pal) DocsMeter(a store.Application) string {
 	n, total := readyCount(a)
 	c := p.Dim
 	if n == total {
 		c = p.Ok
 	}
-	return p.meterCells(a, p.Text) + p.Text(c).Render(fmt.Sprintf(" %d/%d", n, total))
+	return p.meterCells(a, p.Text) + p.Text(c).Render(fmt.Sprintf(" %d/%d %s", n, total, docReady))
 }
 
 // readyTotals is the documents ready of the documents needed across the Workspace's

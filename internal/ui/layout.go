@@ -69,7 +69,7 @@ const (
 	filtersCollapsed = 1  // and when collapsed to one line
 	flagColumn       = 6  // the Follow-up due flag
 	stageColumn      = 11 // stage and date
-	fitColumn        = 6  // Fit
+	fitColumn        = 10 // Fit, labelled: "fit Strong"
 )
 
 // layout is one frame's size budget: everything a view needs to place itself, from the

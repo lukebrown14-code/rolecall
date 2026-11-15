@@ -100,7 +100,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | Dismissed | Title · Company · Track · Dismissed (date) | newest first |
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first |
 
-- **Docs:** `●` Ready · `○` Written · blank (SCHEMA → Documents state). Glyphs only in v0.1; colour comes in v0.1.1.
+- **Docs:** `✓` Ready · `○` Written · blank (SCHEMA → Documents state). Glyphs only in v0.1; colour comes in v0.1.1.
 - **v0.1.1** shows these as two-line rows with relative dates; see **v0.1.1 look**. There,
   Docs shows on Draft only (the Applied screen's rows show Fit and the follow-up flag, and
   Closed rows show the outcome, `✕ rejected` / `↩ withdrawn`, beside Fit).
@@ -262,20 +262,41 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   `ROLECALL_THEME=auto|dark|light` overrides it. The view paints the theme's background
   (`#0D1117` or white). Accent **Mint** (`#5EEAD4`, `#0F766E` on light) means focus and
   selection only; key names are bold text. Colour always pairs with a word or glyph.
-- **Active markers:** the active track, view tab and detail tab are bracketed — `[All]`,
-  `[Leads 4]`, `[JD]` — as well as coloured, so they read without colour.
-- **Accessibility:** `NO_COLOR` drops all colour but keeps bold, underline and every word
-  and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to an ASCII stand-in; a locale that
-  is not UTF-8, or `TERM=linux`, turns ASCII on by itself. Text keeps a 4.5:1 contrast
-  floor on either theme's background, pop-up fill and selection bar, and rules and pane
-  dividers 3:1, including the frame behind a pop-up, which dims without going below the
-  floor. The `?` pop-up carries a legend, one meaning per glyph: Statuses `◌ ◐ ● ◆ ★ ✕ ↩
-  ⊘`; Timeline, the current Status's glyph in its colour and earlier ones faint, `~`
-  approximate; Docs `✓` ready, `○` missing; Flags `⚠ ⚑`; Fit values and `—` not assessed.
+- **Active markers:** the active track, view tab and detail tab are always bracketed —
+  `[All]`, `[Leads 4]`, `[JD]` — as well as filled, so they read without colour (and
+  underlined where there is no fill: NO_COLOR, inherit, ASCII).
+- **Accessibility:** `NO_COLOR` drops all colour but keeps bold, faint, underline,
+  strikethrough and every word and glyph. `ROLECALL_ASCII=1` maps every drawn glyph to a
+  one-cell ASCII stand-in, a different one for each meaning; a locale that is not UTF-8,
+  or `TERM=linux`, turns ASCII on by itself. `ROLECALL_PLAIN=1` turns off mouse capture
+  (so the terminal's own selection and a screen reader's review cursor work) and the tab
+  bar's sparkline. Text keeps a 4.5:1 contrast floor on either theme's background, pop-up
+  fill and selection bar (coloured words on the bar take the secondary colour), and rules,
+  pane dividers and Status glyphs 3:1, including the frame behind a pop-up, which dims
+  without going below the floor. The inherit-terminal-colours option draws all readable
+  text in the terminal's default foreground; ANSI 8 is for rules only. The `?` pop-up's
+  legend is generated from the glyph table the frame draws with (`internal/ui/theme/glyphs.go`),
+  one meaning per glyph:
+
+  | Meaning | Glyph | ASCII |
+  |---|---|---|
+  | Lead · Draft · Applied · Interviewing · Offer | `◌ ✎ ● ◆ ★` | `o = * @ $` |
+  | Rejected · Withdrawn · Dismissed | `✕ ↩ ⊘` | `x < /` |
+  | approximate date | `~` | `~` |
+  | Document ready · missing · not needed | `✓ ○ —` | `+ _ -` |
+  | ready meter cell ready · missing | `■ □` | `# :` |
+  | agent writing (spinner) | `⠹` | `%` |
+  | needs attention · closes within 2 days · Follow-up due | `⚠ ▲ ⚑` | `! ^ ?` |
+  | Fit not assessed (`fit —`) | `—` | `-` |
+  | form field changed, not saved | `Δ` | `&` |
+
+  Chrome carries no meaning of its own and may share stand-ins: separator `·` (`.`),
+  ellipsis `…` (`>`), selection gutter `▌` (`>`), rules and borders (`- | +`), arrows.
 - **Status visual system:** each Status has a glyph and a colour on a cold-to-gold ramp —
-  Lead `◌` grey-blue · Draft `◐` pale blue · Applied `●` blue · Interviewing `◆` purple ·
-  Offer `★` gold — and the closed Statuses are muted, never red: Rejected `✕`, Withdrawn
-  `↩`, Dismissed `⊘` (ASCII `o = * @ $ x < -`). The glyph leads list rows, group headers
+  Lead `◌` grey-green (sage) · Draft `✎` pale blue · Applied `●` blue · Interviewing `◆`
+  magenta on dark, purple on light (so it parts from Applied's blue under red-green colour
+  blindness) · Offer `★` gold — and the closed Statuses are muted, never red: Rejected
+  `✕`, Withdrawn `↩`, Dismissed `⊘` (ASCII `o = * @ $ x < /`). The glyph leads list rows, group headers
   (label and rule in the Status colour), view tabs, the preview and detail chip, the
   timeline and the Move pop-up. A timeline shows each Status by its own glyph: the
   current one in its colour and bold, earlier ones faint. When two panes share the
@@ -283,10 +304,10 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
 - **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Close dates by
   urgency: `closes in 6d` amber within 7 days, `closes in 2d ▲` red and bold within 2 (and
   today), `closed 3 Sep` struck through and muted once past — in rows, the preview and the
-  detail view. `⚑ quiet` orange. Documents are named JD · Resume ·
+  detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. Documents are named JD · Resume ·
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
   `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
-  detail card add a meter, `■■□□ 2 of 4 ready` (GLOSSARY avoids "built").
+  detail card add a meter, `■■□□ 2/4 ready` (GLOSSARY avoids "built").
 - **Size classes (`internal/ui/layout.go`):** wide ≥ 110 columns, medium 80–109, narrow < 80; short
   ≤ 20 rows. Every screen and pop-up takes its sizes from one budget. Side panels (preview,
   detail card, Profile sections, Settings groups) are a share of the width between a

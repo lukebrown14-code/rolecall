@@ -141,7 +141,11 @@ func (m model) View() tea.View {
 		body = m.screenView(p)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
-	v.MouseMode = tea.MouseModeCellMotion // clicks and the wheel; see mouse.go
+	if !plainMode() {
+		// Clicks and the wheel (mouse.go). ROLECALL_PLAIN leaves the mouse to the
+		// terminal, so its own selection and a screen reader's review cursor work.
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	// Paint the theme's background so its roles keep their contrast whatever the
 	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
 	switch {
@@ -345,6 +349,9 @@ func (m model) tabs(p pal) (string, []int) {
 	// The Applied-per-week sparkline, the same series Stats draws over its last weeks, sits
 	// beside the Stats tab at wide sizes, until the bar is short of room.
 	spark := " " + p.Text(p.Accent).Faint(true).Render(sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)))
+	if plainMode() {
+		spark = "" // decoration a screen reader would read out cell by cell
+	}
 	build := func(level, active int) (string, []int) {
 		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
 		// in from the edge (twelve cells with its trailing space); below that the bar is the
@@ -959,19 +966,16 @@ func (m model) stageText(a store.Application) string {
 	return name
 }
 
-// fitDot is the empty Fit in the list.
-const fitDot = "·"
-
-// fitCell is a Fit in the six-cell column: the value, Marginal abbreviated, or · when it
-// has not been assessed.
+// fitCell is a Fit in its column, labelled as everywhere else: "fit Good", Marginal
+// abbreviated, or "fit —" when it has not been assessed.
 func fitCell(fit string) string {
 	switch fit {
 	case "":
-		return fitDot
+		return fitLabel + glyphNone
 	case store.FitMarginal:
-		return "Marg."
+		return fitLabel + "Marg."
 	}
-	return fit
+	return fitLabel + fit
 }
 
 // slotText is an Application's right-hand column text: stage and date, follow-up flag
@@ -980,8 +984,8 @@ func (m model) slotText(a store.Application) (state, flag, fit string) {
 	if a.Malformed != nil {
 		return "", "", ""
 	}
-	if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
-		flag = followUpHeat(past) + " " + m.since(lastChange(a))
+	if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		flag = followUpFlag + " " + m.since(lastChange(a))
 	}
 	return m.stageText(a), flag, fitCell(a.Fit)
 }
@@ -1036,7 +1040,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// every column starts at the same cell on every row.
 	buildRight := func() string {
 		heat := slot(show.flagW, heatC, flag)
-		if strings.HasPrefix(flag, heatHigh) {
+		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due && followUpLate(past) {
 			heat = st(heatC).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
 		}
 		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
@@ -1046,10 +1050,16 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// how far its Documents are.
 	right := buildRight()
 	// The Status glyph leads the title; the second line lines up under the title.
-	mark := st(p.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
+	// On the selection fill the row's coloured words and its muted glyph take the
+	// secondary colour (OnSel), so they clear the floors there.
+	rp := p
+	if fill {
+		rp = pal{p.OnSel()}
+	}
+	mark := st(rp.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
 	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
-	meta := strings.Join(m.meta(p, a, st, dimC), st(dimC).Render(" · "))
+	meta := strings.Join(m.meta(rp, a, st, dimC), st(dimC).Render(" · "))
 	// The bar spans both lines, so the selected row reads as one block.
 	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
@@ -1077,7 +1087,7 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	case tableLeads, tableDraft:
 		// No close date is a quiet dash, not the same words on every row.
 		if text, s := closeInfo(a.Closes, m.now()); s == closeNone {
-			out = append(out, dim.Render("—"))
+			out = append(out, dim.Render(glyphNone))
 		} else {
 			out = append(out, p.CloseStyle(s, st, dimC).Render(text))
 		}
@@ -1157,7 +1167,7 @@ func (m model) preview(p pal, a store.Application, w, h int) string {
 func (m model) previewMeta(p pal, a store.Application, w int) string {
 	var parts []string
 	for _, s := range m.meta(p, a, p.Text, p.Dim) {
-		if xansi.Strip(s) != "—" {
+		if xansi.Strip(s) != glyphNone {
 			parts = append(parts, s)
 		}
 	}

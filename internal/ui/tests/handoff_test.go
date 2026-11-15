@@ -108,7 +108,7 @@ func TestHandoffFromDetailKeepsTabAndApp(t *testing.T) {
 
 	view := plain(m)
 	// The detail view is still open on the same Application, on the Fit tab.
-	if !strings.Contains(view, "Platform Engineer") || !strings.Contains(view, "Fit: Good") {
+	if !strings.Contains(view, "Platform Engineer") || !strings.Contains(view, "fit Good") {
 		t.Fatalf("detail view lost its place or did not rescan:\n%s", view)
 	}
 }

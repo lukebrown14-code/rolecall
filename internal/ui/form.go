@@ -50,7 +50,7 @@ func (m model) formBox(p pal, f *form, w int) string {
 		}
 		row := mark + label + req + " " + m.formValue(p, f, fld, focused, avail)
 		if f.ShowDirty && fld.Value != fld.Orig {
-			row += " " + p.Text(p.Info).Render("●")
+			row += " " + p.Text(p.Info).Render(glyphChanged)
 		}
 		if fld.Err != "" {
 			// The error has its own line under the value, so it is never cut off.

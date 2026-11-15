@@ -134,7 +134,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {
 		t.Fatalf("resume_only not set:\n%s", meta)
 	}
-	if plain := chipped(view); !strings.Contains(plain, "● PDF") || !strings.Contains(plain, "2/3") {
+	if plain := chipped(view); !strings.Contains(plain, "✓ PDF") || !strings.Contains(plain, "2/3") {
 		t.Fatalf("Docs marker not Ready:\n%s", view)
 	}
 }

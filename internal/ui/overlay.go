@@ -43,12 +43,12 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 		}
 		row := "  " + p.Key().Render(statusLetters[s]) + "  " + p.StatusMark(s) + " " + p.Text(nameC).Render(padRight(s, statusColumn)) + p.Text(p.Warn).Render(hint)
 		if i == mv.sel {
-			bg := p.SelBase(true)
+			bg, on := p.SelBase(true), p.OnSel()
 			row = p.SelLine(true, cw+gutter, p.SelGutter(true)+
 				p.Key().Background(p.Sel).Render(statusLetters[s])+bg.Render("  ")+
-				bg.Foreground(p.StatusColor(s)).Render(p.StatusGlyph(s))+
+				bg.Foreground(on.StatusColor(s)).Render(p.StatusGlyph(s))+
 				p.SelText(true).Render(" "+padRight(s, statusColumn))+
-				bg.Foreground(p.Warn).Render(hint))
+				bg.Foreground(on.Warn).Render(hint))
 		}
 		b.WriteString(row + "\n")
 	}

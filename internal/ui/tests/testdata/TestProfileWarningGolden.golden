@@ -2,7 +2,7 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    SECTIONS                                                                                   profile/master-profile.md
 ─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
- ▌ Contact                    ✗  │  SECTION Contact                                                         e edit file 
+ ▌ Contact                    ○  │  SECTION Contact                                                         e edit file 
    Headlines                  2  │                                                                                      
    Experience                 2  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
    Key Skills                 8  │                                                                                      

@@ -65,14 +65,14 @@ func TestHelpListsMenuUndoAndOneCommandsRow(t *testing.T) {
 	}
 }
 
-// The Workspace menu's cursor stands apart from its label, "▌ ▸ Leads", and every row's
+// The Workspace menu's cursor is the one selection gutter, "▌ Leads", and every row's
 // label starts in the same column.
 func TestWorkspaceMenuCursorIsSpacedAndLabelsAlign(t *testing.T) {
 	for _, sz := range keyLineSizes {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", " "))
-		sel := lineWith(view, "▌ ▸ Leads")
+		sel := lineWith(view, "▌ Leads")
 		if sel == "" {
-			t.Fatalf("%dx%d: no \"▌ ▸ Leads\" row:\n%s", sz[0], sz[1], view)
+			t.Fatalf("%dx%d: no \"▌ Leads\" row:\n%s", sz[0], sz[1], view)
 		}
 		want := colOf(sel, "Leads")
 		box := sel[:strings.Index(sel, "▌")] // the box's left edge, as the selected row starts
@@ -137,6 +137,20 @@ func lineWith(view, s string) string {
 	return ""
 }
 
+// hasLineWith reports a line of view that contains every one of parts.
+func hasLineWith(view string, parts ...string) bool {
+	for _, l := range strings.Split(view, "\n") {
+		all := true
+		for _, p := range parts {
+			all = all && strings.Contains(l, p)
+		}
+		if all {
+			return true
+		}
+	}
+	return false
+}
+
 // lineAfter is the line after the first line of view containing s.
 func lineAfter(view, s string) string {
 	lines := strings.Split(view, "\n")
@@ -198,7 +212,7 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 func TestResumeOnlyCoverLetterRowIsAligned(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-resume-only", "enter"))
 	row := lineWith(view, "Cover letter")
-	if !strings.Contains(row, "● Resume") || !strings.Contains(row, "— Cover letter") {
+	if !strings.Contains(row, "✓ Resume") || !strings.Contains(row, "— Cover letter") {
 		t.Fatalf("docs line = %q, want the Resume and a dashed Cover letter side by side:\n%s", row, view)
 	}
 }
@@ -234,21 +248,20 @@ func TestMalformedDetailFitsTheWidth(t *testing.T) {
 	}
 }
 
-// The tab bar and the filter row draw the active option as the design's filled block,
-// " Drafts 2 ", with no brackets or underline; brackets come back only
-// where there is no fill to see (NO_COLOR, covered in a11y_test).
+// The tab bar, the filter row and the detail tabs draw the active option filled and
+// bracketed, "[Drafts 2]", so it reads without colour (the fill alone is under 3:1 on the
+// page); it is underlined only where there is no fill (NO_COLOR, covered in a11y_test).
 func TestBarSelectionIsAFilledBlock(t *testing.T) {
 	view := runKeysSized(t, fixtureCopy(t, nil), 120, 36, "2")
 	plain := ansi.Strip(view)
-	for _, gone := range []string{"[Drafts 2]", "[All 2]", "[2 Drafts 2]"} {
-		if strings.Contains(plain, gone) {
-			t.Errorf("bar still brackets %q:\n%s", gone, plain)
-		}
-	}
-	for _, want := range []string{" Drafts 2 ", " All 2 ", " 2 Drafts 2 "} {
+	for _, want := range []string{"[Drafts 2]", "[All 2]", "[2 Drafts 2]"} {
 		if !strings.Contains(plain, want) {
 			t.Errorf("bar lacks %q:\n%s", want, plain)
 		}
+	}
+	detail := ansi.Strip(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "enter"))
+	if !strings.Contains(detail, "[JD]") {
+		t.Errorf("the active detail tab is not bracketed:\n%s", detail)
 	}
 	if strings.Contains(view, "\x1b[4m") || strings.Contains(view, "\x1b[4;") || strings.Contains(view, "\x1b[1;4;") {
 		t.Errorf("bar selection is still underlined:\n%q", view)
