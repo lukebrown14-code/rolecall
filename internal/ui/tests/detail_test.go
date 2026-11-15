@@ -110,13 +110,13 @@ func (h *detailHarness) folder(name string) string { return filepath.Join(h.root
 func TestDetailHeaderWithMissingAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("1", 0, "Fern")
-	h.show("Platform Engineer · Fern Systems", "Lead · Platform · closes —")
+	h.show("Platform Engineer · Fern Systems", "Fern Systems · Platform")
 }
 
 func TestDetailHeaderApproximateAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 2, "Engineer #1")
-	h.show("Engineer #1 · Example", "Interviewing · Unknown · closes —", "applied ~2025-01-01")
+	h.show("Engineer #1 · Example", "Example · Unknown", "applied ~1 Jan 2025")
 }
 
 func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
@@ -126,7 +126,7 @@ func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
 		os.WriteFile(meta, bytes.Replace(b, []byte("track: SWE\n"), []byte("track: SWE\ncloses: 2026-12-01\n"), 1), 0o600)
 	})
 	h.open("3", 1, "Orbit")
-	h.show("Applied · SWE · closes 2026-12-01", "applied 2026-09-25 · 6d ago")
+	h.show("Orbit Labs · SWE · applied 6d ago", "applied 25 Sep 2026 · 6d ago")
 }
 
 func TestDetailJDRendersMarkdown(t *testing.T) {
@@ -307,7 +307,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes —", "→ Draft")
+	h.show("✎ Draft", "Moved to Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -317,7 +317,7 @@ func TestDetailUndoRestoresHeader(t *testing.T) {
 	h.wait("Move")
 	h.tm.Type("d")
 	h.tm.Type("u")
-	h.show("Lead · Platform · closes —")
+	h.show("Undone · back to Lead")
 	apps, _ := h.store.Scan()
 	for _, a := range apps {
 		if a.Title == "Platform Engineer" && (a.Status != "Lead" || len(a.StatusLog) != 3) {
@@ -398,14 +398,14 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	ask.tm.Type("m")
 	ask.wait("Move")
 	ask.tm.Type("a")
-	ask.show("Docs not Ready", "Draft · ")
+	ask.show("Docs not Ready")
 
 	yes := newDetailHarness(t, nil)
 	yes.open("2", 0, "docs-none")
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "→ Applied")
+	yes.show("Moved to Applied")
 }
 
 func TestResumeReader(t *testing.T) {

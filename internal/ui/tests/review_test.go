@@ -149,7 +149,7 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	h.waitForLogLength(2)
 	h.tm.Type("u")
 	view := h.finish()
-	if !strings.Contains(view, "permission denied") || strings.Contains(view, "→ Applied") {
+	if !strings.Contains(view, "permission denied") || strings.Contains(view, "Moved to Applied") {
 		t.Fatalf("want the copy error and no toast, got:\n%s", view)
 	}
 	if got := h.lastStatus(); got != "Applied" {

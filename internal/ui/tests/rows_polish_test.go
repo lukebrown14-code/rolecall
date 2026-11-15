@@ -18,13 +18,13 @@ func fernCloses(date string) func(string) {
 }
 
 // Close dates read by urgency in the row, the preview and the detail title: amber words
-// within a week, ▲ within two days, "closed 3 Sep" once past.
+// within a week, ▲ within two days, "expired 3 Sep" once past.
 func TestCloseDateUrgency(t *testing.T) {
 	for _, tc := range []struct{ closes, want string }{
 		{"2026-10-07", "closes in 6d"},
 		{"2026-10-03", "closes in 2d ▲"},
 		{"2026-10-01", "closes today ▲"},
-		{"2026-09-03", "closed 3 Sep"},
+		{"2026-09-03", "expired 3 Sep"},
 		{"2027-03-01", "closes Mar 2027"},
 	} {
 		t.Run(tc.closes, func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestNextActionLine(t *testing.T) {
 	}{
 		{"lead without a JD", []string{"1"}, "NEXT    add the JD", "enter open"},
 		{"applied", []string{"3"}, "NEXT    wait to hear back", "m move"},
-		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago", "m move"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due · no change in 9mo", "m move"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT    decide on the offer", "m move"},
 		{"detail on the JD tab", []string{"1", "enter"}, "NEXT    add the JD", "e open jd.md"},
 	} {

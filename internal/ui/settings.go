@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"image/color"
 	"strconv"
 	"strings"
@@ -69,10 +70,19 @@ func (m model) loadSettings() model {
 		m.err = err
 		return m
 	}
+	// A Track list that breaks the name rules (one listed twice) stops the screen like a
+	// broken file: its rows would offer edits on a list rolecall cannot use.
+	if _, err := m.store.Tracks(); st.Ws.Err == nil && badTrackList(err) {
+		st.Ws.Err = err
+	}
 	if m.configHome != "" {
+		// Only an error loading config.toml stops here, not one already on the footer.
+		was := m.err
+		m.err = nil
 		if m = m.loadMachine(); m.err != nil {
 			return m
 		}
+		m.err = was
 	}
 
 	m.settings = &st
@@ -225,7 +235,7 @@ func (m model) settingsView(p pal) string {
 	if m.settingsAboutShown() {
 		split = m.settingsRowsWidth(w)
 	}
-	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focusLeft, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focusLeft, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // settingsAboutShown reports whether the about pane sits beside the rows: at wide sizes,
@@ -260,7 +270,7 @@ func (m model) settingsTabs(p pal, room int) string {
 	if xansi.StringWidth(full) <= room {
 		return full
 	}
-	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+"/"+strconv.Itoa(len(settingsGroups)))
+	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+" of "+strconv.Itoa(len(settingsGroups)))
 }
 
 // settingsContextRow is the heading and the section tabs. The cursor rests here too (k
@@ -286,12 +296,16 @@ func (m model) settingsContextRow(p pal, w int) string {
 func (m model) settingsBody(p pal, w, h int) string {
 	pad := strings.Repeat(" ", inset)
 	if m.settings != nil && m.settings.Ws.Err != nil {
-		head := "workspace.json is not valid JSON"
-		if m.settings.Ws.NewerSchema {
+		head, why := "workspace.json is not valid JSON", m.settings.Ws.Err
+		var tle *store.TrackListError
+		switch {
+		case m.settings.Ws.NewerSchema:
 			head = "workspace.json is schema " + strconv.Itoa(m.settings.Ws.Schema) + ", from a newer rolecall"
+		case errors.As(why, &tle):
+			head, why = "workspace.json lists a Track rolecall can't use", tle.Err
 		}
 		text := pad + p.Text(p.Bad).Render(head) + "\n" + pad +
-			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(m.settings.Ws.Err.Error()) +
+			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(why.Error()) +
 			"\n\n" + pad + p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written.")
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
 	}
@@ -568,21 +582,28 @@ func (m model) settingsRows(group int) []settingRow {
 }
 
 // trackBreakdown explains each Track's count so the numbers add up: how many of its
-// Applications are active and how many closed (Rejected, Withdrawn, Dismissed).
+// Applications are active, how many closed (Rejected or Withdrawn, as the Applied screen's
+// Closed view holds) and how many dismissed.
 func (m model) trackBreakdown(st settingsState) map[string]string {
-	closed := map[string]int{}
+	closed, dismissed := map[string]int{}, map[string]int{}
 	for _, a := range m.apps {
 		switch a.Status {
-		case store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed:
+		case store.StatusRejected, store.StatusWithdrawn:
 			closed[a.Track]++
+		case store.StatusDismissed:
+			dismissed[a.Track]++
 		}
 	}
 	out := map[string]string{}
 	for _, t := range st.Ws.Tracks {
 		c := min(closed[t], st.TrackUse[t])
-		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c) + " active"
+		d := min(dismissed[t], st.TrackUse[t]-c)
+		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d) + " active"
 		if c > 0 {
 			out[t] += " · " + strconv.Itoa(c) + " closed"
+		}
+		if d > 0 {
+			out[t] += " · " + strconv.Itoa(d) + " dismissed"
 		}
 	}
 	return out

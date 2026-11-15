@@ -41,7 +41,7 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 	}
 	view := chipped(runKeys(t, root, 120, "1"))
 	expired, fern, empty := strings.Index(view, "Expired · 1"), strings.Index(view, "Platform Engineer"), strings.Index(view, "Empty log")
-	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "closed 1 Sep") {
+	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "expired 1 Sep") {
 		t.Fatalf("expired Lead not last under Expired:\n%s", view)
 	}
 }
@@ -160,7 +160,7 @@ func TestTooSmallNoticeSaysWhatItNeeds(t *testing.T) {
 	if len(lines) != 12 {
 		t.Fatalf("notice is %d lines, want 12:\n%s", len(lines), view)
 	}
-	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue"} {
+	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue · q quit"} {
 		found := false
 		for i, l := range lines {
 			if c := strings.Index(l, want); c >= 0 {

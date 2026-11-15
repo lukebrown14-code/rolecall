@@ -182,8 +182,8 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 	}{
 		{"next", []string{"3"}, "NEXT    wait to hear back", "m move", false},
 		{"lead next", []string{"1"}, "NEXT    add the JD", "enter open", false},
-		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "m move", false},
-		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due 259 days ago", "F draft follow-up", true},
+		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due · no change in 9mo", "m move", false},
+		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due · no change in 9mo", "F draft follow-up", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []ui.Option

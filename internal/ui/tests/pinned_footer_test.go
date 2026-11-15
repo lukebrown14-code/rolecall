@@ -55,10 +55,10 @@ func TestBreadcrumbFollowsCursorFilterAndFocus(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{"start", []string{"3"}, "Applied › All · All tracks · 1/9 · list"},
-		{"down 3", []string{"3", "j", "j", "j"}, "Applied › All · All tracks · 4/9 · list"},
+		{"start", []string{"3"}, "Applied › All · All tracks · row 1 of 9"},
+		{"down 3", []string{"3", "j", "j", "j"}, "Applied › All · All tracks · row 4 of 9"},
 		{"track", []string{"3", "t"}, "Applied › All · SWE · "},
-		{"empty", []string{"3", "/", "zzzzqq", "enter"}, "Applied › All · All tracks · 0/0 · list"},
+		{"empty", []string{"3", "/", "zzzzqq", "enter"}, "Applied › All · All tracks · no rows"},
 	}
 	for _, c := range cases {
 		got := breadcrumb(plainAt(t, 120, 36, c.keys...))
@@ -70,7 +70,7 @@ func TestBreadcrumbFollowsCursorFilterAndFocus(t *testing.T) {
 
 func TestBreadcrumbShortensWhenNarrow(t *testing.T) {
 	got := breadcrumb(plainAt(t, 60, 16, "3"))
-	if !strings.HasPrefix(got, "Applied › All") || strings.Contains(got, "list") || !strings.Contains(got, "1/9") {
+	if !strings.HasPrefix(got, "Applied › All") || strings.Contains(got, "detail") || !strings.Contains(got, "1 of 9") {
 		t.Errorf("narrow breadcrumb %q: want position kept and focus dropped", got)
 	}
 }
@@ -82,14 +82,14 @@ func TestMediumEnterOpensABottomSheet(t *testing.T) {
 	if len(lines) != 24 || !strings.Contains(lines[23], "? help") {
 		t.Fatalf("sheet changed the frame height:\n%s", view)
 	}
-	if !strings.Contains(view, "2/9") || !strings.Contains(view, "▌") {
+	if !strings.Contains(view, "2 of 9") || !strings.Contains(view, "▌") {
 		t.Fatalf("sheet lost the selected row:\n%s", view)
 	}
 	if !strings.Contains(view, "[Overview]") {
 		t.Fatalf("sheet shows no detail tabs:\n%s", view)
 	}
 	back := strings.Join(plainAt(t, 80, 24, "3", "j", "enter", "esc"), "\n")
-	if strings.Contains(back, "[Docs]") || !strings.Contains(back, "2/9") {
+	if strings.Contains(back, "[Docs]") || !strings.Contains(back, "2 of 9") {
 		t.Fatalf("esc did not return to the list with the cursor kept:\n%s", back)
 	}
 }
@@ -97,7 +97,7 @@ func TestMediumEnterOpensABottomSheet(t *testing.T) {
 // With too little height for about 8 detail lines, Enter opens the detail full-screen.
 func TestShortMediumEnterOpensFullScreen(t *testing.T) {
 	view := strings.Join(plainAt(t, 80, 16, "3", "enter"), "\n")
-	if strings.Contains(view, "› All") {
+	if strings.Contains(view, "VIEW s") || !strings.Contains(view, "‹ esc") {
 		t.Fatalf("detail should replace the list at 80x16:\n%s", view)
 	}
 }

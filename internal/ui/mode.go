@@ -105,6 +105,16 @@ func (mv *moveMode) Keys() [][2]string {
 
 func (mv *moveMode) View(m *model, p pal) string { return m.moveBox(p, mv) }
 
+// pinned keeps the subject, title then "Company · now Status", in view when the pop-up
+// scrolls on a short terminal: which Application moves matters more than the options.
+func (mv *moveMode) pinned() int { return moveSubjectLines }
+
+// moveSubjectLines is the Move pop-up's subject: the title, then Company and Status.
+const moveSubjectLines = 2
+
+// pinnedMode is a pop-up whose first body lines stay put while the rest scrolls.
+type pinnedMode interface{ pinned() int }
+
 // Update moves the Application the pop-up shows, not whatever row the cursor is on now: a
 // live refresh can move the cursor while the pop-up is open.
 func (mv *moveMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {

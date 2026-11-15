@@ -175,7 +175,17 @@ func popup(p pal, title string, warn bool, w, termWidth int, body, hints string)
 // popupNote is popup with a short note at the right of the top border, such as a form's
 // "* required". An empty note, or one with no room beside the title, is left out.
 func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hints string) string {
-	// Grow to fit the hints in the bottom border, so a key is never cut.
+	// Grow to fit the hints in the bottom border, so a key is never cut. Where the terminal
+	// is too narrow for them all, the hints before the last (esc, the way out) give way
+	// whole, latest first, rather than any being cut.
+	if termWidth > 0 {
+		sep := p.Text(p.Faint).Render(" · ")
+		parts := strings.Split(hints, sep)
+		for len(parts) > 2 && xansi.StringWidth(strings.Join(parts, sep))+popHintChrome > popWidth(termWidth, termWidth) {
+			parts = append(parts[:len(parts)-2], parts[len(parts)-1])
+		}
+		hints = strings.Join(parts, sep)
+	}
 	w = max(w, xansi.StringWidth(hints)+popHintChrome)
 	if termWidth > 0 {
 		w = min(w, popWidth(w, termWidth))
@@ -196,8 +206,17 @@ func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hin
 	bottom := b.Render("╰─") + p.PanelFill(h) + b.Render(strings.Repeat("─", max(0, inner-1-xansi.StringWidth(h)))+"╯")
 	lines := []string{top}
 	for _, l := range append(append([]string{""}, strings.Split(body, "\n")...), "") {
-		content := xansi.Truncate("  "+l, inner, "…")
-		lines = append(lines, b.Render("│")+p.PanelFill(content+strings.Repeat(" ", max(0, inner-xansi.StringWidth(content))))+b.Render("│"))
+		// Text too long for the box wraps at spaces, so the end of a sentence (where a
+		// file lives, what is being left) is never cut; a selected row is fitted already
+		// and keeps its one line.
+		parts := []string{l}
+		if room := inner - gutter - 1; xansi.StringWidth(l) > room && !strings.Contains(xansi.Strip(l), "▌") {
+			parts = strings.Split(xansi.Wrap(l, room, ""), "\n")
+		}
+		for _, part := range parts {
+			content := xansi.Truncate("  "+part, inner, "…")
+			lines = append(lines, b.Render("│")+p.PanelFill(content+strings.Repeat(" ", max(0, inner-xansi.StringWidth(content))))+b.Render("│"))
+		}
 	}
 	return strings.Join(append(lines, bottom), "\n")
 }

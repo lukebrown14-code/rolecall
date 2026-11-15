@@ -104,7 +104,7 @@ func TestUndoWithNothingToUndoSaysSo(t *testing.T) {
 // esc on the toast leaves the cursor where it was: only a search resets it.
 func TestEscOnAToastKeepsTheCursor(t *testing.T) {
 	v := view(t, "1", "j", "j", "m", "d", "esc")
-	if !strings.Contains(v, "3/3") {
+	if !strings.Contains(v, "row 3 of 3") {
 		t.Fatalf("esc moved the cursor:\n%s", v)
 	}
 }
@@ -182,13 +182,13 @@ func TestDocsGateNamesWhatIsMissing(t *testing.T) {
 // An undone move leaves no stop on the timeline and does not reset the age in Status.
 func TestTimelineIgnoresAnUndoneMove(t *testing.T) {
 	after := view(t, "2", "m", "a", "y", "u")
-	if !strings.Contains(after, "Undid move") {
+	if !strings.Contains(after, "Undone · back to") {
 		t.Fatalf("no undo:\n%s", after)
 	}
 	if strings.Contains(lineWith(after, "● Applied"), "1 Oct") || !strings.Contains(lineWith(after, "● Applied"), "next") {
 		t.Fatalf("phantom Applied on the timeline:\n%s", after)
 	}
-	if !strings.Contains(lineWith(after, "✎ docs-none"), "Draft ~7d") {
+	if !strings.Contains(lineWith(after, "✎ docs-none"), " ~7d ") {
 		t.Fatalf("the age in Status reset after an undo:\n%s", after)
 	}
 }

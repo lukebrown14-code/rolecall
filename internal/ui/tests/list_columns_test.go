@@ -69,15 +69,16 @@ func TestListRowsAlignAndNeverWrap(t *testing.T) {
 	}
 }
 
-// The latest stage date is fully visible on its row, at every size.
+// The latest stage date is fully visible on its row, at every size, however much of the
+// title is cut to make room.
 func TestListStageDateIsAlwaysWhole(t *testing.T) {
 	for _, s := range columnSizes {
 		view := listView(t, s[0], s[1])
 		var found bool
 		for _, r := range rowLines(view) {
-			if strings.Contains(r, "Software Engineer") {
+			if strings.Contains(r, "● Software Eng") {
 				found = true
-				if !strings.Contains(r, "Applied 6d") {
+				if !strings.Contains(r, " 6d ") {
 					t.Errorf("%dx%d: stage date cut: %q", s[0], s[1], r)
 				}
 			}
@@ -94,11 +95,11 @@ func TestListFitColumn(t *testing.T) {
 	view := listView(t, 120, 36)
 	for _, r := range rowLines(view) {
 		switch {
-		case strings.Contains(r, "Software Engineer"):
+		case strings.Contains(r, "● Software Eng"):
 			if !strings.HasSuffix(strings.TrimRight(r, " "), " fit —") {
 				t.Errorf("unassessed row lacks fit —: %q", r)
 			}
-		case strings.Contains(r, "Engineer #1") && strings.Contains(r, "⚑"), strings.Contains(r, "Engineer #1") && strings.Contains(r, "Interv"):
+		case strings.Contains(r, "Engineer #1") && strings.Contains(r, "⚑"), strings.Contains(r, "◆ Engineer #1"):
 			if !strings.HasSuffix(strings.TrimRight(r, " "), "fit Good") {
 				t.Errorf("assessed row lacks fit Good: %q", r)
 			}
@@ -125,7 +126,7 @@ func TestListLongTitleTruncates(t *testing.T) {
 	view := chipped(runKeysSized(t, root, 60, 16, "3"))
 	for _, r := range rowLines(view) {
 		if strings.Contains(r, "Principal") {
-			if !strings.Contains(r, "…") || !strings.Contains(r, "Applied 6d") {
+			if !strings.Contains(r, "…") || !strings.Contains(r, " 6d ") {
 				t.Errorf("long title row: %q", r)
 			}
 			return

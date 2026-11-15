@@ -100,11 +100,11 @@ func TestStatsTrackFilterOffersOffListTracks(t *testing.T) {
 	view := chipped(runKeys(t, fixtureCopy(t, nil), 140, "4"))
 	// 16 well-formed: SWE 9 (docs-*, empty, empty-log, orbit), Platform 1 (fern), and the
 	// six legacy status-* rows on Unknown, which workspace.json does not list.
-	if !strings.Contains(view, "TRACK t [All 16] SWE 9 Platform 1 Unknown 6") {
+	if !strings.Contains(view, "STATS │ TRACK t [All 16] SWE 9  Platform 1  Unknown 6") {
 		t.Fatalf("Stats track filter does not add up:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "4", "t", "t", "t"))
-	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "closed  ✕ Rejected 1 · ↩ Withdrawn 1 · ⊘ Dismissed 1") {
+	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "closed  ✕ Rejected 1 · ↩ Withdrawn 1   ⊘ Dismissed 1") {
 		t.Fatalf("t did not reach the Unknown Track, or Stats is not filtered to it:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "3"))
@@ -149,7 +149,7 @@ func TestStatsFunnelExplainsEachRung(t *testing.T) {
 		"11 0% of Draft · 11 weren't Drafts first",
 		"4 36% of Applied",
 		"2 50% of Interviewing",
-		"closed  ✕ Rejected 2 · ↩ Withdrawn 2 · ⊘ Dismissed 2",
+		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 2",
 		"2 of 6",
 		"Not counted: 5 applied in the last 14 days (too new)",
 		"13 Jul → 28 Sep",

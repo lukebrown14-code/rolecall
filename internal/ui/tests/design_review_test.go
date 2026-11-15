@@ -10,12 +10,12 @@ import (
 
 // Fixes from the cold design review of the overhauled TUI.
 
-// A row moved today still names its stage: "today" shrinks to "0d" rather than pushing
-// the stage out of its column.
+// A row moved today reads "today" like any other Status's, with no abbreviated Status
+// name beside it: the glyph and the section say the Status.
 func TestRowMovedTodayKeepsItsStage(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "3", "m", "i"))
-	if row := lineWith(view, "Software Engineer"); !strings.Contains(row, "Interv. 0d") {
-		t.Errorf("moved row = %q, want its stage and date", row)
+	if row := lineWith(view, "Software Engineer"); !strings.Contains(row, " today ") || strings.Contains(row, "Interv") {
+		t.Errorf("moved row = %q, want today and no abbreviated Status", row)
 	}
 }
 

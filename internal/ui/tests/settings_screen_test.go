@@ -184,12 +184,12 @@ func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 	h := newSettingsHarness(t, 56, "", nil)
 	h.tm.Type("6")
 	v := h.tm.plain()
-	requireAll(t, v, "[Search] 1/4", "Places")
+	requireAll(t, v, "[Search] 1 of 4", "Places")
 	if strings.Contains(v, "This machine") {
 		t.Fatalf("every group named where they do not fit:\n%s", v)
 	}
 	h.tm.Type("]")
-	requireAll(t, h.tm.plain(), "[Documents] 2/4", "Cover letter maximum")
+	requireAll(t, h.tm.plain(), "[Documents] 2 of 4", "Cover letter maximum")
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {

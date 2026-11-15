@@ -163,14 +163,14 @@ Lists **every Status except the current one**, likely next steps first, each wit
 Letters stay fixed per Status across all rows: `l` Lead, `d` Draft, `a` Applied,
 `i` Interviewing, `o` Offer, `r` Rejected, `w` Withdrawn, `x` Dismissed. Pressing a letter
 appends to `status_log` (SCHEMA rules) and closes the popup. The row then moves to its new
-table, and the feedback line says `<Title> → Interviewing` with `u undo`.
+table, and the feedback line says `Moved to Interviewing · <Title> (<Company>)` with `u undo`: the Status first, so a narrow footer cuts the name, never where it went.
 
 **Side effects when moving to Applied:**
 1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, `y` mark Applied, `n`/`Esc` cancel.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
-Status (the log stays append-only) and says so on the feedback line (`Undone · Title back to Applied`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
+Status (the log stays append-only) and says so on the feedback line (`Undone · back to Applied · Title (Company)`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
 
 ### Add form (`a`)
 
@@ -201,11 +201,11 @@ changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)
 
-Header: `Title · Company` (as the list reads) with `applied <date> · <ago>` or `closes in
-<n>d` on the right, then `Status · Track · closes <date>`. The applied date shows once.
+Header: one line, `Title · Company` (as the list reads) with `applied 25 Sep 2026 · <ago>` or `closes in
+<n>d` on the right. Dates in the detail read `25 Sep 2026`; a timeline that spans years gives every stop its year.
 Tabs (`←` `→`): **JD** · **Fit** · **Notes** · **Docs** (Fit beside JD: they are read together).
-In the wide size class the preview's card (status, documents, timeline, link) stays on the
-left. Below it the card folds into a two-line strip under the title: the timeline as a track
+In the wide size class the preview's card (status, documents, timeline, link) stays where the
+preview was, on the right at its width, so the divider does not move. Below it the card folds into a two-line strip under the title: the timeline as a track
 (`○ Lead 24 Sep ─ ● Applied 25 Sep ─ ◌ Interviewing ─ ◌ Offer`), then documents · Fit ·
 close date · Track, each shedding detail to fit rather than wrapping.
 
@@ -303,7 +303,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   frame, the focused pane's part of the top rule is the accent.
 - **Other colours:** Fit Strong green · Good blue · Marginal/Poor grey. Close dates by
   urgency: `closes in 6d` amber within 7 days, `closes in 2d ▲` red and bold within 2 (and
-  today), `closed 3 Sep` struck through and muted once past — in rows, the preview and the
+  today), `expired 3 Sep` struck through and muted once past — in rows, the preview and the
   detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. Documents are named JD · Resume ·
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
   `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
@@ -327,9 +327,10 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
 - **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
   Stats), read once by its key: `t  [All]  SWE  Platform`, or `t [All]▸` when narrow.
 - **Scope line:** whenever a track or text filter is on, the context row says what it
-  hides — `/pl ×   3 of 4` — and the tab and view counts read `3/4` rather than a filtered
+  hides — `/pl ×   3 of 4` — and the tab counts read `3 of 4` rather than a filtered
   number that looks like a total.
-- **Feedback:** the message on the left, cut first; its keys on the right, never cut. Every
+- **Footer:** two lines on every screen, so the bottom rule never moves: a breadcrumb (`Applied › All · All tracks · row 2 of 9`, `Settings › Search`), then the key line.
+- **Feedback:** on the breadcrumb line's right; where it cannot sit whole beside it, it takes the whole line. Its keys are never cut (a success drops `esc hide` first). Every
   move, dismiss, save and Settings change says what happened (`✓ Moved to Applied ·
   Software Engineer   u undo`), and a moved row is lit for 600 ms so the eye can follow it.
   A toast (successes clear on the next key) or an error (stays until `Esc`)
@@ -352,14 +353,14 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   line shows the chip and the count.
 - **Rows:** two lines (title + right-hand columns, then company · track · dates). A blank
   line between rows when they all fit; dense when they don't. Right-hand columns are
-  state · flag · Fit, Fit flush right and labelled (`fit Good`, `fit —`); a column empty
+  flag · age · Fit, Fit flush right and labelled (`fit Good`, `fit —`), at least a cell apart at their widest. The age is the last change's (`6d`, `~Jan 2026`, `today`, years past two years: `7y`) without the Status, which the glyph and section already say; a column empty
   for the whole view is hidden. No close date is a muted `—`. Dates older than about three
   months read as the month (`applied Jan 2025`), not `21mo ago`. Expired Leads and Drafts
   sort last under an **Expired** section. Titles that would not read as a name (a bare
   slug, an empty title) are quoted in toasts and the detail breadcrumb.
 - **Next step:** the preview, the detail card (or, without it, the line under the detail
   tabs) say what to do next and the key that does it, worked out from Status and
-  documents: `NEXT  add the JD   enter open`, `NEXT  follow up · quiet 9mo   n note`,
+  documents: `NEXT  add the JD   enter open`, `FOLLOW-UP  due · no change in 9mo   m move`,
   `NEXT  decide on the offer   m move`. A key is offered only where it works here (`f` and
   `p` with a Harness, `b` with a Plugin).
 - **Timeline:** one track of Status glyphs everywhere — the preview, the detail strip, and

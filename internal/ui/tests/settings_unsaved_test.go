@@ -214,7 +214,7 @@ func TestSettingsTabsShowEveryGroupWhenTheyFit(t *testing.T) {
 			t.Errorf("%d: tabs %q", w, l)
 		}
 	}
-	if l := rowWith(settingsAt(t, 56, 16), "SETTINGS"); !strings.Contains(l, "[Search] 1/4") {
+	if l := rowWith(settingsAt(t, 56, 16), "SETTINGS"); !strings.Contains(l, "[Search] 1 of 4") {
 		t.Errorf("56: tabs %q", l)
 	}
 }

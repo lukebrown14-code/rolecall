@@ -231,9 +231,6 @@ func (m model) profileMarkdown(st profileState) string {
 			body = st.profile.Sections[st.selected].Body
 		}
 		warning := contactWarning(st.profile.Missing)
-		if body == "" && warning == "" {
-			return ""
-		}
 		width := m.profileContentWidth(m.viewWidth())
 		// The selection as a field row, like the detail's: what it is, and the key that edits it.
 		p := m.pal()
@@ -243,7 +240,14 @@ func (m model) profileMarkdown(st profileState) string {
 		}
 		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit file", width), ""}
 		if warning != "" {
-			lines = append(lines, warning)
+			lines = append(lines, wrapWords(warning, width)...)
+		}
+		if body == "" {
+			// An empty file or section says how to fill it rather than showing nothing.
+			if warning != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, wrapWords(m.profileEmptyHint(), width)...)
 		}
 		if body != "" {
 			if warning != "" {
@@ -304,6 +308,23 @@ const tableHead = 2
 // plainInline drops a table cell's inline Markdown marks: bold, italic and code.
 func plainInline(s string) string {
 	return strings.TrimSpace(strings.NewReplacer("**", "", "`", "", "*", "").Replace(s))
+}
+
+// profileEmptyHint is an empty Profile file or section: how to fill it.
+func (m model) profileEmptyHint() string {
+	if m.harness != "" {
+		return "Nothing here yet · e to write it, or run create-profile in your Harness"
+	}
+	return "Nothing here yet · e to write it in your editor"
+}
+
+// profileMissingHint is how to create a Profile the Workspace does not have yet.
+func (m model) profileMissingHint() string {
+	how := "Create " + profilePath + " with your name and email"
+	if m.harness != "" {
+		how = "Run create-profile in your Harness to write it, or create " + profilePath + " yourself"
+	}
+	return how + ", then press r to read it."
 }
 
 // contactWarning names the required Contact fields that are missing, so the Owner can fix
@@ -438,7 +459,7 @@ func (m model) profileView(p pal) string {
 			focus = focusLeft
 		}
 	}
-	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // profileContextRow names the focused pane on the left and the file it reads on the
@@ -458,7 +479,7 @@ func (m model) profileContextLabel(p pal, w int) string {
 	if !m.profileListShown(w) {
 		pos, of := m.profile.position()
 		return pad + p.Text(p.Fg).Bold(true).Render(m.profile.entryName()) +
-			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+"/"+strconv.Itoa(of))
+			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+" of "+strconv.Itoa(of))
 	}
 	pane := "SECTIONS"
 	if m.profile.focus == profileContent {
@@ -471,7 +492,12 @@ func (m model) profileContextLabel(p pal, w int) string {
 // are exactly the body height so the rules never move.
 func (m model) profileBody(p pal, w, h int) string {
 	if !m.profileLoaded() {
-		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Repeat(" ", inset)+p.Text(p.Fg).Render(noProfile))
+		pad := strings.Repeat(" ", inset)
+		text := pad + p.Text(p.Fg).Render(noProfile)
+		for _, l := range wrapWords(m.profileMissingHint(), w-inset-rightMargin) {
+			text += "\n" + pad + p.Text(p.Dim).Render(l)
+		}
+		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Replace(text, "\n", "\n\n", 1))
 	}
 	pane := lipgloss.NewStyle().Width(m.profilePaneWidth(w)).Height(h).MaxHeight(h).
 		PaddingLeft(m.profilePaneGutter(w)).Render(m.profileContentView(p))
