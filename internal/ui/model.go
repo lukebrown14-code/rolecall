@@ -11,6 +11,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
@@ -45,12 +46,14 @@ type model struct {
 	width                 int
 	gen                   int // bumps when Workspace content is reloaded; invalidates the render cache
 	followUpDays          int
-	statsTop              int         // the first Stats line shown when the report is taller than the body
-	stats                 *statsCache // the Stats report for the current interaction; see statsReport
-	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
-	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
-	inherit               bool        // inherit_terminal in config.toml: ANSI-16 colours, no painted background
-	theme                 theme       // dark or light roles; see DetectTheme
+	statsTop              int              // the first Stats line shown when the report is taller than the body
+	stats                 *statsCache      // the Stats report for the current interaction; see statsReport
+	configHome            string           // where config.toml lives; empty means machine settings cannot be saved
+	configErr             error            // config.toml's last load error (*config.FileError when it does not parse)
+	configWarnings        []config.Warning // what the last config.toml load worked around (config.Config.Warnings)
+	ascii                 bool             // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	inherit               bool             // inherit_terminal in config.toml: ANSI-16 colours, no painted background
+	theme                 theme            // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
 	back                  *settingsBack // where Esc returns from Settings opened with a comma

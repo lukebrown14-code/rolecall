@@ -324,8 +324,12 @@ func (st State[Undo]) trackingRows(machine Machine) []Row {
 	if len(rows) == 1 {
 		rows[0].Section = "Tracks"
 	}
-	return append(rows, Row{Label: LabelFollowUp, Value: strconv.Itoa(machine.FollowUpDays), Unit: "days",
-		Source: machine.Sources.FollowUpDays, Section: "Follow-up",
+	unit := "days"
+	if machine.FollowUpDays == 1 {
+		unit = "day"
+	}
+	return append(rows, Row{Label: LabelFollowUp, Value: strconv.Itoa(machine.FollowUpDays), Unit: unit,
+		Source: machine.Sources.FollowUpDays, Section: "Follow-up", Warning: machine.FollowUpWarning,
 		About: "An Applied Application with no news for this long is flagged as due a follow-up."})
 }
 
@@ -395,8 +399,10 @@ type Machine struct {
 	// HarnessWarning and PluginWarning name a problem with the value, or are empty. They
 	// never block a save.
 	HarnessWarning, PluginWarning string
-	FollowUpDays                  int
-	Sources                       Sources
+	// FollowUpWarning names a follow_up_days config.toml had out of range.
+	FollowUpWarning string
+	FollowUpDays    int
+	Sources         Sources
 }
 
 // Navigate moves the section or the field cursor, preserving the previous value for model
@@ -458,6 +464,6 @@ const (
 	configFile      = "config.toml"
 	fieldPlaces     = "Places"
 	fieldRemote     = "Remote roles"
-	minFollowUpDays = 1
-	maxFollowUpDays = 90
+	minFollowUpDays = config.MinFollowUpDays
+	maxFollowUpDays = config.MaxFollowUpDays
 )

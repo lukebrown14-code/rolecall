@@ -720,7 +720,7 @@ opening stays but is best-effort, with no CI.
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
 | 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
 | 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
-| 7 | `init` and first run | `rolecall init [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
+| 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
 | 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
 | 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
 | 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |
@@ -806,11 +806,18 @@ below are built.
   reports the same condition as a warning. A Harness whose program is not on `PATH`, and a
   Plugin folder that is missing or has no `skills/`, warn the same way and never block a save.
 - **Config reload:** `e` on This machine creates `config.toml` empty if missing, opens it in
-  the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay and
-  the feedback line shows the error. The Workspace is fixed for the session.
+  the Editor, and re-reads it when the Editor exits. On a TOML error the old values stay, the
+  feedback line shows the error with its line and column, This machine shows the path and the
+  parser's reason above its rows, Enter on a `config.toml` row is refused, and `e` opens
+  `config.toml` from any group (unless `workspace.json` is broken too). The Workspace is fixed
+  for the session. At launch a broken `config.toml` stops `rolecall` with the same detail
+  (the Workspace path is in it), unless `--dir` names the Workspace: then the app opens on
+  defaults and shows the error. `rolecall doctor` reports it as a PROBLEM and runs its other checks.
 - **Editor examples:** the Editor's about text names `nvim`, `hx`, `code --wait`, `zed --wait`,
   `subl --wait`. GUI Editors need their wait flag, or rolecall rescans before editing finishes.
-- An explicit `follow_up_days = 0` is honoured; only an absent key means the default 14.
+- An absent `follow_up_days` means the default 14. A hand-edited value outside 1-90 (0
+  included) is clamped into range on load; the Follow-up row, the feedback line and
+  `rolecall doctor` say so.
 - **Invalid `workspace.json`:** the screen shows its path and the parse error (for a bad Track
   list, `workspace.json lists a Track rolecall can't use` and the reason, e.g. `Track SWE is
   listed twice`), with `e` as the only action. The program still starts, with no Track filter.
