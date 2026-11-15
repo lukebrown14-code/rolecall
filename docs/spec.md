@@ -302,7 +302,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   bar's sparkline. Text keeps a 4.5:1 contrast floor on either theme's background, pop-up
   fill and selection bar (coloured words on the bar take the secondary colour), and rules,
   pane dividers and Status glyphs 3:1, including the frame behind a pop-up, which dims
-  without going below the floor. The inherit-terminal-colours option draws all readable
+  without going below the floor. No text is drawn in the faint role or terminal faint (SGR 2). The inherit-terminal-colours option draws all readable
   text in the terminal's default foreground; ANSI 8 is for rules only. The `?` pop-up's
   legend is generated from the glyph table the frame draws with (`internal/ui/theme/glyphs.go`),
   one meaning per glyph:
@@ -364,7 +364,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   other screens' counts (and the sparkline with them), the word "rolecall", then other
   screens' names (their digits stay), then the mark; the active screen keeps its name and
   count. It sheds to the level every screen's bar fits at, so switching screens never sheds
-  or restores a count. The sparkline is the same series Stats draws, over 8 weeks; it is
+  or restores a count. The sparkline is the same series Stats draws, over 8 weeks, drawn muted; it is
   hidden when no week has an Applied and under `ROLECALL_PLAIN`.
 - **Track filter:** on the context row of the screens it changes (Leads, Draft, Applied,
   Stats), read once by its key: `TRACK t [All 4] SWE 3  Platform 1`, or `t [All 4]▸` when short

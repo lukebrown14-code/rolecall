@@ -178,7 +178,7 @@ func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
 		stop(e.Status, m.logDate(p, e, years), i == len(log)-1)
 	}
 	if next := nextStatus(a.Status); next != "" {
-		line(p.Text(p.StatusColor(next)).Faint(true).Render(p.StatusGlyph(next)+" "+next), p.Text(p.Dim).Render("next"))
+		line(p.Text(p.Faint).Render(p.StatusGlyph(next))+" "+p.Text(p.Dim).Render(next), p.Text(p.Dim).Render("next"))
 	}
 	return out
 }

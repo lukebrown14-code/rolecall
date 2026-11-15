@@ -761,7 +761,7 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 			name = padRight(name, docColumn) + padRight(status, stateW)
 			file = e.name
 		}
-		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Faint).Render(file)
+		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Dim).Render(file)
 		if i == m.detail.docs {
 			row = p.SelLine(true, paneW-paneMargin, p.SelGutter(true)+p.SelText(true).Render(xansi.Strip(mark)+name)+
 				p.SelBase(true).Foreground(p.Sub).Render(file))

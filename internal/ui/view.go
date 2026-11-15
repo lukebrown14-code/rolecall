@@ -339,7 +339,7 @@ func (m model) tabs(p pal) (string, []int) {
 	spark := ""
 	if line := sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)); strings.TrimSpace(line) != "" && !plainMode() {
 		// No weeks with data draw no line; a screen reader would read it out cell by cell.
-		spark = " " + p.Text(p.Accent).Faint(true).Render(line) + " "
+		spark = " " + p.Text(p.Dim).Render(line) + " "
 	}
 	build := func(level, active int) (string, []int) {
 		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
