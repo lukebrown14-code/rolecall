@@ -66,6 +66,22 @@ Error messages show paths but never file contents, so please keep that true in n
 - Only `store` reads or writes Workspace files. Only `internal/process/process.go` launches processes.
   Colours live in `internal/ui/theme/theme.go`; UI-specific styling lives in `internal/ui/styles.go`. The check script enforces the last two.
 
+## Releasing (maintainers)
+
+Merge to `main`, then tag it. There is no release branch.
+
+```sh
+git switch main && git pull
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+The tag runs `.github/workflows/release.yml`: GoReleaser builds macOS and Linux archives
+(with the Plugin), publishes the GitHub Release with `checksums.txt`, and updates the Homebrew
+formula in `lukebrown14-code/homebrew-tap` using the `TAP_GITHUB_TOKEN` secret. The install
+script and Homebrew pick it up from there. Check with
+`curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scripts/install.sh | sh`
+in a fresh shell.
+
 ## Licence
 
 rolecall is released under the MIT licence (see [LICENSE](LICENSE)). By contributing, you agree

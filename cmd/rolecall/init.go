@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,102 +9,30 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/huh/v2"
-	"github.com/charmbracelet/x/term"
 	"github.com/lukebrown14-code/rolecall/internal/config"
-	"github.com/lukebrown14-code/rolecall/internal/store"
-	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
-const (
-	profileResume    = "resume"
-	profileQuestions = "questions"
-	profileLater     = "later"
-)
-
-type contactDetails struct {
-	Name, Email, Phone, Location, LinkedIn string
-}
-
-func (c contactDetails) fields() map[string]string {
-	return map[string]string{"Name": c.Name, "Email": c.Email, "Phone": c.Phone, "Location": c.Location, "LinkedIn": c.LinkedIn}
-}
-
-type initOptions struct {
-	contact                    contactDetails
-	tracks                     []string
-	search                     store.SearchArea
-	workspace, profile, resume string
-	tracksText, placesText     string
-	accessible                 bool
-}
-
-type profileLauncher func(harness, workspace, resume string) error
-
-func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher profileLauncher) error {
+// initCommand is `rolecall init [DIR]`: it creates a Workspace and records it in
+// config.toml, asking nothing. The questions (Contact first) are asked by the app
+// itself the first time it opens, so there is one place to answer them.
+func initCommand(args []string, out, errOut io.Writer) error {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	fs.SetOutput(errOut)
-	var o initOptions
-	fs.StringVar(&o.contact.Name, "name", "", "Contact name")
-	fs.StringVar(&o.contact.Email, "email", "", "Contact email")
-	fs.StringVar(&o.contact.Phone, "phone", "", "Contact phone")
-	fs.StringVar(&o.contact.Location, "location", "", "Contact location")
-	fs.StringVar(&o.contact.LinkedIn, "linkedin", "", "Contact LinkedIn URL")
-	fs.StringVar(&o.tracksText, "tracks", "", "Comma-separated Tracks")
-	fs.StringVar(&o.placesText, "search-places", "", "Comma-separated Search area places")
-	fs.StringVar(&o.search.Remote, "search-remote", "", "Search area remote rule: in-places, anywhere, or no")
-	fs.StringVar(&o.workspace, "workspace", "", "Workspace path")
-	fs.StringVar(&o.profile, "profile", "", "Profile setup: resume, questions, or later")
-	fs.StringVar(&o.resume, "resume", "", "Resume or LinkedIn export path")
-	fs.BoolVar(&o.accessible, "accessible", false, "Use accessible prompts")
+	fs.Usage = func() { _, _ = fmt.Fprintln(errOut, "usage: rolecall init [DIR]   (default: ./rolecall)") }
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() > 1 {
-		return errors.New("usage: rolecall init [--workspace DIR] [fields]")
+		return errors.New("usage: rolecall init [DIR]")
 	}
+	path := defaultWorkspacePath()
 	if fs.NArg() == 1 {
-		if o.workspace != "" {
-			return errors.New("set the Workspace path with either a positional argument or --workspace, not both")
-		}
-		o.workspace = fs.Arg(0)
+		path = strings.TrimSpace(fs.Arg(0))
 	}
-	if wasSet(fs, "workspace") && strings.TrimSpace(o.workspace) == "" {
+	if path == "" {
 		return errors.New("Workspace path is required")
 	}
-	if o.workspace != "" {
-		if err := store.ValidateWorkspacePath(expandHome(o.workspace)); err != nil {
-			return err
-		}
-	}
-	if (wasSet(fs, "name") && strings.TrimSpace(o.contact.Name) == "") || (wasSet(fs, "email") && strings.TrimSpace(o.contact.Email) == "") {
-		return errors.New("Name and Email are required")
-	}
-	// A huh form on a stdin that is not a terminal never reads a key: it would hang
-	// forever. Refuse with a way forward instead of asking a question nobody can answer.
-	if f, ok := in.(*os.File); ok && !term.IsTerminal(f.Fd()) && !o.accessible && promptsNeeded(fs, o) {
-		return errors.New("rolecall init needs a terminal for its prompts; pass the fields as flags or run with --accessible")
-	}
-	if err := promptMissing(&o, fs, promptInput(in, o.accessible), out); err != nil {
-		return err
-	}
-	o.tracks, o.search.Places = splitList(o.tracksText), splitList(o.placesText)
-	if strings.TrimSpace(o.contact.Name) == "" || strings.TrimSpace(o.contact.Email) == "" {
-		return errors.New("Name and Email are required")
-	}
-	if o.profile != profileResume && o.profile != profileQuestions && o.profile != profileLater {
-		return errors.New("Profile choice must be resume, questions, or later")
-	}
-	if o.profile == profileResume && strings.TrimSpace(o.resume) == "" {
-		return errors.New("Resume path is required")
-	}
-	if err := validateRemote(o.search.Remote); err != nil {
-		return err
-	}
-	if len(o.search.Places) > 0 && o.search.Remote == "" {
-		o.search.Remote = "in-places"
-	}
-	root, err := filepath.Abs(expandHome(strings.TrimSpace(o.workspace)))
+	root, err := filepath.Abs(expandHome(path))
 	if err != nil {
 		return err
 	}
@@ -113,7 +40,7 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if err != nil {
 		return err
 	}
-	if err := initWorkspaceFiles(root, o.contact, o.tracks, o.search); err != nil {
+	if err := initWorkspaceFiles(root); err != nil {
 		return err
 	}
 	// One Settings writer: the same config.Patch the Settings screen uses, so the
@@ -121,110 +48,13 @@ func initWizard(args []string, in io.Reader, out, errOut io.Writer, launcher pro
 	if err := config.Patch(config.Path(home), "workspace", root); err != nil {
 		return err
 	}
-	_, _ = fmt.Fprintln(out, "Created a private Workspace.")
-	_, _ = fmt.Fprintln(out, "The Harness can send your Profile, resume and job text to an AI service using your credentials; review its privacy practices.")
-	_, _ = fmt.Fprintln(out, "Keep this Workspace's git repository private. It contains personal data.")
-	_, _ = fmt.Fprintln(out, "Make your documents yours: see README → Make your documents yours.")
-	return finishProfile(o, root, home, out, launcher)
-}
-
-// promptInput returns the reader the wizard's forms read from. The interactive form
-// must get the terminal itself: given any other reader, Bubble Tea cannot switch it
-// to raw mode, so keys arrive a line at a time and arrows echo as ^[[B. Accessible
-// prompts read lines, and huh makes a new Scanner for each one, so each read is
-// limited to one line there; otherwise a scanner would consume later answers.
-func promptInput(in io.Reader, accessible bool) io.Reader {
-	if accessible {
-		return &promptLineReader{reader: bufio.NewReader(in)}
-	}
-	return in
-}
-
-type promptLineReader struct {
-	reader  *bufio.Reader
-	pending []byte
-}
-
-func (r *promptLineReader) Read(p []byte) (int, error) {
-	if len(r.pending) == 0 {
-		line, err := r.reader.ReadBytes('\n')
-		if len(line) == 0 {
-			return 0, err
-		}
-		r.pending = line
-	}
-	n := copy(p, r.pending)
-	r.pending = r.pending[n:]
-	return n, nil
-}
-
-func promptMissing(o *initOptions, fs *flag.FlagSet, in io.Reader, out io.Writer) error {
-	fields := make([]huh.Field, 0)
-	input := func(name, title string, target *string, required bool) {
-		if wasSet(fs, name) {
-			return
-		}
-		f := huh.NewInput().Title(title).Value(target)
-		if required {
-			f.Validate(func(v string) error {
-				if strings.TrimSpace(v) == "" {
-					return errors.New("required")
-				}
-				return nil
-			})
-		}
-		fields = append(fields, f)
-	}
-	input("name", "Name", &o.contact.Name, true)
-	input("email", "Email", &o.contact.Email, true)
-	input("phone", "Phone (optional)", &o.contact.Phone, false)
-	input("location", "Location (optional)", &o.contact.Location, false)
-	input("linkedin", "LinkedIn (optional)", &o.contact.LinkedIn, false)
-	if !wasSet(fs, "tracks") {
-		fields = append(fields, huh.NewInput().Title("Tracks (comma-separated, optional)").Value(&o.tracksText))
-	}
-	if !wasSet(fs, "search-places") {
-		fields = append(fields, huh.NewInput().Title("Search area places (comma-separated, optional)").Value(&o.placesText))
-	}
-	if !wasSet(fs, "search-remote") {
-		fields = append(fields, huh.NewSelect[string]().Title("Remote roles").Options(huh.NewOption("No Search area", ""), huh.NewOption("In my places", "in-places"), huh.NewOption("Anywhere", "anywhere"), huh.NewOption("No remote roles", "no")).Value(&o.search.Remote))
-	}
-	if !wasSet(fs, "workspace") && fs.NArg() == 0 {
-		o.workspace = defaultWorkspacePath()
-		fields = append(fields, huh.NewInput().Title("Workspace path").Value(&o.workspace).Validate(func(v string) error {
-			if strings.TrimSpace(v) == "" {
-				return errors.New("required")
-			}
-			return store.ValidateWorkspacePath(expandHome(strings.TrimSpace(v)))
-		}))
-	}
-	if len(fields) > 0 {
-		form := huh.NewForm(huh.NewGroup(fields...)).WithInput(in).WithOutput(out).WithAccessible(o.accessible)
-		if err := form.Run(); err != nil {
-			return err
-		}
-	}
-	if o.profile == "" {
-		choices := []huh.Option[string]{huh.NewOption("From my current resume", profileResume), huh.NewOption("Answer questions", profileQuestions), huh.NewOption("Later", profileLater)}
-		if err := huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title("Create your Profile now?").Options(choices...).Value(&o.profile))).WithInput(in).WithOutput(out).WithAccessible(o.accessible).Run(); err != nil {
-			return err
-		}
-	}
-	if o.profile == profileResume && o.resume == "" {
-		if err := huh.NewForm(huh.NewGroup(huh.NewInput().Title("Path to your resume or LinkedIn export").Value(&o.resume).Validate(func(v string) error {
-			if strings.TrimSpace(v) == "" {
-				return errors.New("required")
-			}
-			return nil
-		}))).WithInput(in).WithOutput(out).WithAccessible(o.accessible).Run(); err != nil {
-			return err
-		}
-	}
+	_, _ = fmt.Fprintf(out, "Created your Workspace at %s\n", root)
+	_, _ = fmt.Fprintln(out, "Keep it private: it holds personal data, and the Harness can send your Profile, resume and job text to an AI service.")
+	_, _ = fmt.Fprintln(out, "Next: run `rolecall` to finish setting up.")
 	return nil
 }
 
-// defaultWorkspacePath suggests a rolecall folder in the directory init runs from:
-// the folder the install script was run from when it launches init.
+// defaultWorkspacePath is a rolecall folder in the directory init runs from.
 func defaultWorkspacePath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -233,8 +63,8 @@ func defaultWorkspacePath() string {
 	return filepath.Join(cwd, "rolecall")
 }
 
-// expandHome turns a leading ~ into the home directory, as a shell would; typed
-// into the prompt, "~/rolecall" would otherwise create a folder named "~".
+// expandHome turns a leading ~ into the home directory, as a shell would; a quoted
+// "~/rolecall" would otherwise create a folder named "~".
 func expandHome(path string) string {
 	if path != "~" && !strings.HasPrefix(path, "~/") {
 		return path
@@ -244,78 +74,4 @@ func expandHome(path string) string {
 		return path
 	}
 	return filepath.Join(home, strings.TrimPrefix(path, "~"))
-}
-
-func wasSet(fs *flag.FlagSet, name string) bool {
-	found := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
-		}
-	})
-	return found
-}
-func splitList(s string) []string {
-	var out []string
-	for _, item := range strings.Split(s, ",") {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			out = append(out, item)
-		}
-	}
-	return out
-}
-func validateRemote(s string) error {
-	if s == "" || s == "in-places" || s == "anywhere" || s == "no" {
-		return nil
-	}
-	return fmt.Errorf("invalid Search area remote rule %q: use in-places, anywhere, or no", s)
-}
-
-// promptsNeeded reports whether the wizard still has a question to ask: a field left
-// unset, a Profile choice, or a resume path.
-func promptsNeeded(fs *flag.FlagSet, o initOptions) bool {
-	for _, name := range []string{"name", "email", "phone", "location", "linkedin", "tracks", "search-places", "search-remote"} {
-		if !wasSet(fs, name) {
-			return true
-		}
-	}
-	if !wasSet(fs, "workspace") && fs.NArg() == 0 {
-		return true
-	}
-	if o.profile == "" {
-		return true
-	}
-	return o.profile == profileResume && o.resume == ""
-}
-
-func finishProfile(o initOptions, root, home string, out io.Writer, launcher profileLauncher) error {
-	if o.profile == profileLater {
-		_, _ = fmt.Fprintf(out, "Run this when you are ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
-		return nil
-	}
-	resume := ""
-	if o.profile == profileResume {
-		resume = o.resume
-	}
-	c, err := config.Load(home, root)
-	if err != nil {
-		return err
-	}
-	if c.Harness == "" {
-		if resume != "" {
-			_, _ = fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s --resume %s\n", ui.QuoteShellArgument(root), ui.QuoteShellArgument(resume))
-		} else {
-			_, _ = fmt.Fprintf(out, "Run this in your Harness when ready: create-profile --data %s\n", ui.QuoteShellArgument(root))
-		}
-		return nil
-	}
-	if launcher == nil {
-		launcher = launchProfile
-	}
-	return launcher(c.Harness, root, resume)
-}
-
-func launchProfile(harness, workspace, resume string) error {
-	return ui.LaunchHarness(harness, workspace, "create-profile", resume)
 }

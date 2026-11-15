@@ -377,7 +377,7 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	listShown := m.profileListShown(m.viewWidth())
 	switch k.String() {
 	case "e":
-		// The screen never writes profile/: the Owner's editor does, and the reload
+		// The screen never writes profile/ (only the first-run form writes Contact): the Owner's editor does, and the reload
 		// follows when it exits, so the selection can stay on the same heading.
 		return m, m.editFile(m.store.Root(), m.profileSelectedPath())
 	case "tab", "shift+tab":

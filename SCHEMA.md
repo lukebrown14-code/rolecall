@@ -154,8 +154,8 @@ patch it without reformatting.
 
 ## Profile
 
-`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and never
-writes it. The Profile files are free Markdown, apart from the Contact table below.
+`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and writes
+only the Contact table below, from its first-run form; it never touches the rest. The Profile files are free Markdown, apart from the Contact table below.
 
 ### Contact table
 

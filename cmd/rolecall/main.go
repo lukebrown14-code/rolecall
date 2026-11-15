@@ -11,6 +11,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -25,7 +26,7 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := initWorkspace(os.Args[2:]); err != nil {
+		if err := initCommand(os.Args[2:], os.Stdout, os.Stderr); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -57,24 +58,12 @@ func main() {
 	}
 }
 
-func initWorkspace(args []string) error {
-	return runInit(args, os.Stdin, os.Stdout, os.Stderr, launchProfile)
-}
-
-// runInit is the CLI seam for onboarding; launcher is injected so tests can
-// exercise the profile handoff without starting an external Harness.
-func runInit(args []string, in *os.File, out, errOut *os.File, launcher profileLauncher) error {
-	return initWizard(args, in, out, errOut, launcher)
-}
-
-func initWorkspaceFiles(root string, contact contactDetails, tracks []string, search store.SearchArea) error {
-	if err := store.InitializeWorkspace(root, contact.fields(), tracks, search); err != nil {
+// initWorkspaceFiles writes the starter Workspace and its private local git repository.
+func initWorkspaceFiles(root string) error {
+	if err := store.InitializeWorkspace(root, nil, nil, store.SearchArea{}); err != nil {
 		return err
 	}
-	if err := process.InitGit(root); err != nil {
-		return err
-	}
-	return nil
+	return process.InitGit(root)
 }
 
 // noWorkspaceError tells someone who has installed rolecall but not run init
@@ -97,7 +86,7 @@ func runDoctor(dir string) error {
 		c.Workspace = ""
 	} else if err != nil {
 		return err
-	} else if _, err := store.Open(c.Workspace); err != nil {
+	} else if s, err := store.Open(c.Workspace); err != nil {
 		workspaceErr = fmt.Errorf("open Workspace: %w", err)
 		c.Workspace = ""
 	} else {
@@ -113,6 +102,7 @@ func runDoctor(dir string) error {
 				fmt.Printf("WARNING: %s\n", warning)
 			}
 		}
+		printLegacyWarnings(s.LegacyFiles(), c.Workspace, c.Plugin)
 	}
 
 	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
@@ -129,6 +119,25 @@ func runDoctor(dir string) error {
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
 	return workspaceErr
+}
+
+// printLegacyWarnings names each dashboard-era file in the Workspace. Nothing reads them:
+// roles written there never become Leads. The fix is the one-time migration, then
+// pointing the Harness at the current Plugin.
+func printLegacyWarnings(files []string, workspace, plugin string) {
+	if len(files) == 0 {
+		return
+	}
+	for _, f := range files {
+		fmt.Printf("WARNING: %s is from an older rolecall and is not read; its roles are not Leads\n", filepath.ToSlash(f))
+	}
+	script := "<plugin>/scripts/migrate.py"
+	if plugin != "" {
+		script = ui.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
+	}
+	fmt.Printf("  Convert them to Lead folders (close rolecall first; --dry-run writes nothing):\n")
+	fmt.Printf("    python3 %s --data %s --dry-run\n", script, ui.QuoteShellArgument(workspace))
+	fmt.Println("  Then update your Harness to the current Plugin, which saves each Lead as a folder.")
 }
 
 func run(dir string) error {
@@ -154,7 +163,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce))
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce), ui.WithFirstRunSetup())
 	if err != nil {
 		return err
 	}
