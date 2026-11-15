@@ -90,7 +90,7 @@ const (
 // fitLabel leads a Fit wherever it is shown: "fit Good", "fit —".
 const fitLabel = "fit "
 
-// wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "#").
+// wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "R").
 const wordmark = "▞"
 
 // statusMarkWidth is a Status glyph and the space after it, before a row's title.

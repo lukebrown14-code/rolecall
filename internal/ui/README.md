@@ -7,7 +7,7 @@ and rendering. Its subpackages do not import it.
 | --- | --- |
 | `settings/` | Settings row descriptions and provenance, workspace snapshot, cursor and focus navigation, and input validation. |
 | `forms/` | Form field editing, validation, focus, submission, and discard confirmation. |
-| `theme/` | Colour roles, dark and light palettes, status styling, Markdown styles, and terminal appearance fallbacks. |
+| `theme/` | Colour roles, dark and light palettes, the glyph table (`glyphs.go`: each glyph's meaning, ASCII stand-in and `?` legend row), status styling, Markdown styles, and terminal appearance fallbacks (NO_COLOR, inherit, ASCII, `ROLECALL_PLAIN`). |
 | `watch/` | Filesystem subscriptions, debounce windows, changed folders, document-write classification, and shutdown. |
 | `tests/` | Behaviour and rendering tests through the UI's public interface, with rendering goldens in `testdata/`. |
 | `../reporting/` | Pure funnel, response, weekly, and track calculations, independent of terminal UI. |
@@ -20,7 +20,8 @@ The root model adapts those modules to the application:
 - `styles.go`: application-specific composition using the theme palette.
 - `profile.go`, `stats.go`: screen handlers and rendering.
 - `view.go`, `layout.go`, `columns.go`, `help.go`: shared presentation.
-- `mode.go`, `overlay.go`, `palette.go`, `search.go`: overlays and application input.
+- `mode.go`, `overlay.go`, `palette.go`, `search.go`, `workspace_menu.go`: overlays and application input. `keymap.go` (row actions) and `help.go` (the registry) declare every key once for the key line, `?`, the palette and the `space` menu.
+- `empty.go`: empty states and the first-run welcome checklist.
 - `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and completion messages.
 - `writing.go`: transient writing indicators driven by `watch.Changed` messages.
 

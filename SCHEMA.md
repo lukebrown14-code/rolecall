@@ -179,7 +179,7 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 ```
 
 - **Required:** `Name` and `Email`. A Profile missing either fails the build, and the Profile
-  screen marks Contact with ✗ and says why.
+  screen marks Contact with ○ (missing) and says why.
 - **Known fields:** `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
   kept and shown, and the build ignores them.
 - **Header and divider rows** (`Field`, and rows of only `:`, `-` and spaces) are skipped.
@@ -221,12 +221,14 @@ location is empty or unknown. `--all-locations` bypasses the filter.
 
 ## `config.toml` (machine settings, outside the Workspace)
 
-`~/.config/rolecall/config.toml` is per machine and never part of a Workspace. The Settings
+`$XDG_CONFIG_HOME/rolecall/config.toml` (when `XDG_CONFIG_HOME` is an absolute path), else
+`~/.config/rolecall/config.toml`, is per machine and never part of a Workspace. The Settings
 screen edits its keys in place and keeps comments. Two keys change how the TUI draws:
 
 - `ascii` (bool, default `false`): ASCII glyphs.
 - `inherit_terminal` (bool, default `false`): inherit the terminal's colours. Status and role
-  colours become ANSI-16 indices (muted is bright black), no background is painted anywhere,
+  colours become ANSI-16 indices, all readable text (muted included) takes the terminal's
+  default foreground and bright black is kept for rules, no background is painted anywhere,
   and the selection is the gutter mark plus reverse video. A missing key means `false`,
   so an existing file draws exactly as before. `NO_COLOR` wins over it; it combines with
   `ascii` (glyph set) and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings

@@ -12,7 +12,7 @@ The Owner's private folder holding their Profile, settings and Applications. Nev
 _Avoid_: data dir, project
 
 **Settings**:
-The Owner's local preferences (Workspace location, editor, follow-up threshold, Downloads folder, Plugin, Harness), kept in a private config file outside the Workspace. The Owner reads them in the Settings view and changes them by editing that file.
+The Owner's local preferences (Workspace location, editor, follow-up threshold, Downloads folder, Plugin, Harness), kept in a private config file outside the Workspace. The Owner reads and changes them on the Settings screen, where Enter saves a change at once and u puts it back, or by editing that file.
 _Avoid_: preferences, options, config (for the Owner-facing idea)
 
 **Editor**:
@@ -81,7 +81,7 @@ The Status of an unsent Application the Owner chose not to pursue. Kept and rest
 _Avoid_: rejected, deleted, passed (for this)
 
 **Follow-up due**:
-A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status.
+A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status, and it clears only when the Status changes.
 _Avoid_: stale, reminder
 
 **Response**:

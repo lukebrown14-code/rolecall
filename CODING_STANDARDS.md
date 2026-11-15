@@ -6,9 +6,13 @@ Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and C
   are roles with a dark and a light value; text keeps a 4.5:1 contrast floor on both themes
   and rules and dividers 3:1, even when a pop-up dims the frame behind it. The accent is the colour of keys
   and of focus (the selection gutter, the focused pane rule and the just-moved row's flash);
-  labels, chips, the spinner, borders and the active tab use other roles. The frame stays readable with `NO_COLOR` set (no colour, bold
-  and underline kept) and with `ROLECALL_ASCII=1` (every glyph has an ASCII stand-in); a
+  labels, chips, the spinner, borders and the active tab use other roles. The frame stays readable with `NO_COLOR` set (no colour; bold, faint,
+  underline and strikethrough kept) and with `ROLECALL_ASCII=1` (every glyph has an ASCII stand-in); a
   locale that is not UTF-8, or `TERM=linux`, turns ASCII on by itself.
+- One glyph, one meaning. A glyph that carries a meaning is declared once in the glyph table
+  (`internal/ui/theme/glyphs.go`) with a distinct ASCII stand-in; the `?` legend and the ASCII
+  fold are built from it, and a test fails on a drawn glyph that is neither in the legend nor
+  declared chrome.
 - Rescan-and-restore-cursor goes through the one `reload` helper in `internal/ui/model.go`.
 - Only `store` reads or writes Workspace files; `ui` never touches them directly.
 - Behaviour tests drive `Update` directly, not the whole program: a key in, model and disk

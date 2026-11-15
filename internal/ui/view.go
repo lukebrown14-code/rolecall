@@ -712,8 +712,8 @@ func (m model) scopeLine(p pal) string {
 	return p.Text(p.Dim).Render(fmt.Sprintf("%d of %d", len(m.rows()), m.totalCount(m.screen, m.views()[m.table])))
 }
 
-// listBody lays out the rows with section dividers. Rows get a blank line between them
-// when everything fits, and run dense when the list is longer than the screen.
+// listBody lays out the rows with section dividers. Rows always run dense: only a
+// section's header has a blank line above it (see listBlocks).
 func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 	blocks, cur := m.listBlocks(rows)
 	return scroll(p, m, rows, fixedSlots, w, blocks, cur, h)

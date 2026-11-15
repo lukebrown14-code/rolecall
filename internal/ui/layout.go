@@ -26,7 +26,7 @@ const (
 	// lists; the list has no preview and the detail view's card folds into a strip.
 	classMedium sizeClass = iota + 1
 	// classWide is wideWidth and up: the preview beside the list, the card beside the
-	// detail view and the pipeline summary in the tab bar.
+	// detail view, and the wordmark, sparkline and menu keys in the tab bar.
 	classWide
 )
 

@@ -41,7 +41,8 @@ go install github.com/lukebrown14-code/rolecall/cmd/rolecall@latest
 Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 
 This installs only the executable. To use the Harness Plugin, clone the repository and set
-`plugin` in `~/.config/rolecall/config.toml` to the clone's `plugin` folder. The Homebrew package
+`plugin` in `config.toml` (see [Get started](#get-started) for where it lives) to the clone's
+`plugin` folder. The Homebrew package
 and the install script include the Plugin automatically.
 
 ## Get started
@@ -85,25 +86,34 @@ return.
 
 ## Screens and keys
 
-The number keys switch screens. `Tab` and `Shift-Tab` move between tables or views; `j`/`k`
-move through rows. Press `?` in rolecall for the complete help for the current screen.
+The number keys switch screens. `←` and `→` (or `s`) move between a screen's views, such as Leads
+and Dismissed; `j`/`k` move through rows. Press `space` for a menu of screens and commands, or `?`
+in rolecall for the complete help for the current screen.
 
 | Key | Action |
 | --- | --- |
-| `1` | Leads, including the Dismissed table |
+| `1` | Leads, including the Dismissed view |
 | `2` | Drafts |
 | `3` | Applied, Interviewing, Offer, and Closed Applications |
 | `4` | Stats |
 | `5` | Profile |
-| `6` | Settings |
+| `6` / `,` | Settings |
 | `a` | Add an Application |
 | `v` / `Enter` | Open the selected Application's details |
 | `m` | Move the selected Application to another Status |
+| `u` | Undo the last move |
+| `x` | Dismiss a Lead or Draft |
 | `e` | Edit a row, or open the current document in your editor |
+| `n` | Open the Application's notes |
 | `f` / `p` | Ask the Harness to assess fit or prepare documents |
+| `F` | Ask the Harness to draft a follow-up for a Follow-up due Application |
 | `b` | Build PDFs for the selected Application |
-| `/` | Filter the current table by title or company |
+| `d` | Copy the Application's PDFs to your Downloads folder |
+| `/` | Filter the current view by title or company |
 | `t` | Change the Track filter |
+| `o` | Sort Leads by close date or newest first |
+| `r` | Rescan the Workspace |
+| `:` | Command palette |
 | `?` | Show screen and key help |
 | `q` | Quit |
 
@@ -111,8 +121,8 @@ move through rows. Press `?` in rolecall for the complete help for the current s
 
 The Harness is your coding assistant (for example, Claude Code, Codex, Gemini CLI, or
 opencode). rolecall installs the Plugin with the command; configure your Harness to use the
-Plugin's skills and set the `harness` command in your local `config.toml` to enable the `f`
-and `p` handoffs.
+Plugin's skills and set the `harness` command in your local `config.toml` to enable the `f`,
+`p` and `F` handoffs.
 
 - [Set up Claude Code](docs/harnesses/claude-code.md)
 - [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
