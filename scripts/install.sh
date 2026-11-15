@@ -7,6 +7,7 @@
 #   ROLECALL_VERSION  release tag to install, such as v0.1.1 (default: latest)
 #   ROLECALL_PREFIX   install prefix (default: ~/.local)
 #   ROLECALL_BASE_URL release download URL to use instead of GitHub (mirrors and tests)
+#   ROLECALL_NO_INIT  set to skip the Workspace setup that follows a first install
 #
 # Layout: $PREFIX/share/rolecall holds the executable and plugin/ side by side, and
 # $PREFIX/bin/rolecall links to it, so rolecall finds the Plugin without configuration.
@@ -95,9 +96,26 @@ main() {
 
   echo "Installed rolecall to $bin_dir/rolecall (Plugin: $home_dir/plugin)"
   case ":$PATH:" in
-    *":$bin_dir:"*) echo "Run 'rolecall init' to create a Workspace." ;;
-    *) echo "Add $bin_dir to your PATH, then run 'rolecall init' to create a Workspace." ;;
+    *":$bin_dir:"*) ;;
+    *) echo "Add $bin_dir to your PATH to run rolecall from anywhere." ;;
   esac
+
+  # First install: set up a Workspace now, in the folder the installer was run from.
+  # Under `curl | sh` stdin is the script, so the wizard reads the terminal directly.
+  # Updates (a config already exists), ROLECALL_NO_INIT and non-interactive runs skip it.
+  config="$HOME/.config/rolecall/config.toml"
+  if [ -f "$config" ]; then
+    return
+  fi
+  # The subshell matters: a failed redirection on `:` makes POSIX sh exit the script.
+  if [ -n "${ROLECALL_NO_INIT:-}" ] || ! (: </dev/tty) 2>/dev/null; then
+    echo "Run 'rolecall init' to create a Workspace."
+    return
+  fi
+  echo
+  echo "Setting up your Workspace (press Ctrl+C to skip; run 'rolecall init' later)..."
+  "$bin_dir/rolecall" init </dev/tty ||
+    echo "Workspace setup did not finish. Run 'rolecall init' to try again."
 }
 
 main "$@"

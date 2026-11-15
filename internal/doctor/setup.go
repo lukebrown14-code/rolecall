@@ -114,7 +114,7 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 	}
 
 	brand := filepath.Join(setup.Workspace, "brand.typ")
-	if info, err := os.Stat(brand); err == nil && info.Mode().IsRegular() {
+	if info, err := os.Stat(brand); setup.Workspace != "" && err == nil && info.Mode().IsRegular() {
 		report.Template = "Workspace override (brand.typ)"
 	} else {
 		report.Template = "Header Band (default)"

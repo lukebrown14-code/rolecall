@@ -19,9 +19,17 @@ curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scri
 ```
 
 The script downloads the latest release for your platform, verifies its checksum, and installs
-rolecall with the Plugin into `~/.local` (`~/.local/bin/rolecall`). Run it again to update. Set
-`ROLECALL_VERSION=v0.1.1` to pick a release or `ROLECALL_PREFIX=/usr/local` to install
-elsewhere. Make sure `~/.local/bin` is on your `PATH`.
+rolecall with the Plugin into `~/.local` (`~/.local/bin/rolecall`). Make sure `~/.local/bin` is
+on your `PATH`.
+
+On a first install it then starts the setup wizard (`rolecall init`), suggesting a `rolecall`
+folder inside the directory you ran the command from as your Workspace. Run the command from
+where you want your job-search files to live, or type another path. Press Ctrl+C to skip and run
+`rolecall init` later; set `ROLECALL_NO_INIT=1` to never start it.
+
+Run the same command again to update; your Workspace and settings are kept and the wizard is
+skipped. Set `ROLECALL_VERSION=v0.2.2` to pick a release or `ROLECALL_PREFIX=/usr/local` to
+install elsewhere.
 
 To install by hand instead, download `rolecall_<os>_<arch>.tar.gz` from
 [Releases](https://github.com/lukebrown14-code/rolecall/releases), extract it, and keep the
@@ -44,7 +52,8 @@ and the install script include the Plugin automatically.
 
 ## Get started
 
-Create a Workspace with the setup wizard, then launch rolecall:
+If the install script did not already run it, create a Workspace with the setup wizard, then
+launch rolecall:
 
 ```sh
 rolecall init
