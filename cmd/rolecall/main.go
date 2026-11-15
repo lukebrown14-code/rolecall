@@ -26,7 +26,11 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := initCommand(os.Args[2:], os.Stdout, os.Stderr); err != nil {
+		err := initCommand(os.Args[2:], os.Stdout, os.Stderr)
+		if errors.Is(err, flag.ErrHelp) {
+			return
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -34,9 +38,14 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
 		flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
-		dir := flags.String("dir", "", "Workspace path")
-		if err := flags.Parse(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		dir := flags.String("dir", "", "Workspace path (default: workspace in config.toml)")
+		flags.Usage = func() {
+			fmt.Fprintln(flags.Output(), "usage: rolecall doctor [--dir PATH]\n\nChecks the Workspace, its privacy, and the tools rolecall uses.")
+			flags.PrintDefaults()
+		}
+		if err := flags.Parse(os.Args[2:]); errors.Is(err, flag.ErrHelp) {
+			return
+		} else if err != nil {
 			os.Exit(usageErrorExitCode)
 		}
 		if err := runDoctor(*dir); err != nil {
@@ -45,8 +54,9 @@ func main() {
 		}
 		return
 	}
+	flag.Usage = usage
 	showVersion := flag.Bool("version", false, "Print the version and exit")
-	dir := flag.String("dir", "", "Workspace path")
+	dir := flag.String("dir", "", "Workspace path (default: workspace in config.toml)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("rolecall %s\n", version)
@@ -56,6 +66,20 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// usage is `rolecall --help`: the subcommands first, so someone who skipped the install
+// script can find init and doctor from the binary, then the TUI's own flags.
+func usage() {
+	out := flag.CommandLine.Output()
+	fmt.Fprint(out, `usage: rolecall [--dir PATH]    open the Workspace in the terminal app
+       rolecall init [DIR]       create a Workspace (default: ./rolecall)
+       rolecall doctor [--dir PATH]
+                                 check the Workspace and the tools rolecall uses
+
+Flags:
+`)
+	flag.PrintDefaults()
 }
 
 // initWorkspaceFiles writes the starter Workspace and its private local git repository.
@@ -103,9 +127,10 @@ func runDoctor(dir string) error {
 			}
 		}
 		printLegacyWarnings(s.LegacyFiles(), c.Workspace, c.Plugin)
+		workspaceErr = checkWorkspaceFile(s)
 	}
 
-	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor, ConfigPath: config.Path(home)}, nil)
 	for _, check := range report.Checks {
 		if check.Found {
 			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
@@ -119,6 +144,21 @@ func runDoctor(dir string) error {
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
 	return workspaceErr
+}
+
+// checkWorkspaceFile reports a workspace.json the app cannot use. The app still opens
+// with it, but every Workspace setting is ignored until it is fixed, so doctor fails.
+func checkWorkspaceFile(s *store.Store) error {
+	ws, err := s.Settings()
+	if err != nil {
+		return fmt.Errorf("read %s: %w", ws.Path, err)
+	}
+	if ws.Err == nil {
+		return nil
+	}
+	fmt.Printf("PROBLEM: %s cannot be used: %v\n", ws.Path, ws.Err)
+	fmt.Println("  Fix it in your editor, or open rolecall and press 6 then e. Until then no Workspace settings apply.")
+	return errors.New("workspace.json is invalid")
 }
 
 // printLegacyWarnings names each dashboard-era file in the Workspace. Nothing reads them:

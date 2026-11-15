@@ -23,7 +23,7 @@ func TestInitAsksNothingAndDefaultsToRolecallHere(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(cwd, "rolecall", "workspace.json")); err != nil {
 		t.Fatalf("no Workspace in ./rolecall: %v", err)
 	}
-	if !strings.Contains(out.String(), "run `rolecall`") {
+	if !strings.Contains(out.String(), "Run `rolecall`") {
 		t.Fatalf("init output does not point to rolecall:\n%s", out.String())
 	}
 }
@@ -88,5 +88,47 @@ func TestExpandHomeTurnsTildeIntoTheHomeDirectory(t *testing.T) {
 		if got := expandHome(in); got != want {
 			t.Errorf("expandHome(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// init's closing output leads with the next steps, ending at a Profile, and keeps the
+// Harness privacy note for when a Harness is set.
+func TestInitOutputListsNextStepsAndShowsHarnessNoteOnlyWithAHarness(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	var out bytes.Buffer
+	if err := initCommand([]string{filepath.Join(t.TempDir(), "ws")}, &out, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	next, private := strings.Index(got, "Next:"), strings.Index(got, "Keep this Workspace private")
+	if next < 0 || private < 0 || next > private {
+		t.Fatalf("Next steps do not come before the privacy note:\n%s", got)
+	}
+	for _, want := range []string{"Connect a Harness", "Connect your Harness", "In your Harness, run the create-profile skill"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "AI service") {
+		t.Errorf("Harness privacy note shown without a Harness:\n%s", got)
+	}
+
+	var withHarness bytes.Buffer
+	writeInitDone(&withHarness, "/ws", "claude")
+	if !strings.Contains(withHarness.String(), "AI service") || strings.Contains(withHarness.String(), "Connect a Harness") {
+		t.Errorf("with a Harness, want the privacy note and no connect step:\n%s", withHarness.String())
+	}
+}
+
+// A second init on the same folder says it is already a Workspace and how to open it.
+func TestInitOnExistingWorkspaceSaysHowToOpenIt(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	ws := filepath.Join(t.TempDir(), "ws")
+	if err := initCommand([]string{ws}, io.Discard, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	err := initCommand([]string{ws}, io.Discard, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "already a Workspace") || !strings.Contains(err.Error(), "rolecall --dir") {
+		t.Fatalf("second init error = %v", err)
 	}
 }
