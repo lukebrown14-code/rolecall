@@ -75,7 +75,8 @@ type model struct {
 	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
 	writing               map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
 	writingGen            int
-	legacy                []string // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
+	legacy                []string        // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
+	clipboard             ClipboardWriter // nil uses the system clipboard program
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -239,6 +240,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done, ok := msg.(writingDone); ok {
 		m.endWriting(done)
 		return m, nil
+	}
+	if copied, ok := msg.(linkCopied); ok {
+		return m.linkCopied(copied), nil
 	}
 	if done, ok := msg.(externalFinished); ok {
 		a, err := m.store.Rescan(done.folder)

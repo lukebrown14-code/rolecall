@@ -186,6 +186,20 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.startBuild() },
 	},
 	{
+		keys: []string{"w"}, keyLabel: "w", desc: text("open link"),
+		group: groupAction, prio: fixed(prioMinor),
+		listed:  hasLink,
+		enabled: hasLink,
+		run:     func(m *model, _ string) tea.Cmd { return m.openLink() },
+	},
+	{
+		keys: []string{"c"}, keyLabel: "c", desc: text("copy link"),
+		group: groupAction, prio: fixed(prioMinor),
+		listed:  hasLink,
+		enabled: hasLink,
+		run:     func(m *model, _ string) tea.Cmd { return m.copyLink() },
+	},
+	{
 		keys: []string{"d"}, keyLabel: "d", desc: text("download"),
 		group: groupAction, prio: fixed(prioMinor),
 		listed: func(m model) bool {

@@ -109,6 +109,7 @@ in rolecall for the complete help for the current screen.
 | `F` | Ask the Harness to draft a follow-up for a Follow-up due Application |
 | `b` | Build PDFs for the selected Application |
 | `d` | Copy the Application's PDFs to your Downloads folder |
+| `w` / `c` | Open the job ad's link in your browser / copy it to the clipboard |
 | `/` | Filter the current view by title or company |
 | `t` | Change the Track filter |
 | `o` | Sort Leads by close date or newest first |

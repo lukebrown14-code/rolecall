@@ -139,6 +139,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `u` | global | undo the last move made in this session (listed while there is one; with none it says `Nothing to undo`). In Settings: put back the last Settings change |
 | `x` | row (Lead, Draft) | Dismiss. Same as Move → Dismissed |
 | `d` | row with PDFs | Download |
+| `w` / `c` | row with a `url` (table, detail) | open the job ad's link in the browser / copy it to the clipboard |
 | `t` / `T` | tables, Stats | next / previous Track filter: All → each `workspace.json` Track → any other Track a row is on |
 | `o` | Leads view | sort by close date, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `/` | table | text filter on Title + Company. `Esc` clears it on any screen (on Stats and Profile it says `Cleared search "/fe"`) |

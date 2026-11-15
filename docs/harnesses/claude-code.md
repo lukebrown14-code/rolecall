@@ -72,6 +72,9 @@ cd /path/to/your/workspace && claude
 
 Keep these sessions out of code repositories: the Workspace holds your personal data.
 
+To ask how rolecall or any of its skills works, run `/rolecall:help` (or just ask: "which
+rolecall skill finds jobs?"). It reads the skills and the app guide and changes nothing.
+
 ## Check the handoff
 
 Start rolecall with your Workspace, open a Lead or Draft Application, then press `f` to run
