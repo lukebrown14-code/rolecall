@@ -129,7 +129,7 @@ func TestStatsEmptyWorkspace(t *testing.T) {
 		}
 	})
 	view := chipped(runKeys(t, root, 120, "4"))
-	if !strings.Contains(view, "No Applications · a add a Lead") || strings.Contains(view, "FUNNEL") {
+	if !strings.Contains(view, "No Applications yet · a add a Lead") || strings.Contains(view, "FUNNEL") {
 		t.Fatalf("empty Stats lacks its empty state:\n%s", view)
 	}
 }

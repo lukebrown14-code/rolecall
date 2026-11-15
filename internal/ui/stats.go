@@ -34,7 +34,7 @@ func (m model) statsEmptyMessage() string {
 	if m.track > 0 {
 		return "No Applications in " + m.tracks[m.track-1]
 	}
-	return "No Applications"
+	return "No Applications yet"
 }
 
 func (m model) statsEmptyHints() []emptyHint {

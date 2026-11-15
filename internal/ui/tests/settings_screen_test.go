@@ -136,8 +136,8 @@ func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
 }
 
 func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T) {
-	// An invalid file stops startup (the CLI test in cmd/rolecall); here it breaks while
-	// rolecall is running, for example after e.
+	// An invalid file at startup is TestInvalidWorkspaceFileStillStarts; here it breaks
+	// while rolecall is running, for example after e.
 	bad := `{"tracks":`
 	h := newSettingsHarness(t, 120, `{}`, func(string) {})
 	h.tm.Type("6")

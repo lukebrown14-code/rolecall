@@ -40,11 +40,11 @@ func TestEmptySearchHintsEscClear(t *testing.T) {
 func TestEmptyWorkspaceHintsAddALead(t *testing.T) {
 	d := newDriver(t, emptyJobs(t), fixtureClock, 120, 36)
 	d.Type("1")
-	if v := d.plain(); !strings.Contains(v, "No Leads · a add a Lead") {
+	if v := d.plain(); !strings.Contains(v, "a  add your first Lead") {
 		t.Fatalf("no add hint:\n%s", v)
 	}
 	d.Type("a")
-	if v := d.plain(); strings.Contains(v, "No Leads · a add a Lead") {
+	if v := d.plain(); strings.Contains(v, "a  add your first Lead") {
 		t.Fatalf("a did not open the add form:\n%s", v)
 	}
 }

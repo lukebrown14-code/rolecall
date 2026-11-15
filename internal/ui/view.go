@@ -272,21 +272,6 @@ func (m model) statusRow(p pal, w int, fallback string) string {
 	return fallback
 }
 
-// welcome is the first-run screen, for a Workspace with no Applications at all: the
-// first three moves instead of empty panes.
-func (m model) welcome(p pal) string {
-	title := p.Text(p.Fg).Bold(true).Render(wordmark + " rolecall")
-	msg, _ := m.emptyViewLine(m.views()[m.table])
-	hints := m.availableHints(addLeadHint)
-	step := func(k, desc string) string {
-		return p.Key().Render(padRight(k, gutter+1)) + p.Text(p.Fg).Render(desc)
-	}
-	steps := lipgloss.JoinVertical(lipgloss.Left,
-		step(fmt.Sprint(settingsScreen+1), "pick an Editor"), step("?", "see every key"))
-	line := strings.Join(m.emptyLines(p, m.layout().w-2*gutter, msg, hints), "\n")
-	return lipgloss.JoinVertical(lipgloss.Left, title, "", line, "", "  "+strings.ReplaceAll(steps, "\n", "\n  "))
-}
-
 // movedOut reports that a move just took the last row out of this view.
 func (m model) movedOut() bool { return m.movedTo != "" }
 

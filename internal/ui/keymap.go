@@ -252,7 +252,7 @@ var listActions = []listAction{
 			return "sort newest"
 		},
 		group: groupFilter, prio: fixed(prioMinor),
-		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
+		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads && !m.welcoming() },
 		enabled: func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
 		run: func(m *model, _ string) tea.Cmd {
 			folder := m.cursorFolder()
@@ -275,7 +275,7 @@ var listActions = []listAction{
 	{
 		keys: []string{"/"}, keyLabel: "/", desc: text("search"),
 		group: groupFilter, prio: fixed(prioCore),
-		listed:  func(m model) bool { return m.detail == nil },
+		listed:  func(m model) bool { return m.detail == nil && !m.welcoming() }, // nothing to search yet
 		enabled: always,
 		run: func(m *model, _ string) tea.Cmd {
 			m.overlay = &searchMode{}
