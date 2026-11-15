@@ -12,9 +12,25 @@ assess fit, and prepare documents through the rolecall Plugin.
 brew install lukebrown14-code/homebrew-tap/rolecall
 ```
 
+### Install script (macOS and Linux, no Go needed)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scripts/install.sh | sh
+```
+
+The script downloads the latest release for your platform, verifies its checksum, and installs
+rolecall with the Plugin into `~/.local` (`~/.local/bin/rolecall`). Run it again to update. Set
+`ROLECALL_VERSION=v0.1.1` to pick a release or `ROLECALL_PREFIX=/usr/local` to install
+elsewhere. Make sure `~/.local/bin` is on your `PATH`.
+
+To install by hand instead, download `rolecall_<os>_<arch>.tar.gz` from
+[Releases](https://github.com/lukebrown14-code/rolecall/releases), extract it, and keep the
+`rolecall` executable next to its `plugin` folder.
+
 ### Go
 
-Install the Go version declared in [`go.mod`](go.mod), then run:
+With Go 1.21 or newer installed, run the command below. Go downloads the toolchain rolecall
+needs automatically.
 
 ```sh
 go install github.com/lukebrown14-code/rolecall/cmd/rolecall@latest
@@ -22,9 +38,9 @@ go install github.com/lukebrown14-code/rolecall/cmd/rolecall@latest
 
 Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 
-The Go command installs the executable. To use the Harness Plugin with this install, clone the
-repository and set `plugin` in `~/.config/rolecall/config.toml` to the clone's `plugin` folder;
-the Homebrew package includes the Plugin automatically.
+This installs only the executable. To use the Harness Plugin, clone the repository and set
+`plugin` in `~/.config/rolecall/config.toml` to the clone's `plugin` folder. The Homebrew package
+and the install script include the Plugin automatically.
 
 ## Get started
 
