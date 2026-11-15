@@ -2,14 +2,61 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	xansi "github.com/charmbracelet/x/ansi"
 )
 
-// The filter row: the status filter and the Track filter on one line,
-// "STATUS s [All 9] Applied 1 Interviewing 2 │ TRACK t [All 9] SWE 8 Platform 1". Each
+// The filter row: the view (a status filter) and the Track filter on one line,
+// "VIEW s [All 9] Applied 1 Interviewing 2 │ TRACK t [All 9] SWE 8 Platform 1". Each
 // count is the rows that option would show, so the chosen ones match the list.
+
+// noTrack is how the Track filter names Applications with no track.
+const noTrack = "No track"
+
+// filterTracks is the Track filter's options after All: the workspace.json Tracks in
+// their order, then every other Track an Application is on (a legacy "Unknown", or one
+// renamed or removed from workspace.json) in name order, so the options add up to All.
+// m.track indexes it, 1-based.
+func (m model) filterTracks() []string {
+	listed := make(map[string]bool, len(m.tracks))
+	for _, t := range m.tracks {
+		listed[t] = true
+	}
+	var other []string
+	for _, a := range m.apps {
+		if !listed[a.Track] {
+			listed[a.Track] = true
+			other = append(other, a.Track)
+		}
+	}
+	slices.Sort(other)
+	return append(slices.Clone(m.tracks), other...)
+}
+
+// selectedTrack is the Track the filter is on; ok is false on All, or when the chosen
+// off-list Track has since gone. A workspace.json Track needs no scan of the rows.
+func (m model) selectedTrack() (track string, ok bool) {
+	switch {
+	case m.track <= 0:
+		return "", false
+	case m.track <= len(m.tracks):
+		return m.tracks[m.track-1], true
+	}
+	if all := m.filterTracks(); m.track <= len(all) {
+		return all[m.track-1], true
+	}
+	return "", false
+}
+
+// trackLabel is a Track as the filter shows it: an empty one is "No track".
+func trackLabel(track string) string {
+	if track == "" {
+		return noTrack
+	}
+	return track
+}
 
 // filterSpan is where one option sits on the filter row, for a click.
 type filterSpan struct {
@@ -33,9 +80,18 @@ func (f *filterPart) add(s string, track bool, idx int) {
 	}
 }
 
+// option is one choice on a selector: its name, how many rows it would show, and the
+// index it selects (a view, or a Track where 0 is All).
+type option struct {
+	name  string
+	count int
+	idx   int
+}
+
 // options draws a selector: the label and key, then each option with its count, the chosen
-// one as a chip. Compact keeps only the chosen option; collapsed is "s:All".
-func (m model) options(p pal, label, key string, names []string, counts []int, chosen int, form trackForm, track bool) filterPart {
+// one as a chip. Compact keeps only the chosen option; collapsed is "s:All". chosen is
+// the index into opts.
+func (m model) options(p pal, label, key string, opts []option, chosen int, form trackForm, track bool) filterPart {
 	var f filterPart
 	k := ""
 	if key != "" {
@@ -46,14 +102,14 @@ func (m model) options(p pal, label, key string, names []string, counts []int, c
 		if k != "" {
 			f.add(k+p.Text(p.Dim).Render(":"), false, -1)
 		}
-		f.add(p.Text(p.Dim).Render(names[chosen]), track, chosen)
+		f.add(p.Text(p.Dim).Render(opts[chosen].name), track, opts[chosen].idx)
 		return f
 	case trackCompact:
 		if k != "" {
 			f.add(k+" ", false, -1)
 		}
-		f.add(p.SelChip(fmt.Sprintf("%s %d", names[chosen], counts[chosen])), track, chosen)
-		if len(names) > 1 {
+		f.add(p.SelChip(fmt.Sprintf("%s %d", opts[chosen].name, opts[chosen].count)), track, opts[chosen].idx)
+		if len(opts) > 1 {
 			f.add(p.Text(p.Dim).Render("▸"), false, -1)
 		}
 		return f
@@ -62,7 +118,7 @@ func (m model) options(p pal, label, key string, names []string, counts []int, c
 	if k != "" {
 		f.add(k+" ", false, -1)
 	}
-	for i, name := range names {
+	for i, o := range opts {
 		// Options sit two cells apart, as on the tab bar. The chip's fill takes one of
 		// them, so the chosen option keeps the same gap as the rest.
 		if i > 0 && i != chosen && i-1 != chosen {
@@ -70,12 +126,12 @@ func (m model) options(p pal, label, key string, names []string, counts []int, c
 		} else if i > 0 {
 			f.add(" ", false, -1)
 		}
-		text := fmt.Sprintf("%s %d", name, counts[i])
+		text := fmt.Sprintf("%s %d", o.name, o.count)
 		if i == chosen {
-			f.add(p.SelChip(text), track, i)
+			f.add(p.SelChip(text), track, o.idx)
 			continue
 		}
-		f.add(p.Text(p.Fg).Render(name)+p.Text(p.Dim).Render(fmt.Sprintf(" %d", counts[i])), track, i)
+		f.add(p.Text(p.Fg).Render(o.name)+p.Text(p.Dim).Render(fmt.Sprintf(" %d", o.count)), track, o.idx)
 	}
 	return f
 }
@@ -83,29 +139,39 @@ func (m model) options(p pal, label, key string, names []string, counts []int, c
 // statusPart is the status filter: the screen's views and how many rows each shows.
 func (m model) statusPart(p pal, form trackForm) filterPart {
 	views := m.views()
-	counts := make([]int, len(views))
+	opts := make([]option, len(views))
 	for i, v := range views {
-		counts[i] = m.count(m.screen, v)
+		opts[i] = option{name: v, count: m.count(m.screen, v), idx: i}
 	}
 	key := "s"
 	if len(views) <= 1 {
 		key = "" // one view: nothing to cycle
 	}
-	return m.options(p, "STATUS", key, views, counts, m.table, form, false)
+	return m.options(p, "VIEW", key, opts, m.table, form, false)
 }
 
-// trackPart is the Track filter: All and each Track, with the rows each would show in this
-// view. Empty when the Workspace has no Tracks.
+// trackPart is the Track filter: All and each Track (see filterTracks), with the rows each
+// would show in this view. An off-list Track ("Unknown") with no rows here is left out
+// unless it is the one chosen: it is not the Owner's Track, so a 0 beside it says
+// nothing. Empty when the Workspace has no Tracks.
 func (m model) trackPart(p pal, form trackForm) filterPart {
 	if !m.trackApplies() {
 		return filterPart{}
 	}
-	names := append([]string{allView}, m.tracks...)
-	counts := make([]int, len(names))
-	for i := range names {
-		counts[i] = m.trackTotal(i)
+	opts := []option{{name: allView, count: m.trackTotal(0)}}
+	chosen := 0
+	for i, t := range m.filterTracks() {
+		idx := i + 1
+		n := m.trackTotal(idx)
+		if n == 0 && idx > len(m.tracks) && idx != m.track {
+			continue
+		}
+		if idx == m.track {
+			chosen = len(opts)
+		}
+		opts = append(opts, option{name: trackLabel(t), count: n, idx: idx})
 	}
-	return m.options(p, "TRACK", "t", names, counts, m.track, form, true)
+	return m.options(p, "TRACK", "t", opts, chosen, form, true)
 }
 
 // filterForms is every fit of the filter row, widest first: the status form, then the

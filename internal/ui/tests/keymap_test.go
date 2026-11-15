@@ -22,10 +22,10 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 		keys           []string
 		want, unwanted []string
 	}{
-		{"leads 80", 80, 24, []string{"1"}, []string{"Enter open", "m move", "a add", "/ search", "? help", "space menu"}, []string{"1-6 screen"}},
-		{"leads 60", 60, 16, []string{"1"}, []string{"Enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
-		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "Enter open", "space menu"}, []string{"1-6 screen"}},
-		{"settings 60", 60, 16, []string{"6"}, []string{"Enter edit", "? help", "space menu"}, []string{"1-6 screen"}},
+		{"leads 80", 80, 24, []string{"1"}, []string{"enter open", "m move", "a add", "/ search", "? help", "space menu"}, []string{"1-6 screen"}},
+		{"leads 60", 60, 16, []string{"1"}, []string{"enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
+		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "space menu"}, []string{"1-6 screen"}},
+		{"settings 60", 60, 16, []string{"6"}, []string{"enter edit", "? help", "space menu"}, []string{"1-6 screen"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			line := keyLineOf(runKeysSized(t, fixtureCopy(t, nil), tc.w, tc.h, tc.keys...))
@@ -60,8 +60,8 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 		t.Fatalf("← did not switch back to Leads:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
-	if !strings.Contains(view, "[Platform 1]") {
-		t.Fatalf("T did not cycle back to the last track:\n%s", view)
+	if !strings.Contains(view, "[Unknown 0]") {
+		t.Fatalf("T did not cycle back to the last track, the off-list Unknown:\n%s", view)
 	}
 }
 

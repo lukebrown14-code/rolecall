@@ -1,32 +1,32 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats ▁▁▁▁▁▁█▂  5 Profile  6 Settings             space menu  ? help
+ ▞ rolecall  1 Leads 4  2 Drafts 2 [3 Applied 9] 4 Stats        █   5 Profile  6 Settings            space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   STATUS s [All 9] Applied 1  Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 9] SWE 5  Platform 0
+   VIEW s [All 9] Applied 1  Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 9] SWE 5  Platform 0  Unknown 4
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ● Applied · 1 ─────────────────────────────────────────────── │ Software Engineer                                    
- ▌ ● Software Engineer                         Applied 6d     ·  │ Orbit Labs · SWE · applied 6d ago                    
+ ▌ ● Software Engineer                             6d     fit —  │ Orbit Labs · SWE · applied 6d ago                    
  ▌   Orbit Labs · SWE · applied 6d ago                           │                                                      
-                                                                 │ ● Applied                          fit not assessed  
+                                                                 │ ● Applied                                     fit —  
    ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │                                                      
-   ◆ Engineer #1                         ● 9mo  ~Jan 2026  Good  │ DOCS    □□□□ 0/4                                     
+   ◆ Engineer #1                     ⚑ 9mo  ~Jan 2026  fit Good  │ DOCS    □□□□ 0/4 ready                               
      Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
-   ◆ docs-written                             Interv. ~7d     ·  │                                                      
+   ◆ docs-written                                 ~7d     fit —  │                                                      
      Fictional Labs · SWE · interviewing ~7d ago                 │ NEXT    wait to hear back                    m move  
                                                                  │                                                      
    ★ Offer · 2 ───────────────────────────────────────────────── │ TIMELINE                                             
-   ★ Engineer #1                                ~Jan 2026  Good  │   ◌ Lead                                     24 Sep  
+   ★ Engineer #1                            ~Jan 2026  fit Good  │   ◌ Lead                                     24 Sep  
      Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │   ● Applied                                  25 Sep  
-   ★ docs-partial                               Offer ~7d     ·  │   ◆ Interviewing                               next  
+   ★ docs-partial                                 ~7d     fit —  │   ◆ Interviewing                               next  
      Fictional Labs · SWE · offer ~7d ago                        │                                                      
                                                                  │ NOTES   none yet                              n add  
    ✕ Closed · 4 ──────────────────────────────────────────────── │                                                      
-   ✕ Engineer #1                                ~Jan 2026  Good  │                                                      
-     Example · Unknown · closed ~Jan 2026                        │                                                      
-   – Engineer #1                                ~Jan 2026  Good  │                                                      
-     Example · Unknown · closed ~Jan 2026                        │                                                      
-   ✕ docs-ready                                  Rej. ~7d     ·  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │                                                      
-   – docs-resume-only                         Withdr. ~7d     ·  │                                                      
-     Fictional Labs · SWE · closed ~7d ago                       │                                                      
+   ✕ Engineer #1                            ~Jan 2026  fit Good  │                                                      
+     Example · Unknown · rejected ~Jan 2026                      │                                                      
+   ↩ Engineer #1                            ~Jan 2026  fit Good  │                                                      
+     Example · Unknown · withdrawn ~Jan 2026                     │                                                      
+   ✕ docs-ready                                   ~7d     fit —  │                                                      
+     Fictional Labs · SWE · rejected ~7d ago                     │                                                      
+   ↩ docs-resume-only                             ~7d     fit —  │                                                      
+     Fictional Labs · SWE · withdrawn ~7d ago                    │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › All · All tracks · 1/9 · list
- Enter open  e edit  m move  n notes  a add  s status  / search  t track                 1-6 screen  : commands  ? help
+   Applied › All · All tracks · row 1 of 9
+ enter open  e edit  m move  n notes  a add  s view  / search  t track                   1-6 screen  : commands  ? help

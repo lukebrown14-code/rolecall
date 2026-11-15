@@ -3,6 +3,9 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"image/color"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -22,10 +25,90 @@ func WithInheritTerminal(on bool) Option { return func(m *model) { m.inherit = o
 // WithASCII turns ASCII glyphs on, as the ascii key in config.toml does.
 func WithASCII(on bool) Option { return func(m *model) { m.ascii = on } }
 
+// WithConfigProblem opens the app with config.toml's load error (a *config.FileError, the
+// app then running on defaults) and its warnings on the feedback line, and on This machine.
+func WithConfigProblem(err error, warnings []config.Warning) Option {
+	return func(m *model) {
+		m.configErr, m.configWarnings = err, warnings
+		if f := m.configFeedback(); f != nil {
+			m.err = f
+		}
+	}
+}
+
+// configBroken reports a config.toml that does not parse: its rows show the last good
+// values, Enter on them is refused, and e opens config.toml.
+func (m model) configBroken() bool {
+	var fe *config.FileError
+	return errors.As(m.configErr, &fe)
+}
+
+// configFeedback is the feedback-line form of config.toml's problem: short enough to read
+// at 100 columns, with where to go to fix it. nil when config.toml is fine.
+func (m model) configFeedback() error {
+	var fe *config.FileError
+	switch {
+	case errors.As(m.configErr, &fe):
+		where := ""
+		if w := fe.Where(); w != "" {
+			where = " " + w
+		}
+		return fmt.Errorf("%s%s: %s · 6 Settings, e to fix it", configFile, where, fe.Reason)
+	case m.configErr != nil:
+		return m.configErr
+	case len(m.configWarnings) > 0:
+		return errors.New(configFile + ": " + m.configWarnings[0].Text)
+	}
+	return nil
+}
+
+// configWarning is the warning Load gave for key, or "", for that setting's row.
+func (m model) configWarning(key string) string {
+	for _, w := range m.configWarnings {
+		if w.Key == key {
+			return w.Text
+		}
+	}
+	return ""
+}
+
+// configNotice is the lines This machine shows above its rows while config.toml has a
+// problem: what and where, and how to fix it.
+func (m model) configNotice(p pal, width int) []string {
+	var lines []string
+	add := func(text string, c color.Color) {
+		for _, l := range wrapWords(text, max(1, width-profileMarkerWidth)) {
+			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Text(c).Render(l))
+		}
+	}
+	var fe *config.FileError
+	switch {
+	case errors.As(m.configErr, &fe):
+		head := configFile + " has an error"
+		if w := fe.Where(); w != "" {
+			head += " (" + w + ")"
+		}
+		add(head, p.Bad)
+		add(fe.Reason, p.Fg)
+		add(fe.Path, p.Fg)
+		add("Press e to fix it in your editor. Until then rolecall uses the values below.", p.Dim)
+	case m.configErr != nil:
+		add(m.configErr.Error(), p.Bad)
+	}
+	// Warnings sit on their own setting's row (configWarning), not here.
+	if len(lines) > 0 {
+		lines = append(lines, "")
+	}
+	return lines
+}
+
 const (
 	keyFollowUpDays = "follow_up_days"
 	keyEditor       = "editor"
 	keyInherit      = "inherit_terminal"
+	keyDownloads    = "downloads"
+	keyHarness      = "harness"
+	keyPlugin       = "plugin"
 )
 
 // machineSetting is an editable config.toml row.
@@ -46,9 +129,9 @@ func machineSettingsList() []machineSetting {
 	}
 	for i, s := range []machineSetting{
 		{group: settings.GroupMachine, key: keyEditor, label: labelEditor},
-		{group: settings.GroupMachine, key: "downloads", label: labelDownloads},
-		{group: settings.GroupMachine, key: "harness", label: labelHarness},
-		{group: settings.GroupMachine, key: "plugin", label: labelPlugin},
+		{group: settings.GroupMachine, key: keyDownloads, label: labelDownloads},
+		{group: settings.GroupMachine, key: keyHarness, label: labelHarness},
+		{group: settings.GroupMachine, key: keyPlugin, label: labelPlugin},
 		{group: settings.GroupMachine, key: "ascii", label: labelASCII, toggle: true},
 		{group: settings.GroupMachine, key: keyInherit, label: labelInherit, toggle: true},
 	} {
@@ -75,37 +158,54 @@ func (m model) rowSetting(group, row, rows int) (machineSetting, bool) {
 	return machineSetting{}, false
 }
 
-// savedText is a machine setting as saved, as the Owner would type it.
+// savedText is a machine setting as config.toml sets it, as the Owner would type it: empty
+// when the key is unset and the value is a default or comes from the environment.
 func (m model) savedText(s machineSetting) string {
 	switch s.key {
 	case keyFollowUpDays:
+		if m.sources.FollowUpDays == config.SourceDefault {
+			return ""
+		}
 		return strconv.Itoa(m.followUpDays)
 	case keyEditor:
 		return m.editor
-	case "downloads":
+	case keyDownloads:
+		if m.sources.Downloads != config.SourceConfig {
+			return ""
+		}
 		return m.downloads
-	case "harness":
+	case keyHarness:
 		return m.harness
-	case "plugin":
+	case keyPlugin:
+		if m.sources.Plugin != config.SourceConfig {
+			return ""
+		}
 		return m.plugin
-	}
-	if s.key == keyInherit {
+	case keyInherit:
 		return settings.YesNo(m.inherit)
 	}
 	return settings.YesNo(m.ascii)
 }
 
-// shownText is a setting with any unsaved edit laid over it: what the field starts from.
-// An unset Editor still resolves to a default, so that is what the Owner sees and edits.
-func (m model) shownText(s machineSetting) string {
-	v, ok := m.settings.Pending[s.key]
-	if !ok {
-		v = m.savedText(s)
+// effectiveText is the value in effect when config.toml leaves a setting unset: the
+// placeholder an empty field shows.
+func (m model) effectiveText(s machineSetting) string {
+	switch s.key {
+	case keyFollowUpDays:
+		return strconv.Itoa(m.followUpDays)
+	case keyEditor:
+		return ResolveEditor(m.editor)
+	case keyDownloads:
+		return m.downloads
+	case keyHarness:
+		return settings.ExampleHarness
+	case keyPlugin:
+		if m.plugin != "" {
+			return m.plugin
+		}
+		return settings.ExamplePlugin
 	}
-	if s.key == keyEditor && strings.TrimSpace(v) == "" {
-		v = ResolveEditor(m.editor)
-	}
-	return v
+	return ""
 }
 
 // typedValue is a typed setting as config.toml holds it.
@@ -120,29 +220,25 @@ func typedValue(s machineSetting, text string) any {
 	return text
 }
 
-// setPending records an edit, or drops it when it puts the saved value back.
-func (m model) setPending(s machineSetting, text string) model {
-	st := *m.settings
-	if text == m.savedText(s) {
-		st = st.Without(s.key)
-	} else {
-		st = st.With(s.key, text)
-	}
-	m.settings = &st
-	return m
-}
-
-// activateSetting handles Enter on a row: a text setting opens its inline field, a Yes/No flips.
+// activateSetting handles Enter on a row: a text setting opens its inline field, a Yes/No
+// flips and saves. A set value opens selected, so typing replaces it; an unset one opens
+// empty, its default shown as a placeholder, so typing never appends to a default.
 func (m model) activateSetting() (tea.Model, tea.Cmd) {
 	st := *m.settings
 	s, ok := m.rowSetting(st.Group, st.Row, len(m.settingsRows(st.Group)))
 	if !ok {
 		return m, nil
 	}
-	if s.toggle {
-		return m.setPending(s, settings.YesNo(m.shownText(s) != settings.YesNo(true))), nil
+	if m.configBroken() {
+		// A save would patch a file that does not parse; fix it first.
+		m.err = m.configFeedback()
+		return m, nil
 	}
-	st.Edit = &settings.Edit{Key: s.key, Buf: m.shownText(s)}
+	if s.toggle {
+		return m.saveMachine(s, settings.YesNo(m.savedText(s) != settings.YesNo(true))), nil
+	}
+	text := m.savedText(s)
+	st.Edit = &settings.Edit{Key: s.key, Buf: text, Orig: text, Selected: text != "", Placeholder: m.effectiveText(s)}
 	m.settings = &st
 	return m, nil
 }
@@ -157,170 +253,144 @@ func settingByKey(key string) machineSetting {
 	return machineSetting{}
 }
 
-// editKey types into the open inline field: enter keeps the edit as unsaved, esc drops it.
+// editKey types into the open inline field: enter saves the value at once, esc drops it.
+// While a quit's "Discard changes?" is asked, y drops the edit and n or esc goes back to it.
 func (m model) editKey(k tea.KeyPressMsg) model {
 	st := *m.settings
 	e := *st.Edit
+	if e.Discarding {
+		switch k.String() {
+		case "y":
+			st.Edit = nil
+		case "n", "esc":
+			e.Discarding = false
+			st.Edit = &e
+		}
+		m.settings = &st
+		return m
+	}
 	s := settingByKey(e.Key)
 	switch k.String() {
 	case "esc":
 		st.Edit = nil
 	case "enter":
 		text := strings.TrimSpace(e.Buf)
+		if text == strings.TrimSpace(e.Orig) {
+			st.Edit = nil // nothing changed, so nothing is written
+			break
+		}
 		if s.key == keyFollowUpDays {
 			if err := validFollowUpDays(text); err != nil {
-				e.Err = err.Error()
+				e.Err, e.Selected = err.Error(), false
 				st.Edit = &e
 				break
 			}
 		}
 		st.Edit = nil
 		m.settings = &st
-		if text == m.shownText(s) {
-			return m
-		}
-		return m.setPending(s, text)
+		return m.saveMachine(s, text)
 	case "backspace":
-		if r := []rune(e.Buf); len(r) > 0 {
+		if r := []rune(e.Buf); e.Selected {
+			e.Buf = ""
+		} else if len(r) > 0 {
 			e.Buf = string(r[:len(r)-1])
 		}
-		e.Err, st.Edit = "", &e
+		e.Err, e.Selected, st.Edit = "", false, &e
 	case "ctrl+u":
-		e.Buf, e.Err, st.Edit = "", "", &e
+		e.Buf, e.Err, e.Selected, st.Edit = "", "", false, &e
+	case "left", "right", "end":
+		e.Selected, st.Edit = false, &e // the selection drops and the cursor stays at the end
 	default:
 		if k.Text != "" {
-			e.Buf, e.Err, st.Edit = e.Buf+k.Text, "", &e
+			if e.Selected {
+				e.Buf = ""
+			}
+			e.Buf, e.Err, e.Selected, st.Edit = e.Buf+k.Text, "", false, &e
 		}
 	}
 	m.settings = &st
 	return m
 }
 
-// editPaste types pasted text into the open inline field, on one line.
+// editPaste types pasted text into the open inline field, on one line, replacing a
+// selected opening value.
 func (m model) editPaste(text string) model {
 	st := *m.settings
 	e := *st.Edit
-	e.Buf, e.Err = e.Buf+strings.Join(strings.Fields(text), " "), ""
+	if e.Discarding {
+		return m
+	}
+	if e.Selected {
+		e.Buf = ""
+	}
+	e.Buf, e.Err, e.Selected = e.Buf+strings.Join(strings.Fields(text), " "), "", false
 	st.Edit = &e
 	m.settings = &st
 	return m
 }
 
-// saveSettings is ctrl+s: every unsaved edit goes to config.toml and the file is re-read, so
-// the change shows at once: the help bar, Build and fetch availability, follow-up flags,
-// Stats and the glyphs all follow. u puts the old values back.
-func (m model) saveSettings() model {
-	if m.settings == nil || m.settings.Dirty() == 0 {
+// saveMachine writes one machine setting to config.toml at once and re-reads the file, so
+// the change shows everywhere: the help bar, Build and fetch availability, follow-up flags,
+// Stats and the glyphs all follow. u puts the old value back. An empty text value clears
+// the key, so the default applies again.
+func (m model) saveMachine(s machineSetting, text string) model {
+	was := m.savedText(s)
+	if text == was {
 		return m
 	}
-	type change struct {
-		s        machineSetting
-		new, old any
-	}
-	var changes []change
-	for _, s := range machineSettings {
-		if text, ok := m.settings.Pending[s.key]; ok {
-			changes = append(changes, change{s, typedValue(s, text), typedValue(s, m.savedText(s))})
-		}
-	}
-	for _, c := range changes {
-		if m = m.patchMachine(c.s, c.new); m.err != nil {
-			return m
-		}
-	}
-	msg, what := "Saved "+plural(len(changes), "change", "changes"), "Settings back"
-	if len(changes) == 1 {
-		c := changes[0]
-		shown := machineValue(c.old)
-		if shown == "" {
-			shown = "not set"
-		}
-		msg, what = fmt.Sprintf("Saved %s: %s", c.s.label, machineValue(c.new)), c.s.label+" back to "+shown
-	}
-	m = m.saved(msg, configFile, &settingsUndo{what: what, restore: func(m model) model {
-		for _, c := range changes {
-			if m = m.patchMachine(c.s, c.old); m.err != nil {
-				break
-			}
-		}
+	// config.toml cannot unset a number, so an unset follow-up goes back to the default it had.
+	wasDays := m.followUpDays
+	if m = m.patchMachine(s, typedValue(s, text)); m.err != nil {
 		return m
+	}
+	msg := fmt.Sprintf("Saved %s: %s", s.label, text)
+	if text == "" {
+		msg = "Cleared " + s.label + ": the default applies"
+	}
+	shown := was
+	if shown == "" {
+		shown = "not set"
+	}
+	return m.saved(msg, configFile, &settingsUndo{what: s.label + " back to " + shown, restore: func(m model) model {
+		old := typedValue(s, was)
+		if s.key == keyFollowUpDays && was == "" {
+			old = wasDays
+		}
+		return m.patchMachine(s, old)
 	}})
-	st := *m.settings
-	st.Pending, st.Edit = nil, nil
-	m.settings = &st
-	return m
 }
 
-// revertSettings is ctrl+z: the field under the cursor goes back to its saved value, or
-// every field does when the cursor is on the header.
-func (m model) revertSettings() model {
-	st := *m.settings
-	if st.Header {
-		st.Pending = nil
-	} else if s, ok := m.rowSetting(st.Group, st.Row, len(m.settingsRows(st.Group))); ok {
-		st = st.Without(s.key)
+// quitHeld is ctrl+c while the Owner has typed into a Settings field or pop-up, or the Add
+// or Edit Application form: rather than
+// drop the text, it asks "Discard changes?" as esc on a form does. held is false when there
+// is nothing typed to lose, or the question is already up, and the quit goes ahead.
+func (m model) quitHeld() (next model, held bool) {
+	var f *form
+	switch o := m.overlay.(type) {
+	case *formPopup:
+		f = o.form
+	case *formMode: // the Add and Edit Application forms
+		f = o.form
 	}
-	m.settings = &st
-	return m
-}
-
-// deferredNote says which file this section's edits go to, and when. Search, Documents and
-// the Tracks write through their own pop-ups, so only the sections with typed fields say it.
-func (m model) deferredNote() string {
-	switch m.settings.Group {
-	case settings.GroupMachine:
-		return "Changes save to " + configFile + " — nothing is written until ctrl+s."
-	case settings.GroupTracking:
-		return "Follow-up changes save to " + configFile + " — nothing is written until ctrl+s."
-	}
-	return ""
-}
-
-// leaveMode asks what to do with unsaved Settings changes before the Owner goes elsewhere.
-type leaveMode struct{ then func(model) model }
-
-// leaveSettings runs then at once, or after the Owner has saved or discarded the unsaved
-// changes; cancelling stays in Settings.
-func (m model) leaveSettings(then func(model) model) model {
-	if m.settings == nil || m.settings.Dirty() == 0 {
-		return then(m)
-	}
-	m.overlay = &leaveMode{then: then}
-	return m
-}
-
-func (lm *leaveMode) Keys() [][2]string {
-	return [][2]string{{"s", "save"}, {"d", "discard"}, {"esc", "cancel"}}
-}
-
-func (lm *leaveMode) View(m *model, p pal) string {
-	body := p.Text(p.Fg).Bold(true).Render(plural(m.settings.Dirty(), "unsaved change", "unsaved changes")) + "\n\n" +
-		p.Text(p.Sub).Render("Save them to "+configFile+" before leaving Settings?")
-	return popup(p, "Unsaved changes", true, popSmall, m.viewWidth(), body, p.Keys(lm.Keys()))
-}
-
-func (lm *leaveMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
-	k, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return lm, nil
-	}
-	switch k.String() {
-	case "s":
-		*m = m.saveSettings()
-		if m.err != nil {
-			return nil, nil
+	if f != nil {
+		if f.Discarding || !f.Dirty() {
+			return m, false
 		}
-	case "d":
-		st := *m.settings
-		st.Pending, st.Edit = nil, nil
-		m.settings = &st
-	case "esc":
-		return nil, nil
-	default:
-		return lm, nil
+		f.Discarding = true
+		return m, true
 	}
-	*m = lm.then(*m)
-	return nil, nil
+	if !m.fieldOpen() {
+		return m, false
+	}
+	e := *m.settings.Edit
+	if e.Discarding || !e.Changed() {
+		return m, false
+	}
+	e.Discarding = true
+	st := *m.settings
+	st.Edit = &e
+	m.settings = &st
+	return m, true
 }
 
 // patchMachine writes one config.toml key and re-reads the file.
@@ -337,20 +407,18 @@ func (m model) patchMachine(s machineSetting, value any) model {
 	return m.loadMachine()
 }
 
-// machineValue is a saved value as the feedback line reads it.
-func machineValue(value any) string {
-	if on, ok := value.(bool); ok {
-		return settings.YesNo(on)
-	}
-	return fmt.Sprint(value)
-}
-
-// loadMachine re-reads config.toml into the model.
+// loadMachine re-reads config.toml into the model. On an error the values in use stay,
+// and the error goes on the feedback line and This machine.
 func (m model) loadMachine() model {
 	c, err := config.Load(m.configHome, m.store.Root())
+	m.configErr, m.configWarnings = err, c.Warnings
 	if err != nil {
-		m.err = err
+		m.configWarnings = nil
+		m.err = m.configFeedback()
 		return m
+	}
+	if f := m.configFeedback(); f != nil {
+		m.err = f
 	}
 	m.editor, m.downloads, m.harness, m.plugin = c.Editor, c.Downloads, c.Harness, c.Plugin
 	m.followUpDays, m.ascii, m.inherit = c.FollowUpDays, c.ASCII, c.InheritTerminal
@@ -361,9 +429,32 @@ func (m model) loadMachine() model {
 	return m
 }
 
+// harnessWarning names a Harness whose program is not on PATH. It never blocks a save.
+func harnessWarning(harness string) string {
+	if strings.TrimSpace(harness) == "" || editorOnPath(harness) {
+		return ""
+	}
+	return firstWord(harness) + " not found on PATH"
+}
+
+// pluginWarning names a Plugin folder that is missing or holds no skills/. It never
+// blocks a save.
+func pluginWarning(plugin string) string {
+	if strings.TrimSpace(plugin) == "" {
+		return ""
+	}
+	if info, err := os.Stat(plugin); err != nil || !info.IsDir() {
+		return "folder not found"
+	}
+	if info, err := os.Stat(filepath.Join(plugin, "skills")); err != nil || !info.IsDir() {
+		return "no skills/ folder in it"
+	}
+	return ""
+}
+
 // machineHelpKeys is Enter on an editable config.toml row.
 func (m model) machineHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.configBroken() {
 		return nil
 	}
 	s, ok := m.rowSetting(m.settings.Group, m.settings.Row, len(m.settingsRows(m.settings.Group)))

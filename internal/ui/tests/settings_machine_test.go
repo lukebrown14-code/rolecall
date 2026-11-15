@@ -53,11 +53,7 @@ func TestSettingsEditEditorSavesAndKeepsComments(t *testing.T) {
 	}
 	d.Type("nano")
 	d.Type("enter")
-	requireAll(t, d.plain(), "Editor", "nano", "was vim", "● 1 unsaved change")
-	if b, _ := os.ReadFile(cfg); string(b) != machineConfig {
-		t.Fatalf("written before ctrl+s:\n%s", b)
-	}
-	d.Type("ctrl+s")
+	requireAll(t, d.plain(), "Editor", "nano", "Saved Editor: nano · config.toml")
 	b, _ := os.ReadFile(cfg)
 	want := "# my config\nworkspace = \"/w\" # keep\n\n# my editor\neditor = \"nano\"\nfollow_up_days = 14\n"
 	if string(b) != want {
@@ -116,7 +112,8 @@ func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 	for _, bad := range []string{"0", "91", "abc", ""} {
 		d, cfg := machineDriver(t, 120)
-		selectRow(d, 2, 3)
+		selectRow(d, 2, 0)
+		d.Type("G")
 		d.Type("enter")
 		for range 3 {
 			d.Type("backspace")
@@ -132,20 +129,17 @@ func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 
 func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 2, 3)
+	selectRow(d, 2, 0)
+	d.Type("G")
 	d.Type("enter")
-	d.Type("backspace")
-	d.Type("backspace")
 	d.Type("30")
 	d.Type("enter")
-	requireAll(t, d.plain(), "Follow-up due after", "30 days", "was 14")
-	d.Type("ctrl+s")
 	requireAll(t, d.plain(), "Follow-up due after", "30 days")
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "follow_up_days = 30\n") {
 		t.Fatalf("config.toml:\n%s", b)
 	}
 	d.Type("4")
-	requireAll(t, d.plain(), "applied less than 30 days ago")
+	requireAll(t, d.plain(), "applied in the last 30 days")
 }
 
 func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
@@ -165,7 +159,6 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	d.Type("enter")
 	d.Type("/opt/plugin")
 	d.Type("enter")
-	d.Type("ctrl+s")
 	d.Type("2")
 	d.Type("j")
 	d.Type("?")
@@ -177,8 +170,7 @@ func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	selectRow(d, 3, 4)
 	requireAll(t, d.plain(), "ASCII glyphs", "No")
 	d.Type("enter")
-	requireAll(t, d.plain(), "ASCII glyphs", "Yes", "was No")
-	d.Type("ctrl+s")
+	requireAll(t, d.plain(), "ASCII glyphs", "Yes", "Saved ASCII glyphs: Yes")
 	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), "ascii = true\n") {
 		t.Fatalf("config.toml:\n%s", b)
 	}

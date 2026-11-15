@@ -60,7 +60,7 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 		return nil
 	}
 	if m.reload(a.Folder) {
-		m.toast = "Saved · " + now["title"]
+		m.toast = "Saved · " + titleLabel(now["title"])
 		return m.startFlash(a.Folder)
 	}
 	return nil

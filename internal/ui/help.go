@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
 )
 
 // The keymap registry. Every screen, focus and pop-up declares the keys it accepts as
@@ -16,9 +17,9 @@ import (
 // narrow key line). The key line, the `?` pop-up and the `:` command palette all read
 // the same list from helpKeys, so a key is declared once and shows up everywhere.
 //
-// Keys held back for features still to come, so no one else takes them: space opens the
-// Workspace menu (#174) and r drafts a Follow-up nudge (#179). g and G are go-to-top and
-// bottom; M is not bound. The Leads sort is o and the status filter is s.
+// r is always rescan; F drafts a Follow-up on a Follow-up due row. space opens the
+// Workspace menu. g and G are go-to-top and bottom; M is not bound. The Leads sort is o
+// and s cycles the view.
 //
 // To add an action: append help(group, key, description) to the list for its context —
 // the list view below, a screen's help func in screenDefs, or a mode's Keys — and raise
@@ -166,8 +167,12 @@ func (m model) contextKeys() []helpKey {
 			vertical = "select"
 		}
 		// Reading is what the detail view is for, so its navigation outlasts the actions.
-		return append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
-			help(groupCursor, "g G", "top / bottom"), help(groupNav, "esc", "back").at(prioPinned))
+		keys = append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
+			help(groupCursor, "g G", "top / bottom"))
+		if m.detail.tab != tabDocs {
+			keys = append(keys, help(groupCursor, "pgup pgdn", "page"))
+		}
+		return append(keys, help(groupNav, "esc", "back").at(prioPinned))
 	}
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
@@ -194,7 +199,8 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		keys = append(keys, help(groupFilter, "t", "track").at(prioMinor), help(groupFilter, "T", "previous track"))
 	}
 	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
-		keys = append(keys, help(groupFilter, "esc", "clear search"))
+		// A search follows the Owner to every screen, so how to end it is never dropped.
+		keys = append(keys, help(groupFilter, "esc", "clear search").at(prioPinned))
 	}
 	if m.screen != settingsScreen {
 		keys = append(keys, help(groupGlobal, ",", "settings"))
@@ -308,43 +314,81 @@ func (m model) keyLine(p pal, w int) string {
 // helpTitle names the `?` pop-up's context.
 func (m model) helpTitle() string { return "Keys · " + m.contextName() }
 
-// glyphLegend says what each glyph means; every glyph has exactly one meaning. The
-// Status glyphs are drawn in their own colours, as the list draws them.
+// legendPerLine is how many legend items share a line before a row wraps under itself.
+const legendPerLine = 3
+
+// glyphLegend says what each glyph means. It is generated from the glyph table the frame
+// draws with (theme.Legend), so a glyph cannot be drawn with one meaning and explained
+// with another; every glyph has exactly one. The Status glyphs are drawn in their own
+// colours, as the list draws them.
 func glyphLegend(p pal, followUpDays int) string {
-	row := func(label string, items ...string) string {
-		var b strings.Builder
-		b.WriteString(p.Text(p.Fg).Render(padRight(label, helpKeyWidth+1)))
-		for i, it := range items {
-			if i < len(items)-1 {
-				it += strings.Repeat(" ", max(1, helpColumn-gutter-xansi.StringWidth(it)))
-			}
-			b.WriteString(it)
-		}
-		return b.String()
-	}
-	status := func(s string) string { return p.StatusMark(s) + p.Text(p.Dim).Render(" "+s) }
-	open := []string{store.StatusLead, store.StatusDraft, store.StatusApplied, store.StatusInterviewing, store.StatusOffer}
-	closed := []string{store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed}
-	line := func(ss []string) string {
-		parts := make([]string, len(ss))
-		for i, s := range ss {
-			parts[i] = status(s)
-		}
-		return strings.Join(parts, "  ")
-	}
 	dim := func(s string) string { return p.Text(p.Dim).Render(s) }
+	indent := strings.Repeat(" ", helpKeyWidth+1)
+	row := func(label string, items ...string) string {
+		var lines []string
+		for start := 0; start < len(items); start += legendPerLine {
+			var b strings.Builder
+			if start == 0 {
+				b.WriteString(p.Text(p.Fg).Render(padRight(label, helpKeyWidth+1)))
+			} else {
+				b.WriteString(indent)
+			}
+			chunk := items[start:min(len(items), start+legendPerLine)]
+			for i, it := range chunk {
+				if i < len(chunk)-1 {
+					it += strings.Repeat(" ", max(1, helpColumn-gutter-xansi.StringWidth(it)))
+				}
+				b.WriteString(it)
+			}
+			lines = append(lines, b.String())
+		}
+		return strings.Join(lines, "\n")
+	}
+	groups := map[string][]appearance.Glyph{}
+	for _, g := range appearance.Legend() {
+		groups[g.Group] = append(groups[g.Group], g)
+	}
+	items := func(group string) []string {
+		var out []string
+		for _, g := range groups[group] {
+			switch g.Mark {
+			case meterOn:
+				// The ready meter's two cells read as one sample.
+				out = append(out, dim(meterOn+meterOn+meterOff+" 2/3 ready"))
+			case meterOff:
+			case glyphFollowUp:
+				out = append(out, dim(fmt.Sprintf("%s %s (%dd)", g.Mark, g.Meaning, followUpDays)))
+			default:
+				out = append(out, dim(g.Mark+" "+g.Meaning))
+			}
+		}
+		return out
+	}
+	var open, closed []string
+	for _, g := range groups[appearance.GroupStatus] {
+		it := p.StatusMark(g.Meaning) + dim(" "+g.Meaning)
+		if closedStatus(g.Meaning) {
+			closed = append(closed, it)
+		} else {
+			open = append(open, it)
+		}
+	}
 	// The Timeline track keeps each Status's own glyph, so the legend cannot borrow one
 	// for "current": it says in words what separates the stops instead.
 	current := p.Text(p.Fg).Bold(true).Render("bold") + dim(" current stop")
-	earlier := p.Text(p.Faint).Render("faint") + dim(" earlier & future stops")
-	return p.Heading("Glyphs") + "\n" +
-		row("Statuses", line(open)) + "\n" +
-		row("", line(closed)) + "\n" +
-		row("Timeline", current, earlier, dim("~ approximate date")) + "\n" +
-		row("Docs", dim("● ready"), dim("○ missing"), dim(meterOn+meterOff+" N/M ready")) + "\n" +
-		row("Agent", dim("⠹ agent writing"), dim("a document changed just now")) + "\n" +
-		row("Flags", dim("⚠ needs attention"), dim(fmt.Sprintf("%s %s %s due %d+ days", heatLow, heatMid, heatHigh, followUpDays)), dim(urgentMark+" closes in 2 days")) + "\n" +
-		row("Fit", dim(store.FitStrong+" · "+store.FitGood+" · "+store.FitMarginal+" · "+store.FitPoor), dim(fitDot+" not assessed"))
+	others := dim("dim: other stops")
+	// Fit is a word, so its values are listed without a separator glyph between them.
+	fits := dim(strings.Join([]string{store.FitStrong, store.FitGood, store.FitMarginal, store.FitPoor}, "  "))
+	return strings.Join([]string{p.Heading("Glyphs"),
+		p.Text(p.Fg).Render(padRight(appearance.GroupStatus, helpKeyWidth+1)) + strings.Join(open, "  "),
+		indent + strings.Join(closed, "  "),
+		row(appearance.GroupTimeline, append([]string{current, others}, items(appearance.GroupTimeline)...)...),
+		row(appearance.GroupDocs, items(appearance.GroupDocs)...),
+		row(appearance.GroupAgent, items(appearance.GroupAgent)...),
+		row(appearance.GroupFlags, items(appearance.GroupFlags)...),
+		row(appearance.GroupFit, fits+"   "+strings.Join(items(appearance.GroupFit), "  ")),
+		row(appearance.GroupForms, items(appearance.GroupForms)...),
+	}, "\n")
 }
 
 // helpBox is the `?` pop-up: the keys of the context it was opened from, then the
@@ -375,10 +419,19 @@ func (m model) helpBox(p pal) string {
 	// A page fills the body between the rules, less the pop-up's borders and padding.
 	const popChrome = 4
 	size := max(1, m.layout().bodyHeight(m.contextLines())-popChrome)
-	lines := append(strings.Split(body, "\n"), "")
+	// Lines are wrapped to the box before paging, as the pop-up would wrap them, so a page
+	// is never taller than the room for it.
+	wrapTo := func(s string) []string {
+		var out []string
+		for _, l := range strings.Split(s, "\n") {
+			out = append(out, strings.Split(xansi.Wrap(l, popWidth(popLarge, m.viewWidth())-popInset, ""), "\n")...)
+		}
+		return out
+	}
+	lines := append(wrapTo(body), "")
 	// The legend starts a page of its own rather than leaving its heading behind, when
 	// it fits on one.
-	legend := strings.Split(glyphLegend(p, m.followUpDays), "\n")
+	legend := wrapTo(glyphLegend(p, m.followUpDays))
 	if at := len(lines) % size; at != 0 && at+len(legend) > size && len(legend) <= size {
 		lines = append(lines, make([]string, size-at)...)
 	}
@@ -394,7 +447,7 @@ func (m model) helpBox(p pal) string {
 	body = strings.Join(lines[page*size:min(len(lines), (page+1)*size)], "\n")
 	title := m.helpTitle()
 	if pages > 1 {
-		title += fmt.Sprintf(" · %d/%d", page+1, pages)
+		title += fmt.Sprintf(" · page %d of %d", page+1, pages)
 	}
 	return popup(p, title, false, popLarge, m.viewWidth(), body, p.Keys(helpModeKeys(pages)))
 }

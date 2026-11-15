@@ -16,7 +16,7 @@ func TestCheckSetupReportsMissingDependenciesAndTemplate(t *testing.T) {
 	}
 	lookup := func(name string) (string, error) { return "", errors.New("not found") }
 
-	report := CheckSetup(Setup{Workspace: workspace, Plugin: plugin, Harness: "claude \"/{skill} {dir}\""}, lookup)
+	report := CheckSetup(Setup{Workspace: workspace, Plugin: plugin, Harness: "claude \"/{skill} {dir}\"", GOOS: "darwin"}, lookup)
 	joined := strings.Join(report.Warnings, "\n")
 	for _, want := range []string{
 		"typst", "brew install typst", "pandoc", "brew install pandoc", "Python 3", "brew install python",
@@ -28,6 +28,41 @@ func TestCheckSetupReportsMissingDependenciesAndTemplate(t *testing.T) {
 	}
 	if report.Template != "Header Band (default)" {
 		t.Errorf("Template = %q, want default Header Band", report.Template)
+	}
+}
+
+// Linux gets package-manager hints, not Homebrew.
+func TestCheckSetupGivesLinuxInstallHints(t *testing.T) {
+	lookup := func(name string) (string, error) { return "", errors.New("not found") }
+	report := CheckSetup(Setup{Workspace: t.TempDir(), Plugin: t.TempDir(), GOOS: "linux"}, lookup)
+	joined := strings.Join(report.Warnings, "\n")
+	if strings.Contains(joined, "brew") {
+		t.Errorf("Linux hints mention brew:\n%s", joined)
+	}
+	for _, want := range []string{"sudo apt install pandoc", "sudo dnf install python3", "typst/typst#installation"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("warnings missing %q:\n%s", want, joined)
+		}
+	}
+}
+
+// Without a Plugin, the one Plugin warning says it all: no font list repeating it. The
+// hints name the real config path and show a harness example.
+func TestCheckSetupWithoutPluginWarnsOnceAndNamesConfigPath(t *testing.T) {
+	lookup := func(name string) (string, error) { return "/stub/" + name, nil }
+	cfg := "/xdg/rolecall/config.toml"
+	report := CheckSetup(Setup{Workspace: t.TempDir(), ConfigPath: cfg}, lookup)
+	joined := strings.Join(report.Warnings, "\n")
+	if strings.Contains(joined, "fonts") {
+		t.Errorf("fonts reported without a Plugin:\n%s", joined)
+	}
+	if len(report.Warnings) != 2 {
+		t.Errorf("want the Plugin and Harness warnings only, got:\n%s", joined)
+	}
+	for _, want := range []string{"Set plugin in " + cfg, "set it in " + cfg, harnessExample, "Connect your Harness"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("warnings missing %q:\n%s", want, joined)
+		}
 	}
 }
 

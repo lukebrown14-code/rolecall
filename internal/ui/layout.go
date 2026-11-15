@@ -26,7 +26,7 @@ const (
 	// lists; the list has no preview and the detail view's card folds into a strip.
 	classMedium sizeClass = iota + 1
 	// classWide is wideWidth and up: the preview beside the list, the card beside the
-	// detail view and the pipeline summary in the tab bar.
+	// detail view, and the wordmark, sparkline and menu keys in the tab bar.
 	classWide
 )
 
@@ -63,13 +63,12 @@ const (
 	sheetRule      = 1 // the rule between the list and the sheet
 )
 
-// The list row's fixed right columns, in cells.
 const (
-	filtersFull      = 2  // filter lines when the filters have room
-	filtersCollapsed = 1  // and when collapsed to one line
-	flagColumn       = 6  // the Follow-up due flag
-	stageColumn      = 11 // stage and date
-	fitColumn        = 6  // Fit
+	filtersFull      = 2 // filter lines when the filters have room
+	filtersCollapsed = 1 // and when collapsed to one line
+	// columnGap is the cells between a list row's right-hand columns, and between the
+	// title and the first of them, so neighbours never touch (see slotsFor).
+	columnGap = 2
 )
 
 // layout is one frame's size budget: everything a view needs to place itself, from the
@@ -83,17 +82,13 @@ type layout struct {
 	// pane, listW + the divider + detailW is the width.
 	detail         detailMode
 	listW, detailW int
-	// flagCol, stageCol and fitCol are the list row's fixed right columns, and subtitleW
-	// what is left of the list for the subtitle after the marker, the inset and those.
-	flagCol, stageCol, fitCol int
-	subtitleW                 int
 	// filterLines is the lines the status and Track filters take: two, or one collapsed.
 	filterLines int
 	// footerRow is the row the footer sits on: always the last.
 	footerRow int
-	// cardW, profileW and groupsW are the detail card, Profile's section list and
+	// profileW and groupsW are Profile's section list and
 	// Settings' group list.
-	cardW, profileW, groupsW int
+	profileW, groupsW int
 	// status is the lines the status area needs: one for the key line, or two while the
 	// feedback line sits above it, so the key line is never wiped by a toast or an error.
 	status int
@@ -109,7 +104,7 @@ func (m model) layout() layout {
 // sizeLayout is the pure layout for a terminal of w by h: no rendering, no model, no clock.
 func sizeLayout(w, h int) layout {
 	l := layout{w: w, h: h, short: h <= shortHeight, detail: detailFull, filterLines: filtersFull, listW: w,
-		flagCol: flagColumn, stageCol: stageColumn, fitCol: fitColumn, footerRow: max(0, h-1), status: statusAreaPlain}
+		footerRow: max(0, h-1), status: statusAreaPlain}
 	switch {
 	case w >= wideWidth:
 		l.class = classWide
@@ -123,8 +118,6 @@ func sizeLayout(w, h int) layout {
 	if w < mediumWidth {
 		l.filterLines = filtersCollapsed
 	}
-	l.subtitleW = max(0, l.listW-edge-inset-l.flagCol-l.stageCol-l.fitCol)
-	l.cardW = l.panel(cardShare, cardMin, cardMax)
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
 	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
@@ -171,7 +164,6 @@ func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent,
 // Side panels: share of the width, then the least and most cells.
 const (
 	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list
-	cardShare, cardMin, cardMax          = 37, 34, 48 // the detail view's card: 44 at 120 columns, room for a row and its key
 	profileShare, profileMin, profileMax = 28, 26, 36 // Profile's section list: short names whole from 80 columns
 	groupsShare, groupsMin, groupsMax    = 18, 18, 24 // Settings' group list
 )
@@ -379,8 +371,14 @@ func (m model) tooSmall() bool {
 
 // tooSmallView replaces the layout on a terminal too small for it, centred.
 func (m model) tooSmallView(p pal) string {
-	msg := p.Text(p.Warn).Bold(true).Render("⚠ ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("rolecall needs %d×%d", minTermWidth, minTermHeight)) + "\n" +
-		p.Text(p.Dim).Render(fmt.Sprintf("now %d×%d · resize to continue", m.width, m.height))
+	// Say how to leave too: with a large font the Owner may not be able to resize.
+	head := p.Text(p.Warn).Bold(true).Render("⚠ ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("rolecall needs %d×%d", minTermWidth, minTermHeight))
+	now := p.Text(p.Dim).Render(fmt.Sprintf("now %d×%d · resize to continue", m.width, m.height))
+	quit := p.Key().Render("q") + p.Text(p.Dim).Render(" quit")
+	msg := head + "\n" + now + p.Text(p.Dim).Render(" · ") + quit
+	if xansi.StringWidth(now)+len(" · q quit") > m.width {
+		msg = head + "\n" + now + "\n" + quit
+	}
 	block := strings.Split(msg, "\n")
 	for i, l := range block {
 		block[i] = xansi.Truncate(l, m.width, "")
@@ -397,7 +395,11 @@ func (m model) tooSmallView(p pal) string {
 func (m model) overlayBody(p pal, base, box string) string {
 	l, ctx := m.layout(), m.contextLines()
 	top, h := l.bodyTop(ctx), l.bodyHeight(ctx)
-	lines := clipBox(p, strings.Split(box, "\n"), h)
+	pin := 0
+	if pm, ok := m.overlay.(pinnedMode); ok {
+		pin = pm.pinned()
+	}
+	lines := clipBox(p, strings.Split(box, "\n"), h, pin)
 	boxW := 0
 	for _, line := range lines {
 		boxW = max(boxW, xansi.StringWidth(line))
@@ -421,14 +423,28 @@ func (m model) overlayBody(p pal, base, box string) string {
 }
 
 // clipBox fits a pop-up into h lines. Its borders stay; the lines between them scroll to
-// keep the first selection bar in view, with a moreCue where lines are hidden.
-func clipBox(p pal, lines []string, h int) []string {
+// keep the first selection bar in view, with a moreCue where lines are hidden. The first
+// pin lines of the body (a Move pop-up's subject) stay above the scrolling part, and the
+// blank spacers around them go, as the room is short.
+func clipBox(p pal, lines []string, h, pin int) []string {
 	const borders = 2
 	if len(lines) <= h || len(lines) <= borders {
 		return lines
 	}
 	inner := lines[1 : len(lines)-1]
-	avail := max(1, h-borders)
+	blank := inner[0] // popup pads its body with a blank line top and bottom
+	var head []string
+	if pin > 0 && len(inner) > pin+1 {
+		head, inner = inner[1:1+pin], inner[1+pin:]
+		for len(inner) > 1 && strings.Trim(xansi.Strip(inner[0]), "│ ") == "" { // a blank row between its borders
+			inner = inner[1:]
+		}
+	}
+	top := append([]string{lines[0]}, head...)
+	avail := max(1, h-borders-len(head))
+	if len(inner) <= avail {
+		return append(append(top, inner...), lines[len(lines)-1])
+	}
 	focus := 0
 	for i, l := range inner {
 		if strings.Contains(xansi.Strip(l), "▌") {
@@ -438,7 +454,6 @@ func clipBox(p pal, lines []string, h int) []string {
 	}
 	start := min(max(0, focus-avail/bothSides), len(inner)-avail)
 	kept := append([]string{}, inner[start:start+avail]...)
-	blank := inner[0] // popup pads its body with a blank line top and bottom
 	cue := func(text string) string {
 		w := xansi.StringWidth(blank)
 		pad := popEdges/bothSides + gutter // the border and the padding
@@ -459,5 +474,5 @@ func clipBox(p pal, lines []string, h int) []string {
 	if hidden > 0 && avail > 1 {
 		kept[avail-1] = cue(p.MoreCue(false, hidden))
 	}
-	return append(append([]string{lines[0]}, kept...), lines[len(lines)-1])
+	return append(append(top, kept...), lines[len(lines)-1])
 }

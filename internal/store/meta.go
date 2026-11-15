@@ -24,7 +24,9 @@ type ParseError struct {
 	Reason error
 }
 
-func (e *ParseError) Error() string { return fmt.Sprintf("%s:%d: %v", e.Path, e.Line, e.Reason) }
+func (e *ParseError) Error() string {
+	return DisplayText(fmt.Sprintf("%s:%d: %v", e.Path, e.Line, e.Reason))
+}
 
 func (e *ParseError) Unwrap() error { return e.Reason }
 func readApplication(dir string, b []byte) Application {
@@ -92,14 +94,18 @@ func readApplication(dir string, b []byte) Application {
 			if err != nil || version != 1 {
 				return fail(n+1, fmt.Errorf("unsupported schema"))
 			}
+		// The strings the UI draws are cleaned once here, so no escape a scraped ad
+		// carried reaches the terminal (DisplayText).
 		case keyTitle:
-			a.Title = v
+			a.Title = DisplayText(v)
 		case keyCompany:
-			a.Company = v
+			a.Company = DisplayText(v)
 		case keyTrack:
-			a.Track = v
+			// Spaces around a Track are noise from a hand edit: " SWE " is SWE, not a
+			// second Track that workspace.json could never list.
+			a.Track = strings.TrimSpace(DisplayText(v))
 		case "url":
-			a.URL = v
+			a.URL = DisplayText(v)
 		case "closes":
 			if v != "" {
 				if _, err := time.Parse("2006-01-02", v); err != nil {

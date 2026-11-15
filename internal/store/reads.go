@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // workspace is workspace.json read once. Keys and Values are the ordered top-level keys
@@ -74,7 +75,43 @@ func (s *Store) Tracks() ([]string, error) {
 			return nil, fmt.Errorf("%s: invalid Workspace settings", w.Path)
 		}
 	}
+	if err := ValidTrackList(tracks); err != nil {
+		return nil, &TrackListError{Path: w.Path, Err: err}
+	}
 	return tracks, nil
+}
+
+// TrackListError is a workspace.json whose tracks list breaks the Track name rules.
+// The file still parses, so the app can start without a Track filter and say why.
+type TrackListError struct {
+	Path string
+	Err  error
+}
+
+func (e *TrackListError) Error() string { return fmt.Sprintf("%s: tracks: %v", e.Path, e.Err) }
+func (e *TrackListError) Unwrap() error { return e.Err }
+
+// ValidTrackList applies the Track name rules to a whole list, as Tracks reads it and
+// SetTracks writes it: each one a valid name without surrounding spaces or control
+// characters, and listed once (ignoring case).
+func ValidTrackList(tracks []string) error {
+	for i, t := range tracks {
+		if t != strings.TrimSpace(t) {
+			return fmt.Errorf("Track %q has spaces around it", DisplayText(t))
+		}
+		if t != DisplayText(t) {
+			return fmt.Errorf("Track %q contains a control character", DisplayText(t))
+		}
+		if err := ValidTrackName(t, nil); err != nil {
+			return err
+		}
+		for _, earlier := range tracks[:i] {
+			if strings.EqualFold(earlier, t) {
+				return fmt.Errorf("Track %s is listed twice", DisplayText(t))
+			}
+		}
+	}
+	return nil
 }
 
 // workspaceSchemaVersion reads the schema key of workspace.json. Absent or 1 is accepted;

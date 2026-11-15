@@ -102,12 +102,67 @@ func TestCLIMalformedConfigNamesPathWithoutValues(t *testing.T) {
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
 	message := string(out)
-	if err == nil || !strings.Contains(message, path) || !strings.Contains(message, "invalid TOML") || strings.Contains(message, "private-sentinel") {
-		t.Fatalf("want safe error naming %s, got %q %v", path, out, err)
+	for _, want := range []string{path, "line 2, column 11", "array is incomplete", "rolecall doctor", "rolecall --dir"} {
+		if err == nil || !strings.Contains(message, want) || strings.Contains(message, "private-sentinel") {
+			t.Fatalf("want safe error with %q, got %q %v", want, out, err)
+		}
+	}
+	// doctor reports the same problem, then carries on with the other checks and fails.
+	cmd = exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, err = cmd.CombinedOutput()
+	message = string(out)
+	for _, want := range []string{"PROBLEM: " + path, "line 2, column 11", "Editor", "config.toml is invalid"} {
+		if err == nil || !strings.Contains(message, want) || strings.Contains(message, "private-sentinel") {
+			t.Fatalf("doctor: want %q, got %q %v", want, out, err)
+		}
 	}
 }
 
-func TestCLIMalformedWorkspaceNamesPathWithoutValues(t *testing.T) {
+// doctor applies the Track name rules the app applies, so a tracks list the app refuses
+// (one listed twice, a blank one) fails doctor too.
+func TestCLIDoctorReportsTrackListTheAppRefuses(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspace := filepath.Join(t.TempDir(), "ws")
+	if err := os.MkdirAll(workspace, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, tracks := range []string{`["SWE","SWE"]`, `["SWE",""]`} {
+		if err := os.WriteFile(filepath.Join(workspace, "workspace.json"), []byte(`{"tracks":`+tracks+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(binary, "doctor", "--dir", workspace)
+		cmd.Env = append(os.Environ(), "HOME="+home)
+		out, err := cmd.CombinedOutput()
+		if err == nil || !strings.Contains(string(out), "PROBLEM: "+filepath.Join(workspace, "workspace.json")) || !strings.Contains(string(out), "tracks:") {
+			t.Fatalf("tracks %s: want a PROBLEM, got %q %v", tracks, out, err)
+		}
+	}
+}
+
+// follow_up_days outside 1-90 is clamped, and doctor says so.
+func TestCLIDoctorWarnsAboutFollowUpDaysOutOfRange(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	path := filepath.Join(home, ".config/rolecall/config.toml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("follow_up_days = 500\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(binary, "doctor")
+	cmd.Env = append(os.Environ(), "HOME="+home)
+	out, _ := cmd.CombinedOutput()
+	if !strings.Contains(string(out), "WARNING: "+path+": follow_up_days = 500 is outside 1-90; using 90") {
+		t.Fatalf("no range warning:\n%s", out)
+	}
+}
+
+// The app opens with an invalid workspace.json (TestInvalidWorkspaceFileStillStarts), so
+// doctor is where it fails: it names the file and the reason, and never a value.
+func TestCLIDoctorReportsMalformedWorkspaceWithoutValues(t *testing.T) {
 	binary := filepath.Join(t.TempDir(), "rolecall")
 	if out, err := exec.Command("go", "build", "-o", binary, "..").CombinedOutput(); err != nil {
 		t.Fatalf("build failed: %s %v", out, err)
@@ -128,11 +183,11 @@ func TestCLIMalformedWorkspaceNamesPathWithoutValues(t *testing.T) {
 	if err := os.WriteFile(workspaceConfig, []byte(`{"tracks":"private-sentinel"`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(binary)
+	cmd := exec.Command(binary, "doctor")
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
 	message := string(out)
-	if err == nil || !strings.Contains(message, workspaceConfig) || !strings.Contains(message, "invalid Workspace settings") || strings.Contains(message, "private-sentinel") {
+	if err == nil || !strings.Contains(message, "PROBLEM: "+workspaceConfig) || !strings.Contains(message, "unexpected end of JSON input") || strings.Contains(message, "private-sentinel") {
 		t.Fatalf("want safe error naming %s, got %q %v", workspaceConfig, out, err)
 	}
 }
@@ -194,7 +249,7 @@ func TestCLIDoctorDirWarnsButExitsSuccessfully(t *testing.T) {
 	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) || !strings.Contains(string(out), "Template in use: Header Band (default)") || !strings.Contains(string(out), "Make your documents yours") {
 		t.Fatalf("doctor output = %q, err = %v", out, err)
 	}
-	for _, check := range []string{"typst", "pandoc", "Python 3", "Plugin path", "Template fonts", "Harness command"} {
+	for _, check := range []string{"typst", "pandoc", "Python 3", "Plugin path", "Harness command"} {
 		if !strings.Contains(string(out), "WARNING: "+check) && !strings.Contains(string(out), "OK: "+check) {
 			t.Errorf("doctor output missing %s result: %q", check, out)
 		}
@@ -238,7 +293,7 @@ func TestCLIInitCreatesPrivateWorkspaceAndLocalGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init failed: %s %v", out, err)
 	}
-	for _, text := range []string{workspace, "Harness", "AI service", "private", "run `rolecall`"} {
+	for _, text := range []string{workspace, "Harness", "create-profile", "private", "run `rolecall`"} {
 		if !strings.Contains(strings.ToLower(string(out)), strings.ToLower(text)) {
 			t.Errorf("init output %q does not mention %q", out, text)
 		}

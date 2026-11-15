@@ -37,7 +37,7 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	}
 	next, _ = m.Update(writingDone{key, m.writing[key]})
 	m = next.(model)
-	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "● Resume") {
+	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "✓ Resume") {
 		t.Fatalf("mark not put out:\n%s", view)
 	}
 }

@@ -18,13 +18,13 @@ func fernCloses(date string) func(string) {
 }
 
 // Close dates read by urgency in the row, the preview and the detail title: amber words
-// within a week, ▲ within two days, "closed 3 Sep" once past.
+// within a week, ▲ within two days, "expired 3 Sep" once past.
 func TestCloseDateUrgency(t *testing.T) {
 	for _, tc := range []struct{ closes, want string }{
 		{"2026-10-07", "closes in 6d"},
 		{"2026-10-03", "closes in 2d ▲"},
 		{"2026-10-01", "closes today ▲"},
-		{"2026-09-03", "closed 3 Sep"},
+		{"2026-09-03", "expired 3 Sep"},
 		{"2027-03-01", "closes Mar 2027"},
 	} {
 		t.Run(tc.closes, func(t *testing.T) {
@@ -44,11 +44,11 @@ func TestCloseDateUrgency(t *testing.T) {
 // month rather than "21mo ago".
 func TestRowWording(t *testing.T) {
 	leads := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1"))
-	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || strings.Contains(leads, "fit —") {
+	if strings.Contains(leads, "no close date") || !strings.Contains(leads, "Fern Systems · Platform · —") || !strings.Contains(leads, "fit —") {
 		t.Fatalf("Leads rows:\n%s", leads)
 	}
 	applied := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{" Good", "applied ~Jan 2025", "● 9mo"} {
+	for _, want := range []string{" fit Good", "applied ~Jan 2025", "⚑ 9mo"} {
 		if !strings.Contains(applied, want) {
 			t.Fatalf("Applied rows lack %q:\n%s", want, applied)
 		}
@@ -67,7 +67,7 @@ func TestNextActionLine(t *testing.T) {
 	}{
 		{"lead without a JD", []string{"1"}, "NEXT    add the JD", "enter open"},
 		{"applied", []string{"3"}, "NEXT    wait to hear back", "m move"},
-		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due 259 days ago", "n note"},
+		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP  due · no change in 9mo", "m move"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT    decide on the offer", "m move"},
 		{"detail on the JD tab", []string{"1", "enter"}, "NEXT    add the JD", "e open jd.md"},
 	} {
@@ -105,7 +105,7 @@ func TestOfferCelebration(t *testing.T) {
 func TestFirstRunScreen(t *testing.T) {
 	root := fixtureCopy(t, func(root string) { _ = os.RemoveAll(filepath.Join(root, "jobs")) })
 	v := chipped(runKeys(t, root, 80, "1"))
-	for _, want := range []string{"▞ rolecall", "No Leads · a add a Lead", "6  pick an Editor", "?  see every key"} {
+	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Fatalf("first run lacks %q:\n%s", want, v)
 		}

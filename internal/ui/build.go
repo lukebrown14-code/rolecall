@@ -49,7 +49,7 @@ func (m *model) startBuild() tea.Cmd {
 	// The missing Plugin hint comes before the buildable check: b on any row should say
 	// how to turn the feature on, even when that row has nothing to build.
 	if m.plugin == "" {
-		m.err = errors.New("Set plugin in ~/.config/rolecall/config.toml")
+		m.err = errors.New(unsetMachineSetting(labelPlugin))
 		return nil
 	}
 	if !buildable(a) {

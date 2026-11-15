@@ -22,7 +22,7 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 	a := mv.app
 	cw := popSmall - popInset
 	var b strings.Builder
-	b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(a.Title, cw, "…")) + "\n")
+	b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(titleLabel(a.Title), cw, "…")) + "\n")
 	b.WriteString(p.Text(p.Dim).Render(xansi.Truncate(a.Company, cw-statusColumn-gutter, "…")+" · now ") + p.StatusChip(a.Status) + "\n\n")
 	likely := likelyCount[a.Status]
 	for i, s := range mv.options {
@@ -43,12 +43,12 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 		}
 		row := "  " + p.Key().Render(statusLetters[s]) + "  " + p.StatusMark(s) + " " + p.Text(nameC).Render(padRight(s, statusColumn)) + p.Text(p.Warn).Render(hint)
 		if i == mv.sel {
-			bg := p.SelBase(true)
+			bg, on := p.SelBase(true), p.OnSel()
 			row = p.SelLine(true, cw+gutter, p.SelGutter(true)+
 				p.Key().Background(p.Sel).Render(statusLetters[s])+bg.Render("  ")+
-				bg.Foreground(p.StatusColor(s)).Render(p.StatusGlyph(s))+
+				bg.Foreground(on.StatusColor(s)).Render(p.StatusGlyph(s))+
 				p.SelText(true).Render(" "+padRight(s, statusColumn))+
-				bg.Foreground(p.Warn).Render(hint))
+				bg.Foreground(on.Warn).Render(hint))
 		}
 		b.WriteString(row + "\n")
 	}
@@ -59,11 +59,22 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 func (m model) confirmBox(p pal, cm *confirmMode) string {
 	a := cm.app
 	n, total := readyCount(a)
-	state := fmt.Sprintf("%d of %d documents ready", n, total)
-	if a.Documents == store.DocsWritten {
-		state += "; the PDF is missing until you build"
+	// Name what is missing, as that is what the Owner weighs before y.
+	var missing []string
+	for _, c := range docChips(a) {
+		if !c.ready {
+			missing = append(missing, c.name)
+		}
 	}
-	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(appName(a.Title))+": "+state+".") +
+	state := fmt.Sprintf("%d of %d documents ready", n, total)
+	if len(missing) > 0 {
+		state += ". Missing: " + strings.Join(missing, ", ")
+	}
+	name := appName(a.Title)
+	if c := strings.TrimSpace(a.Company); c != "" {
+		name += " · " + c
+	}
+	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(name)+": "+state+".") +
 		"\n\n" + p.Text(p.Sub).Render("Mark it Applied anyway?")
 	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.Keys(cm.Keys()))
 }
@@ -84,8 +95,11 @@ func (m model) buildFailBox(p pal, bf *buildFailMode) string {
 
 func (m model) duplicateBox(p pal, dm *duplicateMode) string {
 	d := dm.existing
-	body := p.Text(p.Fg).Bold(true).Render(d.Title) + p.Text(p.Dim).Render(" · "+d.Company) + "\n" +
+	body := p.Text(p.Fg).Bold(true).Render(titleLabel(d.Title)) + p.Text(p.Dim).Render(companySuffix(d.Company)) + "\n" +
 		p.Text(p.Sub).Render("is already saved with this URL (") + p.StatusChip(d.Status) + p.Text(p.Sub).Render(").")
+	if dm.others > 0 {
+		body += "\n" + p.Text(p.Dim).Render(fmt.Sprintf("+%d more with the same URL", dm.others))
+	}
 	return popup(p, "Duplicate URL", true, popForm, m.viewWidth(), body,
 		p.Keys(dm.Keys()))
 }

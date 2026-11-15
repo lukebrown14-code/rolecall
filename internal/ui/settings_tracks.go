@@ -18,10 +18,49 @@ func (m model) onTrack() bool {
 	return st != nil && st.Ws.Err == nil && st.Group == settings.GroupTracking && st.Row < len(st.Ws.Tracks)
 }
 
-// onAddTrack reports whether the cursor is on the "+ add a Track" row.
+// onAddTrack reports whether the cursor is on the "+ add a Track" row, after the Tracks
+// and the Tracks only Applications name.
 func (m model) onAddTrack() bool {
 	st := m.settings
-	return st != nil && st.Ws.Err == nil && st.Group == settings.GroupTracking && st.Row == len(st.Ws.Tracks)
+	return st != nil && st.Ws.Err == nil && st.Group == settings.GroupTracking && st.Row == len(st.Ws.Tracks)+len(st.OffList())
+}
+
+// offListTrack is the Track under the cursor that Applications use but workspace.json
+// does not list; ok is false on any other row.
+func (m model) offListTrack() (string, bool) {
+	st := m.settings
+	if st == nil || st.Ws.Err != nil || st.Group != settings.GroupTracking || st.Row < len(st.Ws.Tracks) {
+		return "", false
+	}
+	off := st.OffList()
+	if i := st.Row - len(st.Ws.Tracks); i < len(off) {
+		return off[i], true
+	}
+	return "", false
+}
+
+// addOffList adds a Track Applications already use to workspace.json, so it can be
+// filtered by and renamed like any other.
+func (m model) addOffList(name string) model {
+	was := m.settings.Ws.Tracks
+	tracks := append(slices.Clone(was), name)
+	// The list is checked as Tracks will read it, so a name it would refuse (a case twin
+	// of a listed Track, a slash) is never written.
+	if err := validTrackName(name, was); err != nil {
+		m.err = fmt.Errorf("Can't list %s: %w", name, err)
+		return m
+	}
+	if err := store.ValidTrackList(tracks); err != nil {
+		m.err = fmt.Errorf("Can't list %s: %w", name, err)
+		return m
+	}
+	if m = m.saveTracks(tracks); m.err != nil {
+		return m
+	}
+	s := *m.settings
+	s.Row = len(tracks) - 1
+	m.settings = &s
+	return m.saved("Added Track "+name, settingsFile, m.tracksUndo("Track "+name+" off the list again", was))
 }
 
 // trackHelpKeys are the Track keys, shown while the Tracking rows have focus.
@@ -35,6 +74,10 @@ func (m model) trackHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "r", "rename"), help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
 	case m.onAddTrack():
 		keys = []helpKey{help(groupAction, "enter", "add a Track").at(prioCore)}
+	default:
+		if _, ok := m.offListTrack(); ok {
+			keys = append(keys, help(groupAction, "enter", "add to Tracks").at(prioCore))
+		}
 	}
 	return keys
 }
@@ -64,6 +107,9 @@ func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 		case on:
 			m.overlay = m.renamePopup(tracks[st.Row])
 		default:
+			if name, ok := m.offListTrack(); ok {
+				return m.addOffList(name), true
+			}
 			return m, false
 		}
 	case "J", "K":

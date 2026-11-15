@@ -57,7 +57,7 @@ func (h *liveHarness) key(code rune) { h.tm.Send(tea.KeyPressMsg{Code: code}) }
 
 // rowLine is the first line of the row whose title starts with title.
 // statusGlyphs lead a list row's title, one per Status.
-var statusGlyphs = []string{"◌", "✎", "●", "◆", "★", "✕", "–", "⊘"}
+var statusGlyphs = []string{"◌", "✎", "●", "◆", "★", "✕", "↩", "⊘"}
 
 // rowLine is the list line whose title is title: the title follows a Status glyph.
 func rowLine(view, title string) string {
@@ -141,11 +141,11 @@ func TestLiveNewApplicationAppearsAndIsWatched(t *testing.T) {
 	h.write(filepath.Join(h.folder("newco"), "meta.yml"), newLead)
 	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("newco"), "fit: Marginal")
-	h.wait("Marg.")
+	h.wait("fit Marginal")
 	// A whole folder appearing at once, with out/ already inside it.
 	h.write(filepath.Join(h.folder("late"), "meta.yml"), strings.Replace(newLead, "Brand New Role", "Late Arrival", 1))
 	h.wait("Late Arrival")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "Marg.") || !strings.Contains(v, "Newco") {
+	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "fit Marginal") || !strings.Contains(v, "Newco") {
 		t.Fatalf("new Application row missing or stale:\n%s", v)
 	}
 }

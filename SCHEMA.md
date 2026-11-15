@@ -40,7 +40,8 @@ defined in `GLOSSARY.md`.
 ### Folder name
 
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
-`[a-z0-9]` becomes `-`, trimmed, with the creation date. If the name is taken, append `-2`,
+`[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
+date. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
 `-3`, and so on. The name is an identifier only. Never parse meaning out of it.
 
 ## Application folder
@@ -57,6 +58,7 @@ defined in `GLOSSARY.md`.
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
 | `sent/` | — | TUI (on → Applied) | frozen copy of what was sent. Never overwritten |
+| `sent.undone-<YYYY-MM-DD>/` | — | TUI (undo of → Applied) | a `sent/` renamed aside when the move that made it is undone, so the next real Applied freezes a fresh `sent/`. `-2`, `-3`… when taken. Not read |
 
 `jd.md` has no front matter. Older folders may still have it, and readers ignore it.
 
@@ -177,7 +179,7 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 ```
 
 - **Required:** `Name` and `Email`. A Profile missing either fails the build, and the Profile
-  screen marks Contact with ✗ and says why.
+  screen marks Contact with ○ (missing) and says why.
 - **Known fields:** `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
   kept and shown, and the build ignores them.
 - **Header and divider rows** (`Field`, and rows of only `:`, `-` and spaces) are skipped.
@@ -219,12 +221,14 @@ location is empty or unknown. `--all-locations` bypasses the filter.
 
 ## `config.toml` (machine settings, outside the Workspace)
 
-`~/.config/rolecall/config.toml` is per machine and never part of a Workspace. The Settings
+`$XDG_CONFIG_HOME/rolecall/config.toml` (when `XDG_CONFIG_HOME` is an absolute path), else
+`~/.config/rolecall/config.toml`, is per machine and never part of a Workspace. The Settings
 screen edits its keys in place and keeps comments. Two keys change how the TUI draws:
 
 - `ascii` (bool, default `false`): ASCII glyphs.
 - `inherit_terminal` (bool, default `false`): inherit the terminal's colours. Status and role
-  colours become ANSI-16 indices (muted is bright black), no background is painted anywhere,
+  colours become ANSI-16 indices, all readable text (muted included) takes the terminal's
+  default foreground and bright black is kept for rules, no background is painted anywhere,
   and the selection is the gutter mark plus reverse video. A missing key means `false`,
   so an existing file draws exactly as before. `NO_COLOR` wins over it; it combines with
   `ascii` (glyph set) and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings

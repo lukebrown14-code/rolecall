@@ -82,10 +82,10 @@ func TestSelectionBarSpansTheListColumnInEveryView(t *testing.T) {
 	}
 }
 
-// A heat glyph can be ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
+// The flag glyph can be ambiguous-width in some terminals and fonts; it must never be the last cell of the bar.
 func TestFlaggedSelectedRowKeepsPaddingAfterFlag(t *testing.T) {
 	bar := barText(selectedLine(t, finalViewAt(t, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), "3")))
-	if !strings.Contains(bar, "● 3mo") || !strings.HasSuffix(bar, " ") {
+	if !strings.Contains(bar, "⚑ 3mo") || !strings.HasSuffix(bar, " ") {
 		t.Fatalf("flagged row is not padded after its last label: %q", bar)
 	}
 }
@@ -103,14 +103,14 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 				t.Errorf("malformed row offers %q:\n%s", k, view)
 			}
 		}
-		if !strings.Contains(view, "Enter open") {
+		if !strings.Contains(view, "enter open") {
 			t.Errorf("malformed row hides detail:\n%s", view)
 		}
 	})
 	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
 		// At this width n notes makes way for the pinned a add and / search; ? lists it.
 		view := chipped(finalView(t))
-		for _, k := range []string{"Enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
+		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)
 			}

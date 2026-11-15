@@ -42,7 +42,7 @@ func (m *model) startHandoff(skill string) tea.Cmd {
 		return nil
 	}
 	if m.harness == "" {
-		m.err = errors.New("Set harness in ~/.config/rolecall/config.toml")
+		m.err = errors.New(unsetMachineSetting(labelHarness))
 		return nil
 	}
 	if !m.handoffAllowed(a, skill) {
@@ -53,6 +53,12 @@ func (m *model) startHandoff(skill string) tea.Cmd {
 		toast = "Draft written to " + m.rel(filepath.Join(a.Folder, followUpDraftFile))
 	}
 	return m.runHandoff(a.Folder, harnessCommand(m.harness, skill, handoffDir(a.Folder)), toast)
+}
+
+// unsetMachineSetting is the error for a key whose machine setting is empty: it names the
+// Settings row that sets it in-app, wherever config.toml lives on this machine.
+func unsetMachineSetting(label string) string {
+	return "No " + label + " set · 6 Settings › " + groupMachineName + " › " + label
 }
 
 // harnessCommand fills the Harness template: {skill} becomes the Plugin skill name

@@ -36,7 +36,7 @@ func rowLines(view string) []string {
 		if pane == "" || strings.Contains(pane, "⚑1") || strings.Contains(pane, "Drafts ") || strings.Contains(pane, "✎2 ") || len(pane)-len(trim) > 5 || len(pane)-len(trim) < 2 {
 			continue
 		}
-		for _, g := range []string{"●", "◆", "★", "✕", "–", "◌", "✎", "⊘"} {
+		for _, g := range []string{"●", "◆", "★", "✕", "↩", "◌", "✎", "⊘"} {
 			if strings.HasPrefix(trim, g+" ") && !strings.Contains(pane, "──") {
 				out = append(out, listPane(line))
 			}
@@ -69,15 +69,16 @@ func TestListRowsAlignAndNeverWrap(t *testing.T) {
 	}
 }
 
-// The latest stage date is fully visible on its row, at every size.
+// The latest stage date is fully visible on its row, at every size, however much of the
+// title is cut to make room.
 func TestListStageDateIsAlwaysWhole(t *testing.T) {
 	for _, s := range columnSizes {
 		view := listView(t, s[0], s[1])
 		var found bool
 		for _, r := range rowLines(view) {
-			if strings.Contains(r, "Software Engineer") {
+			if strings.Contains(r, "● Software Eng") {
 				found = true
-				if !strings.Contains(r, "Applied 6d") {
+				if !strings.Contains(r, " 6d ") {
 					t.Errorf("%dx%d: stage date cut: %q", s[0], s[1], r)
 				}
 			}
@@ -88,22 +89,23 @@ func TestListStageDateIsAlwaysWhole(t *testing.T) {
 	}
 }
 
-// The Fit column shows the value, or · when there is none, and no label.
+// The Fit column is labelled as everywhere else: "fit Good", or "fit —" when there is
+// none, never a bare · that reads as a separator.
 func TestListFitColumn(t *testing.T) {
 	view := listView(t, 120, 36)
 	for _, r := range rowLines(view) {
 		switch {
-		case strings.Contains(r, "Software Engineer"):
-			if !strings.HasSuffix(strings.TrimRight(r, " "), " ·") {
-				t.Errorf("unassessed row lacks ·: %q", r)
+		case strings.Contains(r, "● Software Eng"):
+			if !strings.HasSuffix(strings.TrimRight(r, " "), " fit —") {
+				t.Errorf("unassessed row lacks fit —: %q", r)
 			}
-		case strings.Contains(r, "Engineer #1") && strings.Contains(r, "quiet"), strings.Contains(r, "Engineer #1") && strings.Contains(r, "Interv"):
-			if !strings.HasSuffix(strings.TrimRight(r, " "), "Good") {
-				t.Errorf("assessed row lacks Good: %q", r)
+		case strings.Contains(r, "Engineer #1") && strings.Contains(r, "⚑"), strings.Contains(r, "◆ Engineer #1"):
+			if !strings.HasSuffix(strings.TrimRight(r, " "), "fit Good") {
+				t.Errorf("assessed row lacks fit Good: %q", r)
 			}
 		}
-		if strings.Contains(r, "fit ") || strings.Contains(r, "Fit") {
-			t.Errorf("row carries a Fit label: %q", r)
+		if strings.HasSuffix(strings.TrimRight(r, " "), "·") {
+			t.Errorf("row ends in a bare separator: %q", r)
 		}
 	}
 }
@@ -124,7 +126,7 @@ func TestListLongTitleTruncates(t *testing.T) {
 	view := chipped(runKeysSized(t, root, 60, 16, "3"))
 	for _, r := range rowLines(view) {
 		if strings.Contains(r, "Principal") {
-			if !strings.Contains(r, "…") || !strings.Contains(r, "Applied 6d") {
+			if !strings.Contains(r, "…") || !strings.Contains(r, " 6d ") {
 				t.Errorf("long title row: %q", r)
 			}
 			return
@@ -133,10 +135,10 @@ func TestListLongTitleTruncates(t *testing.T) {
 	t.Fatalf("long title row not found:\n%s", view)
 }
 
-// The old Fit phrasings appear nowhere in the screens that talk about Fit. The detail's
-// Status line says "fit not assessed", as the design does; the list keeps "·".
+// The old Fit phrasings appear nowhere in the screens that talk about Fit: a Fit reads
+// "fit Good" or "fit —" everywhere, the list, the preview, the detail and the Fit tab.
 func TestFitWordingIsConsistent(t *testing.T) {
-	banned := []string{"fit —", "no fit assessment", "score"}
+	banned := []string{"fit not assessed", "fit: ", "no fit assessment", "score"}
 	screens := [][]string{{"1"}, {"2"}, {"3"}, {"3", "enter"}, {"3", "enter", "right"}, {"3", "enter", "right", "right"}, {"?"}, {"3", "/docs-written", "enter", "enter", "right", "right"}}
 	for _, w := range []int{120, 80, 60} {
 		for _, keys := range screens {

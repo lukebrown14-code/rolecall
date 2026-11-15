@@ -22,15 +22,20 @@ func TestYAMLEscapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, err := s.Rescan(folder)
-	if err != nil || a.Malformed != nil || a.Title != "slash/ space  unicode☺😀\u0085\u00a0\u2028\u2029" {
+	if err != nil || a.Malformed != nil || a.Title != store.DisplayText("slash/ space  unicode☺😀\u0085\u00a0\u2028\u2029") {
 		t.Fatalf("%+v %v", a, err)
 	}
 	value := "control\x00\x1b\x7f\u0085\u2028 emoji😀"
 	if err := s.Patch(folder, map[string]string{"title": value}); err != nil {
 		t.Fatal(err)
 	}
+	// The file keeps every character, escaped; what the read hands the UI is cleaned.
+	b, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
+	if !strings.Contains(string(b), `"control\u0000\u001B\u007F\u0085\u2028 emoji😀"`) {
+		t.Fatal(string(b))
+	}
 	a, err = s.Rescan(folder)
-	if err != nil || a.Malformed != nil || a.Title != value {
+	if err != nil || a.Malformed != nil || a.Title != store.DisplayText(value) || a.Title != "control  emoji😀" {
 		t.Fatalf("%+v %v", a, err)
 	}
 }

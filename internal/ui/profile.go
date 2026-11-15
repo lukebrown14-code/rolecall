@@ -29,11 +29,11 @@ const (
 // profileMarkerWidth is the cells the marker, or its indent on unselected rows, takes.
 const profileMarkerWidth = 2
 
-// Contact's mark stands in for a count: ✓ when Name and Email are both present, ✗ when
+// Contact's mark stands in for a count: ✓ when Name and Email are both present, ○ when
 // either is missing. The store's Missing decides; the screen never parses Contact again.
 const (
-	contactOK  = "✓"
-	contactBad = "✗"
+	contactOK  = glyphReady
+	contactBad = glyphMissing
 )
 
 // Profile screen sizing: the section list, the divider, and the gutter before the
@@ -134,6 +134,7 @@ func (m model) loadProfile() model {
 		m.err = err
 		return m
 	}
+	m.profileStarted = profileBeyondContact(p)
 	st := &profileState{profile: p, focus: profileList, body: viewport.New()}
 	if m.profile != nil {
 		st.selected, st.focus = m.profile.selectedIndex(p), m.profile.focus
@@ -230,9 +231,6 @@ func (m model) profileMarkdown(st profileState) string {
 			body = st.profile.Sections[st.selected].Body
 		}
 		warning := contactWarning(st.profile.Missing)
-		if body == "" && warning == "" {
-			return ""
-		}
 		width := m.profileContentWidth(m.viewWidth())
 		// The selection as a field row, like the detail's: what it is, and the key that edits it.
 		p := m.pal()
@@ -240,9 +238,16 @@ func (m model) profileMarkdown(st profileState) string {
 		if _, ok := st.file(); ok {
 			label = "FILE"
 		}
-		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit", width), ""}
+		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit file", width), ""}
 		if warning != "" {
-			lines = append(lines, warning)
+			lines = append(lines, wrapWords(warning, width)...)
+		}
+		if body == "" {
+			// An empty file or section says how to fill it rather than showing nothing.
+			if warning != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, wrapWords(m.profileEmptyHint(), width)...)
 		}
 		if body != "" {
 			if warning != "" {
@@ -292,7 +297,7 @@ func (m model) fieldTable(body string, width int) (lines []string, ok bool) {
 	p := m.pal()
 	for _, r := range rows {
 		// One row per field, the value cut to the room beside its key.
-		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "e", "edit", width))
+		lines = append(lines, p.fieldRowIn(labelW, strings.ToUpper(r[0]), p.Text(p.Fg).Render(r[1]), "", "", width))
 	}
 	return lines, true
 }
@@ -303,6 +308,23 @@ const tableHead = 2
 // plainInline drops a table cell's inline Markdown marks: bold, italic and code.
 func plainInline(s string) string {
 	return strings.TrimSpace(strings.NewReplacer("**", "", "`", "", "*", "").Replace(s))
+}
+
+// profileEmptyHint is an empty Profile file or section: how to fill it.
+func (m model) profileEmptyHint() string {
+	if m.harness != "" {
+		return "Nothing here yet · e to write it, or run create-profile in your Harness"
+	}
+	return "Nothing here yet · e to write it in your editor"
+}
+
+// profileMissingHint is how to create a Profile the Workspace does not have yet.
+func (m model) profileMissingHint() string {
+	how := "Create " + profilePath + " with your name and email"
+	if m.harness != "" {
+		how = "Run create-profile in your Harness to write it, or create " + profilePath + " yourself"
+	}
+	return how + ", then press r to read it."
 }
 
 // contactWarning names the required Contact fields that are missing, so the Owner can fix
@@ -345,8 +367,13 @@ func (m model) scrollProfile(delta int) model {
 func (m model) profileHelpKeys() []helpKey {
 	var keys []helpKey
 	if m.profileLoaded() {
-		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", "section"),
-			help(groupNav, "tab", "focus").at(prioScreen))
+		// The key line follows focus: j k scroll the content once tab has moved there.
+		move := "section"
+		if m.profile.focus == profileContent && m.profileListShown(m.viewWidth()) {
+			move = "scroll"
+		}
+		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", move),
+			help(groupNav, "g G", "first, last").at(prioHelpOnly), help(groupNav, "tab", "focus").at(prioScreen))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -362,13 +389,16 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		m.rescanAll()
 		return m.loadProfile(), nil
+	case "u":
+		// Undo is global: it moves the last moved Application back, or says there is none.
+		return m, m.undoLast()
 	case "?":
 		m.overlay = &helpMode{}
 		return m, nil
 	case "q":
 		return m, m.quit()
 	case "esc":
-		m.text = "" // an error is cleared before the screen sees esc
+		m.clearSearch() // an error is cleared before the screen sees esc
 		return m, nil
 	}
 	if !m.profileLoaded() {
@@ -399,6 +429,24 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.scrollProfile(-1), nil
 		}
 		return m.selectProfile(-1), nil
+	case "g", "home", "G", "end":
+		// g and G go to the top and bottom, as in lists: of the content once it has focus,
+		// else to the first and last section.
+		top := k.String() == "g" || k.String() == "home"
+		if m.profile.focus == profileContent && listShown {
+			st := *m.profile
+			if top {
+				st.body.GotoTop()
+			} else {
+				st.body.GotoBottom()
+			}
+			m.profile = &st
+			return m, nil
+		}
+		if top {
+			return m.selectProfile(-m.profile.entries()), nil
+		}
+		return m.selectProfile(m.profile.entries()), nil
 	}
 	return m, nil
 }
@@ -414,7 +462,7 @@ func (m model) profileView(p pal) string {
 			focus = focusLeft
 		}
 	}
-	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // profileContextRow names the focused pane on the left and the file it reads on the
@@ -434,7 +482,7 @@ func (m model) profileContextLabel(p pal, w int) string {
 	if !m.profileListShown(w) {
 		pos, of := m.profile.position()
 		return pad + p.Text(p.Fg).Bold(true).Render(m.profile.entryName()) +
-			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+"/"+strconv.Itoa(of))
+			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+" of "+strconv.Itoa(of))
 	}
 	pane := "SECTIONS"
 	if m.profile.focus == profileContent {
@@ -447,7 +495,12 @@ func (m model) profileContextLabel(p pal, w int) string {
 // are exactly the body height so the rules never move.
 func (m model) profileBody(p pal, w, h int) string {
 	if !m.profileLoaded() {
-		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Repeat(" ", inset)+p.Text(p.Fg).Render(noProfile))
+		pad := strings.Repeat(" ", inset)
+		text := pad + p.Text(p.Fg).Render(noProfile)
+		for _, l := range wrapWords(m.profileMissingHint(), w-inset-rightMargin) {
+			text += "\n" + pad + p.Text(p.Dim).Render(l)
+		}
+		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Replace(text, "\n", "\n\n", 1))
 	}
 	pane := lipgloss.NewStyle().Width(m.profilePaneWidth(w)).Height(h).MaxHeight(h).
 		PaddingLeft(m.profilePaneGutter(w)).Render(m.profileContentView(p))
@@ -520,7 +573,7 @@ func shortHeading(h string) string {
 	return h
 }
 
-// profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ✗ in
+// profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ○ in
 // place of a count, the count itself, or nothing for prose.
 func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string, color.Color) {
 	if section.Heading == "Contact" {

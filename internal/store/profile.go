@@ -60,6 +60,8 @@ func (s *Store) Profile() (Profile, error) {
 	} else if err != nil {
 		return Profile{}, err
 	}
+	// The Profile is read for the screen, so its text is made safe to draw here, once.
+	b = []byte(DocumentText(string(b)))
 	contact := parseContact(section(string(b), "Contact"))
 	var sections []ProfileSection
 	if exists {
@@ -84,7 +86,7 @@ func (s *Store) profileFiles() ([]ProfileFile, error) {
 		} else if err != nil {
 			return nil, err
 		}
-		files = append(files, ProfileFile{Name: name, Path: path, Body: string(b)})
+		files = append(files, ProfileFile{Name: name, Path: path, Body: DocumentText(string(b))})
 	}
 	return files, nil
 }

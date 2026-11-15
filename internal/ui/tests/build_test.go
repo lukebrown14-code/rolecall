@@ -252,7 +252,7 @@ func TestBuildWithoutPluginShowsHint(t *testing.T) {
 	h.key("2")
 	h.wait("docs-none")
 	h.key("b")
-	h.wait("Set plugin in ~/.config/rolecall/config.toml")
+	h.wait("No Plugin set · 6 Settings › This machine › Plugin")
 	if view := h.plain(); strings.Contains(view, "b build") {
 		t.Fatalf("b shown without a plugin:\n%s", view)
 	}

@@ -52,7 +52,7 @@ func TestMalformedRowOpensTheFailingLineInTheEditor(t *testing.T) {
 }
 
 // movedToast is the toast a move to Interviewing shows: verb, company, arrow, Status.
-var movedToast = regexp.MustCompile(`✓ Moved \S.* → Interviewing\b`)
+var movedToast = regexp.MustCompile(`✓ Moved to Interviewing · \S`)
 
 // A move says what happened with an undo hint and lights the moved row until its tick
 // fires; the tick is driven by hand, so nothing sleeps.
@@ -81,7 +81,7 @@ func TestMoveToastsAndFlashesTheRow(t *testing.T) {
 		t.Fatal("the flash changed text, not only colour")
 	}
 	m = driveModel(t, m, "u")
-	if plain := chipped(m.View().Content); !strings.Contains(plain, "↩ Undid move ") {
+	if plain := chipped(m.View().Content); !strings.Contains(plain, "✓ Undone · back to ") {
 		t.Fatalf("undo lacks its toast:\n%s", plain)
 	}
 }
@@ -102,7 +102,7 @@ func TestErrorLineCutsTheMessageNotTheKeys(t *testing.T) {
 	}
 }
 
-// ASCII mode swaps the toast's check mark for + and the undo arrow for <.
+// ASCII mode swaps the toast's check mark for +, the undo toast's too (↩ is Withdrawn's).
 func TestToastGlyphsFoldToASCII(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36, ui.WithASCII(true))
 	m = driveModel(t, m, "3", "m", "i")
@@ -110,8 +110,8 @@ func TestToastGlyphsFoldToASCII(t *testing.T) {
 		t.Fatalf("ASCII toast lacks +:\n%s", plain)
 	}
 	m = driveModel(t, m, "u")
-	if plain := chipped(m.View().Content); !strings.Contains(plain, "< Undid move ") {
-		t.Fatalf("ASCII undo toast lacks <:\n%s", plain)
+	if plain := chipped(m.View().Content); !strings.Contains(plain, "+ Undone . back to ") {
+		t.Fatalf("ASCII undo toast lacks +:\n%s", plain)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestMoveOutOfFilteredViewSaysHiddenByFilter(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "1", "t", "m", "d")
 	plain := chipped(m.View().Content)
-	if !strings.Contains(plain, "→ Draft (hidden by filter)") || !strings.Contains(plain, "u undo") {
+	if !strings.Contains(plain, "Moved to Draft (hidden by filter) · ") || !strings.Contains(plain, "u undo") {
 		t.Fatalf("filtered move lacks its note:\n%s", plain)
 	}
 }
@@ -140,12 +140,12 @@ func TestDismissToastOffersUndo(t *testing.T) {
 	}
 }
 
-// Undoing a dismiss says so: "↩ Undid dismiss <Company>", not "Undid move".
+// Undoing a dismiss says where the Application went back to and which one it is.
 func TestUndoDismissToastSaysDismiss(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "x", "u")
 	plain := chipped(m.View().Content)
-	if !regexp.MustCompile(`↩ Undid dismiss \S`).MatchString(plain) || strings.Contains(plain, "Undid move") {
+	if !regexp.MustCompile(`✓ Undone · back to Lead · \S+.* \(\S`).MatchString(plain) {
 		t.Fatalf("undo of a dismiss reads wrong:\n%s", plain)
 	}
 }

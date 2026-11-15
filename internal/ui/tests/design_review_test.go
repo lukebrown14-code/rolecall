@@ -10,12 +10,12 @@ import (
 
 // Fixes from the cold design review of the overhauled TUI.
 
-// A row moved today still names its stage: "today" shrinks to "0d" rather than pushing
-// the stage out of its column.
+// A row moved today reads "today" like any other Status's, with no abbreviated Status
+// name beside it: the glyph and the section say the Status.
 func TestRowMovedTodayKeepsItsStage(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "3", "m", "i"))
-	if row := lineWith(view, "Software Engineer"); !strings.Contains(row, "Interv. 0d") {
-		t.Errorf("moved row = %q, want its stage and date", row)
+	if row := lineWith(view, "Software Engineer"); !strings.Contains(row, " today ") || strings.Contains(row, "Interv") {
+		t.Errorf("moved row = %q, want today and no abbreviated Status", row)
 	}
 }
 
@@ -43,12 +43,12 @@ func TestMenuBlanksTheRowsBehindIt(t *testing.T) {
 	}
 }
 
-// While there is something to save, ctrl+s is on the key line at every size.
-func TestSaveKeyShowsWhileDirty(t *testing.T) {
+// After a Settings save, u undo is on the key line at every size.
+func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 	for _, sz := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		line := lastLine(t, sz[0], sz[1], "6", "]", "]", "j", "j", "j", "enter", "backspace", "backspace", "7", "enter")
-		if !strings.Contains(line, "ctrl+s save") {
-			t.Errorf("%dx%d: unsaved change but no save key: %q", sz[0], sz[1], line)
+		line := lastLine(t, sz[0], sz[1], "6", "]", "enter", "backspace", "backspace", "backspace", "300", "enter")
+		if !strings.Contains(line, "u undo") || strings.Contains(line, "ctrl+s") {
+			t.Errorf("%dx%d: saved change but no undo key: %q", sz[0], sz[1], line)
 		}
 	}
 }

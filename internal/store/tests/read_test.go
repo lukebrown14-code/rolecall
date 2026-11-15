@@ -102,3 +102,72 @@ func TestMalformedMetaErrorNamesPathWithoutValues(t *testing.T) {
 		t.Fatalf("malformed metadata error should name path without quoting values: %s", message)
 	}
 }
+
+// A scraped title can carry escapes a quoted scalar decodes (an OSC that retitles the
+// window, a CSI that clears the screen). They never reach the UI, and line breaks and
+// tabs read as spaces, so a row stays one line.
+func TestReadCleansControlCharactersFromDisplayedStrings(t *testing.T) {
+	a := readMeta(t, `title: "Evil\u001b]0;PWNED\u0007 title\there\nnext"`+"\n"+
+		`company: "Co\e[2J\u009b"`+"\n"+`track: "SWE\r"`+"\n"+`url: "https://x.test/\u0000a"`+"\n")
+	if a.Malformed != nil {
+		t.Fatal(a.Malformed)
+	}
+	for _, got := range []string{a.Title, a.Company, a.Track, a.URL} {
+		if strings.ContainsFunc(got, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) }) {
+			t.Fatalf("control character kept: %q", got)
+		}
+	}
+	if a.Title != "Evil]0;PWNED title here next" || a.Company != "Co[2J" || a.Track != "SWE" || a.URL != "https://x.test/a" {
+		t.Fatalf("%q %q %q %q", a.Title, a.Company, a.Track, a.URL)
+	}
+}
+
+// Bidi controls and zero-width characters can reorder or hide a row, so they go too; the
+// joiners that shape emoji and scripts stay.
+func TestDisplayTextDropsBidiAndZeroWidth(t *testing.T) {
+	in := "👩\u200d💻 a\u202eRTL\u2066x\u2069\u200bZW\u200c\ufeff\x9b"
+	if got, want := store.DisplayText(in), "👩\u200d💻 aRTLxZW\u200c\ufffd"; got != want {
+		t.Fatalf("DisplayText(%q) = %q, want %q", in, got, want)
+	}
+}
+
+// A document keeps its lines and tabs so the Markdown still renders; every escape goes.
+func TestDocumentTextKeepsLinesAndDropsEscapes(t *testing.T) {
+	in := "# JD\r\n\n\tEvil \x1b]0;PWNED\x07 and\x1b]52;c;SGVsbG8=\x07 \u202eclip\u2028end"
+	if got, want := store.DocumentText(in), "# JD\n\n\tEvil ]0;PWNED and]52;c;SGVsbG8= clip\nend"; got != want {
+		t.Fatalf("DocumentText(%q) = %q, want %q", in, got, want)
+	}
+	if plain := "# Café\n\n- 東京 🚀\n"; store.DocumentText(plain) != plain {
+		t.Fatalf("DocumentText changed plain Markdown")
+	}
+}
+
+func TestDisplayTextLeavesPlainTextAlone(t *testing.T) {
+	for in, want := range map[string]string{"Café 東京 🚀": "Café 東京 🚀", "a\u2028b": "a b", "\x1b[31mred": "[31mred"} {
+		if got := store.DisplayText(in); got != want {
+			t.Fatalf("DisplayText(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestMalformedErrorTextHasNoControlCharacters(t *testing.T) {
+	root := t.TempDir()
+	folder := filepath.Join(root, "jobs", "SWE", "bad\x1b]0;x\x07")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "meta.yml"), []byte("nope\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apps, err := s.Scan()
+	if err != nil || len(apps) != 1 || apps[0].Malformed == nil {
+		t.Fatalf("scan: %v, %v", apps, err)
+	}
+	if msg := apps[0].Malformed.Error(); strings.ContainsAny(msg, "\x1b\x07") {
+		t.Fatalf("%q", msg)
+	}
+}

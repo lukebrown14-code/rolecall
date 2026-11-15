@@ -25,7 +25,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				if keys[0] == "t" && !strings.Contains(view, "[SWE") && !strings.Contains(view, "t:SWE") {
 					t.Errorf("missing track context: %s", view)
 				}
-				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], "/9") {
+				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], " of 9") {
 					t.Errorf("active tab lost its name or count: %s", line)
 				}
 				for _, digit := range []string{"1", "2", "4", "5", "6"} {
@@ -92,9 +92,10 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 }
 
 // At wide sizes the brand mark leads the tab bar and the Stats tab carries an 8-cell
-// sparkline of weekly Status activity: the fixtures have eight entries on 2026-09-24
-// (the seventh week) and one the day after (the last) inside eight weeks of the held
-// clock. Below the wide class neither shows, and the tab bar keeps the active screen.
+// sparkline of Applied per week, the same series as Stats' chart: the fixtures' only
+// logged Applied inside eight weeks of the held clock is orbit's on 2026-09-25, in the
+// week before the current one; empty weeks are blank. Below the wide class neither
+// shows, and the tab bar keeps the active screen.
 func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	top := func(w, h int) string { return strings.Split(chipped(runKeysSized(t, root, w, h, "1")), "\n")[0] }
@@ -102,7 +103,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	if !strings.HasPrefix(wide, " ▞ rolecall") {
 		t.Errorf("wide tab bar does not lead with the brand mark: %q", wide)
 	}
-	if !strings.Contains(wide, "Stats ▁▁▁▁▁▁█▂") {
+	if !strings.Contains(wide, "Stats        █ ") {
 		t.Errorf("wide tab bar lacks the sparkline beside Stats: %q", wide)
 	}
 	for _, size := range [][2]int{{80, 24}, {60, 16}} {
@@ -121,7 +122,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 			t.Fatalf("ASCII tab bar has non-ASCII %q: %q", r, bar)
 		}
 	}
-	if !strings.Contains(bar, "Stats ______#.") {
+	if !strings.Contains(bar, "Stats        # ") {
 		t.Errorf("ASCII tab bar lacks the sparkline: %q", bar)
 	}
 }

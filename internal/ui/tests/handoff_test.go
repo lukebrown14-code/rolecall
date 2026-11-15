@@ -108,7 +108,7 @@ func TestHandoffFromDetailKeepsTabAndApp(t *testing.T) {
 
 	view := plain(m)
 	// The detail view is still open on the same Application, on the Fit tab.
-	if !strings.Contains(view, "Platform Engineer") || !strings.Contains(view, "Fit: Good") {
+	if !strings.Contains(view, "Platform Engineer") || !strings.Contains(view, "fit Good") {
 		t.Fatalf("detail view lost its place or did not rescan:\n%s", view)
 	}
 }
@@ -155,7 +155,7 @@ func TestHandoffWithoutHarnessShowsHint(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 200, 40, ui.WithExternalRunner(f.runner))
 	m = driveModel(t, m, "/fern", "enter")
 	m = driveModel(t, m, "f")
-	if view := plain(m); !strings.Contains(view, "Set harness in ~/.config/rolecall/config.toml") {
+	if view := plain(m); !strings.Contains(view, "No Harness set · 6 Settings › This machine › Harness") {
 		t.Fatalf("missing hint:\n%s", view)
 	}
 	if len(f.calls) != 0 {

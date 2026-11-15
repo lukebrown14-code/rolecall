@@ -41,7 +41,7 @@ func TestExpiredLeadsSortLastUnderTheirOwnSection(t *testing.T) {
 	}
 	view := chipped(runKeys(t, root, 120, "1"))
 	expired, fern, empty := strings.Index(view, "Expired · 1"), strings.Index(view, "Platform Engineer"), strings.Index(view, "Empty log")
-	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "closed 1 Sep") {
+	if expired < 0 || fern < expired || empty > expired || !strings.Contains(view, "expired 1 Sep") {
 		t.Fatalf("expired Lead not last under Expired:\n%s", view)
 	}
 }
@@ -160,7 +160,7 @@ func TestTooSmallNoticeSaysWhatItNeeds(t *testing.T) {
 	if len(lines) != 12 {
 		t.Fatalf("notice is %d lines, want 12:\n%s", len(lines), view)
 	}
-	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue"} {
+	for _, want := range []string{"rolecall needs 56×14", "now 48×12 · resize to continue · q quit"} {
 		found := false
 		for i, l := range lines {
 			if c := strings.Index(l, want); c >= 0 {
@@ -216,10 +216,10 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 			split := strings.Contains(lines[rules[0]], "┬")
 			want := tc.lists
 			switch keys[0] {
-			case "1", "3":
-				want = tc.preview
-			case "4", "6":
-				want = false // Stats and Settings draw no divider: Settings sections are tabs
+			case "1", "3", "6":
+				want = tc.preview // Settings' about pane sits beside the rows only when wide
+			case "4":
+				want = false // Stats draws no divider
 			}
 			if split != want || split != strings.Contains(lines[rules[1]], "┴") {
 				t.Errorf("%dx%d keys %q: divider = %v, want %v:\n%s", tc.w, tc.h, keys, split, want, strings.Join(lines, "\n"))
@@ -267,10 +267,10 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 	}
 }
 
-// Text wraps only at spaces: a flag such as "--wait" and a phrase such as "Fit: not
-// assessed" stay whole.
+// Text wraps only at spaces: a flag such as "--wait" and a phrase such as "fit Good"
+// stay whole.
 func TestWrapsOnlyAtSpaces(t *testing.T) {
-	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 16, "6", "]", "]", "]"))
+	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, "6", "]", "]", "]"))
 	if !strings.Contains(machine, "--wait") || strings.Contains(machine, "-\n") {
 		t.Errorf("editor examples split a flag:\n%s", machine)
 	}
@@ -280,7 +280,7 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 		}
 	}
 	reader := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "/docs-written", "enter", "enter", "right", "right"))
-	if !strings.Contains(reader, "fit not assessed") {
+	if !strings.Contains(reader, "fit —") {
 		t.Errorf("card split the Fit:\n%s", reader)
 	}
 }

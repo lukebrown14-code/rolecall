@@ -14,5 +14,7 @@ func TestMain(m *testing.M) {
 		os.Unsetenv(key)
 	}
 	os.Setenv("LANG", "en_US.UTF-8")
+	// config.toml resolves under each test's temp home, never the developer's real one.
+	os.Unsetenv("XDG_CONFIG_HOME")
 	os.Exit(m.Run())
 }

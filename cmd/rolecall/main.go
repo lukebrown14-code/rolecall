@@ -26,7 +26,11 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "init" {
-		if err := initCommand(os.Args[2:], os.Stdout, os.Stderr); err != nil {
+		err := initCommand(os.Args[2:], os.Stdout, os.Stderr)
+		if errors.Is(err, flag.ErrHelp) {
+			return
+		}
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -34,9 +38,14 @@ func main() {
 	}
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
 		flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
-		dir := flags.String("dir", "", "Workspace path")
-		if err := flags.Parse(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
+		dir := flags.String("dir", "", "Workspace path (default: workspace in config.toml)")
+		flags.Usage = func() {
+			_, _ = fmt.Fprintln(flags.Output(), "usage: rolecall doctor [--dir PATH]\n\nChecks the Workspace, its privacy, and the tools rolecall uses.")
+			flags.PrintDefaults()
+		}
+		if err := flags.Parse(os.Args[2:]); errors.Is(err, flag.ErrHelp) {
+			return
+		} else if err != nil {
 			os.Exit(usageErrorExitCode)
 		}
 		if err := runDoctor(*dir); err != nil {
@@ -45,8 +54,9 @@ func main() {
 		}
 		return
 	}
+	flag.Usage = usage
 	showVersion := flag.Bool("version", false, "Print the version and exit")
-	dir := flag.String("dir", "", "Workspace path")
+	dir := flag.String("dir", "", "Workspace path (default: workspace in config.toml)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Printf("rolecall %s\n", version)
@@ -56,6 +66,22 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// usage is `rolecall --help`: the subcommands first, so someone who skipped the install
+// script can find init and doctor from the binary, then the TUI's own flags.
+func usage() {
+	out := flag.CommandLine.Output()
+	_, _ = fmt.Fprint(out, `usage: rolecall [--dir PATH]    open the Workspace in the terminal app
+       rolecall init [--switch] [DIR]
+                                 create a Workspace (default: ./rolecall); --switch
+                                 makes DIR the default when config.toml names another
+       rolecall doctor [--dir PATH]
+                                 check the Workspace and the tools rolecall uses
+
+Flags:
+`)
+	flag.PrintDefaults()
 }
 
 // initWorkspaceFiles writes the starter Workspace and its private local git repository.
@@ -72,6 +98,25 @@ func noWorkspaceError(home string) error {
 	return fmt.Errorf("No Workspace yet. Run `rolecall init` to create one, or set workspace in %s", config.Path(home))
 }
 
+// brokenConfigError is a config.toml that does not parse, as `rolecall` and `rolecall
+// doctor` report it: the file, where, why, and what to do.
+func brokenConfigError(e *config.FileError) error {
+	where := ""
+	if w := e.Where(); w != "" {
+		where = " (" + w + ")"
+	}
+	return fmt.Errorf("%s has an error%s: %s\n"+
+		"  Fix that line in your editor, then run `rolecall doctor` to check it.\n"+
+		"  To open a Workspace meanwhile: rolecall --dir PATH", e.Path, where, e.Reason)
+}
+
+// printConfigWarnings names each config.toml value Load could not use as written.
+func printConfigWarnings(path string, warnings []config.Warning) {
+	for _, w := range warnings {
+		fmt.Printf("WARNING: %s: %s\n", path, w.Text)
+	}
+}
+
 func runDoctor(dir string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -79,9 +124,22 @@ func runDoctor(dir string) error {
 	}
 	// A Workspace problem does not end the diagnosis: the tool, Plugin and Editor
 	// checks below still help someone setting up. doctor fails with it at the end.
-	var workspaceErr error
+	var workspaceErr, configProblem error
 	c, err := config.Load(home, dir)
-	if errors.Is(err, config.ErrNoWorkspace) {
+	var configErr *config.FileError
+	if errors.As(err, &configErr) {
+		// A broken config.toml is reported, and the checks go on with the defaults (and
+		// --dir, when given) so the rest of the setup is still diagnosed.
+		fmt.Printf("PROBLEM: %v\n", brokenConfigError(configErr))
+		configProblem = errors.New("config.toml is invalid")
+		if c.Workspace != "" {
+			err = nil
+		}
+	}
+	printConfigWarnings(config.Path(home), c.Warnings)
+	if configErr != nil && err != nil {
+		c.Workspace = "" // the Workspace path is in the broken file
+	} else if errors.Is(err, config.ErrNoWorkspace) {
 		workspaceErr = noWorkspaceError(home)
 		c.Workspace = ""
 	} else if err != nil {
@@ -103,9 +161,10 @@ func runDoctor(dir string) error {
 			}
 		}
 		printLegacyWarnings(s.LegacyFiles(), c.Workspace, c.Plugin)
+		workspaceErr = checkWorkspaceFile(s)
 	}
 
-	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor}, nil)
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor, ConfigPath: config.Path(home)}, nil)
 	for _, check := range report.Checks {
 		if check.Found {
 			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
@@ -118,7 +177,30 @@ func runDoctor(dir string) error {
 		fmt.Printf("WARNING: %s; %s\n", message, check.Hint)
 	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
-	return workspaceErr
+	return errors.Join(configProblem, workspaceErr)
+}
+
+// checkWorkspaceFile reports a workspace.json the app cannot use. The app still opens
+// with it, but every Workspace setting is ignored until it is fixed, so doctor fails.
+func checkWorkspaceFile(s *store.Store) error {
+	ws, err := s.Settings()
+	if err != nil {
+		return fmt.Errorf("read %s: %w", ws.Path, err)
+	}
+	if ws.Err == nil {
+		// The app also refuses a tracks list that breaks the Track name rules (one listed
+		// twice, or blank), so doctor applies the same check.
+		var tle *store.TrackListError
+		if _, err := s.Tracks(); errors.As(err, &tle) {
+			ws.Err = fmt.Errorf("tracks: %w", tle.Err)
+		}
+	}
+	if ws.Err == nil {
+		return nil
+	}
+	fmt.Printf("PROBLEM: %s cannot be used: %v\n", ws.Path, ws.Err)
+	fmt.Println("  Fix it in your editor, or open rolecall and press 6 then e. Until then no Workspace settings apply.")
+	return errors.New("workspace.json is invalid")
 }
 
 // printLegacyWarnings names each dashboard-era file in the Workspace. Nothing reads them:
@@ -146,10 +228,19 @@ func run(dir string) error {
 		return err
 	}
 	c, err := config.Load(home, dir)
-	if errors.Is(err, config.ErrNoWorkspace) {
+	var configErr *config.FileError
+	var problem error // config.toml's error, shown in the app when it can still open
+	switch {
+	case errors.As(err, &configErr) && c.Workspace == "":
+		// The Workspace path is in the file that does not parse, so there is nothing to open.
+		return brokenConfigError(configErr)
+	case errors.As(err, &configErr):
+		// --dir names the Workspace: open it on defaults and show the error on the feedback
+		// line and in Settings, as a bad reload inside the app does.
+		problem = configErr
+	case errors.Is(err, config.ErrNoWorkspace):
 		return noWorkspaceError(home)
-	}
-	if err != nil {
+	case err != nil:
 		return err
 	}
 	s, err := store.Open(c.Workspace)
@@ -163,7 +254,7 @@ func run(dir string) error {
 	if err != nil {
 		return err
 	}
-	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce), ui.WithFirstRunSetup())
+	m, err := ui.New(s, nil, ui.WithEditor(c.Editor), ui.WithEditorSource(c.EditorSource), ui.WithFollowUpDays(c.FollowUpDays), ui.WithDownloads(c.Downloads), ui.WithPlugin(c.Plugin), ui.WithHarness(c.Harness), ui.WithConfigHome(home), ui.WithSettingSources(ui.SettingSources{Workspace: c.WorkspaceSource, FollowUpDays: c.FollowUpDaysSource, Downloads: c.DownloadsSource, Plugin: c.PluginSource, Harness: c.HarnessSource}), ui.WithASCII(c.ASCII), ui.WithInheritTerminal(c.InheritTerminal), ui.DetectTheme(os.Stdin, os.Stdout), ui.WithWatch(watchDebounce), ui.WithFirstRunSetup(), ui.WithConfigProblem(problem, c.Warnings))
 	if err != nil {
 		return err
 	}

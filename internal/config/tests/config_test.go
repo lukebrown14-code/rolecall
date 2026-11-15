@@ -47,8 +47,29 @@ func TestMalformedConfigErrorDoesNotQuoteValues(t *testing.T) {
 	}
 
 	_, err := config.Load(home, "")
-	if err == nil || !strings.Contains(err.Error(), path) || !strings.Contains(err.Error(), "invalid TOML") || strings.Contains(err.Error(), "private-sentinel") {
-		t.Fatalf("want path and safe parse reason without config values, got %v", err)
+	var fe *config.FileError
+	if !errors.As(err, &fe) || fe.Path != path || fe.Line != 2 || fe.Column != 11 || fe.Reason != "array is incomplete" || strings.Contains(err.Error(), "private-sentinel") {
+		t.Fatalf("want path, position and safe parse reason without config values, got %v", err)
+	}
+}
+
+// A broken config.toml still returns every setting at its default, with --dir, so the app
+// can open on them and show the error; a wrong-typed key says what it should hold.
+func TestBrokenConfigReturnsDefaultsAndNamesTheKey(t *testing.T) {
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Dir(config.Path(home)), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config.Path(home), []byte("editor = \"nvim\"\nfollow_up_days = \"x\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := config.Load(home, "/ws")
+	var fe *config.FileError
+	if !errors.As(err, &fe) || fe.Line != 2 || fe.Reason != "follow_up_days must be a whole number of days, like 14" {
+		t.Fatalf("err = %v", err)
+	}
+	if c.Workspace != "/ws" || c.Editor != "" || c.FollowUpDays != 14 || c.Downloads != filepath.Join(home, "Downloads") {
+		t.Fatalf("want defaults with --dir, got %+v", c)
 	}
 }
 
@@ -221,20 +242,27 @@ func TestTOMLLiteralAndComments(t *testing.T) {
 	}
 }
 
-func TestLoadHonoursExplicitZeroFollowUpDays(t *testing.T) {
+// follow_up_days outside the 1-90 Settings accepts is clamped into it, with a warning.
+func TestLoadClampsFollowUpDaysOutOfRange(t *testing.T) {
 	home := t.TempDir()
 	if err := os.MkdirAll(filepath.Dir(config.Path(home)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(config.Path(home), []byte("follow_up_days = 0\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	c, err := config.Load(home, "/ws")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.FollowUpDays != 0 || c.FollowUpDaysSource != config.SourceConfig {
-		t.Fatalf("got %d (%s), want 0 (config.toml)", c.FollowUpDays, c.FollowUpDaysSource)
+	for _, tc := range []struct {
+		value, want int
+	}{{-3, 1}, {0, 1}, {500, 90}, {1, 1}, {90, 90}} {
+		if err := os.WriteFile(config.Path(home), []byte(fmt.Sprintf("follow_up_days = %d\n", tc.value)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		c, err := config.Load(home, "/ws")
+		if err != nil || c.FollowUpDays != tc.want || c.FollowUpDaysSource != config.SourceConfig {
+			t.Fatalf("%d: got %d (%s) %v, want %d", tc.value, c.FollowUpDays, c.FollowUpDaysSource, err, tc.want)
+		}
+		warned := len(c.Warnings) == 1 && c.Warnings[0].Key == "follow_up_days" &&
+			c.Warnings[0].Text == fmt.Sprintf("follow_up_days = %d is outside 1-90; using %d", tc.value, tc.want)
+		if inRange := tc.value == tc.want; warned == inRange {
+			t.Fatalf("%d: warnings %+v", tc.value, c.Warnings)
+		}
 	}
 }
 

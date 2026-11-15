@@ -110,13 +110,13 @@ func (h *detailHarness) folder(name string) string { return filepath.Join(h.root
 func TestDetailHeaderWithMissingAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("1", 0, "Fern")
-	h.show("Platform Engineer · Fern Systems", "Lead · Platform · closes —")
+	h.show("Platform Engineer · Fern Systems", "Fern Systems · Platform")
 }
 
 func TestDetailHeaderApproximateAppliedDate(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 2, "Engineer #1")
-	h.show("Engineer #1 · Example", "Interviewing · Unknown · closes —", "applied ~2025-01-01")
+	h.show("Engineer #1 · Example", "Example · Unknown", "applied ~1 Jan 2025")
 }
 
 func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
@@ -126,7 +126,7 @@ func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
 		os.WriteFile(meta, bytes.Replace(b, []byte("track: SWE\n"), []byte("track: SWE\ncloses: 2026-12-01\n"), 1), 0o600)
 	})
 	h.open("3", 1, "Orbit")
-	h.show("Applied · SWE · closes 2026-12-01", "applied 2026-09-25 · 6d ago")
+	h.show("Orbit Labs · SWE · applied 6d ago", "applied 25 Sep 2026 · 6d ago")
 }
 
 func TestDetailJDRendersMarkdown(t *testing.T) {
@@ -174,7 +174,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
-		{"fit", 1, []string{"Fit: not assessed", "No reasoning saved"}},
+		{"fit", 1, []string{"fit — · no reasoning saved"}},
 		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -204,7 +204,7 @@ func TestDetailNotesAndFitTabsRenderTheirFiles(t *testing.T) {
 	fit := newDetailHarness(t, setup)
 	fit.open("3", 2, "Engineer #1")
 	fit.key(tea.KeyRight)
-	fit.show("Fit: Good", "Strong platform match")
+	fit.show("fit Good", "Strong platform match")
 	back := newDetailHarness(t, setup)
 	back.open("3", 2, "Engineer #1")
 	back.key(tea.KeyRight)
@@ -285,15 +285,19 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h.finalView()
 }
 
-func TestDetailDocsEnterOnAbsentMarkdownRunsNothing(t *testing.T) {
+// Enter on a document not written yet opens it in the Editor, as e does: writing it is the
+// next step, not an error.
+func TestDetailDocsEnterOnAbsentMarkdownOpensEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
 	h.tm.Type("jjj") // JD, Resume, Cover letter → gaps.md is absent
 	h.key(tea.KeyEnter)
-	h.show("Gaps is missing · e to open gaps.md")
-	if len(h.runs) != 0 {
-		t.Fatalf("ran %q", h.runs)
+	if len(h.runs) != 1 || !strings.Contains(strings.Join(h.runs[0], " "), "gaps.md") {
+		t.Fatalf("ran %q, want the Editor on gaps.md", h.runs)
+	}
+	if v := h.tm.plain(); strings.Contains(v, "is missing") {
+		t.Fatalf("an error for a normal action:\n%s", v)
 	}
 }
 
@@ -303,7 +307,7 @@ func TestDetailMoveUpdatesHeader(t *testing.T) {
 	h.tm.Type("m")
 	h.wait("Move")
 	h.tm.Type("d")
-	h.show("Draft · Platform · closes —", "→ Draft")
+	h.show("✎ Draft", "Moved to Draft")
 }
 
 func TestDetailUndoRestoresHeader(t *testing.T) {
@@ -313,7 +317,7 @@ func TestDetailUndoRestoresHeader(t *testing.T) {
 	h.wait("Move")
 	h.tm.Type("d")
 	h.tm.Type("u")
-	h.show("Lead · Platform · closes —")
+	h.show("Undone · back to Lead")
 	apps, _ := h.store.Scan()
 	for _, a := range apps {
 		if a.Title == "Platform Engineer" && (a.Status != "Lead" || len(a.StatusLog) != 3) {
@@ -394,14 +398,14 @@ func TestDetailMoveToAppliedAsksWhenDocsNotReady(t *testing.T) {
 	ask.tm.Type("m")
 	ask.wait("Move")
 	ask.tm.Type("a")
-	ask.show("Docs not Ready", "Draft · ")
+	ask.show("Docs not Ready")
 
 	yes := newDetailHarness(t, nil)
 	yes.open("2", 0, "docs-none")
 	yes.tm.Type("m")
 	yes.wait("Move")
 	yes.tm.Type("ay")
-	yes.show("Applied · ", "→ Applied")
+	yes.show("Moved to Applied")
 }
 
 func TestResumeReader(t *testing.T) {

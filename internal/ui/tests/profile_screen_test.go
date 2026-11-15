@@ -234,8 +234,8 @@ func TestProfileContactMarkAndWarningFollowMissingFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := fixtureCopy(t, func(root string) { removeProfileLines(t, root, tc.drop...) })
 			view := chipped(runKeys(t, root, 120, "5"))
-			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "✗") {
-				t.Fatalf("Contact row = %q, want ✗:\n%s", row, view)
+			if row := requireProfileListRow(t, view, "Contact"); !strings.HasSuffix(row, "○") {
+				t.Fatalf("Contact row = %q, want ○:\n%s", row, view)
 			}
 			if !strings.Contains(view, tc.warning) {
 				t.Fatalf("warning %q absent:\n%s", tc.warning, view)
@@ -438,7 +438,7 @@ func TestProfileApplicationKeysAndTrackAreInert(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	before := profileFiles(t, root)
 	plain := chipped(runKeys(t, root, 120, "5"))
-	withKeys := chipped(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "g", "G", "t"))
+	withKeys := chipped(runKeys(t, root, 120, "5", "a", "b", "f", "p", "n", "x", "d", "m", "u", "v", "enter", "/", "t"))
 	if plain != withKeys {
 		t.Fatalf("an Application key or t changed Profile:\n--- plain ---\n%s\n--- with keys ---\n%s", plain, withKeys)
 	}
@@ -485,7 +485,7 @@ func TestProfileHelpOmitsInertKeysWithNoProfile(t *testing.T) {
 // the selected entry and its 1-based position instead. At 72 columns the list is back.
 func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
 	narrow := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "j", "j"))
-	if !strings.Contains(narrow, "Experience 3/6") {
+	if !strings.Contains(narrow, "Experience 3 of 6") {
 		t.Fatalf("narrow context row lacks the selection and position:\n%s", narrow)
 	}
 	for _, hidden := range []string{"SECTIONS", "Key Skills", "projects.md"} {
@@ -503,11 +503,11 @@ func TestProfileNarrowTerminalHidesTheListAndNamesTheSelection(t *testing.T) {
 func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	headlines := chipped(runKeysSized(t, root, 71, 24, "5", "j"))
-	if !strings.Contains(headlines, " 2/6") || !strings.Contains(headlines, "Full Stack Software Engineer") {
+	if !strings.Contains(headlines, " 2 of 6") || !strings.Contains(headlines, "Full Stack Software Engineer") {
 		t.Fatalf("j did not move to Headlines:\n%s", headlines)
 	}
 	back := chipped(runKeysSized(t, root, 71, 24, "5", "j", "k"))
-	if !strings.Contains(back, " 1/6") || !strings.Contains(back, "alex.quinn@example.test") {
+	if !strings.Contains(back, " 1 of 6") || !strings.Contains(back, "alex.quinn@example.test") {
 		t.Fatalf("k did not move back to Contact:\n%s", back)
 	}
 }
@@ -516,7 +516,7 @@ func TestProfileNarrowTerminalJKMoveTheSelection(t *testing.T) {
 // still changes the section instead of scrolling the content.
 func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, "5", "tab", "j"))
-	for _, want := range []string{"2/6", "Full Stack Software Engineer"} {
+	for _, want := range []string{"2 of 6", "Full Stack Software Engineer"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("tab then j did not move to Headlines (%q):\n%s", want, view)
 		}
@@ -529,8 +529,8 @@ func TestProfileNarrowTerminalTabDoesNotFocusTheHiddenList(t *testing.T) {
 // The narrow position continues from the sections into the other files under the divider.
 func TestProfileNarrowPositionCountsTheOtherFiles(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 71, 24, profileKeysToFile...))
-	if !strings.Contains(view, "projects.md 7/7") {
-		t.Fatalf("narrow context row lacks projects.md 7/7:\n%s", view)
+	if !strings.Contains(view, "projects.md 7 of 7") {
+		t.Fatalf("narrow context row lacks projects.md 7 of 7:\n%s", view)
 	}
 	if !strings.Contains(view, "profile/projects.md") {
 		t.Fatalf("narrow context row lost the file path:\n%s", view)

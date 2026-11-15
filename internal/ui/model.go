@@ -2,13 +2,16 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
@@ -43,12 +46,14 @@ type model struct {
 	width                 int
 	gen                   int // bumps when Workspace content is reloaded; invalidates the render cache
 	followUpDays          int
-	statsTop              int         // the first Stats line shown when the report is taller than the body
-	stats                 *statsCache // the Stats report for the current interaction; see statsReport
-	configHome            string      // where config.toml lives; empty means machine settings cannot be saved
-	ascii                 bool        // ascii in config.toml; ROLECALL_ASCII=1 also forces it
-	inherit               bool        // inherit_terminal in config.toml: ANSI-16 colours, no painted background
-	theme                 theme       // dark or light roles; see DetectTheme
+	statsTop              int              // the first Stats line shown when the report is taller than the body
+	stats                 *statsCache      // the Stats report for the current interaction; see statsReport
+	configHome            string           // where config.toml lives; empty means machine settings cannot be saved
+	configErr             error            // config.toml's last load error (*config.FileError when it does not parse)
+	configWarnings        []config.Warning // what the last config.toml load worked around (config.Config.Warnings)
+	ascii                 bool             // ascii in config.toml; ROLECALL_ASCII=1 also forces it
+	inherit               bool             // inherit_terminal in config.toml: ANSI-16 colours, no painted background
+	theme                 theme            // dark or light roles; see DetectTheme
 	now                   func() time.Time
 	editor                string
 	back                  *settingsBack // where Esc returns from Settings opened with a comma
@@ -68,6 +73,7 @@ type model struct {
 	building              *buildState
 	spinner               spinner.Model
 	profile               *profileState
+	profileStarted        bool // the Profile has more than Contact, so the welcome drops its Profile step
 	settings              *settingsState
 	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
 	writing               map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
@@ -99,10 +105,17 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
-		// An invalid workspace.json stops startup with a sanitised error. Once running,
-		// Settings shows a file that breaks later and offers e.
 		m.tracks, e = s.Tracks()
 		m.legacy = s.LegacyFiles()
+		if p, err := s.Profile(); err == nil {
+			m.profileStarted = profileBeyondContact(p)
+		}
+		if e != nil && (invalidWorkspaceFile(s) || badTrackList(e)) {
+			// An invalid workspace.json does not stop startup: the app opens with no Track
+			// filter, and Settings shows the path and the parse error with e to fix it.
+			// Only a schema this build cannot use still stops it.
+			m.tracks, m.err, e = nil, fmt.Errorf("%w · 6 Settings shows why, e to fix it", e), nil
+		}
 	}
 	if e != nil {
 		m.watch.Close()
@@ -110,6 +123,21 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	}
 	return m, nil
 }
+
+// invalidWorkspaceFile reports a workspace.json that is not valid JSON or has a key of the
+// wrong shape, as opposed to one from a schema this build cannot read.
+// badTrackList reports a workspace.json that parses but lists a bad Track: like an
+// invalid file, it opens with no Track filter rather than stopping startup.
+func badTrackList(err error) bool {
+	var tle *store.TrackListError
+	return errors.As(err, &tle)
+}
+
+func invalidWorkspaceFile(s *store.Store) bool {
+	ws, err := s.Settings()
+	return err == nil && ws.Err != nil && ws.Schema == 1
+}
+
 func (m model) Init() tea.Cmd {
 	if m.watch == nil {
 		return nil
@@ -195,7 +223,8 @@ func (m model) totalCount(screen int, table string) int {
 	return n
 }
 func (m model) matches(a store.Application) bool {
-	return (m.track == 0 || a.Track == m.tracks[m.track-1]) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
+	track, on := m.selectedTrack()
+	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The Stats report is built at most once per interaction; this drops the previous
@@ -277,6 +306,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The feedback line: a success clears on the next key; an error stays until esc.
 		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
 		if k.String() == "ctrl+c" {
+			if next, held := m.quitHeld(); held {
+				return next, nil // typed Settings text is never dropped without asking
+			}
 			return m, m.quit()
 		}
 	}
@@ -347,8 +379,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t", "T":
 				m.cycleTrack(k.String() == "T")
 			case "esc":
-				m.text = ""
-				m.cursor = 0
+				// esc clears a search; otherwise it only hides the toast, so the cursor
+				// stays where the Owner was working.
+				if m.text != "" {
+					m.text = ""
+					m.cursor = 0
+				}
 			case "q", "ctrl+c":
 				return m, m.quit()
 			case "right", "tab":
@@ -380,17 +416,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // cycleTrack moves the track filter to the next track, or the previous one: All, then
-// each workspace.json track in order.
+// each workspace.json track in order, then the off-list Tracks rows are on (filterTracks).
 func (m *model) cycleTrack(back bool) {
 	if len(m.tracks) == 0 {
 		return
 	}
-	n := len(m.tracks) + 1
+	n := len(m.filterTracks()) + 1
 	step := 1
 	if back {
 		step = n - 1
 	}
-	m.track = (m.track + step) % n
+	m.track = (min(m.track, n-1) + step) % n
 	m.cursor = 0
 }
 
@@ -465,9 +501,11 @@ func (m *model) rescanAll() {
 		m.err = err
 		return
 	}
+	chosen, on := m.selectedTrack()
 	m.tracks = tracks
-	if m.track > len(tracks) {
-		m.track = 0 // the filtered track is gone
+	m.track = 0 // unless the filtered Track is still an option
+	if i := slices.Index(m.filterTracks(), chosen); on && i >= 0 {
+		m.track = i + 1
 	}
 	m.reload(folder)
 }

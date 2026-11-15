@@ -15,7 +15,7 @@ import (
 const (
 	monthYearAfter = 90 // "~21mo ago" reads as "Jan 2025" past about three months
 	urgentDays     = 2  // "closes in 2d ▲" turns danger at or below this
-	urgentMark     = "▲"
+	urgentMark     = glyphUrgent
 )
 
 // sortNewest orders Leads by when they were added, newest first: the first Status
@@ -35,16 +35,25 @@ func sortNewest(rows []store.Application) {
 	})
 }
 
-// span is a distance in days as the list words it: "4d", "3w", "2mo".
+// span is a distance in days as the list words it: "4d", "3w", "2mo", and from two
+// years "2y", so a long-quiet Application never reads "82mo".
 func span(n int) string {
 	switch {
 	case n < weeksUntil:
 		return fmt.Sprintf("%dd", n)
 	case n < monthsUntil:
 		return fmt.Sprintf("%dw", n/daysPerWeek)
+	case n < yearsFrom:
+		return fmt.Sprintf("%dmo", n/daysPerMonth)
 	}
-	return fmt.Sprintf("%dmo", n/daysPerMonth)
+	return fmt.Sprintf("%dy", n/daysPerYear)
 }
+
+// span switches from months to years at two years.
+const (
+	daysPerYear = 365
+	yearsFrom   = 2 * daysPerYear
+)
 
 // parseDay reads the day of a status or close date: a YYYY-MM-DD value, or the date part
 // of an RFC 3339 timestamp. It is the one place a date is turned into a day.
@@ -80,22 +89,17 @@ func followUpDue(a store.Application, now time.Time, days int) bool {
 	return ok
 }
 
-// Follow-up due heat: how far past its follow-up date an Application is.
-const (
-	heatMidAfter  = 3 // more than this many days past: heatMid
-	heatHighAfter = 7 // more than this many days past: heatHigh, bold
-	heatLow       = "·"
-	heatMid       = "◦"
-	heatHigh      = "●"
-)
+// heatHighAfter is how many days past its follow-up date a Follow-up due flag turns
+// bold: the flag is always ⚑, and its weight, not another glyph, says it is long overdue.
+const heatHighAfter = 7
 
 // followUpDaysPast is how many whole days past its follow-up date a sent Application is
 // (0 on the day it falls due), and whether it is Follow-up due at all.
 func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
-	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || a.LastChange == nil {
+	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || lastChange(a) == nil {
 		return 0, false
 	}
-	t, ok := parseDay(a.LastChange.At)
+	t, ok := parseDay(lastChange(a).At)
 	if !ok {
 		return 0, false
 	}
@@ -103,26 +107,13 @@ func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) 
 	return past, past >= 0
 }
 
-// followUpHeat is the glyph for an Application the given days past its follow-up date.
-func followUpHeat(past int) string {
-	switch {
-	case past > heatHighAfter:
-		return heatHigh
-	case past > heatMidAfter:
-		return heatMid
-	}
-	return heatLow
-}
+// followUpLate reports a Follow-up due flag drawn bold: more than heatHighAfter days past.
+func followUpLate(past int) bool { return past > heatHighAfter }
 
-// followUpWords is "due today", "due 1 day ago" or "due 9 days ago".
-func followUpWords(past int) string {
-	switch past {
-	case 0:
-		return "due today"
-	case 1:
-		return "due 1 day ago"
-	}
-	return fmt.Sprintf("due %d days ago", past)
+// followUpWords is a Follow-up due as the detail and preview word it, "due · no change in 9mo":
+// the same span from the last change as the row's "⚑ 9mo", so the two never disagree.
+func (m model) followUpWords(a store.Application) string {
+	return "due · no change in " + m.since(lastChange(a))
 }
 
 // shortDate is "3 Sep", with the year when it is not this year's.
@@ -145,7 +136,8 @@ const (
 )
 
 // closeInfo is a close date in words, with its urgency: "closes in 6d", "closes in 2d ▲",
-// "closes today ▲", "closed 3 Sep".
+// "closes today ▲", "expired 3 Sep": the ad's close date, worded apart from a closed
+// (Rejected or Withdrawn) Application.
 func closeInfo(closes string, now time.Time) (string, closeState) {
 	if closes == "" {
 		return "", closeNone
@@ -155,7 +147,7 @@ func closeInfo(closes string, now time.Time) (string, closeState) {
 	case !ok:
 		return "closes " + closes, closeLater
 	case days < 0:
-		return "closed " + shortDate(t, now), closePast
+		return "expired " + shortDate(t, now), closePast
 	case days == 0:
 		return "closes today " + urgentMark, closeUrgent
 	}

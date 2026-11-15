@@ -38,8 +38,7 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 				h = 16
 			}
 			f := footer(settingsAt(t, w, h, tc.keys...))
-			// The footer spells enter "Enter"; the pop-up's border keeps it lower case.
-			if !strings.Contains(f, strings.Replace(tc.want, "enter", "Enter", 1)) || !strings.Contains(f, "esc cancel") {
+			if !strings.Contains(f, tc.want) || !strings.Contains(f, "esc cancel") {
 				t.Errorf("%s at %d: footer %q lacks pop-up keys", tc.name, w, f)
 			}
 		}
@@ -48,7 +47,7 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 
 func TestSettingsFooterWhileEditingAMachineSetting(t *testing.T) {
 	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "j", "enter"))
-	if !strings.Contains(f, "Enter set") || !strings.Contains(f, "esc cancel") {
+	if !strings.Contains(f, "enter save") || !strings.Contains(f, "esc cancel") {
 		t.Fatalf("footer %q lacks edit keys", f)
 	}
 }
@@ -90,13 +89,13 @@ func TestSettingsTrackFooterKeys(t *testing.T) {
 func TestSettingsFooterOffersEnterOnEditableRowsOnly(t *testing.T) {
 	// Follow-up and a machine setting are editable; the add row adds. Read-only rows are
 	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers Enter on one.
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j", "j")); !strings.Contains(f, "Enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "G")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Follow-up days: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "Enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Editor: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "j", "j")); !strings.Contains(f, "Enter add a Track") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "G", "k")); !strings.Contains(f, "enter add a Track") {
 		t.Errorf("add row: %q", f)
 	}
 }
@@ -114,7 +113,7 @@ func rowWith(lines []string, text string) string {
 // above the first field) carries the one selection mark.
 func TestSettingsCursorMarksOneFieldOrTheHeader(t *testing.T) {
 	v := strings.Join(settingsAt(t, 120, 36, "]", "]"), "\n")
-	if !strings.Contains(v, "[ Tracking ]") || strings.Count(v, "▌") != 1 || !strings.Contains(v, "▌ SWE") {
+	if !strings.Contains(v, "[Tracking]") || strings.Count(v, "▌") != 1 || !strings.Contains(v, "▌ SWE") {
 		t.Errorf("field cursor:\n%s", v)
 	}
 	lines := settingsAt(t, 120, 36, "]", "]", "k")
@@ -129,7 +128,7 @@ func TestSettingsCursorMarksOneFieldOrTheHeader(t *testing.T) {
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "]", "]")
-		if l := rowWith(lines, "SWE"); !strings.Contains(l, "▌ SWE") {
+		if l := rowWith(lines, "▌ SWE"); l == "" {
 			t.Errorf("%dx%d first Track: %q", size[0], size[1], l)
 		}
 		lines = settingsAt(t, size[0], size[1], "]", "]", "j")

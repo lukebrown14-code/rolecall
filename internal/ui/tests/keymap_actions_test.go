@@ -24,8 +24,7 @@ func TestKeyLineKeysAreAllDocumentedInTheHelp(t *testing.T) {
 	line := keyLineOf(runKeys(t, fixtureCopy(t, nil), 120, "1"))
 	help := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "?"))
 	for _, action := range [][2]string{{"enter", "open"}, {"m", "move"}, {"a", "add"}, {"/", "search"}} {
-		// The key line spells enter "Enter", as the design does.
-		if !strings.Contains(line, strings.Replace(action[0], "enter", "Enter", 1)+" "+action[1]) {
+		if !strings.Contains(line, action[0]+" "+action[1]) {
 			t.Fatalf("the key line does not show %q %q:\n%s", action[0], action[1], line)
 		}
 		if !helpRow(help, action[0], action[1]) {

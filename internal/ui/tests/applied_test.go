@@ -71,7 +71,7 @@ func TestNotReadyMoveToAppliedPrompts(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	got, _ = os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -88,7 +88,7 @@ func TestReadyMoveToAppliedHasNoPrompt(t *testing.T) {
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	got, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.Contains(got, []byte("{status: Applied, at: 2026-02-01T00:00:00Z}")) {
 		t.Fatalf("Applied not appended: %q", got)
@@ -145,7 +145,7 @@ func TestAppliedRecordsExactlyTheListedFilesThatExist(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	quit(t, tm)
 
 	want := map[string]string{
@@ -166,11 +166,11 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	tm.Type("3")
 	wait("Applied 1")
 	tm.Type("mw") // away from Applied
-	wait("→ Withdrawn")
+	wait("Moved to Withdrawn")
 	before := sentFiles(t, folder)
 
 	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("changed"), 0o644); err != nil {
@@ -186,7 +186,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	quit(t, tm)
 
 	if got := sentFiles(t, folder); !equalFiles(got, before) {
@@ -197,24 +197,59 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	}
 }
 
-func TestUndoAfterAppliedLeavesSentInPlace(t *testing.T) {
+// Undoing the move to Applied that made sent/ sets it aside, deleting nothing, so the
+// next real Applied freezes the documents as they are then.
+func TestUndoAfterAppliedSetsSentAside(t *testing.T) {
 	root, folder := appliedWorkspace(t, map[string]string{"resume.md": "original"})
 	tm, wait := appliedSession(t, root)
 
 	tm.Type("ma")
 	wait("Docs not Ready")
 	tm.Type("y")
-	wait("→ Applied")
+	wait("Moved to Applied")
 	tm.Type("u")
-	wait("Undid move ")
-	quit(t, tm)
+	wait("Undone · back to ")
+	wait("sent/ kept as sent.undone-2026-02-01/")
 
-	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "original"}) {
-		t.Fatalf("sent/ after undo = %v", got)
+	aside, err := os.ReadFile(filepath.Join(folder, "sent.undone-2026-02-01", "resume.md"))
+	if err != nil || string(aside) != "original" {
+		t.Fatalf("set-aside copy = %q, %v", aside, err)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "sent")); !os.IsNotExist(err) {
+		t.Fatalf("sent/ still there after undo: %v", err)
 	}
 	meta, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !bytes.HasSuffix(meta, []byte("{status: Draft, at: 2026-02-01T00:00:00Z}\n")) {
 		t.Fatalf("undo did not append Draft: %q", meta)
+	}
+
+	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("finished"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tm.Type("r")
+	tm.Type("ma")
+	wait("Docs not Ready")
+	tm.Type("y")
+	wait("Moved to Applied")
+	quit(t, tm)
+	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "finished"}) {
+		t.Fatalf("sent/ after the real Applied = %v", got)
+	}
+}
+
+// An undo of a move whose sent/ was already there leaves it alone.
+func TestUndoKeepsASentItDidNotMake(t *testing.T) {
+	root, folder := appliedWorkspace(t, map[string]string{"resume.md": "original", "sent/resume.md": "earlier"})
+	tm, wait := appliedSession(t, root)
+	tm.Type("ma")
+	wait("Docs not Ready")
+	tm.Type("y")
+	wait("Moved to Applied")
+	tm.Type("u")
+	wait("Undone · back to ")
+	quit(t, tm)
+	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "earlier"}) {
+		t.Fatalf("sent/ after undo = %v", got)
 	}
 }
 

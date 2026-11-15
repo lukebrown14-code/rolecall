@@ -97,17 +97,17 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 	h.tm.Type("]")
 	requireAll(t, h.tm.plain(), "TRACKS", "SWE", "Follow-up due after", "21 days")
 	h.tm.Type("]")
-	requireAll(t, h.tm.plain(), "Workspace", h.root[len(h.root)-40:], "Editor", "myeditor", "Downloads", "/dl",
+	requireAll(t, h.tm.plain(), "Workspace", h.root[len(h.root)-15:], "Editor", "myeditor", "Downloads", "/dl",
 		"Harness", "claude {prompt}", "Plugin", "/opt/plugin")
 }
 
 func TestSettingsJKMoveTheFieldCursorWithinASection(t *testing.T) {
 	h := newSettingsHarness(t, 120, "", nil)
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "SETTINGS", "[ Search ]", "▌ Places")
+	requireAll(t, h.tm.plain(), "SETTINGS", "[Search]", "▌ Places")
 	h.tm.Type("j")
 	v := h.tm.plain()
-	requireAll(t, v, "[ Search ]", "▌ Remote")
+	requireAll(t, v, "[Search]", "▌ Remote")
 	if strings.Contains(v, "▌ Places") {
 		t.Fatalf("marker wrong after j:\n%s", v)
 	}
@@ -136,8 +136,8 @@ func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
 }
 
 func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T) {
-	// An invalid file stops startup (the CLI test in cmd/rolecall); here it breaks while
-	// rolecall is running, for example after e.
+	// An invalid file at startup is TestInvalidWorkspaceFileStillStarts; here it breaks
+	// while rolecall is running, for example after e.
 	bad := `{"tracks":`
 	h := newSettingsHarness(t, 120, `{}`, func(string) {})
 	h.tm.Type("6")
@@ -181,15 +181,15 @@ func TestSettingsNewerSchemaIsReportedAndWritesNothing(t *testing.T) {
 }
 
 func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
-	h := newSettingsHarness(t, 70, "", nil)
+	h := newSettingsHarness(t, 56, "", nil)
 	h.tm.Type("6")
 	v := h.tm.plain()
-	requireAll(t, v, "[ Search ] 1/4", "Places")
+	requireAll(t, v, "[Search] 1 of 4", "Places")
 	if strings.Contains(v, "This machine") {
-		t.Fatalf("group list still shown below 80 columns:\n%s", v)
+		t.Fatalf("every group named where they do not fit:\n%s", v)
 	}
 	h.tm.Type("]")
-	requireAll(t, h.tm.plain(), "[ Documents ] 2/4", "Cover letter maximum")
+	requireAll(t, h.tm.plain(), "[Documents] 2 of 4", "Cover letter maximum")
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {

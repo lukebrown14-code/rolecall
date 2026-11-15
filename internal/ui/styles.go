@@ -27,6 +27,7 @@ func themeFor(dark bool) theme    { return theme(appearance.ForBackground(dark))
 var isDark = appearance.IsDark
 var noColor = appearance.NoColor
 var asciiMode = appearance.ASCIIMode
+var plainMode = appearance.PlainMode
 var inheritANSI = appearance.InheritANSI
 var stripColor = appearance.StripColor
 var asciiFold = appearance.ASCIIFold
@@ -74,7 +75,22 @@ func (m model) dimmedPal() pal {
 // drawn character — hit-testing a rule or the search chip — uses what the renderer wrote.
 func (m model) glyph(s string) string { return asciiFold(s, m.ascii) }
 
-// wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "#").
+// The glyph table's marks (theme/glyphs.go), each with one meaning.
+const (
+	glyphReady    = appearance.GlyphReady
+	glyphMissing  = appearance.GlyphMissing
+	glyphNone     = appearance.GlyphNone
+	glyphUrgent   = appearance.GlyphUrgent
+	glyphFollowUp = appearance.GlyphFollowUp
+	glyphMeterOn  = appearance.GlyphMeterOn
+	glyphMeterOff = appearance.GlyphMeterOff
+	glyphChanged  = appearance.GlyphChanged
+)
+
+// fitLabel leads a Fit wherever it is shown: "fit Good", "fit —".
+const fitLabel = "fit "
+
+// wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "R").
 const wordmark = "▞"
 
 // statusMarkWidth is a Status glyph and the space after it, before a row's title.
@@ -112,16 +128,16 @@ func (p pal) GroupHeader(label, status string, n int, rollup string, w int) stri
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 
-// fitNone is how a missing Fit reads in prose; list columns show "·".
-const fitNone = "not assessed"
+// fitNone is a Fit not yet assessed, wherever a Fit is shown: "fit —".
+const fitNone = glyphNone
 
-// FitText is "   Fit: Strong", the Fit beside a status chip.
-func (p pal) FitText(a store.Application) string {
-	fit := a.Fit
-	if fit == "" {
-		fit = fitNone
+// fitWords is a Fit as every surface writes it: "fit Good", or "fit —" not yet assessed.
+func (p pal) fitWords(fit string) string {
+	value := fit
+	if value == "" {
+		value = fitNone
 	}
-	return p.Text(p.Dim).Render("   Fit: ") + p.Text(p.FitColor(a.Fit)).Render(fit)
+	return p.Text(p.Dim).Render(fitLabel) + p.Text(p.FitColor(fit)).Render(value)
 }
 
 // spread places left and right on one line of width w.
@@ -159,7 +175,17 @@ func popup(p pal, title string, warn bool, w, termWidth int, body, hints string)
 // popupNote is popup with a short note at the right of the top border, such as a form's
 // "* required". An empty note, or one with no room beside the title, is left out.
 func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hints string) string {
-	// Grow to fit the hints in the bottom border, so a key is never cut.
+	// Grow to fit the hints in the bottom border, so a key is never cut. Where the terminal
+	// is too narrow for them all, the hints before the last (esc, the way out) give way
+	// whole, latest first, rather than any being cut.
+	if termWidth > 0 {
+		sep := p.Text(p.Faint).Render(" · ")
+		parts := strings.Split(hints, sep)
+		for len(parts) > 2 && xansi.StringWidth(strings.Join(parts, sep))+popHintChrome > popWidth(termWidth, termWidth) {
+			parts = append(parts[:len(parts)-2], parts[len(parts)-1])
+		}
+		hints = strings.Join(parts, sep)
+	}
 	w = max(w, xansi.StringWidth(hints)+popHintChrome)
 	if termWidth > 0 {
 		w = min(w, popWidth(w, termWidth))
@@ -180,8 +206,17 @@ func popupNote(p pal, title, note string, warn bool, w, termWidth int, body, hin
 	bottom := b.Render("╰─") + p.PanelFill(h) + b.Render(strings.Repeat("─", max(0, inner-1-xansi.StringWidth(h)))+"╯")
 	lines := []string{top}
 	for _, l := range append(append([]string{""}, strings.Split(body, "\n")...), "") {
-		content := xansi.Truncate("  "+l, inner, "…")
-		lines = append(lines, b.Render("│")+p.PanelFill(content+strings.Repeat(" ", max(0, inner-xansi.StringWidth(content))))+b.Render("│"))
+		// Text too long for the box wraps at spaces, so the end of a sentence (where a
+		// file lives, what is being left) is never cut; a selected row is fitted already
+		// and keeps its one line.
+		parts := []string{l}
+		if room := inner - gutter - 1; xansi.StringWidth(l) > room && !strings.Contains(xansi.Strip(l), "▌") {
+			parts = strings.Split(xansi.Wrap(l, room, ""), "\n")
+		}
+		for _, part := range parts {
+			content := xansi.Truncate("  "+part, inner, "…")
+			lines = append(lines, b.Render("│")+p.PanelFill(content+strings.Repeat(" ", max(0, inner-xansi.StringWidth(content))))+b.Render("│"))
+		}
 	}
 	return strings.Join(append(lines, bottom), "\n")
 }

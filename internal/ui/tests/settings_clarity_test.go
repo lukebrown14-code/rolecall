@@ -41,11 +41,13 @@ func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 		if l := rowWith(lines, "Remote roles"); !strings.Contains(l, "▌ Remote roles") {
 			t.Errorf("%dx%d the cursor left Remote roles for a read-only row: %q", size[0], size[1], l)
 		}
-		if l := rowWith(lines, "Sources"); !strings.Contains(l, "read-only") {
-			t.Errorf("%dx%d Sources: %q", size[0], size[1], l)
+		// The reason follows the value, or wraps under it where there is no room.
+		v := squash(strings.Join(lines, "\n"))
+		if !strings.Contains(v, "Sources 1 read-only") {
+			t.Errorf("%dx%d Sources: %s", size[0], size[1], v)
 		}
-		if l := rowWith(lines, "Blockers"); !strings.Contains(l, "read-only") {
-			t.Errorf("%dx%d Blockers: %q", size[0], size[1], l)
+		if !strings.Contains(v, "Blockers 2 read-only") {
+			t.Errorf("%dx%d Blockers: %s", size[0], size[1], v)
 		}
 		lines = settingsAt(t, size[0], size[1], "]", "]", "]")
 		if v := strings.Join(lines, "\n"); !strings.Contains(v, "fixed this session") {
@@ -59,7 +61,11 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "]", "]", "]")
 		v := strings.Join(lines, "\n")
-		for _, want := range []string{"nvim, code --wait", "~/Downloads", "claude", "path to rolecall/plugin"} {
+		wants := []string{"~/Downloads", "claude", "~/rolecall/plugin"}
+		if size[1] > 16 {
+			wants = append(wants, "code --wait") // the about text, which a short terminal drops first
+		}
+		for _, want := range wants {
 			if !strings.Contains(v, want) {
 				t.Errorf("%dx%d: machine rows lack the %q hint:\n%s", size[0], size[1], want, v)
 			}
@@ -75,10 +81,10 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 func TestSettingsRenamePopupSaysReviewNotNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		f := footer(settingsAt(t, size[0], size[1], "]", "]", "r"))
-		if !strings.Contains(f, "Enter review") {
+		if !strings.Contains(f, "enter review") {
 			t.Fatalf("%dx%d rename footer %q", size[0], size[1], f)
 		}
-		if strings.Contains(f, "Enter next") {
+		if strings.Contains(f, "enter next") {
 			t.Fatalf("%dx%d rename still says next: %q", size[0], size[1], f)
 		}
 	}
@@ -123,7 +129,6 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 		}
 		d.Type("nano")
 		d.Type("enter")
-		d.Type("ctrl+s")
 		requireAll(t, d.plain(), "Saved Editor: nano")
 	})
 	t.Run("add track", func(t *testing.T) {

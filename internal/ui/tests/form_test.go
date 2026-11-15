@@ -83,11 +83,12 @@ func TestFormCtrlSSavesFromAnyField(t *testing.T) {
 func TestEditFormMarksChangedFields(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
 	d.Type("e")
-	if strings.Contains(d.plain(), "●") {
+	if strings.Contains(d.plain(), "Δ") {
 		t.Fatalf("an untouched Edit form marks a field:\n%s", d.plain())
 	}
+	d.Type("\t") // past URL, the first field
 	d.Type("x")
-	if l := rowWith(strings.Split(d.plain(), "\n"), "Title"); !strings.Contains(l, "●") {
+	if l := rowWith(strings.Split(d.plain(), "\n"), "Title"); !strings.Contains(l, "Δ") {
 		t.Fatalf("the edited Title is not marked: %q", l)
 	}
 }
