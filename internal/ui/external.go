@@ -111,7 +111,12 @@ func (m model) runHandoff(folder, command, toast string) tea.Cmd {
 	if runner == nil {
 		runner = process.Exec
 	}
-	return runner(process.Command("/bin/sh", "-c", command), func(err error) tea.Msg {
+	// The Harness starts in the Workspace, wherever rolecall was launched: the skills
+	// read profile/ and write into jobs/, and a Harness treats its start folder as the
+	// project it may edit without asking.
+	c := process.Command("/bin/sh", "-c", command)
+	c.Dir = m.store.Root()
+	return runner(c, func(err error) tea.Msg {
 		return externalFinished{folder: folder, err: handoffError(err), toast: toast}
 	})
 }

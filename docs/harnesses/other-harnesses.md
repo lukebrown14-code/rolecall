@@ -1,14 +1,16 @@
 # Codex, Gemini CLI and opencode
 
 These Harnesses can load Agent Skills directly from disk. This guide links the skills bundled
-with a Homebrew installation of rolecall into the shared `~/.agents/skills` directory.
+with rolecall into the shared `~/.agents/skills` directory.
 
-## Install rolecall and link its skills
+## Link the skills
+
+Set `plugin` to the installed Plugin folder: `~/.local/share/rolecall/plugin` for the install
+script, or `"$(brew --prefix rolecall)/libexec/plugin"` for Homebrew. `rolecall doctor` prints
+it on the `Plugin path` line.
 
 ```sh
-brew install lukebrown14-code/homebrew-tap/rolecall
-
-plugin="$(brew --prefix rolecall)/libexec/plugin"
+plugin="$HOME/.local/share/rolecall/plugin"
 mkdir -p "$HOME/.agents/skills"
 for skill in "$plugin"/skills/*; do
   ln -s "$skill" "$HOME/.agents/skills/$(basename "$skill")"
@@ -17,7 +19,8 @@ done
 
 This links each rolecall skill folder, including its `SKILL.md` and supporting files. The
 Harness will discover the skills for new sessions. If a link already exists, inspect it
-before replacing it.
+before replacing it. Updating rolecall keeps the Plugin at the same path, so the links keep
+working.
 
 ## Configure a Harness
 
@@ -43,9 +46,10 @@ harness = 'cd {dir} && opencode run "Use the {skill} skill for this rolecall App
 ```
 
 rolecall replaces `{skill}` with `assess-fit` or `prepare-documents`, and `{dir}` with the
-selected Application folder. Press `f` on an Application to run Assess fit, or `p` on a Lead
-or Draft to run Prepare documents. Start a new Harness session if it was already open when
-you linked the skills.
+selected Application folder. The command starts in your Workspace; these examples then move
+into the Application folder with `--cd` or `cd`. Press `f` on an Application to run Assess
+fit, or `p` on a Lead or Draft to run Prepare documents. Start a new Harness session if it was
+already open when you linked the skills.
 
 ## Check the handoff
 

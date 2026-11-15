@@ -56,7 +56,7 @@ reminder on a sent Application unchanged for `follow_up_days` (default 14), not 
 | `u` · `space` · `,` · `?` · `q` | undo · menu · Settings · help · quit |
 
 A Handoff runs the `harness` command from `config.toml` with the skill and the Application's
-folder; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
+folder, started in the Workspace wherever rolecall was launched; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
 set, the Handoff keys leave the key line, and pressing one says to set it.
 
 ## Settings
