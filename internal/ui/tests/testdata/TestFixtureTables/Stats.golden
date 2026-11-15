@@ -1,26 +1,26 @@
- ▞ rolecall  1 Leads 4  2 Drafts 2  3 Applied 9 [4 Stats] ▁▁▁▁▁▁█▂ 5 Profile  6 Settings             space menu  ? help
+ ▞ rolecall  1 Leads 4  2 Drafts 2  3 Applied 9 [4 Stats]       █  5 Profile  6 Settings             space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   STATS                                                                             TRACK t [All 17] SWE 10 Platform 1
+   STATS                                                                    TRACK t [All 16] SWE 9 Platform 1 Unknown 6
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    FUNNEL          Applications that ever reached each Status
-   ◌ Lead          ██████                   2
-   ✎ Draft         ██████                   2  2 without Lead logged
-   ● Applied       ████████████████████████ 7  50% of Draft · 6 skipped Draft
-   ◆ Interviewing  ██████                   2  14% of Applied · 1 skipped Applied
-   ★ Offer         ██████                   2  2 without Interviewing logged
+   ◌ Lead          ████████                  4
+   ✎ Draft         ████                      2  0% of Lead · 2 weren't Leads first
+   ● Applied       ████████████████████████ 11  0% of Draft · 11 weren't Drafts first
+   ◆ Interviewing  ████████                  4  36% of Applied
+   ★ Offer         ████                      2  50% of Interviewing
    closed  ✕ Rejected 2 · – Withdrawn 2 · ⊘ Dismissed 2
 
    RESPONSE RATE   2 of 6  ▕████░░░░░░░░▏ 33%
-                   Not counted: 1 Application applied less than 14 days ago (too early to judge)
+                   Not counted: 5 applied in the last 14 days (too new)
                    A Response is an Application that reached Interviewing or Offer.
 
    APPLIED / WEEK            █   13 Jul → 28 Sep  0 this week · 12-week avg 0.1
 
-   BY TRACK        Applied  Judged  Responses  Rate
-   SWE                   1       0          0     —
-   Platform              0       0          0     —
-   Unknown               6       6          2   33%
-
+   BY TRACK        Applied  Counted  Responses  Rate
+   SWE                   5        0          0     —
+   Platform              0        0          0     —
+   Unknown               6        6          2   33%
+                   Counted: applied at least 14 days ago, as in the Response rate
 
 
 

@@ -60,8 +60,8 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 		t.Fatalf("← did not switch back to Leads:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
-	if !strings.Contains(view, "[Platform 1]") {
-		t.Fatalf("T did not cycle back to the last track:\n%s", view)
+	if !strings.Contains(view, "[Unknown 0]") {
+		t.Fatalf("T did not cycle back to the last track, the off-list Unknown:\n%s", view)
 	}
 }
 

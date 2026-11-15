@@ -66,7 +66,7 @@ func (m model) emptyViewLine(table string) (string, []emptyHint) {
 	hints := []emptyHint{{"s", "change filter"}, addLeadHint}
 	switch {
 	case m.track > 0:
-		msg += " in " + m.tracks[m.track-1]
+		msg += " in " + m.trackName()
 		hints = append([]emptyHint{{"t", "change Track"}}, hints...)
 	case table != tableLeads && table != tableDismissed:
 		msg += " yet"

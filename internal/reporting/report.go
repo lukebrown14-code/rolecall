@@ -12,9 +12,14 @@ import (
 const (
 	statsWeeks          = 12
 	daysPerWeek         = 7
-	hoursPerDay         = 24
 	defaultFollowUpDays = 14
 )
+
+// UndoWindow is how soon after a move an entry restoring the Status before it reads as
+// the TUI's undo of that move. Undo appends the earlier Status again (the log is append
+// only), so the log alone cannot tell an undo from a deliberate move back; an undo is
+// pressed seconds after the move, and a move back is days later.
+const UndoWindow = 15 * time.Minute
 
 // FunnelStatuses are the Statuses the funnel counts, in pipeline order.
 var FunnelStatuses = []string{store.StatusLead, store.StatusDraft, store.StatusApplied, store.StatusInterviewing, store.StatusOffer}
@@ -31,12 +36,11 @@ type StatsReport struct {
 	Tracks    []TrackStats
 }
 
-// FunnelStep is one rung of the ever-reached funnel. Because a rung counts every
-// Application that ever reached its Status, a rung can be higher than the one before:
-// Applications may start at any Status. Through is how many reached both the previous
-// rung's Status and this one; Skipped is how many reached this one without the previous.
-// Conversion is Through as a percentage of the previous rung, OK only when that rung is
-// not empty. All are zero on the first rung.
+// FunnelStep is one rung of the ever-reached funnel (see Reached). Lead and Draft are
+// optional starts, so a rung can be higher than the one before. Through is how many
+// reached the previous rung's Status before this one; Skipped is how many reached this
+// one without the previous rung first. Conversion is Through as a percentage of the
+// previous rung, OK only when that rung is not empty. All are zero on the first rung.
 type FunnelStep struct {
 	Status       string
 	Count        int
@@ -77,66 +81,206 @@ type TrackStats struct {
 	OK        bool
 }
 
-// Build builds the Stats value from Applications and "now". followUpDays defaults
-// to the configured default; pass it explicitly when the Owner has a setting.
+// EffectiveLog is a status_log with each undone move taken out. An entry that restores
+// the Status before the previous entry, within UndoWindow of it, is an undo: it and the
+// move it undid are both dropped. Undoing an Application's first move back to Lead
+// (an empty log reads as Lead) empties the log. Date-only entries, which only an agent or
+// a hand edit writes, never read as an undo.
+func EffectiveLog(log []store.StatusEntry) []store.StatusEntry {
+	var out []store.StatusEntry
+	for _, e := range log {
+		n := len(out)
+		switch {
+		case n >= 2 && out[n-2].Status == e.Status && undoes(out[n-1], e):
+			out = out[:n-1]
+		case n == 1 && e.Status == store.StatusLead && out[0].Status != store.StatusLead && undoes(out[0], e):
+			out = out[:0]
+		default:
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// undoes reports whether entry is an undo of move: both timestamped, entry no more than
+// UndoWindow after move.
+func undoes(move, entry store.StatusEntry) bool {
+	from, err := time.Parse(time.RFC3339, move.At)
+	if err != nil {
+		return false
+	}
+	to, err := time.Parse(time.RFC3339, entry.At)
+	if err != nil {
+		return false
+	}
+	gap := to.Sub(from)
+	return gap >= 0 && gap <= UndoWindow
+}
+
+// reach is one Status an Application reached and when. Implied is a Status filled in
+// because a later one means it happened (see Reached); it carries that Status's date.
+type reach struct {
+	status  string
+	at      string
+	implied bool
+}
+
+// sentStatuses are the Statuses only a sent Application has, so each implies Applied.
+var sentStatuses = map[string]bool{
+	store.StatusInterviewing: true, store.StatusOffer: true, store.StatusRejected: true, store.StatusWithdrawn: true,
+}
+
+// Reached is the Statuses an Application reached, in log order, read from its
+// EffectiveLog (an empty one is Lead). A later Status implies the ones it cannot happen
+// without, so the counts agree with the screens: Interviewing, Offer, Rejected and
+// Withdrawn imply Applied, and Offer implies Interviewing. An implied Status is placed
+// just before the one implying it, with its date. Lead and Draft are optional starts and
+// never implied.
+func Reached(a store.Application) []string {
+	path := reachedOf(a)
+	out := make([]string, len(path))
+	for i, r := range path {
+		out[i] = r.status
+	}
+	return out
+}
+
+func reachedOf(a store.Application) []reach {
+	log := EffectiveLog(a.StatusLog)
+	if len(log) == 0 {
+		return []reach{{status: store.StatusLead}}
+	}
+	seen := map[string]bool{}
+	var out []reach
+	add := func(r reach) {
+		out = append(out, r)
+		seen[r.status] = true
+	}
+	for _, e := range log {
+		if sentStatuses[e.Status] && !seen[store.StatusApplied] {
+			add(reach{status: store.StatusApplied, at: e.At, implied: true})
+		}
+		if e.Status == store.StatusOffer && !seen[store.StatusInterviewing] {
+			add(reach{status: store.StatusInterviewing, at: e.At, implied: true})
+		}
+		add(reach{status: e.Status, at: e.At})
+	}
+	return out
+}
+
+// path is one Application as Stats reads it: where each Status was first reached.
+type path struct {
+	steps []reach
+	first map[string]int
+}
+
+func pathOf(a store.Application) path {
+	p := path{steps: reachedOf(a), first: map[string]int{}}
+	for i, r := range p.steps {
+		if _, ok := p.first[r.status]; !ok {
+			p.first[r.status] = i
+		}
+	}
+	return p
+}
+
+func (p path) reached(status string) bool {
+	_, ok := p.first[status]
+	return ok
+}
+
+// before reports whether earlier was reached before later.
+func (p path) before(earlier, later string) bool {
+	i, ok := p.first[earlier]
+	j, ok2 := p.first[later]
+	return ok && ok2 && i < j
+}
+
+// responded is a Response: the Application reached Interviewing or Offer.
+func (p path) responded() bool {
+	return p.reached(store.StatusInterviewing) || p.reached(store.StatusOffer)
+}
+
+// appliedAt is the date the Application first reached Applied, in loc. An implied
+// Applied takes the date of the Status that implied it, the latest it can have been;
+// realOnly leaves those out. ok is false when it never reached Applied or the date does
+// not read.
+func (p path) appliedAt(loc *time.Location, realOnly bool) (time.Time, bool) {
+	i, ok := p.first[store.StatusApplied]
+	if !ok || (realOnly && p.steps[i].implied) {
+		return time.Time{}, false
+	}
+	return parseLocal(p.steps[i].at, loc)
+}
+
+// judged reports whether an Application that reached Applied is old enough to count
+// toward the Response rate. One with no readable Applied date counts: it is not known
+// to be new.
+func (p path) judged(now time.Time, followUpDays int) bool {
+	applied, ok := p.appliedAt(now.Location(), false)
+	return !ok || !tooNewToJudge(applied, now, followUpDays)
+}
+
+// Build builds the Stats value from Applications and "now". Malformed Applications are
+// left out of every figure. followUpDays defaults to the configured default; pass it
+// explicitly when the Owner has a setting.
 func Build(apps []store.Application, now time.Time, followUpDays ...int) StatsReport {
 	days := defaultFollowUpDays
 	if len(followUpDays) > 0 {
 		days = followUpDays[0]
 	}
-	loc := now.Location()
+	var paths []path
+	var tracked []store.Application
+	for _, a := range apps {
+		if a.Malformed == nil {
+			paths = append(paths, pathOf(a))
+			tracked = append(tracked, a)
+		}
+	}
 
-	reached := map[string]int{}
 	var report StatsReport
 	report.Funnel = make([]FunnelStep, len(FunnelStatuses))
 	for i, status := range FunnelStatuses {
 		report.Funnel[i].Status = status
 	}
-	for _, a := range apps {
-		if a.Malformed != nil {
-			continue
-		}
-		for _, status := range statusesIn(a) {
-			reached[status]++
-		}
-		for i := 1; i < len(FunnelStatuses); i++ {
-			if !everReached(a, FunnelStatuses[i]) {
+	for _, p := range paths {
+		for i, status := range FunnelStatuses {
+			if !p.reached(status) {
 				continue
 			}
-			if everReached(a, FunnelStatuses[i-1]) {
-				report.Funnel[i].Through++
+			step := &report.Funnel[i]
+			step.Count++
+			if i == 0 {
+				continue
+			}
+			if p.before(FunnelStatuses[i-1], status) {
+				step.Through++
 			} else {
-				report.Funnel[i].Skipped++
+				step.Skipped++
 			}
 		}
-	}
-	for i := range report.Funnel {
-		step := &report.Funnel[i]
-		step.Count = reached[step.Status]
-		if prev := i - 1; prev >= 0 && report.Funnel[prev].Count > 0 {
-			step.Conversion = percentOf(step.Through, report.Funnel[prev].Count)
-			step.ConversionOK = true
+		for status, n := range map[string]*int{store.StatusDismissed: &report.Dismissed, store.StatusRejected: &report.Rejected, store.StatusWithdrawn: &report.Withdrawn} {
+			if p.reached(status) {
+				*n++
+			}
 		}
-	}
-	report.Dismissed = reached[store.StatusDismissed]
-	report.Rejected = reached[store.StatusRejected]
-	report.Withdrawn = reached[store.StatusWithdrawn]
-
-	for _, a := range apps {
-		if a.Malformed != nil {
+		if !p.reached(store.StatusApplied) {
 			continue
 		}
-		applied, ok := appliedAt(a, loc)
-		if !ok {
-			continue
-		}
-		if tooNewToJudge(applied, now, days) {
+		if !p.judged(now, days) {
 			report.Response.TooNew++
 			continue
 		}
 		report.Response.Applied++
-		if everReached(a, store.StatusInterviewing) || everReached(a, store.StatusOffer) {
+		if p.responded() {
 			report.Response.Reached++
+		}
+	}
+	for i := 1; i < len(report.Funnel); i++ {
+		step, prev := &report.Funnel[i], report.Funnel[i-1]
+		if prev.Count > 0 {
+			step.Conversion = percentOf(step.Through, prev.Count)
+			step.ConversionOK = true
 		}
 	}
 	report.Response.OK = report.Response.Applied > 0
@@ -144,44 +288,9 @@ func Build(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 		report.Response.Rate = percentOf(report.Response.Reached, report.Response.Applied)
 	}
 
-	report.Weeks = weeksOf(apps, now, statsWeeks)
-	report.Tracks = tracksOf(apps, now, days)
+	report.Weeks = weeksOf(paths, now, statsWeeks)
+	report.Tracks = tracksOf(tracked, paths, now, days)
 	return report
-}
-
-// statusesIn returns the distinct Statuses a StatusLog contains, in any order.
-func statusesIn(a store.Application) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, e := range a.StatusLog {
-		if !seen[e.Status] {
-			seen[e.Status] = true
-			out = append(out, e.Status)
-		}
-	}
-	return out
-}
-
-func everReached(a store.Application, status string) bool {
-	for _, e := range a.StatusLog {
-		if e.Status == status {
-			return true
-		}
-	}
-	return false
-}
-
-// appliedAt is the first Applied entry's date in loc, or false when the Application
-// never reached Applied.
-func appliedAt(a store.Application, loc *time.Location) (time.Time, bool) {
-	for _, e := range a.StatusLog {
-		if e.Status == store.StatusApplied {
-			if t, ok := parseLocal(e.At, loc); ok {
-				return t, true
-			}
-		}
-	}
-	return time.Time{}, false
 }
 
 // parseLocal reads a date-only or RFC3339 timestamp in loc. The zone comes from the
@@ -219,9 +328,24 @@ func weekStart(t time.Time, loc *time.Location) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
 }
 
+// AppliedWeeks is the last n Monday-start weeks, current week last, each with how many
+// Applications were applied that week (local time, by the logged Applied date; an
+// undone Applied does not count). Malformed Applications are left out. Stats draws 12;
+// the tab bar draws the same series over fewer weeks.
+func AppliedWeeks(apps []store.Application, now time.Time, n int) []Week {
+	var paths []path
+	for _, a := range apps {
+		if a.Malformed == nil {
+			paths = append(paths, pathOf(a))
+		}
+	}
+	return weeksOf(paths, now, n)
+}
+
 // weeksOf returns the last n Monday-start weeks, current week last, with Applied
-// counts. An Application outside the window is ignored.
-func weeksOf(apps []store.Application, now time.Time, n int) []Week {
+// counts. An Applied outside the window, or only implied by a later Status (it has no
+// date of its own), is ignored.
+func weeksOf(paths []path, now time.Time, n int) []Week {
 	loc := now.Location()
 	current := weekStart(now, loc)
 	out := make([]Week, n)
@@ -231,11 +355,8 @@ func weeksOf(apps []store.Application, now time.Time, n int) []Week {
 		out[i] = Week{Start: start}
 		index[start] = i
 	}
-	for _, a := range apps {
-		if a.Malformed != nil {
-			continue
-		}
-		applied, ok := appliedAt(a, loc)
+	for _, p := range paths {
+		applied, ok := p.appliedAt(loc, true)
 		if !ok {
 			continue
 		}
@@ -247,68 +368,34 @@ func weeksOf(apps []store.Application, now time.Time, n int) []Week {
 }
 
 // tracksOf returns one row per track in first-appearance order, with eligible
-// Applied and Response counts.
-func tracksOf(apps []store.Application, now time.Time, followUpDays int) []TrackStats {
-	loc := now.Location()
-	var order []string
-	seen := map[string]bool{}
-	for _, a := range apps {
-		if a.Malformed == nil && !seen[a.Track] {
-			seen[a.Track] = true
-			order = append(order, a.Track)
+// Applied and Response counts. apps and paths are the same well-formed Applications.
+func tracksOf(apps []store.Application, paths []path, now time.Time, followUpDays int) []TrackStats {
+	var out []TrackStats
+	index := map[string]int{}
+	for i, a := range apps {
+		at, ok := index[a.Track]
+		if !ok {
+			at = len(out)
+			index[a.Track] = at
+			out = append(out, TrackStats{Track: a.Track})
+		}
+		p, row := paths[i], &out[at]
+		if !p.reached(store.StatusApplied) {
+			continue
+		}
+		row.Applied++
+		if !p.judged(now, followUpDays) {
+			continue
+		}
+		row.Judged++
+		if p.responded() {
+			row.Responses++
 		}
 	}
-	out := make([]TrackStats, len(order))
-	for i, track := range order {
-		out[i].Track = track
-		for _, a := range apps {
-			if a.Malformed != nil || a.Track != track {
-				continue
-			}
-			applied, ok := appliedAt(a, loc)
-			if !ok {
-				continue
-			}
-			out[i].Applied++
-			if tooNewToJudge(applied, now, followUpDays) {
-				continue
-			}
-			out[i].Judged++
-			if everReached(a, store.StatusInterviewing) || everReached(a, store.StatusOffer) {
-				out[i].Responses++
-			}
-		}
+	for i := range out {
 		out[i].OK = out[i].Judged > 0
 		if out[i].OK {
 			out[i].Rate = percentOf(out[i].Responses, out[i].Judged)
-		}
-	}
-	return out
-}
-
-// WeeklyActivity counts Status log entries per week over the last n weeks, oldest first,
-// the last week ending at now. A week is seven local days; an entry counts on its local
-// date. Malformed Applications, entries older than n weeks and future entries are
-// ignored. It reads only the scanned Applications.
-func WeeklyActivity(apps []store.Application, now time.Time, n int) []int {
-	loc := now.Location()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
-	out := make([]int, n)
-	for _, a := range apps {
-		if a.Malformed != nil {
-			continue
-		}
-		for _, e := range a.StatusLog {
-			t, ok := parseLocal(e.At, loc)
-			if !ok {
-				continue
-			}
-			d := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
-			back := int(math.Round(today.Sub(d).Hours() / hoursPerDay))
-			if back < 0 || back >= n*daysPerWeek {
-				continue
-			}
-			out[n-1-back/daysPerWeek]++
 		}
 	}
 	return out
