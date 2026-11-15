@@ -17,6 +17,7 @@ import (
 // an exit status.
 type fakeHarness struct {
 	calls [][]string
+	dirs  []string
 	write func()
 	err   error
 }
@@ -24,6 +25,7 @@ type fakeHarness struct {
 func (f *fakeHarness) runner(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
 	return func() tea.Msg {
 		f.calls = append(f.calls, append([]string(nil), c.Args...))
+		f.dirs = append(f.dirs, c.Dir)
 		if f.write != nil {
 			f.write()
 		}
@@ -88,6 +90,9 @@ func TestHandoffAssessFitWritesFitAndRescans(t *testing.T) {
 	want := `claude "/assess-fit '` + folder + `'"`
 	if len(f.calls) != 1 || f.calls[0][0] != "/bin/sh" || f.calls[0][1] != "-c" || f.calls[0][2] != want {
 		t.Fatalf("harness command = %v, want /bin/sh -c %q", f.calls, want)
+	}
+	if f.dirs[0] != root {
+		t.Fatalf("Harness started in %q, want the Workspace %q", f.dirs[0], root)
 	}
 }
 

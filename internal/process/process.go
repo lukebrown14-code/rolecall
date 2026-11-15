@@ -4,6 +4,7 @@ package process
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -22,7 +23,14 @@ type CapturedRunner func(*exec.Cmd, func(CapturedResult) tea.Msg) tea.Cmd
 
 func Command(name string, args ...string) *exec.Cmd { return exec.Command(name, args...) }
 
-func RunShell(command string) error { return Command("/bin/sh", "-c", command).Run() }
+// RunShell runs command with /bin/sh in dir, attached to the terminal. An empty dir
+// keeps the current directory.
+func RunShell(dir, command string) error {
+	c := Command("/bin/sh", "-c", command)
+	c.Dir = dir
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return c.Run()
+}
 
 func Exec(c *exec.Cmd, done tea.ExecCallback) tea.Cmd { return tea.ExecProcess(c, done) }
 
