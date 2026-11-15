@@ -3,8 +3,12 @@ package ui
 import (
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // An empty screen says what is missing in one muted line and the next key to press, as a
@@ -77,6 +81,131 @@ func (m model) emptyViewLine(table string) (string, []emptyHint) {
 // emptySearchLine is the line for a search with no matches.
 func (m model) emptySearchLine() (string, []emptyHint) {
 	return "No Applications match \"" + m.text + "\"", m.availableHints(emptyHint{"esc", "clear search"})
+}
+
+// The first-run welcome shows on a table screen of a Workspace with no Applications at
+// all. It offers the first Lead, then a short setup checklist: Editor, Harness, Profile,
+// each with the key that goes there, and only the steps not yet done.
+
+// welcoming reports that the welcome is on screen.
+func (m model) welcoming() bool { return m.hasTables() && m.detail == nil && len(m.apps) == 0 }
+
+// setupStep is one item of the welcome's checklist.
+type setupStep struct {
+	key, words string
+	done       func(model) bool
+}
+
+// setupSteps is the checklist in order. Editor and Harness keys open Settings › This
+// machine on their own row; 5 is the Profile screen.
+var setupSteps = []setupStep{
+	{"e", "pick an Editor", editorChosen},
+	{"h", "connect a Harness", func(m model) bool { return m.harness != "" }},
+	{"5", "create your Profile: run create-profile in your Harness", func(m model) bool { return m.profileStarted }},
+}
+
+// editorChosen reports an Editor the Owner set (config, $VISUAL or $EDITOR), not the vi
+// fallback.
+func editorChosen(m model) bool {
+	return m.editor != "" || (m.editorSource != "" && m.editorSource != config.SourceDefault)
+}
+
+// profileBeyondContact reports a Profile with any section besides Contact: init writes
+// only Contact, and create-profile adds the rest.
+func profileBeyondContact(p store.Profile) bool {
+	for _, s := range p.Sections {
+		if s.Heading != "Contact" && strings.TrimSpace(s.Body) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// pendingSetup is the checklist steps not yet done.
+func (m model) pendingSetup() []setupStep {
+	var out []setupStep
+	for _, s := range setupSteps {
+		if !s.done(m) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// setupPending reports whether the welcome lists the step with key.
+func (m model) setupPending(key string) bool {
+	for _, s := range m.pendingSetup() {
+		if s.key == key {
+			return true
+		}
+	}
+	return false
+}
+
+// welcomeActions are the welcome's own keys: e and h open Settings on the Editor and
+// Harness rows. They are enabled only while the welcome lists them, so e still edits a
+// row everywhere else.
+var welcomeActions = []listAction{
+	welcomeAction("e", "pick an Editor", settings.LabelEditor),
+	welcomeAction("h", "connect a Harness", settings.LabelHarness),
+}
+
+// The welcome's keys join the one action table, so the key line, the help and the
+// dispatcher all see them. They are added in init, as screenDefs is, because their run
+// reaches the Settings screen, which reads the table back.
+func init() { listActions = append(listActions, welcomeActions...) }
+
+func welcomeAction(key, desc, label string) listAction {
+	on := func(m model) bool { return m.welcoming() && m.setupPending(key) }
+	return listAction{
+		keys: []string{key}, keyLabel: key, desc: text(desc),
+		group: groupAction, prio: fixed(prioMain),
+		listed: on, enabled: on, early: true,
+		run: func(m *model, _ string) tea.Cmd {
+			*m = m.openSettingsAt(label)
+			return nil
+		},
+	}
+}
+
+// openSettingsAt opens Settings › This machine with the row labelled label selected.
+func (m model) openSettingsAt(label string) model {
+	m = m.openSettings()
+	if m.settings == nil {
+		return m
+	}
+	st := *m.settings
+	st.Group, st.Header = settings.GroupMachine, false
+	m.settings = &st
+	for i, r := range m.settingsRows(settings.GroupMachine) {
+		if r.Label == label {
+			st.Row = i
+		}
+	}
+	return m
+}
+
+// welcome is the first-run screen: the wordmark and what is missing, the first Lead, the
+// setup steps still to do, and the help key, in one key column.
+func (m model) welcome(p pal) string {
+	step := func(k, desc string) string {
+		return p.Key().Render(padRight(k, gutter+1)) + p.Text(p.Fg).Render(desc)
+	}
+	lines := []string{
+		p.Text(p.Fg).Bold(true).Render(wordmark+" rolecall") + p.Text(p.Dim).Render(" · no Applications yet"),
+		"",
+	}
+	if m.keyAvailable("a") {
+		lines = append(lines, step("a", "add your first Lead"))
+	}
+	if pending := m.pendingSetup(); len(pending) > 0 {
+		lines = append(lines, "", p.Text(p.Dim).Render("Set up"))
+		for _, s := range pending {
+			lines = append(lines, step(s.key, s.words))
+		}
+	}
+	lines = append(lines, "", step("?", "see every key"))
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
 
 // emptyLines lays a message and its hints out as muted text in rows no wider than w,

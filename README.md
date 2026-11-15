@@ -52,10 +52,17 @@ rolecall          # opens the app
 ```
 
 `rolecall init` asks nothing: it creates the Workspace (a private folder with its own local git
-repository) and remembers where it is. The first time the app opens it asks for your Contact
-(Name and Email are required; the rest is optional). Press Esc to skip, and it asks again next
-time. Add Tracks and a Search area later under Settings (`6`), and create your Profile with your
-Harness's `create-profile` skill. To check local dependencies, run `rolecall doctor`.
+repository) and remembers where it is in `config.toml` (`$XDG_CONFIG_HOME/rolecall/config.toml`
+when `XDG_CONFIG_HOME` is set, otherwise `~/.config/rolecall/config.toml`). Then:
+
+1. Run `rolecall`. The first time it opens it asks for your Contact (Name and Email are
+   required; the rest is optional). Press Esc to skip, and it asks again next time.
+2. [Connect your Harness](#connect-your-harness).
+3. In your Harness, run the `create-profile` skill to build your Profile.
+
+Until you add a Lead, the app's welcome lists the setup steps still to do, each with the key
+that goes there. Add Tracks and a Search area later under Settings (`6`). To check local
+dependencies, run `rolecall doctor`; `rolecall --help` lists every command.
 
 To try the interface with the fictional example Workspace from a source checkout, run:
 

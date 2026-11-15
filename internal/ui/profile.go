@@ -134,6 +134,7 @@ func (m model) loadProfile() model {
 		m.err = err
 		return m
 	}
+	m.profileStarted = profileBeyondContact(p)
 	st := &profileState{profile: p, focus: profileList, body: viewport.New()}
 	if m.profile != nil {
 		st.selected, st.focus = m.profile.selectedIndex(p), m.profile.focus

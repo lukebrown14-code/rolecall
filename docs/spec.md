@@ -318,8 +318,11 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   honestly see of a Harness working in another terminal; a Handoff run hands the terminal
   over, so nothing is drawn during it.
 - **First run:** a Workspace with no Applications shows a centred welcome instead of
-  empty panes: `▞ rolecall · no Applications yet`, then `a` add your first Lead, `6` pick
-  an Editor, `?` see every key. The wordmark's `▞` (ASCII `#`) is no Status's glyph.
+  empty panes: `▞ rolecall · no Applications yet`, then `a` add your first Lead, a short
+  "Set up" checklist of the steps not yet done (`e` pick an Editor and `h` connect a
+  Harness, each opening Settings › This machine on that row; `5` create your Profile with
+  the Harness's create-profile skill), then `?` see every key. Search and sort keys are not
+  offered on it. The wordmark's `▞` (ASCII `#`) is no Status's glyph.
 - **Search:** while a text filter is on, a chip (`/pl ×`) shows on every screen, beside the detail title too;
   `Esc` clears it. While typing, the search input is on the status row; after `Enter` the scope
   line shows the chip and the count.

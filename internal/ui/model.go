@@ -68,6 +68,7 @@ type model struct {
 	building              *buildState
 	spinner               spinner.Model
 	profile               *profileState
+	profileStarted        bool // the Profile has more than Contact, so the welcome drops its Profile step
 	settings              *settingsState
 	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
 	writing               map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
@@ -100,6 +101,9 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		m.apps = a
 		m.tracks, e = s.Tracks()
 		m.legacy = s.LegacyFiles()
+		if p, err := s.Profile(); err == nil {
+			m.profileStarted = profileBeyondContact(p)
+		}
 		if e != nil && invalidWorkspaceFile(s) {
 			// An invalid workspace.json does not stop startup: the app opens with no Track
 			// filter, and Settings shows the path and the parse error with e to fix it.
