@@ -58,8 +58,15 @@ func editorSource(configured string) string {
 	return SourceDefault
 }
 
-// Path is where the Owner's settings file lives under home.
-func Path(home string) string { return filepath.Join(home, ".config/rolecall/config.toml") }
+// Path is where the Owner's settings file lives: rolecall/config.toml under
+// $XDG_CONFIG_HOME when that is an absolute path, as the XDG spec asks, else under
+// home/.config.
+func Path(home string) string {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(dir) {
+		return filepath.Join(dir, "rolecall", "config.toml")
+	}
+	return filepath.Join(home, ".config", "rolecall", "config.toml")
+}
 
 // Ensure creates an empty config file (and its directory) at path if it is missing.
 func Ensure(path string) error {
