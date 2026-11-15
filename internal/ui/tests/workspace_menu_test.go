@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -159,5 +160,76 @@ func TestCapitalMDoesNothing(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36)
 	if driveModel(t, m, "M").View().Content != m.View().Content {
 		t.Fatal("M changed the screen")
+	}
+}
+
+// menuLabels is the item labels and keys of the menu open in view.
+func menuLabels(view string) [][2]string {
+	var out [][2]string
+	for _, l := range strings.Split(chipped(view), "\n") {
+		parts := strings.Split(l, "│")
+		if len(parts) < 3 {
+			continue
+		}
+		f := strings.Fields(strings.TrimLeft(strings.TrimSpace(parts[1]), "▌▸ "))
+		if len(f) < 2 {
+			continue
+		}
+		out = append(out, [2]string{strings.Join(f[:len(f)-1], " "), f[len(f)-1]})
+	}
+	return out
+}
+
+// TestEveryMenuItemRunsWhatItsLabelSaysOnEveryScreen opens the menu on every screen,
+// the detail view and each Settings group, and runs each item: its label must name what
+// it did there, whatever its letter means on that screen (a adds a Track in Settings ›
+// Tracking, so Add Application must not be offered there).
+func TestEveryMenuItemRunsWhatItsLabelSaysOnEveryScreen(t *testing.T) {
+	places := [][]string{{"1"}, {"1", "enter"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"6", "right"},
+		{"6", "right", "right"}, {"6", "right", "right", "right"}}
+	screens := []string{"Leads", "Drafts", "Applied", "Stats", "Profile", "Settings"}
+	root := fixtureCopy(t, nil)
+	for _, place := range places {
+		t.Run(strings.Join(place, " "), func(t *testing.T) {
+			m := driveModel(t, driveStart(t, root, heldNow, 120, 36), place...)
+			before := chipped(m.View().Content)
+			items := menuLabels(driveModel(t, m, " ").View().Content)
+			if len(items) < len(screens) {
+				t.Fatalf("menu lists %q", items)
+			}
+			for i, it := range items {
+				label, key := it[0], it[1]
+				keys := []string{" "}
+				for range i {
+					keys = append(keys, "down")
+				}
+				got := chipped(driveModel(t, m, append(keys, "enter")...).View().Content)
+				if direct := chipped(driveModel(t, m, key).View().Content); got != direct {
+					t.Fatalf("%q ran something other than its key %q", label, key)
+				}
+				var ok bool
+				switch label {
+				case "Add Application":
+					ok = strings.Contains(got, "Add a Lead")
+				case "Command palette":
+					ok = strings.Contains(got, "╭─ : ")
+				case "Help":
+					ok = strings.Contains(got, "Keys ·")
+				case "Search", "Switch view", "Track filter":
+					// They change the list in place: no pop-up opens, and the screen changes.
+					ok = !strings.Contains(got, "╭") && got != before
+				case "Rescan":
+					ok = !strings.Contains(got, "╭")
+				default:
+					if !slices.Contains(screens, label) {
+						t.Fatalf("unexpected menu item %q", label)
+					}
+					ok = strings.Contains(breadcrumbLine(got), label)
+				}
+				if !ok {
+					t.Fatalf("%q (%s) did not do what it says:\n%s", label, key, got)
+				}
+			}
+		})
 	}
 }

@@ -26,22 +26,58 @@ const (
 )
 
 // menuItem is one row of the Workspace menu: a label and the direct key that does the
-// same thing. desc, when set, is the registry description the key must have here: r is
-// rescan on most screens but renames a Track in Settings.
-type menuItem struct{ label, key, desc string }
+// same thing.
+//
+// runs reports whether the key runs this item's command on the current screen. A letter
+// means different commands on different screens (a adds a Track in Settings › Tracking,
+// r renames one), so an item is matched to its command, never to its letter alone. A
+// screen digit has no runs: every screen accepts it.
+type menuItem struct {
+	label, key string
+	runs       func(model) bool
+}
 
-// menuActions are the registry keys the menu offers after the screens, with the menu's
-// own wording for each, sentence case. A key joins the menu only when the keymap registry
-// lists it for the screen the menu was opened from, so the menu cannot offer a key that
-// does nothing there or drift from the keys the footer, Help and the palette show.
+// addsApplication reports whether a adds an Application here: an Application list, or
+// Stats.
+func addsApplication(m model) bool {
+	return m.detail == nil && (m.hasTables() || m.screen == screenIndex(screenStats))
+}
+
+// searchesApplications reports whether / opens the search here: a list with rows in it.
+func searchesApplications(m model) bool {
+	return m.hasTables() && m.detail == nil && !m.welcoming()
+}
+
+// switchesView reports whether s cycles the view here: a list whose screen has several.
+func switchesView(m model) bool {
+	return m.hasTables() && m.detail == nil && len(m.views()) > 1
+}
+
+// registered reports whether the key the registry lists first for key here, the one the
+// key runs, has this description: r rescan, : commands and ? help are told apart from a
+// screen's own use of the letter by their wording.
+func registered(key, desc string) func(model) bool {
+	return func(m model) bool {
+		for _, k := range m.screenKeys() {
+			if k.Help().Key == key {
+				return k.Help().Desc == desc
+			}
+		}
+		return false
+	}
+}
+
+// menuActions are the commands the menu offers after the screens, with the menu's own
+// wording for each, sentence case. An item joins the menu only where its key runs that
+// command, so the menu cannot offer a key that does nothing there, or something else.
 var menuActions = []menuItem{
-	{"Add Application", "a", ""},
-	{"Search", "/", ""},
-	{"Switch view", "s", "view"},
-	{"Track filter", "t", ""},
-	{"Rescan", "r", "rescan"},
-	{"Command palette", ":", ""},
-	{"Help", "?", ""},
+	{"Add Application", "a", addsApplication},
+	{"Search", "/", searchesApplications},
+	{"Switch view", "s", switchesView},
+	{"Track filter", "t", model.trackFilterApplies},
+	{"Rescan", "r", registered("r", "rescan")},
+	{"Command palette", ":", registered(":", "commands")},
+	{"Help", "?", registered("?", "help")},
 }
 
 // workspaceMenu is the menu `space` opens: the screens and the commands that cut across
@@ -56,16 +92,10 @@ type workspaceMenu struct {
 func (m model) openMenu() *workspaceMenu {
 	items := make([]menuItem, 0, len(screenDefs)+len(menuActions))
 	for i, d := range screenDefs {
-		items = append(items, menuItem{d.name, strconv.Itoa(i + 1), ""})
-	}
-	listed := map[string]string{}
-	for _, k := range m.screenKeys() {
-		if _, seen := listed[k.Help().Key]; !seen {
-			listed[k.Help().Key] = k.Help().Desc
-		}
+		items = append(items, menuItem{label: d.name, key: strconv.Itoa(i + 1)})
 	}
 	for _, it := range menuActions {
-		if desc, ok := listed[it.key]; ok && (it.desc == "" || it.desc == desc) {
+		if it.runs(m) {
 			items = append(items, it)
 		}
 	}
