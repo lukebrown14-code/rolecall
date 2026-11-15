@@ -98,10 +98,14 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	a, e := s.Scan()
 	if e == nil {
 		m.apps = a
-		// An invalid workspace.json stops startup with a sanitised error. Once running,
-		// Settings shows a file that breaks later and offers e.
 		m.tracks, e = s.Tracks()
 		m.legacy = s.LegacyFiles()
+		if e != nil && invalidWorkspaceFile(s) {
+			// An invalid workspace.json does not stop startup: the app opens with no Track
+			// filter, and Settings shows the path and the parse error with e to fix it.
+			// Only a schema this build cannot use still stops it.
+			m.tracks, m.err, e = nil, fmt.Errorf("%w · 6 Settings shows why, e to fix it", e), nil
+		}
 	}
 	if e != nil {
 		m.watch.Close()
@@ -109,6 +113,14 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 	}
 	return m, nil
 }
+
+// invalidWorkspaceFile reports a workspace.json that is not valid JSON or has a key of the
+// wrong shape, as opposed to one from a schema this build cannot read.
+func invalidWorkspaceFile(s *store.Store) bool {
+	ws, err := s.Settings()
+	return err == nil && ws.Err != nil && ws.Schema == 1
+}
+
 func (m model) Init() tea.Cmd {
 	if m.watch == nil {
 		return nil
