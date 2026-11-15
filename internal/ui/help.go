@@ -438,7 +438,7 @@ func (m model) helpBox(p pal) string {
 	body = strings.Join(lines[page*size:min(len(lines), (page+1)*size)], "\n")
 	title := m.helpTitle()
 	if pages > 1 {
-		title += fmt.Sprintf(" · %d/%d", page+1, pages)
+		title += fmt.Sprintf(" · page %d of %d", page+1, pages)
 	}
 	return popup(p, title, false, popLarge, m.viewWidth(), body, p.Keys(helpModeKeys(pages)))
 }

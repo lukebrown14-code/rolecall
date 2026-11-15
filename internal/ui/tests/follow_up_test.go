@@ -48,7 +48,7 @@ func rowOf(view, name string) string {
 	return ""
 }
 
-var heatCell = regexp.MustCompile(`(?:^|\s)(\S) \d+(?:d|w|mo)\s+Applied`)
+var heatCell = regexp.MustCompile(`(?:^|\s)(\S) \d+(?:d|w|mo|y)\s+~?\d+(?:d|w|mo|y)\s`)
 
 // heatOf is the glyph in a row's Follow-up due cell, or "" when it has none.
 func heatOf(row string) string {
@@ -106,7 +106,7 @@ func TestLongOverdueFlagIsBold(t *testing.T) {
 func TestDetailShowsFollowUpLine(t *testing.T) {
 	m := driveStart(t, heatWorkspace(t), fixtureClock, 120, 40, ui.WithHarness("x {skill} {dir}"))
 	v := plain(driveModel(t, m, "3", "/Highco", "enter", "enter"))
-	if !strings.Contains(v, "FOLLOW-UP  due 10 days ago") || !strings.Contains(v, "F draft follow-up") {
+	if !strings.Contains(v, "FOLLOW-UP  due · no change in 3w") || !strings.Contains(v, "F draft follow-up") {
 		t.Fatalf("no follow-up line:\n%s", v)
 	}
 }

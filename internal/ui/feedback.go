@@ -110,42 +110,48 @@ func hintPairs(hint string) [][2]string {
 	return out
 }
 
-// feedbackLine is the status row when something just happened: a toast (successes clear
-// on the next key), an error (stays until esc), or a build in flight (a spinner until it
-// finishes). The message is on the left and is cut first; the keys are on the right and
-// are never cut. It never replaces the bottom rule.
-func (m model) feedbackLine(p pal, w int) string {
-	left, hint := m.feedbackMsg(p)
-	if left == "" {
-		return ""
-	}
-	bg := lipgloss.NewStyle().Background(p.Panel)
-	var keys []string
-	for _, kv := range hintPairs(hint) {
-		keys = append(keys, bg.Foreground(p.Fg).Bold(true).Render(kv[0])+bg.Foreground(p.Dim).Render(" "+kv[1]))
-	}
-	right := ""
-	if len(keys) > 0 {
-		right = strings.Join(keys, bg.Foreground(p.Dim).Render("  ")) + bg.Render(" ")
-	}
-	left = xansi.Truncate(left, max(0, w-xansi.StringWidth(right)-gutter), "…")
-	n := max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))
-	gap := bg.Render(strings.Repeat(" ", n))
-	return left + gap + right
-}
-
-// feedbackParts is the feedback as the table screens' footer shows it, beside the
-// breadcrumb: the message as a chip, then its keys.
-func (m model) feedbackParts(p pal) (msg, keys string) {
+// feedbackParts is what just happened as the footer shows it, beside the breadcrumb or in
+// its place: the message as a chip, then its keys. A toast (successes clear on the next
+// key), an error (stays until esc), or a build in flight (a spinner until it finishes).
+// short is the keys without "esc hide" for a success, which clears on the next key anyway;
+// an error keeps it, as esc is the only way to clear it.
+func (m model) feedbackParts(p pal) (msg, keys, short string) {
 	msg, hint := m.feedbackMsg(p)
 	if msg == "" {
-		return "", ""
+		return "", "", ""
 	}
-	var ks []string
+	var ks, shortKs []string
 	for _, kv := range hintPairs(hint) {
-		ks = append(ks, p.Key().Render(kv[0])+p.Text(p.Dim).Render(" "+kv[1]))
+		k := p.Key().Render(kv[0]) + p.Text(p.Dim).Render(" "+kv[1])
+		ks = append(ks, k)
+		if kv[0] != "esc" || m.err != nil {
+			shortKs = append(shortKs, k)
+		}
 	}
-	return msg + lipgloss.NewStyle().Background(p.Panel).Render(" "), strings.Join(ks, "  ")
+	return msg + lipgloss.NewStyle().Background(p.Panel).Render(" "), strings.Join(ks, keyGap), strings.Join(shortKs, keyGap)
+}
+
+// feedbackRight is the feedback fitted to room cells: the message whole with every key,
+// then whole without esc hide; with cut, failing those, the message cut (never the keys,
+// which recover from it). ok is false when it does not fit whole and cut is not set.
+func feedbackRight(msg, keys, short string, room int, cut bool) (string, bool) {
+	for _, k := range []string{keys, short} {
+		need := xansi.StringWidth(msg)
+		if k != "" {
+			need += len(keyGap) + xansi.StringWidth(k)
+		}
+		if need <= room {
+			return joinNonEmpty(keyGap, msg, k), true
+		}
+	}
+	if !cut {
+		return "", false
+	}
+	avail := room
+	if short != "" {
+		avail -= len(keyGap) + xansi.StringWidth(short)
+	}
+	return joinNonEmpty(keyGap, xansi.Truncate(msg, max(1, avail), "…"), short), true
 }
 
 // feedbackMsg is the feedback's message on the panel colour, with its glyph, and the keys

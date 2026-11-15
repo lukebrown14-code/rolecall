@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -182,28 +181,28 @@ const (
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
-	docColumn     = 14        // the Docs tab's name and state columns
-	stripLines    = 2         // the strip that stands in for the card: timeline track, then documents
-	cardPadding   = inset + 1 // the card's padding: the text column on the left, one cell on the right
+	docColumn     = 14 // the Docs tab's name and state columns
+	stripLines    = 2  // the strip that stands in for the card: timeline track, then documents
 )
 
-// cardShown reports whether the detail view has room for the left card: the wide size
-// class. Below it the card folds into a strip under the title.
+// cardShown reports whether the detail view has room for the card: the wide size class.
+// Below it the card folds into a strip under the title.
 func (m model) cardShown() bool { return m.layout().wide() }
 
-// cardWidth is the left card's column, divider excluded.
-func (m model) cardWidth() int { return m.layout().cardW }
+// cardWidth is the card's column, divider excluded: the preview's, so opening the detail
+// leaves the card where the preview was and only the left side changes.
+func (m model) cardWidth() int { return m.layout().detailW }
 
-// detailContextLines is the lines between the tab bar and the body: the title row, then
-// the facts line beside the card or the strip in its place.
+// detailContextLines is the lines between the tab bar and the body: the title row, which
+// stands where a list's filter row does, then without the card the strip in its place.
 func (m model) detailContextLines() int {
 	if m.cardShown() {
-		return 2 //nolint:mnd // title and facts
+		return tableContext
 	}
 	return 1 + stripLines
 }
 
-// paneWidth is the right-hand pane: everything beside the card.
+// paneWidth is the tabs' pane: everything beside the card, the list's width.
 func (m model) paneWidth() int {
 	if m.cardShown() {
 		return m.viewWidth() - m.cardWidth() - 1
@@ -221,7 +220,13 @@ func (m model) bodyHeight() int {
 }
 
 // bodyWidth is the wrap width of tab content: capped for comfortable reading.
-func (m model) bodyWidth() int { return max(minWrapWidth, min(maxReadWidth, m.paneWidth()-paneMargin)) }
+func (m model) bodyWidth() int {
+	if m.sheetShown() {
+		// The sheet's text runs from the inset to where the list rows' Fit ends.
+		return max(minWrapWidth, min(maxReadWidth, m.viewWidth()-inset-rowPad-rightMargin))
+	}
+	return max(minWrapWidth, min(maxReadWidth, m.paneWidth()-paneMargin))
+}
 
 // syncDetail re-reads the current tab's file, keeping the scroll position, so the
 // view follows changes to the file.
@@ -248,7 +253,7 @@ func (m model) syncDetail() model {
 	d.body.SetHeight(m.bodyHeight())
 	if d.tab == tabOverview && a.Malformed == nil {
 		offset := d.body.YOffset()
-		d.body.SetContent(strings.Join(m.fieldBlock(m.pal(), a, m.bodyWidth()), "\n"))
+		d.body.SetContent(strings.Join(m.overviewRows(m.pal(), a, m.bodyWidth()), "\n"))
 		d.body.SetYOffset(offset)
 	}
 	if name, ok := markdownTabFiles[d.tab]; ok && a.Malformed == nil {
@@ -509,7 +514,7 @@ func (m model) detailView(p pal) string {
 			// timeline track without it.
 			exact := ""
 			if m.cardShown() {
-				exact = entryDate(appliedDate(a)) + " · "
+				exact = fullEntryDate(appliedDate(a)) + " · "
 			}
 			rel := m.agoEntry(appliedDate(a))
 			if _, days, _ := daysFrom(appliedDate(a).At, m.now()); exact != "" && -days >= monthYearAfter {
@@ -522,14 +527,9 @@ func (m model) detailView(p pal) string {
 	when = m.withChip(p, when)
 	title = spread(xansi.Truncate(title, w-xansi.StringWidth(when)-ellipsis, "…"), when, w-rightMargin)
 
-	// Beside the card, the facts line: Status · Track · close date. Without the card, the
-	// strip stands in for it.
-	closes := a.Closes
-	if closes == "" {
-		closes = "—"
-	}
-	facts := pad + p.StatusChip(a.Status) + p.Text(p.Dim).Render(" · "+a.Track+" · closes "+closes)
-	ctx := []string{title, facts}
+	// The card beside the tabs says the Status, Track and dates, as the preview did; without
+	// the card, the strip stands in for it.
+	ctx := []string{title}
 	if !m.cardShown() {
 		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)
 	}
@@ -547,10 +547,11 @@ func (m model) detailView(p pal) string {
 		for i, l := range content {
 			content[i] = " " + l
 		}
-		// Without the card, the next step takes the line between the tabs and the text,
-		// except on Overview, whose rows already hold it.
+		// Without the card, the next step takes the line between the tabs and the text on
+		// every tab, so it stays in view however short the terminal; Overview leaves it
+		// out of its rows (overviewRows).
 		gap := ""
-		if !m.cardShown() && m.detail.tab != tabOverview {
+		if !m.cardShown() {
 			gap = " " + m.nextLine(p, a, paneW-gutter-1-rightMargin, false)
 		}
 		pane = m.detailTabsRow(p, a, paneW-gutter) + "\n" + gap + "\n" + strings.Join(content, "\n")
@@ -558,12 +559,14 @@ func (m model) detailView(p pal) string {
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
 	if m.cardShown() {
+		// The card stands where the preview stood, at its width, so opening the detail
+		// moves nothing on the right: the list on the left gives way to the tabs.
 		cardW := m.cardWidth()
-		card := lipgloss.NewStyle().Width(cardW).Height(h).MaxHeight(h).Render(m.detailCard(p, a))
+		card := lipgloss.NewStyle().Width(cardW).Height(h).MaxHeight(h).Render(m.detailCard(p, a, h))
 		// The tab pane scrolls and takes the keys, so its rule is the accent.
-		body, split, focus = lipgloss.JoinHorizontal(lipgloss.Top, card, p.Divider(h), pane), cardW, focusRight
+		body, split, focus = lipgloss.JoinHorizontal(lipgloss.Top, pane, p.Divider(h), card), paneW, focusLeft
 	}
-	return m.frame(p, ctx, body, split, focus, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, ctx, body, split, focus, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // pipeline is the forward run of Statuses a timeline track looks ahead along.
@@ -627,21 +630,14 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 // trackStops is a timeline track's stops: earlier Statuses without and with their dates,
 // the current one, and the Statuses still ahead.
 func (m model) trackStops(p pal, a store.Application) (past, pastDated []string, current string, ahead []string) {
-	date := func(e store.StatusEntry) string {
-		if m.futureDate(&e) {
-			return p.Text(p.Warn).Render(" " + futureFlag)
-		}
-		t, err := time.Parse("2006-01-02", strings.Split(e.At, "T")[0])
-		if err != nil {
-			return ""
-		}
-		d := shortDate(t, m.now())
-		if e.Approx {
-			d = "~" + d
-		}
-		return p.Text(p.Dim).Render(" " + d)
-	}
 	log := effectiveLog(a) // an undone move leaves no stop
+	years := m.spansYears(log)
+	date := func(e store.StatusEntry) string {
+		if d := m.logDate(p, e, years); d != "" {
+			return " " + d
+		}
+		return ""
+	}
 	for i, e := range log {
 		if i == len(log)-1 {
 			current = p.StatusMark(e.Status) + " " + p.Text(p.StatusColor(e.Status)).Bold(true).Render(e.Status) + date(e)
@@ -737,6 +733,14 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 	}
 	var lines []string
 	group := ""
+	// The state column is as wide as its longest state and a gutter, so a long one ("not
+	// needed · Resume only") never runs into the file name after it.
+	stateW := docColumn
+	for _, e := range docEntries(a) {
+		if s, _ := e.displayStatus(a); xansi.StringWidth(s)+gutter > stateW {
+			stateW = xansi.StringWidth(s) + gutter
+		}
+	}
 	for i, e := range docEntries(a) {
 		if g := e.group(); g != group {
 			if group != "" {
@@ -754,7 +758,7 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		name := e.title()
 		file := ""
 		if e.markdown() {
-			name = padRight(name, docColumn) + padRight(status, docColumn)
+			name = padRight(name, docColumn) + padRight(status, stateW)
 			file = e.name
 		}
 		row := "  " + mark + p.Text(nameC).Render(name) + p.Text(p.Faint).Render(file)
@@ -767,16 +771,12 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 	return strings.Join(lines, "\n")
 }
 
-// detailCard is the left column: status and Fit, documents, timeline, link.
-func (m model) detailCard(p pal, a store.Application) string {
+// detailCard is the column beside the tabs: the preview as it stood beside the list,
+// with the link under it, h lines tall.
+func (m model) detailCard(p pal, a store.Application, h int) string {
 	if a.Malformed != nil {
 		return ""
 	}
-	var b strings.Builder
-	inner := m.cardWidth() - cardPadding
-	b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n") + "\n")
-	if a.URL != "" {
-		b.WriteString("\n" + p.Heading("Link") + "\n" + p.Text(p.Info).Render(xansi.Truncate(a.URL, m.cardWidth()-cardPadding, "…")))
-	}
-	return lipgloss.NewStyle().Width(m.cardWidth()).Padding(0, 1, 0, inset).Render(strings.TrimSuffix(b.String(), "\n"))
+	w := m.cardWidth()
+	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, true))
 }

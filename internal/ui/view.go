@@ -243,37 +243,23 @@ func (m model) feedbackVisible() bool {
 	return !m.searching() && (m.err != nil || m.toast != "" || m.building != nil)
 }
 
-// statusAreaLines is the status area's height: one row for the key line, or two while the
-// feedback line sits above it.
+// statusAreaLines is the status area's height: one row for the key line alone (sizeLayout's
+// default, before a model fills it in), or two with the breadcrumb line above it.
 const (
 	statusAreaPlain    = 1
 	statusAreaFeedback = 2
 )
 
-// frameStatusLines is the lines the status area needs: the feedback line and the key line
-// when something just happened, otherwise the key line alone.
-func (m model) frameStatusLines() int {
-	if m.hasTables() && (m.detail == nil || m.sheetShown()) {
-		return statusAreaFeedback // the breadcrumb line, which holds the feedback, then the keys
-	}
-	if m.feedbackVisible() {
-		return statusAreaFeedback
-	}
-	return statusAreaPlain
-}
+// frameStatusLines is the lines the status area takes: on every screen the breadcrumb
+// line, which holds the feedback, then the key line, so the bottom rule never moves
+// between screens.
+func (m model) frameStatusLines() int { return statusAreaFeedback }
 
-// statusRow is the frame's last rows: the feedback line over the key line when there is
-// one, so a toast or error never wipes the key hints; otherwise the line the caller
-// prepared (the search input while typing, else the key line). The rule above is never
-// replaced.
-func (m model) statusRow(p pal, w int, fallback string) string {
-	if m.searching() {
-		return fallback // the search input shows while typing, even over an error
-	}
-	if m.feedbackVisible() {
-		return m.feedbackLine(p, w) + "\n" + fallback
-	}
-	return fallback
+// statusRow is the frame's last rows: the breadcrumb line, which holds a toast or error on
+// its right, over the line the caller prepared (the search input while typing, else the
+// key line), so feedback never wipes the key hints. The rule above is never replaced.
+func (m model) statusRow(p pal, fallback string) string {
+	return m.breadcrumbLine(p) + "\n" + fallback
 }
 
 // movedOut reports that a move just took the last row out of this view.
@@ -332,7 +318,7 @@ func (m model) screenCountLabel(si int) string {
 	if !m.filtered() {
 		return fmt.Sprintf("%d", total)
 	}
-	return fmt.Sprintf("%d/%d", m.screenCount(si), total)
+	return fmt.Sprintf("%d of %d", m.screenCount(si), total)
 }
 
 // tabs is the tab bar's left side, fitted to the width, and the column each screen's
@@ -348,9 +334,12 @@ func (m model) tabs(p pal) (string, []int) {
 	wide := m.layout().wide()
 	// The Applied-per-week sparkline, the same series Stats draws over its last weeks, sits
 	// beside the Stats tab at wide sizes, until the bar is short of room.
-	spark := " " + p.Text(p.Accent).Faint(true).Render(sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)))
-	if plainMode() {
-		spark = "" // decoration a screen reader would read out cell by cell
+	// It sits outside the tab's own cell, a space either side, so it stays in the same
+	// column whether or not Stats is the active tab.
+	spark := ""
+	if line := sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)); strings.TrimSpace(line) != "" && !plainMode() {
+		// No weeks with data draw no line; a screen reader would read it out cell by cell.
+		spark = " " + p.Text(p.Accent).Faint(true).Render(line) + " "
 	}
 	build := func(level, active int) (string, []int) {
 		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
@@ -392,7 +381,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + tail + sep
+			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
 		}
 		return out, starts
 	}
@@ -448,39 +437,6 @@ const (
 	trackCollapsed                  // "t:All"
 )
 
-// trackSelector is the track filter on the context row, "t  [All 15]  SWE 10  Platform 5",
-// or compact, "t [All 15]▸", or collapsed, "t:All", where the full one does not fit. The
-// key reads once, as "t". Each option carries how many Applications are on it.
-func (m model) trackSelector(p pal, form trackForm) string {
-	if !m.trackApplies() {
-		return ""
-	}
-	key := p.Key().Render("t")
-	if form == trackCollapsed {
-		return key + p.Text(p.Dim).Render(":"+m.trackName())
-	}
-	mark := p.SelChip
-	tracks := m.filterTracks()
-	label := func(i int) string {
-		name := allView
-		if i > 0 && i <= len(tracks) {
-			name = trackLabel(tracks[i-1])
-		}
-		return fmt.Sprintf("%s %d", name, m.trackTotal(i))
-	}
-	if form == trackCompact {
-		return key + " " + mark(label(m.track)) + p.Text(p.Dim).Render("▸")
-	}
-	parts := make([]string, len(tracks)+1)
-	for i := range parts {
-		parts[i] = p.Text(p.Dim).Render(label(i))
-		if i == m.track {
-			parts[i] = mark(label(i))
-		}
-	}
-	return p.Text(p.Dim).Render("TRACK ") + key + " " + strings.Join(parts, " ")
-}
-
 // trackTotal is the Applications on a Track (0 is All; see filterTracks). On a table
 // screen it is the rows the open view would show with that Track chosen, so the chosen
 // option matches the list; on Stats it is the Applications Stats counts, so malformed
@@ -502,24 +458,23 @@ func (m model) trackName() string {
 	return allView
 }
 
-// breadcrumbLine is the footer's first line on a table screen: where the Owner is, as
-// "Applied › All · All tracks · 1/9 · list", and at the right what just happened, a toast or
-// an error with its keys. The breadcrumb gives way first: its focus, then the Track.
+// breadcrumbLine is the footer's first line on every screen: where the Owner is, as
+// "Applied › All · All tracks · row 1 of 9", and at the right what just happened, a toast
+// or an error with its keys. The breadcrumb gives way first: its focus, then the Track.
+// When the message cannot sit whole beside it, the message takes the whole line: what
+// just happened matters more than where the cursor is.
 func (m model) breadcrumbLine(p pal) string {
 	w := m.layout().w
 	right := ""
 	if m.feedbackVisible() {
-		msg, keys := m.feedbackParts(p)
-		// The message gives way, never the keys that recover from it.
-		// An error matters more than where the cursor is, so it may take the whole line.
-		room := max(0, w-rightMargin-gutter-inset-breadcrumbMin)
-		if m.err != nil {
-			room = max(0, w-rightMargin-inset)
+		msg, keys, short := m.feedbackParts(p)
+		beside := w - rightMargin - gutter - inset - breadcrumbMin
+		if r, ok := feedbackRight(msg, keys, short, beside, false); ok {
+			right = r
+		} else {
+			r, _ := feedbackRight(msg, keys, short, w-rightMargin-inset+1, true)
+			return strings.Repeat(" ", inset-1) + r // the chip's own leading space sets its glyph at the text column
 		}
-		if keys != "" {
-			room -= len(keyGap) + xansi.StringWidth(keys)
-		}
-		right = joinNonEmpty(keyGap, xansi.Truncate(msg, max(1, room), "…"), keys)
 	} else if warn := m.legacyWarning(); warn != "" {
 		room := max(1, w-rightMargin-gutter-inset-breadcrumbMin)
 		right = p.Text(p.Warn).Render(xansi.Truncate(warn, room, "…"))
@@ -561,9 +516,17 @@ func joinNonEmpty(sep string, parts ...string) string {
 	return strings.Join(keep, sep)
 }
 
-// breadcrumb is "Applied › All · All tracks · 1/9 · list", the Track abbreviated when short
-// and the focus left off when noFocus.
+// breadcrumb is "Applied › All · All tracks · row 1 of 9 · detail", the Track abbreviated
+// when short and the focus, shown only while a detail is open, left off when noFocus. A
+// screen without tables names its own place: "Stats › All tracks", "Settings › Tracking".
 func (m model) breadcrumb(p pal, short, noFocus bool) string {
+	name := p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name)
+	if !m.hasTables() {
+		if sub := m.screenCrumb(); sub != "" {
+			return name + p.Text(p.Dim).Render(" › "+sub)
+		}
+		return name
+	}
 	rows := m.rows()
 	pos := 0
 	if len(rows) > 0 {
@@ -576,14 +539,11 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 			}
 		}
 	}
-	focus := "list"
-	if m.detail != nil {
-		focus = "detail"
-	}
 	track := "All tracks"
 	if m.track > 0 {
 		track = m.trackName()
 	}
+	where := fmt.Sprintf("row %d of %d", pos, len(rows))
 	if short {
 		track = "All"
 		if m.track > 0 {
@@ -592,18 +552,43 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 				track = string(r[:abbrevTrack])
 			}
 		}
+		where = fmt.Sprintf("%d of %d", pos, len(rows))
 	}
-	parts := []string{track, fmt.Sprintf("%d/%d", pos, len(rows))}
+	if len(rows) == 0 {
+		where = "no rows"
+	}
+	parts := []string{track, where}
 	// The screen's own first view (Leads › Leads) says nothing twice; a status filter named
 	// like its screen (Applied › Applied) is still a filter, so it shows.
 	if v := m.views()[m.table]; m.table > 0 || v != screenDefs[m.screen].name {
 		parts = append([]string{v}, parts...)
 	}
-	out := p.Text(p.Fg).Bold(true).Render(screenDefs[m.screen].name) + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
-	if !noFocus {
-		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Accent).Bold(true).Render(focus)
+	out := name + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+	if !noFocus && m.detail != nil {
+		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Accent).Bold(true).Render("detail")
 	}
 	return out
+}
+
+// screenCrumb is where a screen without tables is: the Track Stats counts, the Profile
+// entry shown, or the Settings group. Empty when there is nothing to name.
+func (m model) screenCrumb() string {
+	switch screenDefs[m.screen].name {
+	case screenStats:
+		if m.track > 0 {
+			return m.trackName()
+		}
+		return "All tracks"
+	case screenProfile:
+		if m.profileLoaded() {
+			return m.profile.entryName()
+		}
+	case screenSettings:
+		if m.settings != nil && m.settings.Ws.Err == nil {
+			return settingsGroups[m.settings.Group]
+		}
+	}
+	return ""
 }
 
 // breadcrumbLeft is the fullest breadcrumb that fits room cells after the inset.
@@ -640,27 +625,40 @@ func (m model) withSheet(p pal, list string) string {
 
 // sheetLines is the detail sheet: a title line, the tabs, then the tab's content, h lines.
 func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
+	// The sheet keeps the list's columns: text from the inset to where the rows' Fit ends.
 	pad := strings.Repeat(" ", inset)
+	right := w - rightMargin - rowPad
 	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.Company))
 	if a.Malformed != nil {
 		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	} else {
-		title = spread(xansi.Truncate(title, max(0, w-rightMargin-gutter-xansi.StringWidth(a.Status)-markWidth), "…"), p.StatusChip(a.Status), w-rightMargin)
+		title = spread(xansi.Truncate(title, max(0, right-gutter-xansi.StringWidth(a.Status)-markWidth), "…"), p.StatusChip(a.Status), right)
 	}
 	out := []string{title}
 	var content []string
+	// Text sits at the inset; the Docs rows bring their own indent, so their selection bar
+	// sits at the edge, as a list's does.
+	indent := pad
 	if a.Malformed != nil {
-		for _, l := range wrapWords(m.malformedReason(a), w-1-rightMargin) {
+		for _, l := range wrapWords(m.malformedReason(a), right-inset) {
 			content = append(content, p.Text(p.Fg).Render(l))
 		}
 		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
 		out = append(out, "")
 	} else {
-		out = append(out, " "+m.detailTabsRow(p, a, w-1-rightMargin))
+		// The tab names sit one cell in from their brackets, so the brackets go one left.
+		out = append(out, pad[1:]+m.detailTabsRow(p, a, right-inset+1))
 		content = strings.Split(m.detailContent(p, a, w), "\n")
+		if m.detail.tab == tabDocs {
+			indent = strings.Repeat(" ", edge)
+		}
 	}
 	for i, line := range content {
-		content[i] = " " + line
+		if plain := xansi.Strip(line); indent != pad && plain != "" && !strings.HasPrefix(plain, " ") && !strings.HasPrefix(plain, "▌") {
+			content[i] = pad + line // a Docs group heading, at the text column
+			continue
+		}
+		content[i] = indent + line
 	}
 	from := 0
 	for i, line := range content {
@@ -668,7 +666,7 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 			from = i - (h-len(out))/bothSides
 		}
 	}
-	out = append(out, p.ClipLines(content, from, max(0, h-len(out)), " ")...)
+	out = append(out, p.ClipLines(content, from, max(0, h-len(out)), pad)...)
 	return append(out[:min(len(out), h)], make([]string, max(0, h-len(out)))...)
 }
 
@@ -684,14 +682,25 @@ func (m model) viewRow(p pal) string {
 	if m.hasTables() {
 		return m.filterRow(p)
 	}
-	left := strings.Repeat(" ", inset) + p.Heading(screenDefs[m.screen].name)
+	// The heading stands where the views stand on a table screen, and the Track filter
+	// follows it after the same │, so t's options are in one place on every screen.
+	heading := strings.Repeat(" ", inset) + p.Heading(screenDefs[m.screen].name)
+	right := m.withChip(p, "")
+	var left string
 	for _, form := range []trackForm{trackFull, trackCompact, trackCollapsed} {
-		right := m.withChip(p, m.trackSelector(p, form))
-		if xansi.StringWidth(left)+gutter+xansi.StringWidth(right) <= w-rightMargin || form == trackCollapsed {
-			return contextRow(left, right, w)
+		left = heading
+		if part := m.trackPart(p, form); part.text != "" {
+			left += p.Text(p.Rule).Render(" │ ") + part.text
+		}
+		need := xansi.StringWidth(left)
+		if right != "" {
+			need += gutter + xansi.StringWidth(right)
+		}
+		if need <= w-rightMargin {
+			break
 		}
 	}
-	return left
+	return contextRow(left, right, w)
 }
 
 // scopeLine is the shown-of-total count when a filter is on. The search chip beside it
@@ -720,10 +729,11 @@ const rowLines = 2
 // scroll pads it.
 func (m model) listBlocks(rows []store.Application) ([]block, int) {
 	dividers := m.dividers(rows)
+	sheet := m.sheetShown()
 	dividerHeight := func(i int) int {
 		n := 1
-		if i > 0 {
-			n++ // the air above a section
+		if i > 0 && !sheet {
+			n++ // the air above a section, which the few lines above a sheet cannot spare
 		}
 		return n
 	}
@@ -856,7 +866,8 @@ func (m model) expired(a store.Application) bool {
 // when rows are really hidden, and count rows, not dividers. Only the visible blocks are
 // rendered.
 func scroll(p pal, m model, rows []store.Application, show slotSet, w int, blocks []block, cur, h int) string {
-	start, end := scrollWindow(blocks, cur, h)
+	folded := m.sheetShown()
+	start, end := scrollWindow(blocks, cur, h, folded)
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -869,7 +880,7 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 	// The cues sit at the rows' text column, past the selection bar.
 	const cueIndent = "  "
 	var out []string
-	if start > 0 {
+	if start > 0 && !folded {
 		out = append(out, cueIndent+p.MoreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
@@ -887,8 +898,15 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 	for len(out) < h-1 {
 		out = append(out, "")
 	}
+	var cues []string
+	if n := count(blocks[:start]); n > 0 && folded {
+		cues = append(cues, p.MoreCue(true, n))
+	}
 	if end < len(blocks) {
-		out = append(out, cueIndent+p.MoreCue(false, count(blocks[end:])))
+		cues = append(cues, p.MoreCue(false, count(blocks[end:])))
+	}
+	if len(cues) > 0 {
+		out = append(out, cueIndent+strings.Join(cues, "  "))
 	}
 	for len(out) < h {
 		out = append(out, "")
@@ -897,17 +915,21 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 }
 
 // scrollWindow is the blocks shown in h lines with block cur in view: [start, end). A
-// "↑ n more" line takes the first line when start is past the top.
-func scrollWindow(blocks []block, cur, h int) (start, end int) {
+// "↑ n more" line takes the first line when start is past the top. folded (the list part
+// above a detail sheet, where every line counts) puts both cues on the one last line.
+func scrollWindow(blocks []block, cur, h int, folded bool) (start, end int) {
 	fit := func(start int) int {
 		avail := h
 		if start > 0 {
-			avail--
+			avail-- // the ↑ cue's line; folded, the line both cues share
 		}
 		used, end := 0, start
 		for end < len(blocks) && used+blocks[end].height <= avail {
 			used += blocks[end].height
 			end++
+		}
+		if folded && start > 0 {
+			return end // the ↓ cue shares the line already kept
 		}
 		for end < len(blocks) && used+1 > avail && end > start {
 			end--
@@ -934,11 +956,9 @@ type slotSet struct{ stateW, flagW, fitW int }
 // fixedSlots are the list row's right-hand columns: stage and date, Follow-up due flag, Fit.
 var fixedSlots = slotSet{stateW: stageColumn, flagW: flagColumn, fitW: fitColumn}
 
-// stageNames are the Status names short enough to leave room for a date in the stage column.
-var stageNames = map[string]string{store.StatusInterviewing: "Interv.", store.StatusRejected: "Rej.", store.StatusWithdrawn: "Withdr.", store.StatusDismissed: "Dism."}
-
-// stageText is the latest stage and its date, "Applied 3d", cut back to the date alone
-// (or the stage alone) when both do not fit the column: it is never truncated.
+// stageText is how long ago the latest change was: "3d", "~Jan 2026" or "today". The
+// Status is not repeated: the row's glyph and its section already say it, so no Status
+// name is abbreviated to fit, and a same-day change reads "today" whatever the Status.
 func (m model) stageText(a store.Application) string {
 	e := lastChange(a)
 	if e == nil {
@@ -949,31 +969,14 @@ func (m model) stageText(a store.Application) string {
 	if e.Approx {
 		date = "~" + date
 	}
-	name := e.Status
-	if short, ok := stageNames[name]; ok && xansi.StringWidth(name+" "+date) > stageColumn {
-		name = short
-	}
-	if text := name + " " + date; xansi.StringWidth(text) <= stageColumn {
-		return text
-	}
-	// "today" is the one date word long enough to push the stage out; "0d" keeps both.
-	if text := name + " " + strings.Replace(date, "today", "0d", 1); xansi.StringWidth(text) <= stageColumn {
-		return text
-	}
-	if xansi.StringWidth(date) <= stageColumn {
-		return date
-	}
-	return name
+	return date
 }
 
-// fitCell is a Fit in its column, labelled as everywhere else: "fit Good", Marginal
-// abbreviated, or "fit —" when it has not been assessed.
+// fitCell is a Fit in its column, labelled and unabbreviated as everywhere else: "fit
+// Good", or "fit —" when it has not been assessed.
 func fitCell(fit string) string {
-	switch fit {
-	case "":
+	if fit == "" {
 		return fitLabel + glyphNone
-	case store.FitMarginal:
-		return fitLabel + "Marg."
 	}
 	return fitLabel + fit
 }
@@ -1104,7 +1107,8 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		}
 	case tableClosed:
 		if lastChange(a) != nil {
-			out = append(out, when(lastChange(a), "closed "))
+			// The outcome by name, "rejected ~7d ago": "closed" alone could be the ad.
+			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
 		}
 	default:
 		if appliedDate(a) != nil {
@@ -1143,23 +1147,39 @@ func entryAt(e *store.StatusEntry) string {
 // preview is the selected Application beside the list: status, documents, timeline,
 // and the start of fit.md, jd.md and notes.md.
 func (m model) preview(p pal, a store.Application, w, h int) string {
-	inner := w - previewInset
+	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, false))
+}
+
+// previewText is the preview's lines inside inner cells: the title, the row's second
+// line, then the fields. The detail card is the same text with the link under it, so
+// opening the detail leaves it in place.
+func (m model) previewText(p pal, a store.Application, inner int, link bool) string {
 	wrap := func(s string, c color.Color, maxLines int) string {
-		lines := wrapWords(s, inner)
-		if len(lines) > maxLines {
-			lines = append(lines[:maxLines-1], "…")
-		}
-		return p.Text(c).Render(strings.Join(lines, "\n"))
+		return p.Text(c).Render(strings.Join(clampLines(wrapWords(s, inner), maxLines, inner), "\n"))
 	}
 	var b strings.Builder
 	if a.Malformed != nil {
 		b.WriteString(p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
-	} else {
-		b.WriteString(wrap(titleLabel(a.Title), p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
-		b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
+		return b.String()
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(b.String())
+	b.WriteString(wrap(titleLabel(a.Title), p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
+	b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
+	if link && a.URL != "" {
+		b.WriteString("\n\n" + p.Heading("Link") + "\n" + p.Text(p.Info).Render(xansi.Truncate(a.URL, inner, "…")))
+	}
+	return b.String()
+}
+
+// clampLines keeps at most n of lines, cutting the last one kept with "…" when more
+// follow, so a long title fills its lines rather than ending on a lone "…".
+func clampLines(lines []string, n, w int) []string {
+	if len(lines) <= n || n <= 0 {
+		return lines
+	}
+	out := append([]string{}, lines[:n]...)
+	out[n-1] = xansi.Truncate(out[n-1]+" …", w, "…")
+	return out
 }
 
 // previewMeta is the line under the preview's title, the row's own second line: "Orbit

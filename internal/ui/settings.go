@@ -225,7 +225,7 @@ func (m model) settingsView(p pal) string {
 	if m.settingsAboutShown() {
 		split = m.settingsRowsWidth(w)
 	}
-	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focusLeft, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focusLeft, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // settingsAboutShown reports whether the about pane sits beside the rows: at wide sizes,
@@ -260,7 +260,7 @@ func (m model) settingsTabs(p pal, room int) string {
 	if xansi.StringWidth(full) <= room {
 		return full
 	}
-	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+"/"+strconv.Itoa(len(settingsGroups)))
+	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+" of "+strconv.Itoa(len(settingsGroups)))
 }
 
 // settingsContextRow is the heading and the section tabs. The cursor rests here too (k
@@ -568,21 +568,28 @@ func (m model) settingsRows(group int) []settingRow {
 }
 
 // trackBreakdown explains each Track's count so the numbers add up: how many of its
-// Applications are active and how many closed (Rejected, Withdrawn, Dismissed).
+// Applications are active, how many closed (Rejected or Withdrawn, as the Applied screen's
+// Closed view holds) and how many dismissed.
 func (m model) trackBreakdown(st settingsState) map[string]string {
-	closed := map[string]int{}
+	closed, dismissed := map[string]int{}, map[string]int{}
 	for _, a := range m.apps {
 		switch a.Status {
-		case store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed:
+		case store.StatusRejected, store.StatusWithdrawn:
 			closed[a.Track]++
+		case store.StatusDismissed:
+			dismissed[a.Track]++
 		}
 	}
 	out := map[string]string{}
 	for _, t := range st.Ws.Tracks {
 		c := min(closed[t], st.TrackUse[t])
-		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c) + " active"
+		d := min(dismissed[t], st.TrackUse[t]-c)
+		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d) + " active"
 		if c > 0 {
 			out[t] += " · " + strconv.Itoa(c) + " closed"
+		}
+		if d > 0 {
+			out[t] += " · " + strconv.Itoa(d) + " dismissed"
 		}
 	}
 	return out

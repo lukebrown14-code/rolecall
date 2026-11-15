@@ -57,10 +57,10 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		}
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
-		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
 			// The flag runs from the last Status change, so only a move clears it: a note
 			// would not, and NEXT does not suggest one.
-			step := nextStep{label: followUpLabel, what: followUpWords(past), why: "clears when the Status changes", key: "m", desc: descMove}
+			step := nextStep{label: followUpLabel, what: m.followUpWords(a), why: "clears when the Status changes", key: "m", desc: descMove}
 			if harness {
 				step.key, step.desc = "F", descNudge
 			}

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -51,7 +52,34 @@ func TestRowColumnsAreFixed(t *testing.T) {
 	if xansi.StringWidth(f) != w || xansi.StringWidth(l) != w {
 		t.Fatalf("rows are not %d cells: %q %q", w, f, l)
 	}
-	if !strings.HasSuffix(strings.TrimRight(f, " "), "fit Marg.") || !strings.HasSuffix(strings.TrimRight(l, " "), "fit —") || !strings.Contains(l, "Applied 4d") || !strings.Contains(f, "⚑ 9mo") {
+	if !strings.HasSuffix(strings.TrimRight(f, " "), "fit Marginal") || !strings.HasSuffix(strings.TrimRight(l, " "), "fit —") || !strings.Contains(l, " 4d ") || !strings.Contains(f, "⚑ 9mo") {
 		t.Fatalf("columns wrong:\n%q\n%q", f, l)
+	}
+}
+
+// The widest values side by side never touch: a long-quiet flag, an approximate
+// month-and-year age and the longest Fit keep two cells between them; a years-old change
+// reads in years, not "82mo"; and a same-day change reads "today" whatever its Status.
+func TestRowColumnsKeepAGapAtTheirWidest(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	m := model{now: func() time.Time { return now }, followUpDays: 14}
+	p := m.pal()
+	widest := store.Application{Title: "Widest", Company: "Acme", Track: "SWE", Status: store.StatusInterviewing, Fit: store.FitMarginal,
+		AppliedDate: &store.StatusEntry{At: "2024-10-20"}, LastChange: &store.StatusEntry{Status: store.StatusInterviewing, At: "2024-10-20", Approx: true}}
+	if got := xansi.Strip(m.row(p, widest, false, fixedSlots, 60)[0]); !strings.Contains(got, "⚑ 23mo  ~Oct 2024 fit Marginal") {
+		t.Fatalf("widest columns run together or are cut: %q", got)
+	}
+	old := widest
+	old.LastChange = &store.StatusEntry{Status: store.StatusApplied, At: "2019-01-01"}
+	if got := xansi.Strip(m.row(p, old, false, fixedSlots, 60)[0]); !strings.Contains(got, "⚑ 7y") {
+		t.Fatalf("a years-old change should read in years: %q", got)
+	}
+	for _, status := range []string{store.StatusLead, store.StatusInterviewing} {
+		today := widest
+		today.Status, today.Fit = status, store.FitStrong
+		today.LastChange = &store.StatusEntry{Status: status, At: "2026-10-01"}
+		if got := xansi.Strip(m.row(p, today, false, fixedSlots, 60)[0]); !regexp.MustCompile(`today {2,}fit Strong`).MatchString(got) {
+			t.Fatalf("%s: a same-day change reads today, set apart from Fit: %q", status, got)
+		}
 	}
 }

@@ -63,13 +63,15 @@ const (
 	sheetRule      = 1 // the rule between the list and the sheet
 )
 
-// The list row's fixed right columns, in cells.
+// The list row's fixed right columns, in cells. The columns are right-aligned, and each
+// after the first holds its widest value plus columnGap, so neighbours never touch.
 const (
-	filtersFull      = 2  // filter lines when the filters have room
-	filtersCollapsed = 1  // and when collapsed to one line
-	flagColumn       = 6  // the Follow-up due flag
-	stageColumn      = 11 // stage and date
-	fitColumn        = 10 // Fit, labelled: "fit Strong"
+	filtersFull      = 2 // filter lines when the filters have room
+	filtersCollapsed = 1 // and when collapsed to one line
+	columnGap        = 2
+	flagColumn       = 6             // the Follow-up due flag at its widest: "⚑ 23mo"
+	stageColumn      = columnGap + 9 // the last change's age at its widest: "~Jan 2026"
+	fitColumn        = 1 + 12        // Fit at its widest, "fit Marginal": its label sets it apart, so one cell will do
 )
 
 // layout is one frame's size budget: everything a view needs to place itself, from the
@@ -91,9 +93,9 @@ type layout struct {
 	filterLines int
 	// footerRow is the row the footer sits on: always the last.
 	footerRow int
-	// cardW, profileW and groupsW are the detail card, Profile's section list and
+	// profileW and groupsW are Profile's section list and
 	// Settings' group list.
-	cardW, profileW, groupsW int
+	profileW, groupsW int
 	// status is the lines the status area needs: one for the key line, or two while the
 	// feedback line sits above it, so the key line is never wiped by a toast or an error.
 	status int
@@ -124,7 +126,6 @@ func sizeLayout(w, h int) layout {
 		l.filterLines = filtersCollapsed
 	}
 	l.subtitleW = max(0, l.listW-edge-inset-l.flagCol-l.stageCol-l.fitCol)
-	l.cardW = l.panel(cardShare, cardMin, cardMax)
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
 	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
@@ -171,7 +172,6 @@ func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent,
 // Side panels: share of the width, then the least and most cells.
 const (
 	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list
-	cardShare, cardMin, cardMax          = 37, 34, 48 // the detail view's card: 44 at 120 columns, room for a row and its key
 	profileShare, profileMin, profileMax = 28, 26, 36 // Profile's section list: short names whole from 80 columns
 	groupsShare, groupsMin, groupsMax    = 18, 18, 24 // Settings' group list
 )

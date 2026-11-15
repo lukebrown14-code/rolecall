@@ -153,7 +153,7 @@ func TestEveryScreenFillsTheTerminal(t *testing.T) {
 func TestScopeLineNamesEveryFilter(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	search := chipped(runKeys(t, root, 120, "1", "/pl", "enter"))
-	for _, want := range []string{"/pl ×", "2 of 4", "Leads 2/4"} {
+	for _, want := range []string{"/pl ×", "2 of 4", "Leads 2 of 4"} {
 		if !strings.Contains(search, want) {
 			t.Fatalf("search scope lacks %q:\n%s", want, search)
 		}

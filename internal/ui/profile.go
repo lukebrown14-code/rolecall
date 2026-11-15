@@ -438,7 +438,7 @@ func (m model) profileView(p pal) string {
 			focus = focusLeft
 		}
 	}
-	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, w, m.keyLine(p, w)))
+	return m.frame(p, []string{m.profileContextRow(p, w)}, m.profileBody(p, w, h), split, focus, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // profileContextRow names the focused pane on the left and the file it reads on the
@@ -458,7 +458,7 @@ func (m model) profileContextLabel(p pal, w int) string {
 	if !m.profileListShown(w) {
 		pos, of := m.profile.position()
 		return pad + p.Text(p.Fg).Bold(true).Render(m.profile.entryName()) +
-			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+"/"+strconv.Itoa(of))
+			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+" of "+strconv.Itoa(of))
 	}
 	pane := "SECTIONS"
 	if m.profile.focus == profileContent {

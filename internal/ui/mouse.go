@@ -126,9 +126,9 @@ func (m model) rowAt(x, y int) (int, bool) {
 	}
 	h := m.listHeight()
 	blocks, cur := m.listBlocks(rows)
-	start, end := scrollWindow(blocks, cur, h)
+	start, end := scrollWindow(blocks, cur, h, m.sheetShown())
 	line := 0
-	if start > 0 {
+	if start > 0 && !m.sheetShown() {
 		line = 1 // "↑ n more"
 	}
 	for _, b := range blocks[start:end] {

@@ -92,7 +92,7 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m model) statsView(p pal) string {
 	l := m.layout()
 	lines := p.ClipLines(m.statsLines(p), min(m.statsTop, m.statsMaxTop()), l.bodyHeight(1), strings.Repeat(" ", inset))
-	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, l.w, m.keyLine(p, l.w)))
+	return m.frame(p, []string{m.viewRow(p)}, strings.Join(lines, "\n"), 0, focusNone, m.statusRow(p, m.keyLine(p, l.w)))
 }
 
 // buildStatsReport builds the Stats value; a var so a test can count the builds.
@@ -245,14 +245,11 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 		}
 		lines = append(append(lines, xansi.Truncate(line, w, "…")), under...)
 	}
-	closed := []string{store.StatusRejected, store.StatusWithdrawn, store.StatusDismissed}
-	counts := map[string]int{store.StatusRejected: r.Rejected, store.StatusWithdrawn: r.Withdrawn, store.StatusDismissed: r.Dismissed}
-	parts := make([]string, len(closed))
-	for i, status := range closed {
-		parts[i] = fmt.Sprintf("%s %s %d", p.StatusGlyph(status), status, counts[status])
-	}
-	parts[0] = "closed  " + parts[0]
-	for _, l := range strings.Split(keepTogether(w, " · ", parts...), "\n") {
+	// Closed is Rejected and Withdrawn, as the Applied screen's Closed view is; Dismissed
+	// (a Lead let go before applying) stands apart from them.
+	mark := func(status string, n int) string { return fmt.Sprintf("%s %s %d", p.StatusGlyph(status), status, n) }
+	closed := "closed  " + mark(store.StatusRejected, r.Rejected) + " · " + mark(store.StatusWithdrawn, r.Withdrawn)
+	for _, l := range strings.Split(keepTogether(w, "   ", closed, mark(store.StatusDismissed, r.Dismissed)), "\n") {
 		lines = append(lines, p.Text(p.Dim).Render(l))
 	}
 	return lines

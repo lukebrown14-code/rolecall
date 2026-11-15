@@ -69,28 +69,27 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.err, m.toast = sentErr, ""
 		return nil
 	}
+	// Each toast leads with where the Application went, then which one it was, so a
+	// short footer cuts the Company first and never the Status.
 	name := moveName(a)
+	const hiddenNote = " (hidden by filter)"
+	hidden := m.hiddenByFilter(a.Folder)
+	where := "Moved to " + status
+	switch {
+	case undo:
+		where = "Undone · back to " + status
+	case status == store.StatusDismissed:
+		where = "Dismissed"
+	}
+	if hidden {
+		where += hiddenNote
+	}
 	if undo {
-		verb := "move"
-		if a.Status == store.StatusDismissed {
-			verb = "dismiss"
-		}
-		m.toast, m.toastKind = "Undid "+verb+" "+name, toastUndo
+		m.toast, m.toastKind = where+" · "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
 	m.undo = append(m.undo, undoMove{a.Folder, a.Status, madeSent})
-	m.toast, m.toastHint, m.movedTo = "Moved "+name+" → "+status, undoHint, status
-	const hiddenNote = " (hidden by filter)"
-	hidden := m.hiddenByFilter(a.Folder)
-	if hidden {
-		m.toast += hiddenNote
-	}
-	if status == store.StatusDismissed {
-		m.toast = "Dismissed " + name
-		if hidden {
-			m.toast += hiddenNote
-		}
-	}
+	m.toast, m.toastHint, m.movedTo = where+" · "+name, undoHint, status
 	if status == store.StatusOffer {
 		m.toast, m.toastKind = m.offerToast(a), toastOffer
 		if hidden {
@@ -119,12 +118,14 @@ const (
 // undoHint is the keys shown with the toast of every reversible action.
 const undoHint = "u undo · esc hide"
 
-// moveName is the company a toast names, falling back to the Application's title.
+// moveName is the Application as a toast names it, "Platform Engineer (Fern Systems)":
+// the title says which one, as several can share a Company.
 func moveName(a store.Application) string {
+	name := appName(a.Title)
 	if c := strings.TrimSpace(a.Company); c != "" {
-		return c
+		name += " (" + c + ")"
 	}
-	return appName(a.Title)
+	return name
 }
 
 // effectiveLog is the Status log the rows, timeline and ages read: undone moves taken out
