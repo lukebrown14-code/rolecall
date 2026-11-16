@@ -27,6 +27,7 @@ type fakeFetch struct {
 	stderr string
 	err    error
 	block  chan struct{} // when set, the run waits for a close before finishing
+	run    bool          // when set, the command really runs and its output is reported
 }
 
 func (f *fakeFetch) runner(c *exec.Cmd, done func(ui.CapturedResult) tea.Msg) tea.Cmd {
@@ -36,6 +37,12 @@ func (f *fakeFetch) runner(c *exec.Cmd, done func(ui.CapturedResult) tea.Msg) te
 		f.mu.Unlock()
 		if f.block != nil {
 			<-f.block
+		}
+		if f.run {
+			var stdout, stderr strings.Builder
+			c.Stdout, c.Stderr = &stdout, &stderr
+			err := c.Run()
+			return done(ui.CapturedResult{Stdout: stdout.String(), Stderr: stderr.String(), Err: err})
 		}
 		return done(ui.CapturedResult{Stdout: f.stdout, Stderr: f.stderr, Err: f.err})
 	}
@@ -325,4 +332,17 @@ func TestAddURLFetchSpinnerKeepsFormResponsive(t *testing.T) {
 	if err := tm.Quit(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestAddURLFetchShowsTheRealReasonNotTheWarningBanner runs the real new-job.py on a
+// file:// URL (rejected before anything is read) and checks the form shows warn()'s
+// reason line, not its WARNING banner.
+func TestAddURLFetchShowsTheRealReasonNotTheWarningBanner(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not installed")
+	}
+	h := newFetchHarness(t, ui.WithPlugin("../../../plugin"))
+	h.fake.run = true
+	h.openAddWithURL("file:///etc/os-release")
+	h.wait("Could not fetch file:///etc/os-release")
 }

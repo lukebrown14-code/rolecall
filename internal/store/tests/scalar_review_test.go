@@ -53,7 +53,7 @@ func TestMigrationCommentPreserved(t *testing.T) {
 	if a.Malformed != nil || a.AppliedDate == nil || !a.AppliedDate.Approx {
 		t.Fatalf("%+v", a)
 	}
-	if err := s.AppendStatus(folder, "Offer", time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)); err != nil {
+	if _, err := s.AppendStatus(folder, "Offer", time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := os.ReadFile(path)

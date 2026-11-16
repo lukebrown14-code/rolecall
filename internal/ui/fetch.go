@@ -89,10 +89,14 @@ func parseFetch(url string, r CapturedResult) fetchFinished {
 	return fetchFinished{url: url, jd: p.JD, signals: signalLabels(p.Signals), meta: p.Meta}
 }
 
-// fetchReason is the first non-blank line the script printed, or a generic reason.
+// fetchWarningBanner is the heading new-job.py's warn() prints above its reason.
+const fetchWarningBanner = "WARNING"
+
+// fetchReason is the first non-blank line the script printed after warn()'s banner,
+// or a generic reason.
 func fetchReason(r CapturedResult) string {
 	for _, line := range strings.Split(combinedOutput(r), "\n") {
-		if s := strings.TrimSpace(line); s != "" {
+		if s := strings.TrimSpace(line); s != "" && s != fetchWarningBanner {
 			return s
 		}
 	}

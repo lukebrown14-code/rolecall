@@ -25,6 +25,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from httpfetch import FetchError  # noqa: E402
+from httpfetch import fetch as http_fetch  # noqa: E402
 from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
 # Days an "N months ago" label can mean: sites round anything from four weeks to just
@@ -351,21 +353,15 @@ GONE_RE = re.compile(r"(no longer (?:available|accepting)|job (?:has )?(?:expire
 
 def listing_state(url, fetch):
     """live, gone or closed for one ad URL; None when it could not be checked."""
-    import urllib.error  # noqa: PLC0415
     try:
         body = fetch(url)
-    except urllib.error.HTTPError as error:
-        return "gone" if error.code in (404, 410) else None
-    except (urllib.error.URLError, OSError, ValueError):
-        return None
+    except FetchError as error:
+        return "gone" if error.status in (404, 410) else None
     return "closed" if GONE_RE.search(body or "") else "live"
 
 
 def _fetch(url):
-    import urllib.request  # noqa: PLC0415
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 rolecall"})
-    with urllib.request.urlopen(req, timeout=20) as response:
-        return response.read(400_000).decode("utf-8", "replace")
+    return http_fetch(url, max_bytes=400_000)
 
 
 def recheck(workspace, fetch=_fetch, today=None, out=sys.stdout):

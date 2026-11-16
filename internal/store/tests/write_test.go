@@ -34,14 +34,14 @@ func TestAppendStatus(t *testing.T) {
 	}
 	s, _ := store.Open(root)
 	folder := filepath.Join(root, "jobs/SWE/orbit")
-	if err := s.AppendStatus(folder, "Offer", time.Date(2026, 11, 11, 1, 2, 3, 0, time.UTC)); err != nil {
+	if _, err := s.AppendStatus(folder, "Offer", time.Date(2026, 11, 11, 1, 2, 3, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
 	if !strings.Contains(string(b), "  - {status: Offer, at: 2026-11-11T01:02:03Z}\n") {
 		t.Fatal(string(b))
 	}
-	if err := s.AppendStatus(folder, "Offer", time.Now()); err != nil {
+	if _, err := s.AppendStatus(folder, "Offer", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
@@ -60,14 +60,14 @@ func TestWritesRefuseMalformedAndInvalidValues(t *testing.T) {
 		folder := filepath.Join(root, "jobs/SWE", name)
 		path := filepath.Join(folder, "meta.yml")
 		before, _ := os.ReadFile(path)
-		if err := s.AppendStatus(folder, "invalid", time.Now()); err == nil {
+		if _, err := s.AppendStatus(folder, "invalid", time.Now()); err == nil {
 			t.Fatal("accepted invalid Status")
 		}
 		if name == "malformed" {
 			if err := s.Patch(folder, map[string]string{"fit": "Good"}); err == nil {
 				t.Fatal("patched malformed")
 			}
-			if err := s.AppendStatus(folder, "Offer", time.Now()); err == nil {
+			if _, err := s.AppendStatus(folder, "Offer", time.Now()); err == nil {
 				t.Fatal("appended malformed")
 			}
 		}

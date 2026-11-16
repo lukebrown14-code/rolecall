@@ -62,7 +62,7 @@ func TestBadSweepKeysAreMalformed(t *testing.T) {
 func TestRestoringARuleDismissalOverrulesItAndUndoPutsItBack(t *testing.T) {
 	s := fixtureProfileStore(t)
 	folder := writeLead(t, s, "expired", leadHead+"filter_reason: expired # by the Sweep\nfilter_note: too old\nstatus_log:\n  - {status: Lead, at: 2026-11-01T00:00:00Z}\n  - {status: Dismissed, at: 2026-11-02T00:00:00Z}\n")
-	if err := s.AppendStatus(folder, store.StatusLead, time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)); err != nil {
+	if _, err := s.AppendStatus(folder, store.StatusLead, time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(filepath.Join(folder, "meta.yml"))
@@ -73,7 +73,7 @@ func TestRestoringARuleDismissalOverrulesItAndUndoPutsItBack(t *testing.T) {
 	if a := rescan(t, s, folder); !a.FilterOverruled || a.FilterReason != "" || a.Filtered() {
 		t.Fatalf("app = %+v", a)
 	}
-	if err := s.AppendStatus(folder, store.StatusDismissed, time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)); err != nil {
+	if _, err := s.AppendStatus(folder, store.StatusDismissed, time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.SetFilter(folder, store.FilterExpired, "too old"); err != nil {

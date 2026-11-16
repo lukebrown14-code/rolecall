@@ -75,7 +75,7 @@ func TestAtomicFailuresPreserveOriginal(t *testing.T) {
 				case "patch":
 					err = s.Patch(folder, map[string]string{"title": "Changed"})
 				case "append":
-					err = s.AppendStatus(folder, "Offer", time.Now())
+					_, err = s.AppendStatus(folder, "Offer", time.Now())
 				case "create":
 					_, err = s.Create(store.CreateFields{Title: "New", Company: "New", Track: "SWE"}, time.Now())
 				}
@@ -99,3 +99,5 @@ func TestAtomicFailuresPreserveOriginal(t *testing.T) {
 		}
 	}
 }
+
+func (f failingFS) SyncDir(p string) error { return nil }

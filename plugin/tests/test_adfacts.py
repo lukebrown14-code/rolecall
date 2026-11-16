@@ -197,11 +197,11 @@ def test_the_later_of_two_duplicate_leads_is_the_one_dismissed(tmp_path):
      ("", 403, None)],
 )
 def test_listing_state_reads_the_ad_page(body, error, want):
-    import urllib.error
+    from httpfetch import FetchError
 
     def fetch(url):
         if error:
-            raise urllib.error.HTTPError(url, error, "x", {}, None)
+            raise FetchError(f"{url} -- HTTP Error {error}", status=error)
         return body
 
     assert rules.listing_state("https://x.test/1", fetch) == want
@@ -217,3 +217,26 @@ def test_recheck_records_listing_and_check_dismisses_pulled_ads(tmp_path):
     assert meta.rescan(gone).listing_checked == "2026-11-16"
     run_script(ws, RULES, "check", "--apply", "--today", "2026-11-16")
     assert meta.rescan(gone).filter_reason == "pulled" and meta.rescan(live).status == "Lead"
+
+
+def test_two_employers_sharing_only_a_recruiter_are_not_duplicates(tmp_path):
+    ws = workspace(tmp_path)
+    meta.create(ws, {"title": "Analyst", "company": "AGL", "recruiter": "Chandler Macleod",
+                     "track": "SWE"})
+    result = run_script(ws, META, "find-duplicates", "--company", "Origin",
+                        "--recruiter", "Chandler Macleod", "--title", "Analyst")
+    assert json.loads(result.stdout) == []
+    # With no company stated, the recruiter stands in for it.
+    result = run_script(ws, META, "find-duplicates", "--company", "",
+                        "--recruiter", "Chandler Macleod", "--title", "Analyst")
+    assert len(json.loads(result.stdout)) == 1
+
+
+def test_a_symlinked_jd_is_not_read_for_the_text_match(tmp_path):
+    ws = workspace(tmp_path)
+    first = meta.create(ws, {"title": "Data Engineer", "company": "AGL", "track": "SWE"})
+    outside = tmp_path / "outside.md"
+    outside.write_text(LONG_AD)
+    (first / "jd.md").unlink(missing_ok=True)
+    (first / "jd.md").symlink_to(outside)
+    assert adfacts.likely_duplicates(meta.scan(ws), "Other", "Other", LONG_AD) == []

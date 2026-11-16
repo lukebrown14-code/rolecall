@@ -1,7 +1,6 @@
 package store
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -59,7 +58,7 @@ func (s *Store) CommonGaps(apps []Application) []GapCount {
 		if a.Malformed != nil || !a.HasFit {
 			continue
 		}
-		b, err := os.ReadFile(filepath.Join(a.Folder, "fit.md"))
+		b, err := readRegular(filepath.Join(a.Folder, "fit.md"))
 		if err != nil {
 			continue
 		}

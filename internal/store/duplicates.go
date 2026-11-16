@@ -3,7 +3,6 @@ package store
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -46,36 +45,45 @@ func JDHash(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// companyKeys is the non-empty keys of a company and its recruiter.
-func companyKeys(company, recruiter string) []string {
-	var out []string
-	for _, k := range []string{CompanyKey(company), CompanyKey(recruiter)} {
-		if k != "" && !slices.Contains(out, k) {
-			out = append(out, k)
-		}
+// employer is who an ad is for, as a Likely duplicate compares it: the company's key,
+// or the recruiter's when no company is given, plus the recruiter's key.
+type employer struct{ company, recruiter string }
+
+func employerOf(company, recruiter string) employer {
+	e := employer{CompanyKey(company), CompanyKey(recruiter)}
+	if e.company == "" {
+		e.company = e.recruiter
 	}
-	return out
+	return e
+}
+
+// sameEmployer is two ads for one employer: the same company, or one side's company is
+// the other's recruiter (an agency posting under its own name). Two employers that share
+// only a recruiter are not the same.
+func sameEmployer(a, b employer) bool {
+	if a.company == "" || b.company == "" {
+		return false
+	}
+	return a.company == b.company || a.company == b.recruiter || a.recruiter == b.company
 }
 
 // LikelyDuplicates lists the Applications that look like the same ad: an equal TitleKey
-// with a company or recruiter in common (either side's), or the same JDHash. It reads
+// for the same employer (sameEmployer), or the same JDHash. It reads
 // each Application's jd.md only when jdText is long enough to hash.
 func (s *Store) LikelyDuplicates(company, recruiter, title, jdText string) ([]Application, error) {
 	apps, err := s.Scan()
 	if err != nil {
 		return nil, err
 	}
-	key, names, hash := TitleKey(title), companyKeys(company, recruiter), JDHash(jdText)
+	key, who, hash := TitleKey(title), employerOf(company, recruiter), JDHash(jdText)
 	var out []Application
 	for _, a := range apps {
 		if a.Malformed != nil {
 			continue
 		}
-		same := key != "" && TitleKey(a.Title) == key && slices.ContainsFunc(companyKeys(a.Company, a.Recruiter), func(k string) bool {
-			return slices.Contains(names, k)
-		})
+		same := key != "" && TitleKey(a.Title) == key && sameEmployer(who, employerOf(a.Company, a.Recruiter))
 		if !same && hash != "" {
-			if b, err := os.ReadFile(filepath.Join(a.Folder, "jd.md")); err == nil {
+			if b, err := readRegular(filepath.Join(a.Folder, "jd.md")); err == nil {
 				same = JDHash(string(b)) == hash
 			}
 		}
