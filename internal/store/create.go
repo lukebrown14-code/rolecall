@@ -26,6 +26,8 @@ func (s *Store) Create(fields CreateFields, now time.Time) (folder string, err e
 			text += pair[0] + ": " + quoteScalar(pair[1]) + "\n"
 		}
 	}
+	// The TUI's Add is the Owner's own: the Sweep and the agent write their own added_by.
+	text += keyAddedBy + ": " + AddedByOwner + "\n"
 	text += "status_log:\n  - {status: Lead, at: " + now.UTC().Format(time.RFC3339) + "}\n"
 	if a := readApplication("", []byte(text)); a.Malformed != nil {
 		return "", a.Malformed

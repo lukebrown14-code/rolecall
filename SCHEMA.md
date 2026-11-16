@@ -55,7 +55,7 @@ date. When nothing is left (a CJK or symbol-only name) it is `application`. If t
 | `meta.yml` | ✅ | TUI, agent, `build.py` | the record (below) |
 | `jd.md` | ✅ (may be empty) | TUI (Add), agent | job description, plain Markdown |
 | `notes.md` | — | TUI (`$EDITOR`), Owner | free-text notes |
-| `fit.md` | — | agent | the reasoning behind `fit` |
+| `fit.md` | — | agent | the reasoning behind `fit`. Its `## Gaps` section (any `##` heading starting `Gaps`) lists one gap per `- ` bullet, name first, then ` — ` and the detail; Insights counts the names |
 | `gaps.md` | — | agent | gaps found while writing |
 | `follow-up.md` | — | agent | a drafted follow-up message for the Owner to send |
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
@@ -105,7 +105,7 @@ status_log:
 |---|---|---|---|
 | `schema` | int | ✅ | `1`. A missing key means 1 (pre-migration files) |
 | `title` | string | ✅ | role title as advertised |
-| `company` | string | ✅ | |
+| `company` | string | ✅ | the real employer. For an agency ad, the client the recruiter is hiring for |
 | `track` | string | ✅ | one of `workspace.json` → `tracks`. Unknown values are shown, not rejected |
 | `url` | string | — | ad URL. The Sweep's dedupe key |
 | `closes` | date `YYYY-MM-DD` | — | application close date |
@@ -115,9 +115,40 @@ status_log:
 | `posted_label` | string | — | the age exactly as the Source showed it (`14d ago`, `Posted 30+ Days Ago`, `1mo ago`). Read when `posted` is absent |
 | `applicants` | int ≥ 0 | — | the applicant count the Source showed, when it shows one |
 | `source` | string | — | the Source registry `name` the Lead came from (`linkedin`, `greenhouse`) |
-| `filter_reason` | enum | — | why a Search rule dismissed it: `expired` · `blocker` · `applicant_cap` · `location` · `contract_length`. Set with the `Dismissed` entry it explains |
+| `filter_reason` | enum | — | why a Search rule dismissed it: `expired` · `closed` (its `closes` date passed) · `pulled` (the ad is gone or says closed) · `duplicate` · `blocker` · `applicant_cap` · `location` · `contract_length`. Set with the `Dismissed` entry it explains |
 | `filter_note` | string | — | the detail behind `filter_reason` ("Posted 30+ Days Ago; limit 30 days") |
 | `filter_overruled` | bool | — | `true` once the Owner restored a rule-dismissed Application. No rule dismisses it again |
+| `recruiter` | string | — | the agency that posted the ad, when it is not the employer. Shown as `AGL via Chandler Macleod` |
+| `employment_type` | enum | — | `permanent` · `contract` · `fixed-term` · `casual` · `part-time` |
+| `term_months` | int ≥ 1 | — | the contract or fixed term's length |
+| `extension` | enum | — | `yes` · `no` · `possible` |
+| `sponsorship` | enum | — | what the ad says about visa sponsorship: `offered` · `not-offered` · `unknown` |
+| `pay_min` · `pay_max` | number ≥ 0 | — | the pay figures as the ad states them (`95`, `95.5`). `pay_max` absent means a single figure |
+| `pay_unit` | enum | — | `hour` · `day` · `week` · `month` · `year` |
+| `currency` | string | — | ISO 4217 code in capitals: `AUD`, `USD` |
+| `closes_unclear` | bool | — | `true` when the ad has a closing date that could not be read. `closes` stays empty rather than guessed |
+| `jd_completeness` | enum | — | what `jd.md` holds: `full` · `summary` (condensed) · `blurb` (a snippet; assess-fit asks for the full ad first) |
+| `added_by` | enum | — | who saved it: `sweep` · `agent` · `owner` (the TUI's Add writes `owner`) |
+| `search_query` | string | — | the search that surfaced it |
+| `listing` | enum | — | whether the ad was still up when last checked: `live` · `gone` · `closed` |
+| `listing_checked` | date `YYYY-MM-DD` | — | when `listing` was last checked (`rules.py recheck`) |
+
+**Pay.** Readers estimate an annual AUD figure as pay × the unit's multiplier (hour 1976, day
+230, week 52, month 12, year 1) × the currency's AUD rate (built in: AUD 1, USD 1.55, GBP 1.95,
+EUR 1.65, NZD 0.92, CAD 1.12, SGD 1.15; `workspace.json` `pay_fx` overrides or adds codes, each a
+3-letter capital code with a rate above 0). No `currency` reads as AUD; an unknown one has no
+estimate. The mislabel flag is set even without an estimate. A figure is flagged as mislabelled, never changed: an hourly
+`pay_min` of 300 or more looks like a day rate, a daily one of 5000 or more like an annual
+figure, and an annual `pay_max` under 1000 like an hourly or daily rate.
+
+**Likely duplicate.** Two Applications are likely the same role when their titles match after
+normalising (lower case, a trailing `(…)` dropped, punctuation to spaces, the words `level`,
+`the`, `a` and `an` dropped) and they share an employer (`company` or `recruiter`, lower case
+with `pty`, `ltd`, `limited`, `inc`, `group` and `australia` dropped), or when their `jd.md`
+texts match (sha256 of the text lower-cased with whitespace collapsed, for texts of 200
+characters or more). `meta.py create` and `new-job.py` refuse a likely duplicate unless given
+`--allow-duplicate`; the TUI's Add asks before saving one; `rules.py check` dismisses the later
+of two duplicate Leads; the Sweep skips a role whose employer and title are already saved.
 | `status_log` | list | ✅ | append-only history (below). The current Status is the **last** entry |
 
 A **Filtered** Application is one whose Status is `Dismissed` and that has a `filter_reason`.
@@ -279,6 +310,15 @@ that rule a role out, so none lives in prose:
   "max_contract_months": 6
 }
 ```
+
+`visa` (read by the TUI and assess-fit) is the Owner's work-rights position:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `needs_sponsorship` | bool | the Owner needs visa sponsorship. A Lead whose `sponsorship` is `not-offered` is badged "needs sponsorship" |
+| `max_contract_months` | int ≥ 1 | the longest term the Owner's visa allows. A Lead with `term_months` is badged "fits 6-month cap" or "12 mo > 6-month cap" |
+
+`pay_fx` is an object of currency code → AUD rate for the pay estimate (above).
 
 Where a role must be is `search_area` (below), and what rules a role out on its ad text
 (citizenship, clearance, permanent residency) is `blockers`. Neither is repeated here. The

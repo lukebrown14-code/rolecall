@@ -28,7 +28,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	if a.Malformed != nil {
 		return []string{"⚠ " + filepath.Base(a.Folder)}
 	}
-	out := []string{a.Title, a.Company, a.Track}
+	out := []string{a.Title, a.CompanyLabel(), a.Track}
 	fit := a.Fit
 	if fit == "" {
 		fit = glyphNone

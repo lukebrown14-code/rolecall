@@ -49,7 +49,7 @@ func TestStatsFunnelOverFixtures(t *testing.T) {
 		count, through   int
 		skipped, percent int
 	}{
-		{store.StatusLead, 4, 0, 0, 0},
+		{store.StatusLead, 7, 0, 0, 0},
 		// Neither Draft was a Lead first.
 		{store.StatusDraft, 2, 0, 2, 0},
 		// status-draft went Applied then Draft, so its Draft came after: no Applied came

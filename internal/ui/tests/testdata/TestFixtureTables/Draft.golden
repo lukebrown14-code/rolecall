@@ -1,6 +1,6 @@
- ▞ rolecall  1 Leads 4 [2 Drafts 2] 3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall  1 Leads 7 [2 Drafts 2] 3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW [Drafts 2] │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
+   VIEW s [Drafts 2] Deadlines 1 │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✎ Drafts · 2 ──────────────────────────────────────────────── │ docs-none                                            
  ▌ ✎ docs-none                                    ~7d     fit —  │ Fictional Labs · SWE · ○ 0/4 ready                   
@@ -37,4 +37,4 @@
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
    Drafts › All tracks · row 1 of 2
- enter open  e edit  m move  x dismiss  n notes  w open link  c copy link  a add  / search  t track              ? help
+ enter open  e edit  m move  x dismiss  n notes  w open link  c copy link  a add  s view  / search  t track      ? help

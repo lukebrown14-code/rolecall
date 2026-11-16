@@ -42,6 +42,21 @@ DEFAULTS = {
     "FilterReason": "",
     "FilterNote": "",
     "FilterOverruled": False,
+    "Recruiter": "",
+    "EmploymentType": "",
+    "TermMonths": None,
+    "Extension": "",
+    "Sponsorship": "",
+    "PayMin": None,
+    "PayMax": None,
+    "PayUnit": "",
+    "Currency": "",
+    "ClosesUnclear": False,
+    "JDCompleteness": "",
+    "AddedBy": "",
+    "SearchQuery": "",
+    "Listing": "",
+    "ListingChecked": "",
 }
 
 

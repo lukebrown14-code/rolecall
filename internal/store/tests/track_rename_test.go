@@ -42,14 +42,14 @@ func TestRenameTrackRewritesApplicationsArchiveTracksAndRoles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if impact.Applications != 11 || !impact.Roles {
-		t.Fatalf("impact = %+v, want 11 Applications (10 readable + 1 archived) and roles.json", impact)
+	if impact.Applications != 14 || !impact.Roles {
+		t.Fatalf("impact = %+v, want 14 Applications (13 readable + 1 archived) and roles.json", impact)
 	}
 	res, err := s.RenameTrack("SWE", "Engineering")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Applications != 11 || !res.Roles {
+	if res.Applications != 14 || !res.Roles {
 		t.Fatalf("result = %+v", res)
 	}
 	if got := readTrackOf(t, root, "SWE/orbit"); got != "Engineering" {

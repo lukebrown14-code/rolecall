@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import adfacts  # noqa: E402
 import meta as meta_store  # noqa: E402
 from signals import blockers_for, scan  # noqa: E402
 from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
@@ -446,6 +447,26 @@ def extract_facts(jd, role="", meta=None):
     }
 
 
+# Ad text shorter than this is a blurb, not the ad: assess-fit asks for the full text first.
+BLURB_CHARS = 600
+
+
+def _has_close_phrase(text):
+    return bool(re.search(
+        r"(?i)\b(?:closes?|closing date|applications? close|apply by|deadline)\b", text))
+
+
+def ad_facts(jd, facts):
+    """The meta.yml ad facts read from the ad: pay, terms and an unclear close date."""
+    out = {}
+    pay = adfacts.read_pay(facts.get("salary") or "") or adfacts.read_pay(jd)
+    out.update({key: str(value) for key, value in pay.items()})
+    out.update(adfacts.read_terms(jd))
+    if not _valid_closes(facts.get("closes", "")) and _has_close_phrase(jd):
+        out["closes_unclear"] = "true"  # a garbled date is flagged, never guessed
+    return out
+
+
 def _one_line(value):
     return re.sub(r"\s+", " ", str(value)).strip()
 
@@ -459,6 +480,13 @@ def _valid_closes(value):
     except ValueError:
         return ""
     return value
+
+
+def _float(value):
+    try:
+        return float(value) if value not in (None, "") else None
+    except ValueError:
+        return None
 
 
 def read_input(args):
@@ -513,6 +541,14 @@ def main(argv=None):
     parser.add_argument("--applicants", default="", help="applicant count the site shows")
     parser.add_argument("--from", dest="from_source", default="",
                         help="Source registry name the ad was found on, e.g. linkedin")
+    parser.add_argument("--recruiter", default="",
+                        help="the agency that posted the ad; --company is the real employer")
+    parser.add_argument("--search-query", default="", help="the search that surfaced the ad")
+    parser.add_argument("--added-by", default="agent", choices=["agent", "owner", "sweep"])
+    parser.add_argument("--completeness", default="", choices=["", "full", "summary", "blurb"],
+                        help="how much of the ad jd.md holds (default: blurb when short)")
+    parser.add_argument("--allow-duplicate", action="store_true",
+                        help="save even though a saved Application looks like the same role")
     add_data_argument(parser)
     args = parser.parse_args(argv)
 
@@ -566,7 +602,18 @@ def main(argv=None):
         "posted_label": args.posted_label,
         "applicants": args.applicants,
         "source": args.from_source,
+        "recruiter": _one_line(args.recruiter),
+        "search_query": _one_line(args.search_query),
+        "added_by": args.added_by,
+        "jd_completeness": args.completeness or ("blurb" if len(jd) < BLURB_CHARS else ""),
+        **ad_facts(jd, facts),
     }
+    if not args.allow_duplicate:
+        dupes = meta_store.duplicates_of(workspace, fields, jd)
+        if dupes:
+            listed = "\n  ".join(f"{app.folder} ({why})" for app, why in dupes)
+            sys.exit("rolecall: not saved, it looks like a saved Application:\n  " + listed +
+                     "\nUse that one, or pass --allow-duplicate if it is a different role")
     if args.posted and not meta_store._valid_date(args.posted):
         sys.exit(f"rolecall: --posted wants YYYY-MM-DD, not {args.posted!r}")
     if args.applicants and not args.applicants.isdigit():
@@ -596,6 +643,19 @@ def main(argv=None):
     if company == "company" or role == "role":
         print("\n  Company/role could not be read from the JD -- re-run with --company")
         print("  and --role, or correct meta.yml before assessing fit.")
+
+    for key in ("recruiter", "employment_type", "term_months", "extension", "sponsorship"):
+        if fields.get(key):
+            print(f"  {key:<16} {fields[key]}")
+    pay = adfacts.pay_text(
+        _float(fields.get("pay_min")), _float(fields.get("pay_max")), fields.get("pay_unit"),
+        fields.get("currency"), adfacts.fx_table(workspace))
+    if pay:
+        print(f"  {'pay (annual)':<16} {pay}")
+    if fields.get("closes_unclear"):
+        print("  closes           date unclear in the ad: check it and set closes by hand")
+    if fields.get("jd_completeness") == "blurb":
+        print("  jd.md            only a blurb: get the full ad before assessing fit")
 
     for finding in broken:
         print(f"\n  Search rule: {finding.reason} -- {finding.note}. Saved because you asked;")

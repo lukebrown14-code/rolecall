@@ -1,22 +1,22 @@
- ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall [1 Leads 7] 2 Drafts 2  3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW s [Leads 4] Dismissed 2  Filtered 1 │ TRACK t [All 4] SWE 3  Platform 1
+   VIEW s [Leads 7] Dismissed 2  Filtered 1 │ TRACK t [All 7] SWE 6  Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ◌ Leads · 4 ───────────────────────────────────────────────── │ Empty                                                
+   ◌ Leads · 7 ───────────────────────────────────────────────── │ Empty                                                
  ▌ ◌ Empty                                                fit —  │ Example · SWE                                        
  ▌   Example · SWE · —                                           │                                                      
    ◌ Empty log                                            fit —  │ ◌ Lead                                        fit —  
      Fictional Labs · SWE · —                                    │                                                      
    ◌ Platform Engineer                                7d  fit —  │ DOCS    □□□□ 0/4 ready                               
      Fern Systems · Platform · — · posted 27d ⚠ expires in 3 da… │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+   ◌ Backend Engineer (Level 3)                       3d  fit —  │                                                      
+     Numbat Health · SWE · — · blurb only                        │ NEXT    add the JD                       enter open  
+   ◌ Data Engineer                                    5d  fit —  │                                                      
+     Quokka Energy via Wattle Talent · SWE · — · fits 6-month c… │ TIMELINE                                             
+   ◌ Reliability Engineer                             4d  fit —  │   Not moved yet · m to move                          
+     Bilby Freight · SWE · closes: date unclear · 12 mo > 6-mon… │   ✎ Draft                                      next  
    ⚠ Can't read SWE/malformed                                    │                                                      
-     meta.yml line 4: indented lines must be status_log entri…   │ NEXT    add the JD                       enter open  
-                                                                 │                                                      
-                                                                 │ TIMELINE                                             
-                                                                 │   Not moved yet · m to move                          
-                                                                 │   ✎ Draft                                      next  
-                                                                 │                                                      
-                                                                 │ NOTES   none yet                              n add  
+     meta.yml line 4: indented lines must be status_log entri…   │ NOTES   none yet                              n add  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Leads › All tracks · row 1 of 4
+   Leads › All tracks · row 1 of 7
  enter open  e edit  m move  x dismiss  n notes  a add  s view  o sort newest  / search  t track     : commands  ? help

@@ -13,7 +13,7 @@ func TestNavigation(t *testing.T) {
 		keys []string
 		want string
 	}{
-		{nil, "Leads 4"},
+		{nil, "Leads 7"},
 		{[]string{"2"}, "Drafts 2"},
 		{[]string{"3"}, "Closed 4"},
 		{[]string{"tab", "?"}, "Keys"},

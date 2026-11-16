@@ -77,8 +77,10 @@ type model struct {
 	settings              *settingsState
 	// rules are workspace.json's Search rules, re-read with every scan, for the age warning.
 	rules       store.SearchRules
-	leadsNewest bool           // Leads sorted newest first instead of by close date; s toggles
-	writing     map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
+	visa        store.Visa         // workspace.json visa, for the sponsorship and contract badges
+	payFX       map[string]float64 // workspace.json pay_fx, for the annual pay estimate
+	leadsNewest bool               // Leads sorted newest first instead of by close date; s toggles
+	writing     map[string]int     // documents written just now (watch.DocumentKey) and their mark's generation
 	writingGen  int
 	legacy      []string        // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
 	clipboard   ClipboardWriter // nil uses the system clipboard program
@@ -175,6 +177,9 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 		}
 		return out
 	}
+	if table == tableDeadlines {
+		return m.deadlineRows(true)
+	}
 	var out []store.Application
 	for _, a := range m.apps {
 		s, t := appLocation(a)
@@ -201,6 +206,30 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	return out
 }
 
+// deadlineRows is the Deadlines view: every Lead and Draft with a close date, soonest
+// first, then those whose date has passed, then those whose ad left it unclear. filter
+// applies the Track and text filters.
+func (m model) deadlineRows(filter bool) []store.Application {
+	var live, past, unclear []store.Application
+	for _, a := range m.apps {
+		if a.Malformed != nil || !beforeApplied(tableOf(a)) || (filter && !m.matches(a)) {
+			continue
+		}
+		switch {
+		case a.Closes != "" && m.expired(a):
+			past = append(past, a)
+		case a.Closes != "":
+			live = append(live, a)
+		case a.ClosesUnclear:
+			unclear = append(unclear, a)
+		}
+	}
+	SortApplications(live, tableDraft)
+	SortApplications(past, tableDraft)
+	SortApplications(unclear, tableDraft)
+	return append(append(live, past...), unclear...)
+}
+
 // beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.
 func beforeApplied(table string) bool { return table == tableLeads || table == tableDraft }
 
@@ -215,6 +244,9 @@ func (m model) totalCount(screen int, table string) int {
 			n += m.totalCount(screen, g)
 		}
 		return n
+	}
+	if table == tableDeadlines {
+		return len(m.deadlineRows(false))
 	}
 	n := 0
 	for _, a := range m.apps {
@@ -503,9 +535,9 @@ func (m *model) reload(folder string) bool {
 // loadRules re-reads the Search rules. A workspace.json that does not read leaves the
 // rules unset: Settings reports the file, and no age warning is better than a wrong one.
 func (m *model) loadRules() {
-	m.rules = store.SearchRules{}
+	m.rules, m.visa, m.payFX = store.SearchRules{}, store.Visa{}, nil
 	if ws, err := m.store.Settings(); err == nil && ws.Err == nil {
-		m.rules = ws.Rules
+		m.rules, m.visa, m.payFX = ws.Rules, ws.Visa, ws.PayFX
 	}
 }
 

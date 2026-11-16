@@ -13,7 +13,7 @@ func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
 		lines := settingsAt(t, size[0], size[1], "]", "]", "]", "]", "x")
 		v := strings.Join(lines, "\n")
-		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 11 Applications", "incl. 2 Dismissed", "Move its Applications to another Track")
+		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 14 Applications", "incl. 2 Dismissed", "Move its Applications to another Track")
 		if strings.Contains(v, "rename") {
 			t.Errorf("%dx%d: the refusal offers rename, which does not remove anything:\n%s", size[0], size[1], v)
 		}
@@ -28,7 +28,7 @@ func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 func TestSettingsRefusalCountAddsUp(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE"]}`)
 	h.tm.Type("x")
-	requireAll(t, h.tm.plain(), "⚠ Can't remove Track SWE", "11 Applications,", "incl. 2 Dismissed, 1 unreadable.", "esc close")
+	requireAll(t, h.tm.plain(), "⚠ Can't remove Track SWE", "14 Applications,", "incl. 2 Dismissed, 1 unreadable.", "esc close")
 	h.tm.Type("esc")
 	if strings.Contains(h.tm.plain(), "Can't remove") {
 		t.Fatalf("esc left the refusal open:\n%s", h.tm.plain())

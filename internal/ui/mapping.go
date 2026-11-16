@@ -27,8 +27,11 @@ const (
 	tableLeads     = "Leads"
 	tableDismissed = "Dismissed"
 	// tableFiltered holds the Dismissed Applications a Search rule removed, with its reason.
-	tableFiltered     = "Filtered"
-	tableDraft        = "Drafts"
+	tableFiltered = "Filtered"
+	tableDraft    = "Drafts"
+	// tableDeadlines lists every Lead and Draft with a close date, or one the ad left
+	// unclear, soonest first.
+	tableDeadlines    = "Deadlines"
 	tableApplied      = store.StatusApplied
 	tableInterviewing = store.StatusInterviewing
 	tableOffer        = store.StatusOffer
@@ -58,7 +61,7 @@ var screenDefs []screenDef
 func init() {
 	screenDefs = []screenDef{
 		{name: screenLeads, tables: []string{tableLeads, tableDismissed, tableFiltered}, hasTables: true},
-		{name: screenDraft, tables: []string{tableDraft}, hasTables: true},
+		{name: screenDraft, tables: []string{tableDraft, tableDeadlines}, hasTables: true},
 		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
 		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys, enter: model.loadProfile},

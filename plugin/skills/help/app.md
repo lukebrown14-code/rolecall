@@ -41,14 +41,22 @@ an Application with `m`; the only automatic move is Lead → Draft when its PDFs
 Dismissed keeps the Application, restorable, and future Sweeps skip it. A Lead a Search rule
 removed (too old, over a Source's applicant cap, a blocker in the ad) is Dismissed with its
 reason and listed under Leads → **Filtered**; restore it with `m` and no rule removes it again.
-A Lead with a posting date shows its age, and warns as it nears the age limit. **Follow-up due** is a
+A Lead with a posting date shows its age, and warns as it nears the age limit.
+
+**Deadlines** (Drafts screen, `s`) lists every Lead and Draft with a closing date, soonest first,
+then the passed ones, then those whose date was unclear in the ad. A Lead or Draft shows its
+pay as an annual AUD estimate (flagged when a figure looks mislabelled, such as $900 an hour),
+its contract term against the visa cap in Settings → Rules, whether it needs sponsorship, and
+"blurb only" when `jd.md` is not the full ad. An agency ad reads "AGL via Chandler Macleod".
+Add warns before saving a likely duplicate. **Insights**, at the end of Stats, counts the gaps
+listed across every `fit.md` and how many Applications each would unlock. **Follow-up due** is a
 reminder on a sent Application unchanged for `follow_up_days` (default 14), not a Status.
 
 ## Screens and keys
 
 | Key | Does |
 | --- | --- |
-| `1`–`6` | Leads (and Dismissed, Filtered), Drafts, Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
+| `1`–`6` | Leads (and Dismissed, Filtered), Drafts (and Deadlines: `s` on Drafts), Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
 | `Tab` · `j`/`k` | move between tables · rows |
 | `Enter` / `v` | open the Application's details |
 | `a` · `e` · `m` · `x` | add · edit · move to another Status · dismiss |

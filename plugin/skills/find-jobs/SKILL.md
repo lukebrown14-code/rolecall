@@ -152,6 +152,26 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/meta.py" create \
   `"Posted 30+ Days Ago"`). Give the label even when you work the date out from it.
 - `--applicants` with the count the site shows, and `--source` with the registry `name`
   you found it on (`linkedin`, `greenhouse`).
+- Where it came from: `--added-by sweep` for a role from `sweep-candidates.md`, `--added-by
+  agent` for one you found by hand, and `--search-query` with the search that surfaced it.
+- **The real employer is `--company`.** When a recruiter posted the ad for a client (Chandler
+  Macleod for AGL), pass `--company AGL --recruiter "Chandler Macleod"`. If the ad hides the
+  client, use the recruiter as `--company` and say so in the hand-back.
+- The ad's facts, only as stated: `--employment-type` (`permanent`, `contract`, `fixed-term`,
+  `casual`, `part-time`), `--term-months`, `--extension` (`yes`, `no`, `possible`),
+  `--sponsorship` (`offered`, `not-offered`, `unknown`), and pay as `--pay-min`, `--pay-max`,
+  `--pay-unit` (`hour`, `day`, `week`, `month`, `year`) and `--currency` (`AUD`, `USD`). Write
+  the figure and unit the ad gives; do not convert. A figure that looks mislabelled ("$900–1,100
+  an hour") is stored as written and flagged by the TUI; mention it.
+- `--closes-unclear true` instead of `--closes` when the ad has a closing date you cannot read.
+  Never guess a date.
+- `--jd-completeness`: `full` when `jd.md` holds the whole ad, `summary` when you condensed it,
+  `blurb` when only a snippet was readable (behind a login, a search result).
+- Pass `--jd-file <path to the ad text>` so the duplicate check also compares the ad text. The
+  command **refuses a likely duplicate** (same employer and title, or the same ad text) and
+  names the saved folder: the same ad under another URL is not a new Lead. Use
+  `meta.py find-duplicates --company … --title …` to check first. `--allow-duplicate` only for
+  a genuinely different role.
 - The command **refuses** a Lead a Search rule rules out and names the rule: leave that role
   out and list it in the hand-back. Pass `--override-rules` only when the Owner asked for that
   role anyway. A borderline age prints a warning and saves; mention it in the hand-back.
@@ -195,12 +215,17 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/rules.py" check
 
 It lists the Leads a rule would dismiss, the borderline ones it keeps, and the Drafts a rule
 would remove, separately. Nothing is written. Only after the Owner confirms, run
-`rules.py check --apply`. Add `--include-drafts` only when the Owner said yes to the Drafts as
+`rules.py check --apply`. Before the dry run, `rules.py recheck` fetches each Lead's ad and
+records whether it is still `live`, `gone` or `closed`; the dry run then lists pulled ads,
+Leads past their `closes` date and likely duplicates alongside the other rules. Run both at the
+start of every sweep. Add `--include-drafts` only when the Owner said yes to the Drafts as
 well: they may already have documents. Each Application is dismissed in place with a
 `filter_reason` and appears under Leads → Filtered, where the Owner can restore it.
 - Never touch `notes.md`, `sent/` or the Profile fact table (`profile/projects.md`).
-- Never rewrite `meta.yml` by hand; set keys through the shared writer so unknown keys and
-  comments survive byte for byte.
+- Never rewrite `meta.yml` by hand, and never edit any Workspace file with `sed`, `awk` or an
+  ad-hoc script. Read an Application with `meta.py show --folder <folder>` and set keys with
+  `meta.py patch --folder <folder> --set key=value`: it validates every value and keeps unknown
+  keys and comments byte for byte. Timestamps come from the scripts, never typed.
 - Never create a duplicate. If the Sweep kept a URL that is already an Application, report the
   existing folder instead of making a second one.
 - Find jobs never decides the final Fit verdict. Save the Lead; assessment comes next.

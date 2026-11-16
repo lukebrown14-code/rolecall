@@ -300,6 +300,7 @@ def test_create_slug_and_collision_suffixes(tmp_path, company, title, want):
             title,
             "--at",
             "2026-11-11T00:00:00Z",
+            "--allow-duplicate",  # the same role three times is the point here
         )
         assert result.returncode == 0, result.stderr
         folders.append(Path(result.stdout.strip()))

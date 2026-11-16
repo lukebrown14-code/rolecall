@@ -61,6 +61,14 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/new-job.py" --track SWE --paste --source 
   says; `--applicants` and `--from linkedin` record the applicant count and the registry
   Source it came from. A Search rule the ad breaks is reported, not enforced: the Owner chose
   this ad.
+- `--company` is the real employer. For an agency ad, pass the client as `--company` and the
+  agency as `--recruiter`. `--search-query` records the search that found the ad, and
+  `--completeness` says how much of the ad you have (`full`, `summary`, `blurb`; a short text is
+  marked `blurb` by itself).
+- The script stores the pay, contract terms and sponsorship it reads from the ad, flags a
+  closing date it cannot read as `closes_unclear`, and **refuses a likely duplicate**, naming
+  the saved folder. Tell the Owner which one; pass `--allow-duplicate` only if they say it is
+  a different role.
 
 Never type a URL you have not seen. If the ad cannot be fetched, capture it from pasted text.
 

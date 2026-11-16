@@ -86,7 +86,7 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 	if medium := top(80, 24); strings.Contains(medium, "live") || strings.Contains(medium, "▞") {
 		t.Errorf("medium tab bar: %q, want no brand mark and no pulse", medium)
 	}
-	if narrow := top(60, 16); strings.Contains(narrow, "rolecall") || !strings.Contains(narrow, "1 Leads 4") {
+	if narrow := top(60, 16); strings.Contains(narrow, "rolecall") || !strings.Contains(narrow, "1 Leads 7") {
 		t.Errorf("narrow tab bar: %q, want the active tab whole and no wordmark", narrow)
 	}
 }
@@ -111,7 +111,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 		if strings.ContainsAny(bar, "▞▁▂▃▄▅▆▇█") || strings.Contains(bar, "rolecall") {
 			t.Errorf("%dx%d tab bar shows the mark or sparkline: %q", size[0], size[1], bar)
 		}
-		if !strings.Contains(bar, "1 Leads 4") {
+		if !strings.Contains(bar, "1 Leads 7") {
 			t.Errorf("%dx%d tab bar lost the active tab: %q", size[0], size[1], bar)
 		}
 	}

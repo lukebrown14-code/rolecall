@@ -6,6 +6,7 @@
     python3 rules.py --data <ws> check                     # dry run over saved Applications
     python3 rules.py --data <ws> check --apply             # dismiss the certain Leads
     python3 rules.py --data <ws> check --apply --include-drafts   # Drafts too
+    python3 rules.py --data <ws> recheck                   # is each Lead's ad still up?
 
 The rules live in workspace.json ``search_rules`` (SCHEMA.md), with per-source caps in the
 ``sources`` registry. The Sweep drops new roles with them, ``meta.py create`` refuses a Lead
@@ -34,7 +35,8 @@ DEFAULT_EXPIRY_WARNING_DAYS = 5
 EXPIRED, BLOCKER, APPLICANT_CAP, LOCATION, CONTRACT_LENGTH = (
     "expired", "blocker", "applicant_cap", "location", "contract_length",
 )
-REASONS = (EXPIRED, BLOCKER, APPLICANT_CAP, LOCATION, CONTRACT_LENGTH)
+CLOSED, PULLED, DUPLICATE = "closed", "pulled", "duplicate"
+REASONS = (EXPIRED, CLOSED, PULLED, DUPLICATE, BLOCKER, APPLICANT_CAP, LOCATION, CONTRACT_LENGTH)
 
 
 class RulesError(ValueError):
@@ -227,9 +229,20 @@ def contract_months(text):
 
 
 def evaluate(rules, *, source="", posted="", posted_label="", applicants=None, text="",
-             blockers=None, today=None):
+             blockers=None, today=None, closes="", listing=""):
     """Every rule a role breaks, in the order the report lists them."""
     findings = []
+    today = today or date.today()
+    if closes:
+        try:
+            past = datetime.strptime(closes, "%Y-%m-%d").date() < today
+        except ValueError:
+            past = False
+        if past:
+            findings.append(Finding(CLOSED, f"closed {closes}"))
+    if listing in ("gone", "closed"):
+        findings.append(Finding(PULLED, "the ad is gone" if listing == "gone"
+                                else "the ad says it is closed"))
     age = check_age(age_of(posted, posted_label, today), rules, source)
     if age:
         findings.append(age)
@@ -259,8 +272,11 @@ def _plan(workspace, rules, today=None):
     import meta as meta_store  # noqa: PLC0415 -- meta imports this module lazily too
     from signals import blockers_for  # noqa: PLC0415
     blockers = blockers_for(load(workspace).blockers)
+    import adfacts  # noqa: PLC0415
     plan = []
-    for app in meta_store.scan(workspace):
+    apps = meta_store.scan(workspace)
+    first = {a.folder: (a.status_log[0].at if a.status_log else "") for a in apps}
+    for app in apps:
         if app.malformed or app.status not in ("Lead", "Draft") or app.filter_overruled:
             continue
         try:
@@ -269,8 +285,16 @@ def _plan(workspace, rules, today=None):
             text = ""
         findings = [f for f in evaluate(rules, source=app.source, posted=app.posted,
                                         posted_label=app.posted_label, applicants=app.applicants,
-                                        text=text, blockers=blockers, today=today)
+                                        text=text, blockers=blockers, today=today,
+                                        closes=app.closes, listing=app.listing)
                     if not f.advisory]
+        if app.status == "Lead":
+            others = [a for a in apps if a.folder != app.folder and a.status != "Dismissed"]
+            for other, why in adfacts.likely_duplicates(others, app.company, app.title, text,
+                                                        app.recruiter):
+                if (first[other.folder], str(other.folder)) < (first[app.folder], str(app.folder)):
+                    findings.append(Finding(DUPLICATE, f"{why} as {other.folder}"))
+                    break
         if findings:
             plan.append((app, findings))
     return plan
@@ -320,6 +344,54 @@ def check(workspace, apply=False, include_drafts=False, today=None, out=sys.stdo
     return written
 
 
+GONE_RE = re.compile(r"(no longer (?:available|accepting)|job (?:has )?(?:expired|closed)|"
+                     r"position (?:has been )?filled|this (?:job|role|ad) (?:is )?closed|"
+                     r"applications? (?:have |are )?closed)", re.I)
+
+
+def listing_state(url, fetch):
+    """live, gone or closed for one ad URL; None when it could not be checked."""
+    import urllib.error  # noqa: PLC0415
+    try:
+        body = fetch(url)
+    except urllib.error.HTTPError as error:
+        return "gone" if error.code in (404, 410) else None
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    return "closed" if GONE_RE.search(body or "") else "live"
+
+
+def _fetch(url):
+    import urllib.request  # noqa: PLC0415
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 rolecall"})
+    with urllib.request.urlopen(req, timeout=20) as response:
+        return response.read(400_000).decode("utf-8", "replace")
+
+
+def recheck(workspace, fetch=_fetch, today=None, out=sys.stdout):
+    """Fetch each Lead's ad URL and record listing + listing_checked. Writes only those keys;
+    dismissing a pulled Lead is left to ``check`` (a dry run first)."""
+    import meta as meta_store  # noqa: PLC0415
+    today = (today or date.today()).isoformat()
+    counts = {"live": 0, "gone": 0, "closed": 0, "unchecked": 0}
+    for app in meta_store.scan(workspace):
+        if app.malformed or app.status != "Lead" or not app.url.startswith(("http://", "https://")):
+            continue
+        state = listing_state(app.url, fetch)
+        if state is None:
+            counts["unchecked"] += 1
+            print(f"- could not check: {app.company} — {app.title} ({app.url})", file=out)
+            continue
+        counts[state] += 1
+        meta_store.patch(app.folder, {"listing": state, "listing_checked": today})
+        if state != "live":
+            print(f"- {state}: {app.company} — {app.title} ({app.url})", file=out)
+    print(f"Checked: {counts['live']} live, {counts['gone']} gone, {counts['closed']} closed, "
+          f"{counts['unchecked']} could not be checked (login wall, 403 or offline). "
+          "Run `check` to see what that would dismiss.", file=out)
+    return counts
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -334,6 +406,7 @@ def main(argv=None):
     run.add_argument("--include-drafts", action="store_true",
                      help="with --apply, dismiss Drafts a rule removes too")
     run.add_argument("--today", help="YYYY-MM-DD (tests)")
+    commands.add_parser("recheck", help="check each Lead's ad is still up; writes listing only")
     args = parser.parse_args(argv)
     workspace = workspace_from_cli(args.data)
     try:
@@ -351,6 +424,8 @@ def main(argv=None):
                             else "discard" if finding.certain else "borderline"),
                 "note": finding.note if finding else "",
             }))
+        elif args.command == "recheck":
+            recheck(workspace)
         else:
             today = (datetime.strptime(args.today, "%Y-%m-%d").date() if args.today
                      else datetime.now(timezone.utc).date())
