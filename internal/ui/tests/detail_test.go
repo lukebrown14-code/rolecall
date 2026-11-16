@@ -51,7 +51,7 @@ func newDetailHarness(t *testing.T, setup func(root string), extra ...ui.Option)
 			}
 		})}, extra...)
 	h.tm = newDriver(t, root, fixtureClock, 120, 40, opts...)
-	h.wait("Leads 4")
+	h.wait("Leads 7")
 	return h
 }
 
@@ -377,7 +377,7 @@ func TestDetailEscReturnsToSameRow(t *testing.T) {
 	if got, want := run[len(run)-1], filepath.Join(leads[2].Folder, "notes.md"); got != want {
 		t.Fatalf("acted on %q, want third row %q", got, want)
 	}
-	h.show("Leads 4")
+	h.show("Leads 7")
 }
 
 func TestDetailKeepsScrollPositionWhenEditorReturns(t *testing.T) {

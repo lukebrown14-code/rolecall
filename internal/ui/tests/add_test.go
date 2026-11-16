@@ -46,7 +46,7 @@ func newAddHarness(t *testing.T) *addHarness {
 		}
 	}
 	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, ui.WithExternalRunner(runner))
-	h.wait("Leads 4")
+	h.wait("Leads 7")
 	return h
 }
 

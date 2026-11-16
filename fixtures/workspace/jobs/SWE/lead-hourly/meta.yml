@@ -1,0 +1,14 @@
+schema: 1
+title: Reliability Engineer
+company: Bilby Freight
+track: SWE
+employment_type: contract
+term_months: 12
+sponsorship: not-offered
+pay_min: 850
+pay_unit: hour
+currency: AUD
+closes_unclear: true
+added_by: agent
+status_log:
+  - {status: Lead, at: 2026-09-27T01:00:00Z}

@@ -41,6 +41,9 @@ const hintClose = "close"
 type formMode struct {
 	form   *form
 	editOf *store.Application
+	// dupAck is the title and company a Likely duplicate warning was shown for; a second
+	// enter on the same answers saves anyway.
+	dupAck string
 }
 
 func (fm *formMode) Keys() [][2]string { return fm.form.Keys() }
@@ -79,7 +82,34 @@ func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 			return &duplicateMode{existing: duplicateOf(matches), others: len(matches) - 1, fields: fields, back: fm}, nil
 		}
 	}
+	if warn := fm.duplicateWarning(m, fields); warn != "" {
+		f.Focused().Err = warn
+		return fm, nil
+	}
 	return fm.submitAdd(m, fields)
+}
+
+// duplicateWarning names the Likely duplicates of the new Lead the first time enter
+// saves these answers; "" lets the save go ahead.
+func (fm *formMode) duplicateWarning(m *model, fields store.CreateFields) string {
+	key := fields.Title + "\x00" + fields.Company
+	if fm.dupAck == key {
+		return ""
+	}
+	jd := ""
+	if fm.form.Fetched {
+		jd = fm.form.Jd
+	}
+	matches, err := m.store.LikelyDuplicates(fields.Company, "", fields.Title, jd)
+	if err != nil || len(matches) == 0 {
+		return ""
+	}
+	fm.dupAck = key
+	names := make([]string, len(matches))
+	for i, a := range matches {
+		names[i] = m.rel(a.Folder)
+	}
+	return "Likely duplicate of " + strings.Join(names, ", ") + " · enter again to save anyway"
 }
 
 // moveMode is the Move pop-up: every Status but the current one, likely next steps first.

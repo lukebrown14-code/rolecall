@@ -1,0 +1,6 @@
+# Fit
+
+## Gaps
+
+- `Kafka`
+- Terraform

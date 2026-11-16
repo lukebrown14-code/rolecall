@@ -27,9 +27,10 @@ type Application struct {
 	// its detail. FilterOverruled marks one the Owner restored: no rule dismisses it again.
 	FilterReason, FilterNote string
 	FilterOverruled          bool
-	StatusLog                []StatusEntry
-	AppliedDate, LastChange  *StatusEntry
-	Malformed                error `json:"-"`
+	AdFacts
+	StatusLog               []StatusEntry
+	AppliedDate, LastChange *StatusEntry
+	Malformed               error `json:"-"`
 }
 
 // Filtered reports that a Search rule dismissed the Application and the Owner has not

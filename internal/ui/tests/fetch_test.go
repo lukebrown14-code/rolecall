@@ -75,7 +75,7 @@ func newFetchHarness(t *testing.T, opts ...ui.Option) *fetchHarness {
 	}
 	base := []ui.Option{ui.WithExternalRunner(editor), ui.WithCapturedRunner(h.fake.runner)}
 	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, append(base, opts...)...)
-	h.wait("Leads 4")
+	h.wait("Leads 7")
 	return h
 }
 

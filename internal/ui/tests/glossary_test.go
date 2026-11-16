@@ -15,9 +15,10 @@ import (
 
 // secondMeaning lists avoided terms the UI uses in another, legitimate sense, and why.
 var secondMeaning = map[string]string{
-	"search": "the / filter over rows, not Discovery",
-	"match":  "search results, not Fit",
-	"job":    "skill names such as capture-job and find-jobs",
+	"search":    "the / filter over rows, not Discovery",
+	"match":     "search results, not Fit",
+	"job":       "skill names such as capture-job and find-jobs",
+	"extension": "a contract's extension in an ad (meta.yml extension), not a Harness extension",
 }
 
 // proseSecondMeaning lists avoided terms the Plugin and skill prose uses in another,

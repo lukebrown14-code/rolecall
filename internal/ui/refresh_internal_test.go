@@ -40,8 +40,8 @@ func TestRefreshDropsRemovedApplication(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := m.refresh([]string{fern})
-	if got := next.screenCount(0); got != 3 {
-		t.Fatalf("Leads count is %d, want 3", got)
+	if got := next.screenCount(0); got != 6 {
+		t.Fatalf("Leads count is %d, want 6", got)
 	}
 	for _, a := range next.apps {
 		if strings.Contains(a.Company, "Fern") || strings.Contains(a.Title, "Platform Engineer") {

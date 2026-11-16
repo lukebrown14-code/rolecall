@@ -211,6 +211,8 @@ func (m model) fieldRows(p pal, a store.Application, w int, next bool) []string 
 	rows := m.statusLine(p, a, w)
 	if text, s := closeInfo(a.Closes, m.now()); s != closeNone && beforeApplied(tableOf(a)) {
 		rows = append(rows, p.fieldRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), "e", "edit", w))
+	} else if a.ClosesUnclear && a.Closes == "" && beforeApplied(tableOf(a)) {
+		rows = append(rows, p.fieldRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), "e", "edit", w))
 	}
 	rows = append(rows, m.sweepRows(p, a, w)...)
 	rows = append(rows, "")
@@ -324,6 +326,13 @@ func (m model) sweepRows(p pal, a store.Application, w int) []string {
 	}
 	if a.Source != "" {
 		add("SOURCE", a.Source)
+	}
+	for _, f := range m.adFactRows(a) {
+		var extra []string
+		if f.warn != "" {
+			extra = append(extra, p.Text(p.Warn).Render(xansi.Truncate(glyphWarn+" "+f.warn, max(1, w-sweepLabelW), "…")))
+		}
+		add(f.label, f.value, extra...)
 	}
 	if a.Filtered() {
 		value := filterReasonLabel(a.FilterReason)

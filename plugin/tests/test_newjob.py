@@ -276,8 +276,11 @@ def test_capturing_twice_suffixes_the_second_folder(tmp_path):
     text = f"Company: Initech\nRole: Junior Dev\n{BODY}"
 
     first = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=text)
-    second = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=text)
+    refused = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", stdin=text)
+    second = run_script(workspace, SCRIPT, "--track", "SWE", "--paste", "--allow-duplicate",
+                        stdin=text)
 
+    assert refused.returncode == 1 and "looks like a saved Application" in refused.stderr
     assert first.returncode == 0, first.stderr
     assert second.returncode == 0, second.stderr
     names = sorted(
@@ -314,7 +317,12 @@ def test_explicit_company_role_and_source_fill_the_record(tmp_path):
     assert 'company: "Initech"' in meta
     assert 'url: "https://x.test/1"' in meta
     assert 'closes: "2026-10-31"' in meta
-    assert "seniority:" not in meta and "salary:" not in meta and "type:" not in meta
+    # The free-text facts stay out; the structured ad facts (SCHEMA.md) go in.
+    assert "\nseniority:" not in meta and "\nsalary:" not in meta and "\ntype:" not in meta
+    assert 'pay_min: "120000"' in meta and 'pay_max: "140000"' in meta
+    assert 'pay_unit: "year"' in meta and 'currency: "AUD"' in meta
+    assert 'employment_type: "contract"' in meta and 'term_months: "6"' in meta
+    assert 'added_by: "agent"' in meta
 
 
 def test_existing_folder_is_left_untouched(tmp_path):

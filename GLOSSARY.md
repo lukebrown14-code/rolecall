@@ -88,6 +88,22 @@ _Avoid_: rejected, deleted, passed (for this)
 A Dismissed Application a Search rule removed, with the reason (expired, blocker, applicant_cap…) recorded beside it. Listed apart from the ones the Owner dismissed, and restorable; once restored no rule dismisses it again.
 _Avoid_: expired (as a Status), discarded
 
+**Recruiter**:
+The agency that posted an ad for a client. The client is the Application's company, the real employer, and is what Fit, duplicate checks and Search rules use.
+_Avoid_: agency (as a field), employer (for the recruiter)
+
+**Likely duplicate**:
+A saved Application that is probably the same role as a new one: the same employer and normalised title, or the same ad text. Refused unless the Owner says it is a different role.
+_Avoid_: dupe, copy
+
+**Deadlines**:
+The view of every Lead and Draft with a closing date, soonest first, with the ones whose date was unclear at the end.
+_Avoid_: calendar, due list
+
+**Insights**:
+The Stats panel that counts the gaps recorded across every Fit write-up, to show which skills would unlock the most roles.
+_Avoid_: analytics, report
+
 **Follow-up due**:
 A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status, and it clears only when the Status changes.
 _Avoid_: stale, reminder

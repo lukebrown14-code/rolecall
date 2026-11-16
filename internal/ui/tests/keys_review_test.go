@@ -104,7 +104,7 @@ func TestUndoWithNothingToUndoSaysSo(t *testing.T) {
 // esc on the toast leaves the cursor where it was: only a search resets it.
 func TestEscOnAToastKeepsTheCursor(t *testing.T) {
 	v := view(t, "1", "j", "j", "m", "d", "esc")
-	if !strings.Contains(v, "row 3 of 3") {
+	if !strings.Contains(v, "row 3 of 6") {
 		t.Fatalf("esc moved the cursor:\n%s", v)
 	}
 }

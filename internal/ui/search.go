@@ -16,7 +16,7 @@ func (m model) searchText(a store.Application) string {
 	if a.Malformed != nil {
 		return strings.TrimPrefix(m.rel(a.Folder), "jobs"+string(filepath.Separator))
 	}
-	return a.Title + " " + a.Company
+	return a.Title + " " + a.CompanyLabel()
 }
 
 // searchChip is the text filter while it is on, "/pl ×", shown on every screen so a

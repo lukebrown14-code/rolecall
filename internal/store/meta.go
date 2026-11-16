@@ -33,10 +33,14 @@ const (
 	FilterApplicantCap   = "applicant_cap"
 	FilterLocation       = "location"
 	FilterContractLength = "contract_length"
+	FilterClosed         = "closed"
+	FilterPulled         = "pulled"
+	FilterDuplicate      = "duplicate"
 )
 
 // FilterReasons are the valid filter_reason values.
-var FilterReasons = []string{FilterExpired, FilterBlocker, FilterApplicantCap, FilterLocation, FilterContractLength}
+var FilterReasons = []string{FilterExpired, FilterBlocker, FilterApplicantCap, FilterLocation, FilterContractLength,
+	FilterClosed, FilterPulled, FilterDuplicate}
 
 func validStatus(s string) bool { return slices.Contains(Statuses, s) }
 
@@ -109,6 +113,12 @@ func readApplication(dir string, b []byte) Application {
 		if err != nil {
 			return fail(n+1, err)
 		}
+		if handled, err := a.readAdFact(k, v); handled {
+			if err != nil {
+				return fail(n+1, err)
+			}
+			continue
+		}
 		switch k {
 		case "schema":
 			version, err := strconv.Atoi(v)
@@ -175,6 +185,11 @@ func readApplication(dir string, b []byte) Application {
 				return fail(n+1, fmt.Errorf("invalid filter_overruled"))
 			}
 			a.FilterOverruled = v == "true"
+		case keyClosesUnclear:
+			if v != "true" && v != "false" {
+				return fail(n+1, fmt.Errorf("invalid closes_unclear"))
+			}
+			a.ClosesUnclear = v == "true"
 		case "resume_only":
 			if v != "true" && v != "false" {
 				return fail(n+1, fmt.Errorf("invalid resume_only"))

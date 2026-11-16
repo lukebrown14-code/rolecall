@@ -498,6 +498,32 @@ var Rules = []Rule{
 		"A contract longer than this is flagged. The Lead is kept; the flag is advice."},
 }
 
+// The visa rows that follow the Search rules in Rules.
+const (
+	LabelNeedsSponsorship = "Needs sponsorship"
+	LabelVisaCap          = "Contract cap (visa)"
+)
+
+// VisaRules are the visa rows under the Search rules, in display order.
+var VisaRules = []Rule{
+	{store.VisaNeedsSponsorship, LabelNeedsSponsorship, "", "No",
+		"Whether you need an employer to sponsor your visa. A Lead whose ad says it will not sponsor is flagged."},
+	{store.VisaMaxContract, LabelVisaCap, "months", "6",
+		"The longest contract your visa lets you take. A Lead's contract term is shown against it."},
+}
+
+// VisaText is a visa row as the Owner types it: "" while unset, "true" or "false" for
+// sponsorship.
+func VisaText(v store.Visa, key string) string {
+	if !v.Set[key] {
+		return ""
+	}
+	if key == store.VisaNeedsSponsorship {
+		return strconv.FormatBool(v.NeedsSponsorship)
+	}
+	return strconv.Itoa(v.MaxContractMonths)
+}
+
 // RuleText is a Search rule as the Owner types it: "" while unset.
 func RuleText(r store.SearchRules, key string) string {
 	if !r.Set[key] {
@@ -528,6 +554,17 @@ func (st State[Undo]) ruleRows() []Row {
 			value = strconv.Itoa(store.DefaultExpiryWarningDays)
 		}
 		rows[i] = Row{Label: r.Label, Value: value, Unit: r.Unit, Source: FileSource(st.Ws.Rules.Set[r.Key]), Example: r.Example, About: r.About}
+	}
+	for i, r := range VisaRules {
+		value := VisaText(st.Ws.Visa, r.Key)
+		if r.Key == store.VisaNeedsSponsorship {
+			value = YesNo(value == "true")
+		}
+		row := Row{Label: r.Label, Value: value, Unit: r.Unit, Source: FileSource(st.Ws.Visa.Set[r.Key]), Example: r.Example, About: r.About}
+		if i == 0 {
+			row.Section = "Visa"
+		}
+		rows = append(rows, row)
 	}
 	return rows
 }

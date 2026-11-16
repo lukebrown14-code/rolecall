@@ -105,6 +105,7 @@ var buildStatsReport = reporting.Build
 // scroll key reuses it rather than rescanning the Applications.
 type statsCache struct {
 	report reporting.StatsReport
+	gaps   []store.GapCount
 	built  bool
 }
 
@@ -116,9 +117,57 @@ func (m model) statsReport() reporting.StatsReport {
 	}
 	if !m.stats.built {
 		m.stats.report = buildStatsReport(m.statsApps(), m.now(), m.followUpDays)
+		m.stats.gaps = m.store.CommonGaps(m.statsApps())
 		m.stats.built = true
 	}
 	return m.stats.report
+}
+
+// statsGaps is the gaps fit.md names across the Applications, cached with the report.
+func (m model) statsGaps() []store.GapCount {
+	if m.stats == nil {
+		return m.store.CommonGaps(m.statsApps())
+	}
+	m.statsReport()
+	return m.stats.gaps
+}
+
+// statsTopGaps is how many gaps the Common gaps panel lists.
+const statsTopGaps = 8
+
+// halves splits the gap panel: a gap name takes at most half its width.
+const halves = 2
+
+// statsInsights is the Insights panel: the gaps fit.md names most, each with how many
+// Applications name it and how many not Dismissed it would unlock.
+func (m model) statsInsights(p pal, w int) []string {
+	gaps := m.statsGaps()
+	textW := max(1, w-statsLabelWidth)
+	if len(gaps) == 0 {
+		var lines []string
+		for i, l := range wrapWords("No gaps recorded yet: assess-fit lists them under ## Gaps in fit.md", textW) {
+			if i == 0 {
+				lines = append(lines, statsHeading(p, "Common gaps", p.Text(p.Dim).Render(l)))
+			} else {
+				lines = append(lines, statsIndent+p.Text(p.Dim).Render(l))
+			}
+		}
+		return lines
+	}
+	gaps = gaps[:min(len(gaps), statsTopGaps)]
+	nameW := 0
+	for _, g := range gaps {
+		nameW = max(nameW, xansi.StringWidth(g.Name))
+	}
+	nameW = min(nameW, max(1, textW/halves))
+	lines := []string{statsHeading(p, "Common gaps", p.Text(p.Dim).Render(xansi.Truncate("Applications naming each gap in fit.md", textW, "…")))}
+	for _, g := range gaps {
+		name := fmt.Sprintf("%-*s", nameW, xansi.Truncate(g.Name, nameW, "…"))
+		line := p.Text(p.Fg).Render(name) + "  " + p.Text(p.Fg).Render(fmt.Sprintf("%2d", g.Count)) +
+			p.Text(p.Dim).Render(" · would unlock "+plural(g.Unlocks, "Application", "Applications"))
+		lines = append(lines, statsIndent+xansi.Truncate(line, textW, "…"))
+	}
+	return lines
 }
 
 // resetStats drops the cached report so the next interaction builds it once against the
@@ -176,6 +225,7 @@ func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 		table, trackNote = m.statsTracks(p, r, w)
 		sections = append(sections, table)
 	}
+	insights := m.statsInsights(p, w)
 	total := len(sections) - 1 // the blank lines between sections
 	for _, sec := range sections {
 		total += len(sec)
@@ -187,6 +237,7 @@ func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 	if len(trackNote) > 0 && total+len(trackNote) <= h {
 		sections[3] = append(sections[3], trackNote...)
 	}
+	sections = append(sections, insights)
 	var out []string
 	for i, sec := range sections {
 		if i > 0 {
