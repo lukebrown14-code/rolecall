@@ -23,6 +23,8 @@ type FileSystem interface {
 	MkdirAll(string, os.FileMode) error
 	Mkdir(string, os.FileMode) error
 	RemoveAll(string) error
+	// SyncDir flushes a directory's entries, so a rename into it survives power loss.
+	SyncDir(string) error
 }
 type osFiles struct{}
 
@@ -34,6 +36,14 @@ func (osFiles) Remove(path string) error                     { return os.Remove(
 func (osFiles) MkdirAll(path string, mode os.FileMode) error { return os.MkdirAll(path, mode) }
 func (osFiles) Mkdir(path string, mode os.FileMode) error    { return os.Mkdir(path, mode) }
 func (osFiles) RemoveAll(path string) error                  { return os.RemoveAll(path) }
+func (osFiles) SyncDir(path string) error {
+	d, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = d.Close() }()
+	return d.Sync()
+}
 
 // fsOrOS returns the injected filesystem, or the OS when none is injected.
 func fsOrOS(files FileSystem) FileSystem {
@@ -51,6 +61,13 @@ func (s *Store) atomicWrite(path string, data []byte, mode os.FileMode) error {
 
 // atomicWrite publishes data through the injected filesystem. Nil uses the OS.
 func atomicWrite(files FileSystem, path string, data []byte, mode os.FileMode) error {
+	return atomicWriteIf(files, path, data, mode, nil)
+}
+
+// atomicWriteIf is atomicWrite with a precondition checked after the temporary file is
+// durable and just before the rename: a non-nil error from check abandons the write.
+// The parent directory is synced after the rename, best effort.
+func atomicWriteIf(files FileSystem, path string, data []byte, mode os.FileMode, check func() error) error {
 	fs := fsOrOS(files)
 	f, err := fs.CreateTemp(filepath.Dir(path), ".meta-*")
 	if err != nil {
@@ -77,7 +94,17 @@ func atomicWrite(files FileSystem, path string, data []byte, mode os.FileMode) e
 	if err != nil {
 		return err
 	}
-	return fs.Rename(f.Name(), path)
+	if check != nil {
+		if err = check(); err != nil {
+			return err
+		}
+	}
+	if err = fs.Rename(f.Name(), path); err != nil {
+		return err
+	}
+	// Best effort: the file is already whole; this only makes the rename itself durable.
+	_ = fs.SyncDir(filepath.Dir(path))
+	return nil
 }
 
 // preserveMode is the mode to write path with: its current permission when it exists, or

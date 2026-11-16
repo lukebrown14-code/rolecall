@@ -8,7 +8,9 @@ if [ -n "$unformatted" ]; then
   echo "gofmt needed:"; echo "$unformatted"; exit 1
 fi
 
-# ADR-0003: internal/process/process.go is the only process launch boundary.
+# ADR-0003: internal/process/process.go is the only process launch boundary. The
+# forbidigo rule in .golangci.yml is the thorough check (it sees through types); this
+# grep is the fallback for machines without golangci-lint.
 launches=$(grep -rln 'exec.Command\|tea.ExecProcess\|CombinedOutput\|c.Run()' --include='*.go' --exclude-dir=.claude . | grep -v '_test\.go$' | grep -v '^\./internal/process/process\.go$' || true)
 if [ -n "$launches" ]; then
   echo "process launch outside internal/process/process.go (ADR-0003):"; echo "$launches"; exit 1

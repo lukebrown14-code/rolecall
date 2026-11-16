@@ -4,11 +4,32 @@ linters:
   enable:
     - dupl
     - errcheck
+    - forbidigo
     - goconst
     - mnd
     - staticcheck
     - unused
   settings:
+    forbidigo:
+      # ADR-0003: internal/process is the only process launch boundary. os/exec types
+      # and LookPath stay usable elsewhere; launching a process does not.
+      analyze-types: true
+      forbid:
+        - pattern: '^exec\.(Command|CommandContext)$'
+          pkg: '^os/exec$'
+          msg: launch processes through internal/process (ADR-0003)
+        - pattern: '^exec\.Cmd\.(Run|Start|Output|CombinedOutput)$'
+          pkg: '^os/exec$'
+          msg: launch processes through internal/process (ADR-0003)
+        - pattern: '^os\.StartProcess$'
+          pkg: '^os$'
+          msg: launch processes through internal/process (ADR-0003)
+        - pattern: '^syscall\.(Exec|ForkExec|StartProcess)$'
+          pkg: '^syscall$'
+          msg: launch processes through internal/process (ADR-0003)
+        - pattern: '^tea\.ExecProcess$'
+          pkg: '^charm\.land/bubbletea/v2$'
+          msg: launch processes through internal/process (ADR-0003)
     dupl:
       threshold: 60
     goconst:
@@ -36,4 +57,6 @@ linters:
       # Test fixtures set up files and environment by hand; an unchecked MkdirAll or
       # Close in a test is not worth an explicit branch.
       - path: _test\.go
-        linters: [dupl, errcheck, goconst, mnd]
+        linters: [dupl, errcheck, forbidigo, goconst, mnd]
+      - path: ^internal/process/
+        linters: [forbidigo]

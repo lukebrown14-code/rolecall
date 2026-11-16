@@ -169,7 +169,8 @@ func TestBuildOfLeadMovesToDraftAndStaysPut(t *testing.T) {
 		if err := writePDFs(dir); err != nil {
 			return err
 		}
-		return h.store.AppendStatus(dir, "Draft", fixtureClock())
+		_, err := h.store.AppendStatus(dir, "Draft", fixtureClock())
+		return err
 	}
 	h.key("/fern")
 	h.key("enter")

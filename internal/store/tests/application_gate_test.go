@@ -39,7 +39,7 @@ func TestApplicationGateRefusesFolderWithoutMetadata(t *testing.T) {
 	if err := s.Patch(folder, map[string]string{"fit": "Good"}); err == nil {
 		t.Fatal("Patch accepted a folder without meta.yml")
 	}
-	if err := s.AppendStatus(folder, "Offer", time.Now()); err == nil {
+	if _, err := s.AppendStatus(folder, "Offer", time.Now()); err == nil {
 		t.Fatal("AppendStatus accepted a folder without meta.yml")
 	}
 }

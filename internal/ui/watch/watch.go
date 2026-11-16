@@ -98,8 +98,41 @@ func (w *Watcher) loop() {
 			if !ok {
 				return
 			}
+			w.rescanAll()
 		case <-w.done:
 			return
+		}
+	}
+}
+
+// rescanAll reports every track and Application folder as changed, after an fsnotify
+// error (such as a queue overflow) may have dropped events: each track folder rescans the
+// Applications already known below it, and re-walking jobs/ restores lost watches and
+// reports Applications that appeared unseen. A track that went away is reported too, so
+// its Applications are dropped.
+func (w *Watcher) rescanAll() {
+	w.mu.Lock()
+	var tracks []string
+	for d := range w.dirs {
+		if p, ok := w.parts(d); ok && len(p) == depthTrack {
+			tracks = append(tracks, d)
+		}
+	}
+	w.mu.Unlock()
+	for _, t := range tracks {
+		if _, err := os.Stat(t); err != nil {
+			w.forget(t)
+		}
+		w.deb.Add(t)
+	}
+	if _, err := os.Stat(w.jobs); err == nil {
+		w.addTree(w.jobs, true)
+	}
+	if entries, err := os.ReadDir(w.jobs); err == nil {
+		for _, e := range entries {
+			if e.IsDir() && e.Name() != archiveDir {
+				w.deb.Add(filepath.Join(w.jobs, e.Name()))
+			}
 		}
 	}
 }

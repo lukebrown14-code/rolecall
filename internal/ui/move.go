@@ -32,11 +32,12 @@ func MoveOptions(from, previous string) []string {
 	return out
 }
 
-// undoMove is one move u can undo: the Application, the Status it goes back to, and
+// undoMove is one move u can undo: the Application, the Status it goes back to, the
+// Status the move left it at (an undo is refused once it is elsewhere), and
 // whether the move created sent/, which the undo then sets aside. filterReason and
 // filterNote are the Search rule a restore overruled, which the undo puts back.
 type undoMove struct {
-	folder, status           string
+	folder, status, target   string
 	sent                     bool
 	filterReason, filterNote string
 }
@@ -54,8 +55,15 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 // move appends a Status and says so in a toast. It returns the command that ends the
 // moved row's flash.
 func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
-	if err := m.store.AppendStatus(a.Folder, status, m.now()); err != nil {
+	wrote, err := m.store.AppendStatus(a.Folder, status, m.now())
+	if err != nil {
 		m.err = err
+		return nil
+	}
+	if !wrote {
+		// The Application was already there (the rows were stale): nothing to undo.
+		m.reload(a.Folder)
+		m.toast, m.toastHint, m.toastKind = "Already "+status+" · "+moveName(a), "", toastNote
 		return nil
 	}
 	var sentErr error
@@ -90,7 +98,7 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.toast, m.toastKind = where+" · "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
-	u := undoMove{folder: a.Folder, status: a.Status, sent: madeSent}
+	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: madeSent}
 	if a.Filtered() && status != store.StatusDismissed {
 		u.filterReason, u.filterNote = a.FilterReason, a.FilterNote
 	}
@@ -188,6 +196,13 @@ func (m *model) undoLast() tea.Cmd {
 	last := m.undo[len(m.undo)-1]
 	a, ok := m.application(last.folder)
 	if !ok {
+		return nil
+	}
+	// Read the file itself: the rows can lag behind another writer.
+	if now, err := m.store.Rescan(a.Folder); err == nil && now != nil && now.Status != last.target {
+		m.undo = m.undo[:len(m.undo)-1]
+		m.reload(a.Folder)
+		m.toast, m.toastHint, m.toastKind = "Not undone · "+moveName(a)+" changed since the move", "", toastNote
 		return nil
 	}
 	cmd := m.move(a, last.status, true)
