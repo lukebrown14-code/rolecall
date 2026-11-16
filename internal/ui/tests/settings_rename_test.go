@@ -34,7 +34,7 @@ func (h *settingsHarness) startRename(name string) {
 func TestSettingsRenameConfirmShowsCountsAndUndoWarning(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Platform"]}`)
 	h.startRename("Engineering")
-	requireAll(t, h.tm.plain(), "Rename Track", "SWE", "Engineering", "9 Applications", "roles.json", "undo")
+	requireAll(t, h.tm.plain(), "Rename Track", "SWE", "Engineering", "10 Applications", "roles.json", "undo")
 	if got := h.metaTrack("SWE/orbit"); got != "SWE" {
 		t.Fatalf("written before confirm: %q", got)
 	}

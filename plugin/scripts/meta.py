@@ -42,6 +42,8 @@ STATUSES = {
     "Dismissed",
 }
 FITS = {"", "Strong", "Good", "Marginal", "Poor"}
+# Why a Search rule dismissed an Application (filter_reason). SCHEMA.md lists them.
+FILTER_REASONS = {"expired", "blocker", "applicant_cap", "location", "contract_length"}
 ESCAPES = {
     "0": "\x00",
     "a": "\x07",
@@ -104,6 +106,13 @@ class Application:
         self.closes = ""
         self.fit = ""
         self.resume_only = False
+        self.posted = ""
+        self.posted_label = ""
+        self.applicants = None
+        self.source = ""
+        self.filter_reason = ""
+        self.filter_note = ""
+        self.filter_overruled = False
         self.status_log = []
         self.applied_date = None
         self.last_change = None
@@ -132,6 +141,13 @@ class Application:
             "Closes": self.closes,
             "Fit": self.fit,
             "ResumeOnly": self.resume_only,
+            "Posted": self.posted,
+            "PostedLabel": self.posted_label,
+            "Applicants": self.applicants,
+            "Source": self.source,
+            "FilterReason": self.filter_reason,
+            "FilterNote": self.filter_note,
+            "FilterOverruled": self.filter_overruled,
             "StatusLog": [entry.to_dict() for entry in self.status_log],
             "AppliedDate": self.applied_date.to_dict() if self.applied_date else None,
             "LastChange": self.last_change.to_dict() if self.last_change else None,
@@ -222,6 +238,16 @@ def _scalar(raw):
     ):
         raise MetaError("invalid scalar")
     return token
+
+
+def _valid_date(value):
+    if not DATE.fullmatch(value):
+        return False
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
 
 
 def _valid_timestamp(value):
@@ -331,6 +357,28 @@ def _read_meta(folder, data):
                 except ValueError:
                     return fail(number, "invalid closes date")
             app.closes = value
+        elif key == "posted":
+            if value and not _valid_date(value):
+                return fail(number, "invalid posted date")
+            app.posted = value
+        elif key == "posted_label":
+            app.posted_label = value
+        elif key == "applicants":
+            if value and not re.fullmatch(r"[0-9]+", value):
+                return fail(number, "invalid applicants")
+            app.applicants = int(value) if value else None
+        elif key == "source":
+            app.source = value
+        elif key == "filter_reason":
+            if value and value not in FILTER_REASONS:
+                return fail(number, "invalid filter_reason")
+            app.filter_reason = value
+        elif key == "filter_note":
+            app.filter_note = value
+        elif key == "filter_overruled":
+            if value not in ("true", "false"):
+                return fail(number, "invalid filter_overruled")
+            app.filter_overruled = value == "true"
         elif key == "fit":
             if value not in FITS:
                 return fail(number, "invalid Fit")
@@ -562,6 +610,62 @@ def append_status(folder, status, at, only_if_current=None):
     return appended
 
 
+def dismiss_by_rule(folder, reason, note, at=None):
+    """Dismiss an Application because a Search rule rules it out.
+
+    One read-modify-validate-write: ``filter_reason`` and ``filter_note`` are set and a
+    ``Dismissed`` entry appended. An Application the Owner restored after a rule
+    (``filter_overruled: true``), or one already Dismissed, is left alone. Returns True
+    when it was written.
+    """
+    if reason not in FILTER_REASONS:
+        raise MetaError(f"invalid filter_reason {reason!r}")
+    stamp = _utc_stamp(at or datetime.now(timezone.utc))
+    written = False
+
+    def change(lines):
+        nonlocal written
+        current = _read_meta(Path(folder), ("\n".join(lines) + "\n").encode("utf-8"))
+        if current.malformed:
+            raise MetaError(current.malformed)
+        if current.filter_overruled or current.status == "Dismissed":
+            return lines
+        lines = _patch_lines(lines, {"filter_reason": reason, "filter_note": note})
+        index = next((i for i, line in enumerate(lines) if line.startswith("status_log:")), -1)
+        if index < 0:
+            lines.append("status_log:")
+            index = len(lines) - 1
+        else:
+            lines[index] = "status_log:"
+        end = index + 1
+        while end < len(lines) and (
+            lines[end].startswith("  ") or not lines[end].strip() or lines[end].startswith("#")
+        ):
+            end += 1
+        lines.insert(end, f"  - {{status: Dismissed, at: {stamp}}}")
+        written = True
+        return lines
+
+    _update(folder, change)
+    return written
+
+
+def rule_findings(workspace, fields, today=None):
+    """The Search rules a new Lead with these fields breaks (rules.py), as Findings."""
+    import rules  # noqa: PLC0415 -- rules imports meta lazily; keep the cycle out of import time
+
+    applicants = fields.get("applicants")
+    found = rules.evaluate(
+        rules.load_rules(workspace),
+        source=fields.get("source", ""),
+        posted=fields.get("posted", ""),
+        posted_label=fields.get("posted_label", ""),
+        applicants=int(applicants) if str(applicants or "").isdigit() else None,
+        today=today,
+    )
+    return [f for f in found if not f.advisory]
+
+
 def _entry_line(status, at, approx):
     if status not in STATUSES:
         raise MetaError(f"invalid Status {status!r}")
@@ -576,10 +680,10 @@ def _entry_line(status, at, approx):
 def _meta_text(fields, status_log):
     """Render a complete meta.yml, validating every Status entry."""
     text = "schema: 1\n"
-    for key in ("title", "company", "track", "url", "closes", "fit"):
+    for key in CREATE_KEYS:
         value = fields.get(key, "")
-        if value:
-            text += key + ": " + quote_scalar(value) + "\n"
+        if value is not None and str(value) != "":
+            text += key + ": " + quote_scalar(str(value)) + "\n"
     text += "status_log:\n"
     for status, at, approx in status_log:
         text += _entry_line(status, at, approx) + "\n"
@@ -587,6 +691,13 @@ def _meta_text(fields, status_log):
     if checked.malformed:
         raise MetaError(checked.malformed)
     return text
+
+
+# The scalar keys create writes, in file order.
+CREATE_KEYS = (
+    "title", "company", "track", "url", "closes", "fit",
+    "posted", "posted_label", "applicants", "source",
+)
 
 
 def _required_fields(fields):
@@ -743,6 +854,24 @@ def _parser():
     create_parser.add_argument("--closes", default="")
     create_parser.add_argument("--fit", default="")
     create_parser.add_argument("--at", help="RFC 3339 or YYYY-MM-DD (default: now)")
+    create_parser.add_argument("--posted", default="", help="YYYY-MM-DD the ad was posted")
+    create_parser.add_argument(
+        "--posted-label", default="", help='the age as the site shows it, e.g. "14d ago"'
+    )
+    create_parser.add_argument("--applicants", default="", help="applicant count the site shows")
+    create_parser.add_argument("--source", default="", help="Source registry name, e.g. linkedin")
+    create_parser.add_argument(
+        "--override-rules",
+        action="store_true",
+        help="save even though a Search rule rules it out (only when the Owner asks)",
+    )
+
+    dismiss_parser = commands.add_parser(
+        "dismiss-by-rule", help="dismiss an Application a Search rule rules out"
+    )
+    dismiss_parser.add_argument("--folder", required=True)
+    dismiss_parser.add_argument("--reason", required=True, choices=sorted(FILTER_REASONS))
+    dismiss_parser.add_argument("--note", default="")
 
     find_parser = commands.add_parser("find-url", help="find Applications by URL")
     find_parser.add_argument("url")
@@ -777,19 +906,41 @@ def main(argv=None):
                 only_if_current=args.only_if_current,
             )
         elif args.command == "create":
+            fields = {
+                "title": args.title,
+                "company": args.company,
+                "track": args.track,
+                "url": args.url,
+                "closes": args.closes,
+                "fit": args.fit,
+                "posted": args.posted,
+                "posted_label": args.posted_label,
+                "applicants": args.applicants,
+                "source": args.source,
+            }
+            if args.posted and not _valid_date(args.posted):
+                raise MetaError(f"--posted wants YYYY-MM-DD, not {args.posted!r}")
+            if args.applicants and not args.applicants.isdigit():
+                raise MetaError(f"--applicants wants a whole number, not {args.applicants!r}")
+            if not args.override_rules:
+                findings = rule_findings(workspace, fields)
+                certain = [f for f in findings if f.certain]
+                if certain:
+                    why = "; ".join(f"{f.reason}: {f.note}" for f in certain)
+                    raise MetaError(
+                        f"not saved, a Search rule rules it out ({why}). Leave it out, or pass "
+                        "--override-rules if the Owner asked for it anyway"
+                    )
+                for f in findings:
+                    print(f"rolecall: borderline, ask the Owner: {f.note}", file=sys.stderr)
             folder = create(
-                workspace,
-                {
-                    "title": args.title,
-                    "company": args.company,
-                    "track": args.track,
-                    "url": args.url,
-                    "closes": args.closes,
-                    "fit": args.fit,
-                },
-                _parse_moment(args.at) if args.at else None,
+                workspace, fields, _parse_moment(args.at) if args.at else None
             )
             print(folder)
+        elif args.command == "dismiss-by-rule":
+            folder = resolve_folder(workspace, args.folder)
+            if not dismiss_by_rule(folder, args.reason, args.note):
+                print("rolecall: left as it is (already Dismissed, or the Owner overruled the rules)")
         elif args.command == "find-url":
             json.dump(
                 [app.to_dict() for app in find_by_url(workspace, args.url)],
@@ -798,7 +949,7 @@ def main(argv=None):
                 indent=2,
             )
             print()
-    except (MetaError, ValueError, OSError) as error:
+    except (MetaError, FolderError, ValueError, OSError) as error:
         print(f"rolecall: {error}", file=sys.stderr)
         raise SystemExit(1) from error
 

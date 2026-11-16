@@ -14,6 +14,8 @@ func tracksHarness(t *testing.T, workspaceJSON string) *settingsHarness {
 	h.tm.Type("6")
 	h.tm.Type("]")
 	h.tm.Type("]")
+	h.tm.Type("]")
+	h.tm.Type("]")
 	return h
 }
 
@@ -62,7 +64,7 @@ func TestSettingsAddTrackRules(t *testing.T) {
 func TestSettingsRemoveTrackRefusedWhileUsedWithCount(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Spare"]}`)
 	h.tm.Type("x")
-	requireAll(t, h.tm.plain(), "SWE is used by 10 Applications")
+	requireAll(t, h.tm.plain(), "SWE is used by 11 Applications")
 	requireAll(t, h.file(), `"SWE"`)
 }
 

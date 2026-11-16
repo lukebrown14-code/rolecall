@@ -43,12 +43,12 @@ def test_writing_rules_drops_the_dashboard_contract():
 def test_prepare_documents_states_the_tone_layering_order():
     text = read(PREPARE)
 
-    start = text.index("plugin/writing-rules.md")
+    start = text.index("/writing-rules.md")
     ordering = text[start:]
 
     positions = [
-        ordering.index("plugin/writing-rules.md"),
-        ordering.index("plugin/styles/au.md"),
+        ordering.index("/writing-rules.md"),
+        ordering.index("/styles/au.md"),
         ordering.index("profile/writing-preferences.md"),
     ]
     assert positions == sorted(positions), "tone layering must be stated in order"
@@ -116,3 +116,14 @@ def test_help_lists_every_machine_setting():
 def test_help_is_read_only():
     text = read(HELP / "SKILL.md").lower()
     assert "read only" in text and "changes nothing" in text
+
+
+def test_skills_never_run_a_script_by_a_workspace_relative_path():
+    # The Harness runs skills from inside the Workspace, where plugin/scripts/ does not
+    # exist: a bare relative path made the agent hand-write meta.yml instead.
+    for path in sorted((PLUGIN / "skills").rglob("*.md")):
+        text = read(path)
+        assert "python3 plugin/" not in text, f"{path} runs a script by a relative path"
+        assert "`plugin/" not in text, f"{path} names a plugin file by a relative path"
+        if "${CLAUDE_PLUGIN_ROOT}" in text and path.name == "SKILL.md":
+            assert "**Plugin paths.**" in text, f"{path} uses the plugin root without the note"

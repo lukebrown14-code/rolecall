@@ -19,6 +19,7 @@ each other directly: files are the only link.
 | **v0.1.1** | styling | colour palette (dark and light), status colours, layout tweaks, empty states, header, demo GIF |
 | **v0.2** | harness + extras | `f`/`p` keys that hand off to the harness, URL fetch in Add, Stats screen (`4`), `b` build key |
 | **v0.3** | reading | Markdown reader tabs for Resume, Letter and Gaps |
+| **v0.4** | search rules and Sources | `search_rules` and the Source registry in `workspace.json`, Settings → Rules and Sources, posting age on Leads, Filtered view, `rules.py` dry run, coverage report (ADR-0007) |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Non-goals for v0.1

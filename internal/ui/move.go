@@ -33,10 +33,12 @@ func MoveOptions(from, previous string) []string {
 }
 
 // undoMove is one move u can undo: the Application, the Status it goes back to, and
-// whether the move created sent/, which the undo then sets aside.
+// whether the move created sent/, which the undo then sets aside. filterReason and
+// filterNote are the Search rule a restore overruled, which the undo puts back.
 type undoMove struct {
-	folder, status string
-	sent           bool
+	folder, status           string
+	sent                     bool
+	filterReason, filterNote string
 }
 
 // requestMove moves immediately, except that a non-Ready Application going to Applied
@@ -88,7 +90,11 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.toast, m.toastKind = where+" · "+name, toastUndo
 		return m.startFlash(a.Folder)
 	}
-	m.undo = append(m.undo, undoMove{a.Folder, a.Status, madeSent})
+	u := undoMove{folder: a.Folder, status: a.Status, sent: madeSent}
+	if a.Filtered() && status != store.StatusDismissed {
+		u.filterReason, u.filterNote = a.FilterReason, a.FilterNote
+	}
+	m.undo = append(m.undo, u)
 	m.toast, m.toastHint, m.movedTo = where+" · "+name, undoHint, status
 	if status == store.StatusOffer {
 		m.toast, m.toastKind = m.offerToast(a), toastOffer
@@ -189,6 +195,13 @@ func (m *model) undoLast() tea.Cmd {
 		return cmd
 	}
 	m.undo = m.undo[:len(m.undo)-1]
+	if last.filterReason != "" {
+		if err := m.store.SetFilter(a.Folder, last.filterReason, last.filterNote); err != nil {
+			m.err = err
+			return cmd
+		}
+		m.reload(m.cursorFolder())
+	}
 	if last.sent {
 		name, err := m.store.SetAsideSent(a.Folder, m.now())
 		if err != nil {
@@ -220,7 +233,7 @@ func (m *model) followAfterMove(folder string) {
 		if a.Folder != folder {
 			continue
 		}
-		screen, table := StatusLocation(a.Status)
+		screen, table := appLocation(a)
 		for i, d := range screenDefs {
 			if d.name == screen {
 				m.screen = i

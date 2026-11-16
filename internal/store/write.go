@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -80,7 +81,9 @@ func (s *Store) update(folder string, change func([]string) ([]string, error)) e
 	return s.atomicWrite(path, out, info.Mode().Perm())
 }
 
-// AppendStatus appends a change at the supplied time, normalized to UTC.
+// AppendStatus appends a change at the supplied time, normalized to UTC. Moving an
+// Application a Search rule dismissed out of Dismissed overrules the rule in the same
+// write: filter_overruled is set and filter_reason and filter_note are removed.
 func (s *Store) AppendStatus(folder, status string, at time.Time) error {
 	if !validStatus(status) {
 		return fmt.Errorf("invalid Status %q", status)
@@ -107,10 +110,59 @@ func (s *Store) AppendStatus(folder, status string, at time.Time) error {
 		for end < len(lines) && (strings.HasPrefix(lines[end], "  ") || strings.TrimSpace(lines[end]) == "" || strings.HasPrefix(lines[end], "#")) {
 			end++
 		}
+		if a.Status == StatusDismissed && a.FilterReason != "" {
+			// Restoring a Lead a Search rule dismissed overrules the rule: it never
+			// dismisses this Application again.
+			lines = overruleFilter(lines)
+			index = slices.IndexFunc(lines, func(l string) bool { return strings.HasPrefix(l, "status_log:") })
+			end = index + 1
+			for end < len(lines) && (strings.HasPrefix(lines[end], "  ") || strings.TrimSpace(lines[end]) == "" || strings.HasPrefix(lines[end], "#")) {
+				end++
+			}
+		}
 		entry := "  - {status: " + status + ", at: " + at.UTC().Format(time.RFC3339) + "}"
 		lines = append(lines, "")
 		copy(lines[end+1:], lines[end:])
 		lines[end] = entry
 		return lines, nil
 	})
+}
+
+// overruleFilter drops filter_reason and filter_note and sets filter_overruled: true,
+// where filter_reason was.
+func overruleFilter(lines []string) []string {
+	out := make([]string, 0, len(lines))
+	for _, l := range lines {
+		switch {
+		case strings.HasPrefix(l, keyFilterReason+":"):
+			out = append(out, keyFilterOverruled+": true")
+		case strings.HasPrefix(l, keyFilterNote+":"), strings.HasPrefix(l, keyFilterOverruled+":"):
+		default:
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// SetFilter puts back the Search rule that dismissed an Application, as an undo of its
+// restore does: filter_reason and filter_note are written and filter_overruled removed.
+// An empty reason does nothing.
+func (s *Store) SetFilter(folder, reason, note string) error {
+	if reason == "" {
+		return nil
+	}
+	if !slices.Contains(FilterReasons, reason) {
+		return fmt.Errorf("invalid filter_reason %q", reason)
+	}
+	err := s.update(folder, func(lines []string) ([]string, error) {
+		return slices.DeleteFunc(lines, func(l string) bool { return strings.HasPrefix(l, keyFilterOverruled+":") }), nil
+	})
+	if err != nil {
+		return err
+	}
+	keys := map[string]string{keyFilterReason: reason}
+	if note != "" {
+		keys[keyFilterNote] = note
+	}
+	return s.Patch(folder, keys)
 }

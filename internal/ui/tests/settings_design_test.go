@@ -25,9 +25,9 @@ var settingsPopups = []struct {
 	want string
 }{
 	{"search area", []string{"enter"}, "ctrl+s save"},
-	{"gate", []string{"]", "enter"}, "enter save"},
-	{"add track", []string{"]", "]", "a"}, "enter add"},
-	{"rename track", []string{"]", "]", "r"}, "enter review"},
+	{"gate", []string{"]", "]", "]", "enter"}, "enter save"},
+	{"add track", []string{"]", "]", "]", "]", "a"}, "enter add"},
+	{"rename track", []string{"]", "]", "]", "]", "r"}, "enter review"},
 }
 
 func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
@@ -46,7 +46,7 @@ func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
 }
 
 func TestSettingsFooterWhileEditingAMachineSetting(t *testing.T) {
-	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "j", "enter"))
+	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]", "]", "j", "enter"))
 	if !strings.Contains(f, "enter save") || !strings.Contains(f, "esc cancel") {
 		t.Fatalf("footer %q lacks edit keys", f)
 	}
@@ -80,7 +80,7 @@ func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 }
 
 func TestSettingsTrackFooterKeys(t *testing.T) {
-	f := footer(settingsAt(t, 120, 36, "]", "]"))
+	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]"))
 	if !strings.Contains(f, "a add  r rename  x remove  J/K reorder") {
 		t.Fatalf("footer %q", f)
 	}
@@ -89,13 +89,13 @@ func TestSettingsTrackFooterKeys(t *testing.T) {
 func TestSettingsFooterOffersEnterOnEditableRowsOnly(t *testing.T) {
 	// Follow-up and a machine setting are editable; the add row adds. Read-only rows are
 	// never reached (TestSettingsReadOnlyRowsAreMarked), so no footer offers Enter on one.
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "G")); !strings.Contains(f, "enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]", "G")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Follow-up days: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "]")); !strings.Contains(f, "enter edit") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]", "]")); !strings.Contains(f, "enter edit") {
 		t.Errorf("Editor: %q", f)
 	}
-	if f := footer(settingsAt(t, 120, 36, "]", "]", "G", "k")); !strings.Contains(f, "enter add a Track") {
+	if f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]", "G", "k")); !strings.Contains(f, "enter add a Track") {
 		t.Errorf("add row: %q", f)
 	}
 }
@@ -112,11 +112,11 @@ func rowWith(lines []string, text string) string {
 // The sections are tabs: the active one is bracketed, and the field cursor (or the header,
 // above the first field) carries the one selection mark.
 func TestSettingsCursorMarksOneFieldOrTheHeader(t *testing.T) {
-	v := strings.Join(settingsAt(t, 120, 36, "]", "]"), "\n")
+	v := strings.Join(settingsAt(t, 120, 36, "]", "]", "]", "]"), "\n")
 	if !strings.Contains(v, "[Tracking]") || strings.Count(v, "▌") != 1 || !strings.Contains(v, "▌ SWE") {
 		t.Errorf("field cursor:\n%s", v)
 	}
-	lines := settingsAt(t, 120, 36, "]", "]", "k")
+	lines := settingsAt(t, 120, 36, "]", "]", "]", "]", "k")
 	if l := rowWith(lines, "SETTINGS"); !strings.Contains(l, "▌") {
 		t.Errorf("header cursor: %q", l)
 	}
@@ -127,11 +127,11 @@ func TestSettingsCursorMarksOneFieldOrTheHeader(t *testing.T) {
 
 func TestSettingsSelectedRowHasMarkerAtEveryWidth(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "]", "]")
+		lines := settingsAt(t, size[0], size[1], "]", "]", "]", "]")
 		if l := rowWith(lines, "▌ SWE"); l == "" {
 			t.Errorf("%dx%d first Track: %q", size[0], size[1], l)
 		}
-		lines = settingsAt(t, size[0], size[1], "]", "]", "j")
+		lines = settingsAt(t, size[0], size[1], "]", "]", "]", "]", "j")
 		if l := rowWith(lines, "Platform"); !strings.Contains(l, "▌") {
 			t.Errorf("%dx%d second Track: %q\n%s", size[0], size[1], l, strings.Join(lines, "\n"))
 		}

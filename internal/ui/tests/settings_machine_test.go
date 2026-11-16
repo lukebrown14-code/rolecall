@@ -10,6 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
+
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 const machineConfig = "# my config\nworkspace = \"/w\" # keep\n\n# my editor\neditor = \"vim\"\nfollow_up_days = 14\n"
@@ -46,7 +48,7 @@ func selectRow(d *driver, group, row int) {
 
 func TestSettingsEditEditorSavesAndKeepsComments(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("enter")
 	for range 3 {
 		d.Type("backspace")
@@ -66,7 +68,7 @@ func TestSettingsRereadsConfigOnEnteringTheScreen(t *testing.T) {
 	if err := os.WriteFile(cfg, []byte(strings.Replace(machineConfig, `"vim"`, `"nano"`, 1)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	requireAll(t, d.plain(), "Editor", "nano")
 }
 
@@ -88,7 +90,7 @@ func TestSettingsRereadsConfigAfterTheEditorCloses(t *testing.T) {
 				return done(err)
 			}
 		}))
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	requireAll(t, d.plain(), "vim")
 	d.Type("e")
 	requireAll(t, d.plain(), "emacs")
@@ -96,7 +98,7 @@ func TestSettingsRereadsConfigAfterTheEditorCloses(t *testing.T) {
 
 func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("enter")
 	d.Type("zzz")
 	d.Type("esc")
@@ -112,7 +114,7 @@ func TestSettingsEscCancelsAnEditWithoutWriting(t *testing.T) {
 func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 	for _, bad := range []string{"0", "91", "abc", ""} {
 		d, cfg := machineDriver(t, 120)
-		selectRow(d, 2, 0)
+		selectRow(d, settings.GroupTracking, 0)
 		d.Type("G")
 		d.Type("enter")
 		for range 3 {
@@ -129,7 +131,7 @@ func TestSettingsFollowUpDaysRefusedOutsideOneToNinety(t *testing.T) {
 
 func TestSettingsFollowUpDaysSavesAndAppliesAtOnce(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 2, 0)
+	selectRow(d, settings.GroupTracking, 0)
 	d.Type("G")
 	d.Type("enter")
 	d.Type("30")
@@ -151,7 +153,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	if keyLine := lines[len(lines)-1]; strings.Contains(keyLine, "assess fit") || strings.Contains(keyLine, "build") {
 		t.Fatalf("key line lists keys before they are set: %q", keyLine)
 	}
-	selectRow(d, 3, 2)
+	selectRow(d, settings.GroupMachine, 2)
 	d.Type("enter")
 	d.Type("claude {prompt}")
 	d.Type("enter")
@@ -167,7 +169,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 
 func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 4)
+	selectRow(d, settings.GroupMachine, 4)
 	requireAll(t, d.plain(), "ASCII glyphs", "No")
 	d.Type("enter")
 	requireAll(t, d.plain(), "ASCII glyphs", "Yes", "Saved ASCII glyphs: Yes")
@@ -185,7 +187,7 @@ func TestSettingsASCIIToggleSwitchesGlyphsAndSaves(t *testing.T) {
 // nothing: tab and k both stop at the Editor below it.
 func TestSettingsWorkspaceRowIsReadOnly(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("k")
 	if l := rowWith(strings.Split(d.plain(), "\n"), "Workspace"); strings.Contains(l, "▌") {
 		t.Fatalf("cursor landed on the read-only Workspace row: %q\n%s", l, d.plain())

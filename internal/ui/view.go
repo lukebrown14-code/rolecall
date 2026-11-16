@@ -297,7 +297,7 @@ func (m model) movedOutView(p pal) string {
 func (m model) screenCount(si int) int {
 	n := 0
 	for _, t := range screenDefs[si].tables {
-		if t != allView && t != tableDismissed {
+		if t != allView && t != tableDismissed && t != tableFiltered {
 			n += m.count(si, t)
 		}
 	}
@@ -311,7 +311,7 @@ func (m model) filtered() bool { return m.track > 0 || m.text != "" }
 func (m model) screenCountLabel(si int) string {
 	total := 0
 	for _, t := range screenDefs[si].tables {
-		if t != allView && t != tableDismissed {
+		if t != allView && t != tableDismissed && t != tableFiltered {
 			total += m.totalCount(si, t)
 		}
 	}
@@ -785,7 +785,7 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 	switch m.views()[m.table] {
 	case allView:
 		for i, a := range rows {
-			if _, t := StatusLocation(a.Status); i == 0 || t != tableOf(rows[i-1]) {
+			if _, t := appLocation(a); i == 0 || t != tableOf(rows[i-1]) {
 				div[i] = divider{label: t, n: m.count(m.screen, t)}
 			}
 		}
@@ -851,7 +851,7 @@ func (m model) rollup(label string, group []store.Application) string {
 	return out
 }
 
-func tableOf(a store.Application) string { _, t := StatusLocation(a.Status); return t }
+func tableOf(a store.Application) string { _, t := appLocation(a); return t }
 
 // expired is a Lead or Draft whose close date has passed.
 func (m model) expired(a store.Application) bool {
@@ -1121,6 +1121,15 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		} else {
 			out = append(out, p.CloseStyle(s, st, dimC).Render(text))
 		}
+		// After the close date, which matters more: how old the ad is, and how near the
+		// max posting age it has come.
+		if age := postedAge(a, m.now()); age != "" && t == tableLeads {
+			posted := dim.Render("posted " + age)
+			if warn := ageWarning(a, m.rules, m.now()); warn != "" {
+				posted += st(p.Warn).Render(" " + glyphWarn + " " + warn)
+			}
+			out = append(out, posted)
+		}
 		if t == tableDraft {
 			label, c := p.DocsLabel(a)
 			if c == p.Dim {
@@ -1129,6 +1138,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 			out = append(out, st(c).Render(label))
 		}
 	case tableDismissed:
+		if lastChange(a) != nil {
+			out = append(out, when(lastChange(a), "dismissed "))
+		}
+	case tableFiltered:
+		out = append(out, dim.Render(filterReasonLabel(a.FilterReason)))
 		if lastChange(a) != nil {
 			out = append(out, when(lastChange(a), "dismissed "))
 		}

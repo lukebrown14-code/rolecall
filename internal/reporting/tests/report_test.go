@@ -67,8 +67,8 @@ func TestStatsFunnelOverFixtures(t *testing.T) {
 			t.Errorf("funnel step %d = %+v, want %+v", i, s, w)
 		}
 	}
-	if got.Dismissed != 2 || got.Rejected != 2 || got.Withdrawn != 2 {
-		t.Errorf("side counts = %d/%d/%d, want 2/2/2", got.Dismissed, got.Rejected, got.Withdrawn)
+	if got.Dismissed != 3 || got.Rejected != 2 || got.Withdrawn != 2 {
+		t.Errorf("side counts = %d/%d/%d, want 3/2/2", got.Dismissed, got.Rejected, got.Withdrawn)
 	}
 	// The six legacy rows were applied in 2025, so they are judged; status-interviewing
 	// and status-offer are Responses. orbit (25 Sep) and the four docs-* rows (24 Sep)

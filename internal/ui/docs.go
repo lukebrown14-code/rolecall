@@ -161,5 +161,5 @@ func readyPercent(apps []store.Application) int {
 // isActive reports whether an Application is still live: it reads, and is not closed or dismissed.
 func isActive(a store.Application) bool {
 	t := tableOf(a)
-	return a.Malformed == nil && t != tableDismissed && t != tableClosed
+	return a.Malformed == nil && t != tableDismissed && t != tableFiltered && t != tableClosed
 }

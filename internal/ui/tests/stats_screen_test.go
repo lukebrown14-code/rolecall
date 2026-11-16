@@ -98,9 +98,9 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 // its counts, as it does of every figure.
 func TestStatsTrackFilterOffersOffListTracks(t *testing.T) {
 	view := chipped(runKeys(t, fixtureCopy(t, nil), 140, "4"))
-	// 16 well-formed: SWE 9 (docs-*, empty, empty-log, orbit), Platform 1 (fern), and the
+	// 17 well-formed: SWE 10 (docs-*, empty, empty-log, filtered-expired, orbit), Platform 1 (fern), and the
 	// six legacy status-* rows on Unknown, which workspace.json does not list.
-	if !strings.Contains(view, "STATS │ TRACK t [All 16] SWE 9  Platform 1  Unknown 6") {
+	if !strings.Contains(view, "STATS │ TRACK t [All 17] SWE 10  Platform 1  Unknown 6") {
 		t.Fatalf("Stats track filter does not add up:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "4", "t", "t", "t"))
@@ -149,7 +149,7 @@ func TestStatsFunnelExplainsEachRung(t *testing.T) {
 		"11 none came from Drafts",
 		"4 36% of Applied",
 		"2 50% of Interviewing",
-		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 2",
+		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3",
 		"2 of 6",
 		"Not counted: 5 applied in the last 14 days (too new)",
 		"13 Jul → 28 Sep",

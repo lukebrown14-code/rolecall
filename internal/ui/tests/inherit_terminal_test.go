@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/lukebrown14-code/rolecall/internal/ui"
+
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 var sgrSeq = regexp.MustCompile("\x1b\\[([0-9;]*)m")
@@ -81,7 +83,7 @@ func TestInheritTerminalNoColorWins(t *testing.T) {
 
 func TestSettingsInheritToggleSavesAndAppliesAtOnce(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 5)
+	selectRow(d, settings.GroupMachine, 5)
 	requireAll(t, d.plain(), "Inherit colours", "No")
 	d.Type("enter")
 	d.Type("ctrl+s")

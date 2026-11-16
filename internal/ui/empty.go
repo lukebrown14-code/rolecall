@@ -49,6 +49,8 @@ func emptyViewNoun(table string) string {
 		return "Leads"
 	case tableDismissed:
 		return "dismissed Leads"
+	case tableFiltered:
+		return "Leads a Search rule dismissed"
 	case tableDraft:
 		return "Drafts"
 	case tableApplied:
@@ -72,7 +74,7 @@ func (m model) emptyViewLine(table string) (string, []emptyHint) {
 	case m.track > 0:
 		msg += " in " + m.trackName()
 		hints = append([]emptyHint{{"t", "change Track"}}, hints...)
-	case table != tableLeads && table != tableDismissed:
+	case table != tableLeads && table != tableDismissed && table != tableFiltered:
 		msg += " yet"
 	}
 	return msg, m.availableHints(hints...)

@@ -12,17 +12,17 @@ rolecall doctor       # checks the Workspace, typst, pandoc, Python, fonts, Plug
 ```
 
 Esc skips the Contact form; it returns on the next launch until Name and Email are saved.
-Tracks and the Search area are set in Settings. The Profile comes from the `create-profile` skill.
+Tracks, the Search area, Search rules and Sources are set in Settings. The Profile comes from the `create-profile` skill.
 
 ## Workspace layout
 
 ```text
 <workspace>/
-├─ workspace.json                 # Tracks, Search area, Sources
+├─ workspace.json                 # Tracks, Search area, Search rules, Sources
 ├─ profile/master-profile.md      # the Profile; its ## Contact table is on every document
 ├─ cv/                            # the Owner's general resume, for create-profile
 └─ jobs/<track>/<folder>/         # one folder per Application
-   ├─ meta.yml                    # title, company, track, fit, status_log
+   ├─ meta.yml                    # title, company, track, fit, posted, status_log
    ├─ jd.md · resume.md · cover-letter.md · notes.md
    └─ out/*.pdf                   # built PDFs
 ```
@@ -30,21 +30,25 @@ Tracks and the Search area are set in Settings. The Profile comes from the `crea
 Every Application, a Lead included, is its own folder: the app lists the folders and reads
 nothing else. `jobs/SHORTLIST.md`, `TRACKER.md`, `DISMISSED.md` and `INBOX.md` (in `jobs/` or the
 root) are from an older rolecall and are never read; the app's footer and `rolecall doctor`
-warn about them, and `plugin/scripts/migrate.py` converts them (see `<plugin>/README.md`).
+warn about them, and `${CLAUDE_PLUGIN_ROOT}/scripts/migrate.py` converts them (see `<plugin>/README.md`).
 `jobs/sweep-candidates.md` is the current Sweep's raw output, triaged into Leads by find-jobs.
+`jobs/_archive/` holds retired files, locked and never read: editing them changes nothing.
 
 ## Statuses
 
 Lead → Draft → Applied → Interviewing → Offer, or Rejected, Withdrawn, Dismissed. The Owner moves
 an Application with `m`; the only automatic move is Lead → Draft when its PDFs are built.
-Dismissed keeps the Application, restorable, and future Sweeps skip it. **Follow-up due** is a
+Dismissed keeps the Application, restorable, and future Sweeps skip it. A Lead a Search rule
+removed (too old, over a Source's applicant cap, a blocker in the ad) is Dismissed with its
+reason and listed under Leads → **Filtered**; restore it with `m` and no rule removes it again.
+A Lead with a posting date shows its age, and warns as it nears the age limit. **Follow-up due** is a
 reminder on a sent Application unchanged for `follow_up_days` (default 14), not a Status.
 
 ## Screens and keys
 
 | Key | Does |
 | --- | --- |
-| `1`–`6` | Leads (and Dismissed), Drafts, Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
+| `1`–`6` | Leads (and Dismissed, Filtered), Drafts, Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
 | `Tab` · `j`/`k` | move between tables · rows |
 | `Enter` / `v` | open the Application's details |
 | `a` · `e` · `m` · `x` | add · edit · move to another Status · dismiss |
@@ -64,8 +68,12 @@ set, the Handoff keys leave the key line, and pressing one says to set it.
 Machine settings live in `~/.config/rolecall/config.toml`: `workspace`, `editor`,
 `follow_up_days`, `downloads`, `plugin`, `harness`, `ascii`, `inherit_terminal`. Screen `6`
 shows each value and where it came from; select This machine and press `e` to edit the file.
-Workspace settings (Tracks, Search area) live in `workspace.json` and are edited on the same
-screen.
+Workspace settings (Tracks, Search area, Search rules, Sources) live in `workspace.json` and
+are edited on the same screen. **Rules** sets the age limit for postings, the applicant cap per
+Source, how borderline labels such as "1mo ago" are decided and the preferred contract length.
+**Sources** lists every place the Sweep or the Harness searches; add one, test it (its access
+status: works, 403, login wall, cloudflare) or disable it there. A changed rule removes nothing
+by itself: the find-jobs skill runs a dry run (`rules.py check`) and asks before dismissing.
 
 ## When something does not show
 

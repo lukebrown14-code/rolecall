@@ -29,6 +29,19 @@ read `plugin/skills/<name>/SKILL.md` by path, and the Python scripts under
 `plugin/scripts/` take the Workspace from `--data <path>` or
 `ROLECALL_WORKSPACE`. The code repo holds no Workspace data.
 
+The skills name their scripts as `${CLAUDE_PLUGIN_ROOT}/scripts/…`, because the Harness
+runs from inside the Workspace, where a relative `plugin/scripts/` does not exist. Claude
+Code fills the variable in; another harness should set it to this folder's absolute path.
+
+## Search rules
+
+`scripts/rules.py` applies the Workspace's `search_rules` and Source registry
+(SCHEMA.md) to saved Applications. `check` is a dry run that lists the Leads a rule would
+dismiss, the borderline ones it keeps and the Drafts it would remove; `check --apply`
+dismisses the Leads in place with a `filter_reason` (`--include-drafts` for Drafts too).
+`label "1mo ago"` shows how a posting-age label reads against the limit. The Sweep and
+`meta.py create` apply the same rules to new roles.
+
 `sync-github.py` also needs the GitHub account and its in-scope repositories,
 which are personal data: set `ROLECALL_GITHUB_OWNER` and
 `ROLECALL_GITHUB_REPOS` (comma-separated) rather than committing them here.
@@ -51,8 +64,10 @@ The plan lists every folder, key, Status, Fit conflict and archived file. The
 apply step writes `meta.yml` through the same validating atomic writer as the
 other scripts, removes `jd.md` front matter while keeping the body bytes, turns
 `SHORTLIST.md` rows at `New` into Lead folders and `DISMISSED.md` rows into
-Dismissed folders, then moves the five dashboard-era files to `jobs/_archive/`.
-Nothing is deleted. A folder whose `meta.yml` already has `schema` is skipped,
+Dismissed folders, then moves the five dashboard-era files to `jobs/_archive/`,
+makes them read-only and writes a `README.md` there saying the folder is a read-only
+archive the app never reads. Nothing is deleted. Running it on an already-migrated
+Workspace adds the notice if it is missing. A folder whose `meta.yml` already has `schema` is skipped,
 so a second run changes nothing. Fit values that cannot be mapped are reported
 and left unset for the Owner to set by hand.
 

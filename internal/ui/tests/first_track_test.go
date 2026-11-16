@@ -108,6 +108,8 @@ func offListHarness(t *testing.T, track string) (*driver, string) {
 	d.Type("6")
 	d.Type("]")
 	d.Type("]")
+	d.Type("]")
+	d.Type("]")
 	return d, root
 }
 

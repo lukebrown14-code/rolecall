@@ -189,7 +189,36 @@
       "Status": "Lead",
       "At": "2026-09-24T01:00:00Z"
     },
-    "HasJD": true
+    "HasJD": true,
+    "Posted": "2026-09-04",
+    "PostedLabel": "27d ago",
+    "Applicants": 41,
+    "Source": "greenhouse"
+  },
+  {
+    "Title": "Backend Engineer",
+    "Company": "Stale Corp",
+    "Track": "SWE",
+    "Status": "Dismissed",
+    "URL": "https://example.test/stale",
+    "Schema": 1,
+    "Posted": "2026-08-01",
+    "PostedLabel": "1mo ago",
+    "Source": "linkedin",
+    "FilterReason": "expired",
+    "FilterNote": "posted 2026-08-01, 54 days ago; limit 30",
+    "StatusLog": [
+      {
+        "Status": "Dismissed",
+        "At": "2026-09-24T01:00:00Z",
+        "Approx": false
+      }
+    ],
+    "LastChange": {
+      "Status": "Dismissed",
+      "At": "2026-09-24T01:00:00Z",
+      "Approx": false
+    }
   },
   {
     "Title": "Broken",

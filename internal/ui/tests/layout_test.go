@@ -270,7 +270,7 @@ func TestPopupsStayInsideTheBody(t *testing.T) {
 // Text wraps only at spaces: a flag such as "--wait" and a phrase such as "fit Good"
 // stay whole.
 func TestWrapsOnlyAtSpaces(t *testing.T) {
-	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, "6", "]", "]", "]"))
+	machine := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, "6", "]", "]", "]", "]", "]"))
 	if !strings.Contains(machine, "--wait") || strings.Contains(machine, "-\n") {
 		t.Errorf("editor examples split a flag:\n%s", machine)
 	}

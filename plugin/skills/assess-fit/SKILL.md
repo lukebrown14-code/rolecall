@@ -5,6 +5,12 @@ description: Decide whether an Application is worth pursuing and write the verdi
 
 # Assess fit
 
+> **Plugin paths.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder (the one holding `skills/`
+> and `scripts/`). Claude Code fills it in; in another harness, or if it reaches the shell
+> unexpanded, use the absolute path of the folder two levels above this file. Never run a
+> script by a path relative to the Workspace, and never hand-write `meta.yml` because a
+> script was not found: stop and say which path failed.
+
 The first deliverable for a new Application folder is `fit.md` — the verdict — not a resume.
 Read the ad against the Owner's locked facts and decide, before any time goes into tailoring. You
 write one file, `<application folder>/fit.md`, and set one key, `fit` in `meta.yml`. Nothing else.
@@ -17,7 +23,7 @@ job they could have had. Neither is the safe option, so just be accurate.
 
 - `profile/master-profile.md` and `profile/projects.md` in the Workspace — the only facts you may
   use.
-- The plugin writing rules and style (`plugin/writing-rules.md`, `plugin/styles/au.md`), then the
+- The plugin writing rules and style (`${CLAUDE_PLUGIN_ROOT}/writing-rules.md`, `${CLAUDE_PLUGIN_ROOT}/styles/au.md`), then the
   Workspace's preferences (`<workspace>/profile/writing-preferences.md`); the later file wins.
 - `<application folder>/jd.md` — the ad. `new-job.py` printed its visa and clearance signals at
   capture; start from those.
@@ -109,7 +115,7 @@ Never edit `meta.yml` by hand. After `fit.md` is written, set only the `fit` key
 writer:
 
 ```sh
-python3 plugin/scripts/set-fit.py --data "$ROLECALL_WORKSPACE" \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/set-fit.py" --data "$ROLECALL_WORKSPACE" \
   --folder jobs/SWE/acme-analytics-senior-developer-2026-11-06 \
   --fit Good
 ```
@@ -134,7 +140,7 @@ atomically, and never appends a Status.
 - Never touch `notes.md`, `sent/`, or the Profile fact table (`profile/projects.md`).
 - Never rewrite `meta.yml`; go through `set-fit.py` so comments and unknown keys survive.
 - Do not skip to documents. If the Owner proceeds, the next step is
-  `plugin/skills/prepare-documents/SKILL.md`.
+  `${CLAUDE_PLUGIN_ROOT}/skills/prepare-documents/SKILL.md`.
 
 ## 7. Worked example
 
@@ -190,7 +196,7 @@ and the pipeline owned along the way — the same shape as this ad's core proble
 Setting it is then one command:
 
 ```sh
-python3 plugin/scripts/set-fit.py --data "$ROLECALL_WORKSPACE" \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/set-fit.py" --data "$ROLECALL_WORKSPACE" \
   --folder jobs/SWE/acme-analytics-senior-developer-2026-11-06 --fit Good
 ```
 
@@ -198,5 +204,5 @@ python3 plugin/scripts/set-fit.py --data "$ROLECALL_WORKSPACE" \
 
 State the verdict, the blocker if any, and the one or two things that decided it. Confirm that
 `fit.md` was written and `fit:` was set. Leave the decision to the Owner — they choose whether to
-proceed to `plugin/skills/prepare-documents/SKILL.md`. A `Marginal` or `Poor` verdict is a complete,
+proceed to `${CLAUDE_PLUGIN_ROOT}/skills/prepare-documents/SKILL.md`. A `Marginal` or `Poor` verdict is a complete,
 correct result, not a failure to write documents.

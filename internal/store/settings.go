@@ -27,7 +27,11 @@ type WorkspaceSettings struct {
 	KeySkillsMin  int
 	KeySkillsMax  int
 	Sources       int // entries in sources
-	Blockers      int // entries in blockers
+	// Rules are the Search rules; SourceList is the sources registry, a legacy object
+	// read as one api Source per platform.
+	Rules      SearchRules
+	SourceList []Source
+	Blockers   int // entries in blockers
 	// Schema is the workspace.json schema, 1 when the key is absent. NewerSchema marks a
 	// schema above 1, so the screen can say the file is from a newer rolecall.
 	Schema      int
@@ -44,6 +48,7 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 		Schema:        1,
 		LetterWordCap: DefaultLetterWordCap, LetterWordMin: DefaultLetterWordMin,
 		KeySkillsMin: DefaultKeySkillsMin, KeySkillsMax: DefaultKeySkillsMax,
+		Rules: SearchRules{ExpiryWarningDays: DefaultExpiryWarningDays, Set: map[string]bool{}},
 	}
 	w, err := readWorkspace(s.root)
 	if err != nil {
@@ -102,6 +107,12 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 			out.Set[g.key] = true
 		}
 	}
+	rules, err := decodeSearchRules(w.Values["search_rules"])
+	if err != nil {
+		out.Err = fmt.Errorf("%s: search_rules: %w", w.Path, err)
+		return out, nil
+	}
+	out.Rules, out.SourceList = rules, decodeSources(w.Values["sources"])
 	out.Sources, out.Blockers = entryCount(w.Values["sources"]), entryCount(w.Values["blockers"])
 	return out, nil
 }

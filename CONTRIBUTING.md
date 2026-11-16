@@ -72,7 +72,7 @@ Merge to `main`, then tag it. There is no release branch.
 
 ```sh
 git switch main && git pull
-git tag v0.3.0 && git push origin v0.3.0
+git tag v0.4.0 && git push origin v0.4.0
 ```
 
 The tag runs `.github/workflows/release.yml`: GoReleaser builds macOS and Linux archives

@@ -85,6 +85,7 @@ const (
 	glyphMeterOn  = appearance.GlyphMeterOn
 	glyphMeterOff = appearance.GlyphMeterOff
 	glyphChanged  = appearance.GlyphChanged
+	glyphWarn     = appearance.GlyphWarn
 )
 
 // fitLabel leads a Fit wherever it is shown: "fit Good", "fit —".
@@ -102,7 +103,7 @@ func tableStatus(table string) string {
 	switch table {
 	case tableLeads:
 		return store.StatusLead
-	case tableDismissed:
+	case tableDismissed, tableFiltered:
 		return store.StatusDismissed
 	case tableDraft:
 		return store.StatusDraft

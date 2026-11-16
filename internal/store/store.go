@@ -16,9 +16,26 @@ type Application struct {
 	Schema                                                               int
 	URL, Closes, Fit                                                     string
 	ResumeOnly                                                           bool
-	StatusLog                                                            []StatusEntry
-	AppliedDate, LastChange                                              *StatusEntry
-	Malformed                                                            error `json:"-"`
+	// Posted is the date the ad was posted (YYYY-MM-DD) and PostedLabel the label the
+	// site showed for it ("14d ago"); either may be empty.
+	Posted, PostedLabel string
+	// Applicants is how many had applied when the Lead was found; nil when unknown.
+	Applicants *int
+	// Source is the Source registry name the Lead came from, such as linkedin.
+	Source string
+	// FilterReason names the Search rule that dismissed the Application, and FilterNote
+	// its detail. FilterOverruled marks one the Owner restored: no rule dismisses it again.
+	FilterReason, FilterNote string
+	FilterOverruled          bool
+	StatusLog                []StatusEntry
+	AppliedDate, LastChange  *StatusEntry
+	Malformed                error `json:"-"`
+}
+
+// Filtered reports that a Search rule dismissed the Application and the Owner has not
+// overruled it.
+func (a Application) Filtered() bool {
+	return a.Status == StatusDismissed && a.FilterReason != "" && !a.FilterOverruled
 }
 
 // Unsent reports that the Application is still the Owner's to send: a Lead or a Draft.

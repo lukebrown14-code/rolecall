@@ -1,6 +1,6 @@
  ▞ rolecall [1 Leads 4] 2 Drafts 2  3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW s [Leads 4] Dismissed 2 │ TRACK t [All 4] SWE 3  Platform 1
+   VIEW s [Leads 4] Dismissed 2  Filtered 1 │ TRACK t [All 4] SWE 3  Platform 1
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◌ Leads · 4 ───────────────────────────────────────────────── │ Empty                                                
  ▌ ◌ Empty                                                fit —  │ Example · SWE                                        
@@ -8,7 +8,7 @@
    ◌ Empty log                                            fit —  │ ◌ Lead                                        fit —  
      Fictional Labs · SWE · —                                    │                                                      
    ◌ Platform Engineer                                7d  fit —  │ DOCS    □□□□ 0/4 ready                               
-     Fern Systems · Platform · —                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+     Fern Systems · Platform · — · posted 27d ⚠ expires in 3 da… │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
    ⚠ Can't read SWE/malformed                                    │                                                      
      meta.yml line 4: indented lines must be status_log entri…   │ NEXT    add the JD                       enter open  
                                                                  │                                                      

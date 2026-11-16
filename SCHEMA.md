@@ -15,7 +15,7 @@ defined in `GLOSSARY.md`.
 
 ```
 <workspace>/
-├─ workspace.json              # tracks, gates, sweep sources
+├─ workspace.json              # tracks, gates, Search rules, Source registry
 ├─ brand.typ                   # optional document Template override (see below)
 ├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
@@ -26,6 +26,7 @@ defined in `GLOSSARY.md`.
 └─ jobs/
    ├─ roles.json               # optional role catalogue (see below)
    ├─ sweep-candidates.md      # raw Sweep output; not an Application (see below)
+   ├─ _archive/                # read-only dashboard-era files; never read (see below)
    └─ <track>/
       └─ <slug>/               # one folder per Application
 ```
@@ -34,6 +35,9 @@ defined in `GLOSSARY.md`.
 - Any other file directly under `jobs/` that this schema does not name (stray files,
   `TRACKER.md` remnants) is ignored. `roles.json` and `sweep-candidates.md` are named and
   documented below.
+- `jobs/_archive/` holds files a migration retired. No reader opens it (a Track rename
+  still rewrites `meta.yml` files there). `migrate.py` makes the files read-only and writes
+  `jobs/_archive/README.md`, a notice that the folder is a read-only archive.
 - `<track>` is where the folder was created. After that, the `track` key in `meta.yml` wins.
   Folders are never moved when the track changes.
 
@@ -107,7 +111,20 @@ status_log:
 | `closes` | date `YYYY-MM-DD` | — | application close date |
 | `fit` | enum | — | `Strong` · `Good` · `Marginal` · `Poor`. Empty or missing = not assessed |
 | `resume_only` | bool | — | `true` / `false`. Missing = `false` |
+| `posted` | date `YYYY-MM-DD` | — | when the ad was posted, when known. Ages a Lead for the Search rules |
+| `posted_label` | string | — | the age exactly as the Source showed it (`14d ago`, `Posted 30+ Days Ago`, `1mo ago`). Read when `posted` is absent |
+| `applicants` | int ≥ 0 | — | the applicant count the Source showed, when it shows one |
+| `source` | string | — | the Source registry `name` the Lead came from (`linkedin`, `greenhouse`) |
+| `filter_reason` | enum | — | why a Search rule dismissed it: `expired` · `blocker` · `applicant_cap` · `location` · `contract_length`. Set with the `Dismissed` entry it explains |
+| `filter_note` | string | — | the detail behind `filter_reason` ("Posted 30+ Days Ago; limit 30 days") |
+| `filter_overruled` | bool | — | `true` once the Owner restored a rule-dismissed Application. No rule dismisses it again |
 | `status_log` | list | ✅ | append-only history (below). The current Status is the **last** entry |
+
+A **Filtered** Application is one whose Status is `Dismissed` and that has a `filter_reason`.
+The TUI lists it under Leads → Filtered with its reason. Restoring it (`m`, back to the
+earlier Status) also writes `filter_overruled: true` and removes `filter_reason` and
+`filter_note`. An invalid `posted`, `applicants`, `filter_reason` or `filter_overruled` makes the
+file malformed, as an invalid `closes` does.
 
 **Unknown keys must be preserved** by every writer, byte for byte. Legacy keys from the
 dashboard era (`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`,
@@ -136,7 +153,8 @@ Each entry is a flow map on one line:
 | Writer | May write | Must not |
 |---|---|---|
 | **TUI** | creates folders. Writes any key through Add / Edit. Appends any Status | touch docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find). Writes `title` `company` `track` `url` `closes` `fit` `resume_only`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, or when the Owner explicitly asks in that session |
+| **Agent** (skills) | creates folders (capture, find) through `meta.py create`, never by hand. Writes `title` `company` `track` `url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session |
+| **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 
 ### Format rules (both languages)
@@ -187,14 +205,15 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
   `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
 - **Missing section or file:** no fields, so both required fields are missing.
 
-## `workspace.json` (read by the TUI, which writes `tracks`, `search_area` and the gates)
+## `workspace.json` (read by the TUI, which writes `tracks`, `search_area`, `search_rules`, `sources` and the gates)
 
-The TUI reads `schema` and `tracks` (array of strings, display order) and shows `search_area`, the gates
-(`letterWordCap`, `letterWordMin`, `keySkillsMin`, `keySkillsMax`) and the number of `sources` and
-`blockers` on the Settings screen. `sources` is an object mapping a Platform name (e.g.
-`greenhouse`) to a list of that Platform's targets; when present it wholly replaces the plugin's
-shipped source plan. `blockers` is a list of signal names. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
-pop-up) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
+The TUI reads `schema` and `tracks` (array of strings, display order) and shows `search_area`,
+`search_rules`, `sources`, the gates (`letterWordCap`, `letterWordMin`, `keySkillsMin`,
+`keySkillsMax`) and the number of `blockers` on the Settings screen. `sources` (below), when
+present, wholly replaces the plugin's shipped source plan. `blockers` is a list of signal
+names. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+pop-up), each `search_rules` field (the Rules section), `sources` entries (Sources: add,
+enable, disable) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
 most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
 write is atomic, and an invalid file is never overwritten. Missing file or key = no track
 filter and the plugin's defaults.
@@ -205,6 +224,67 @@ never move, malformed `meta.yml` files are skipped and named afterwards, and `u`
 screen. `sources`, `blockers` and the gates are used by the plugin. Missing schema means 1;
 a newer schema stops startup with an instruction to upgrade rolecall. Missing file or `tracks`
 key means no track filter and the plugin's defaults.
+
+`sources` has two forms. The older one is an object mapping a Platform name to its
+targets. The **Source registry** is a list with one entry per Source, of every kind the
+Owner searches:
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `name` | string | ✅ | unique, ignoring case. What `meta.yml` `source` and the rules name |
+| `type` | `api` · `browser` · `manual` | ✅ | `api`: the Sweep fetches it. `browser`: a site the agent reads in a browser. `manual`: searched by hand |
+| `platform` | string | `api` | a registered Platform (`greenhouse`, `ashby`, `lever`, `smartrecruiters`, `michaelpage`) |
+| `targets` | list of strings | `api` | that Platform's boards |
+| `url` | string | — | the search page, for `browser` and `manual` Sources |
+| `access` | `works` · `403` · `login wall` · `cloudflare` · `unknown` | — | what happens when it is fetched. Default `unknown` |
+| `enabled` | bool | — | `false` keeps the entry but skips it. Default `true` |
+| `age_format` | string | — | how the site shows posting age, e.g. `14d ago · 1mo ago · Posted 30+ Days Ago` |
+| `applicants_format` | string | — | how it shows the applicant count, e.g. `Over 100 applicants` |
+| `notes` | string | — | anything else the agent needs to search it |
+| `rules` | object | — | this Source's own `max_applicants` and `max_posting_age_days` |
+
+```json
+"sources": [
+  {"name": "greenhouse", "type": "api", "platform": "greenhouse", "targets": ["canva"]},
+  {"name": "LinkedIn", "type": "browser", "url": "https://www.linkedin.com/jobs/search/",
+   "access": "login wall", "age_format": "2 weeks ago", "applicants_format": "Over 100 applicants",
+   "rules": {"max_applicants": 100}},
+  {"name": "Jora", "type": "manual", "enabled": false}
+]
+```
+
+The Sweep fetches the enabled `api` entries and lists every other one in its report for the
+agent to search. The Settings screen's Sources section lists, adds, tests and disables
+entries; a write converts the older object form to the list, keeping every Platform and
+target. `sweep.py --test-source <name>` checks one entry and prints its access status.
+The catalogue's `additional_sources` and `manual_search_sources` (below) still work when
+`sources` is absent. Prefer the registry.
+
+`search_rules` (read by the Sweep, `meta.py create`, `rules.py` and the TUI) is the rules
+that rule a role out, so none lives in prose:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired |
+| `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5 |
+| `ambiguous_age_labels` | object | label → `discard` or `keep`, for a label that may be either side of the limit (`"1mo ago"` is 28 to 61 days). Matched ignoring case and spacing. Unlisted, a borderline Lead is kept and flagged for the Owner |
+| `max_applicants` | object | Source name → the most applicants a role may have there |
+| `max_contract_months` | int ≥ 1 | a longer contract is flagged, never dismissed |
+
+```json
+"search_rules": {
+  "max_posting_age_days": 30,
+  "ambiguous_age_labels": {"1mo ago": "discard"},
+  "max_applicants": {"linkedin": 100},
+  "max_contract_months": 6
+}
+```
+
+Where a role must be is `search_area` (below), and what rules a role out on its ad text
+(citizenship, clearance, permanent residency) is `blockers`. Neither is repeated here. The
+age is read from `posted`, else from `posted_label`. A Source's own `rules` win over these
+for that Source. A value of the wrong shape stops the Sweep and `rules.py` with the key
+named, and the Settings screen refuses it.
 
 `search_area` (read by the Sweep and `find-jobs`) is where roles must be:
 
@@ -244,7 +324,8 @@ invalid data stops the Sweep with the reason.
 |---|---|---|---|
 | `version` | int | ✅ | `1` |
 | `roles` | list | ✅ | non-empty; one object per role (below) |
-| `additional_sources` | object | — | Platform name → list of targets, added to the shipped source plan |
+| `additional_sources` | object | — | Platform name → list of targets, added to the shipped source plan. Ignored when `workspace.json` has `sources` |
+| `manual_search_sources` | list of strings | — | Sources the agent searches by hand. Older form of the registry's `manual` entries |
 
 Each role:
 
@@ -274,7 +355,9 @@ Each role:
 
 Written, and overwritten, by `sweep.py` on each Sweep. It is a report for the Owner and
 the `find-jobs` skill, **not** an Application: the TUI ignores it and no reader parses it
-as data. It holds a summary line, source health and coverage, a `## To assess` list (one
+as data. It holds a summary line with the scan time, source health (a FAILED source names
+its access problem: `403`, `login wall` or `cloudflare`), what each Search rule filtered out,
+role coverage, a `## To assess` list (one
 `### <title> — <company>` block per candidate), a `## Blocked` list, and a
 `## Not reachable by this script` note.
 

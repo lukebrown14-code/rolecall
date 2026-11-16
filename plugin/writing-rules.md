@@ -93,10 +93,15 @@ priorities, fit guidance and additional sources. The script uses its title phras
 catalogue, built-in title keywords apply. Sweeps default to all workspace tracks; `--track`
 narrows them.
 
-To widen coverage, add supported boards to the catalogue's `additional_sources`. An explicit
-`workspace.json` `sources` setting takes precedence and replaces the entire source plan;
-otherwise catalogue boards extend the built-in defaults. Career sites that need manual searches
-belong in `manual_search_sources` in the catalogue.
+To widen coverage, add Sources to the Source registry, `workspace.json` `sources` (Settings →
+Sources): `api` entries for supported boards, `browser` or `manual` entries for sites searched
+by hand, each with its access status and parsing hints. The registry replaces the entire
+source plan. Without it, the catalogue's `additional_sources` extend the built-in defaults and
+its `manual_search_sources` name the manual searches.
+
+Rules that rule a role out (posting age, applicant caps, contract length) are Search rules in
+`workspace.json` `search_rules`, never prose. `writing-preferences.md` is for writing style
+only: a rule written there is not applied.
 
 The script prints its effective source plan through
 `python3 plugin/scripts/sweep.py --data <workspace> --sources`. Adding or removing a Source
