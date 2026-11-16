@@ -108,8 +108,8 @@ func TestHelpBarOffersOnlyKeysValidForTheRow(t *testing.T) {
 		}
 	})
 	t.Run("healthy row offers detail, edit, move and dismiss", func(t *testing.T) {
-		// At this width n notes makes way for the pinned a add and / search; ? lists it.
-		view := chipped(finalView(t))
+		// The key line keeps only the core keys; ? lists the rest.
+		view := helpText(finalView(t, "?"))
 		for _, k := range []string{"enter open", "e edit", "m move", "x dismiss", "a add", "/ search"} {
 			if !strings.Contains(view, k) {
 				t.Errorf("healthy row hides %q:\n%s", k, view)

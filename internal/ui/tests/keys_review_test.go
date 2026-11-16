@@ -90,8 +90,8 @@ func TestMoveRefusedAtTheKeyOnAMalformedRow(t *testing.T) {
 		t.Fatalf("no parse error:\n%s", v)
 	}
 	// Moving the row above off the view lands the cursor on the malformed row.
-	if line := keyLineOf(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1", "j", "j", "m", "d", "esc")); !hasKey(line, "u") {
-		t.Fatalf("u undo gone on the malformed row: %q", line)
+	if help := helpAt(t, 120, 40, "1", "j", "j", "m", "d", "esc"); !strings.Contains(help, "u undo") {
+		t.Fatalf("u undo gone on the malformed row: %q", help)
 	}
 }
 

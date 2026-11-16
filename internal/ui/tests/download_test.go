@@ -129,10 +129,16 @@ func TestHelpBarOffersDownloadWhenRowHasPDFs(t *testing.T) {
 	}
 	table.tm.Type("/docs-ready")
 	table.key(tea.KeyEnter)
-	table.show("d download")
+	table.tm.Type("?")
+	if help := helpText(table.show("Keys")); !strings.Contains(help, "d download") {
+		t.Fatalf("table help lacks d download: %q", help)
+	}
 	detail, _ := newDownloadHarness(t, nil)
 	detail.open("3", 4, "docs-ready")
-	detail.show("d download")
+	detail.tm.Type("?")
+	if help := helpText(detail.show("Keys")); !strings.Contains(help, "d download") {
+		t.Fatalf("detail help lacks d download: %q", help)
+	}
 }
 
 func TestDownloadWorksFromDetailViewDocsTab(t *testing.T) {

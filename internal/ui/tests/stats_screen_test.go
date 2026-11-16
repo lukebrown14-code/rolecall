@@ -75,7 +75,7 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 	m = driveModel(t, m, "4")
 	top := chipped(m.View().Content)
 	up, down := regexp.MustCompile(`↑ \d+ more`), regexp.MustCompile(`↓ \d+ more`)
-	if !down.MatchString(top) || up.MatchString(top) || !strings.Contains(top, "scroll") {
+	if !down.MatchString(top) || up.MatchString(top) || !strings.Contains(helpText(driveModel(t, m, "?").View().Content), "scroll") {
 		t.Fatalf("tall Stats lacks the overflow cue or the scroll key:\n%s", top)
 	}
 	m = driveModel(t, m, "G")

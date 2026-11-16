@@ -25,16 +25,29 @@ func hasKey(line, key string) bool {
 	return false
 }
 
-// On Leads with a row selected the key line has the sort key o; on Applied it does not.
-// o is a minor key, so it is the first to go when space is short: it is asserted where
-// there is room (140), and its absence on Applied at every size.
+// helpText is the view with the ? pop-up's "[k]   desc" cells read as "k desc".
+func helpText(view string) string {
+	return strings.Join(strings.Fields(strings.NewReplacer("[", "", "]", "").Replace(chipped(view))), " ")
+}
+
+// helpAt is the ? pop-up's text at a size after keys.
+func helpAt(t *testing.T, w, h int, keys ...string) string {
+	t.Helper()
+	return helpText(runKeysSized(t, fixtureCopy(t, nil), w, h, append(keys, "?")...))
+}
+
+// The sort key o is offered on Leads, not Applied. It is a minor key: ? lists it, the key
+// line never does.
 func TestKeyLineShowsSortOnlyOnLeads(t *testing.T) {
-	if line := lastLine(t, 140, 36, "1"); !hasKey(line, "o") {
-		t.Errorf("140x36 Leads key line lacks o: %q", line)
+	if help := helpAt(t, 140, 40, "1"); !strings.Contains(help, "o sort newest") {
+		t.Errorf("Leads help lacks o: %q", help)
+	}
+	if help := helpAt(t, 140, 40, "3"); strings.Contains(help, "o sort") {
+		t.Errorf("Applied help offers o: %q", help)
 	}
 	for _, sz := range keyLineSizes {
-		if line := lastLine(t, sz[0], sz[1], "3"); hasKey(line, "o") {
-			t.Errorf("%dx%d Applied key line shows o: %q", sz[0], sz[1], line)
+		if line := lastLine(t, sz[0], sz[1], "1"); hasKey(line, "o") {
+			t.Errorf("%dx%d Leads key line shows o: %q", sz[0], sz[1], line)
 		}
 	}
 }
@@ -54,17 +67,15 @@ func TestKeyLineHidesRowActionsOnAnEmptyList(t *testing.T) {
 	}
 }
 
-// u undo appears only once there is something to undo. It is a minor key, so it is
-// asserted where there is room for it.
+// u undo is a minor key: it stays off the key line, even after a move, and ? lists it.
 func TestKeyLineShowsUndoAfterAMove(t *testing.T) {
-	for _, sz := range keyLineSizes[:1] {
-		if line := lastLine(t, sz[0], sz[1], "3"); hasKey(line, "u") {
-			t.Errorf("%dx%d key line shows u with nothing to undo: %q", sz[0], sz[1], line)
+	for _, sz := range keyLineSizes {
+		if line := lastLine(t, sz[0], sz[1], "3", "m", "enter"); hasKey(line, "u") {
+			t.Errorf("%dx%d key line shows u: %q", sz[0], sz[1], line)
 		}
-		line := lastLine(t, sz[0], sz[1], "3", "m", "enter")
-		if !strings.Contains(line, "u undo") {
-			t.Errorf("%dx%d key line lacks u undo after a move: %q", sz[0], sz[1], line)
-		}
+	}
+	if help := helpAt(t, 120, 40, "3", "m", "enter"); !strings.Contains(help, "u undo") {
+		t.Errorf("help lacks u undo after a move: %q", help)
 	}
 }
 

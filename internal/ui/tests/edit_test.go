@@ -140,13 +140,18 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 }
 
 func TestHelpBarOffersEditOnlyOnARow(t *testing.T) {
-	onRow := newAddHarness(t).quit()
+	r := newAddHarness(t)
+	r.tm.Type("?")
+	r.wait("Keys")
+	onRow := helpText(r.quit())
 	h := newAddHarness(t)
 	h.tm.Type("/zzznomatch")
 	h.enter()
 	h.wait("No Applications match")
-	empty := h.quit()
-	if !strings.Contains(chipped(onRow), "e edit") || strings.Contains(chipped(empty), "e edit") {
+	h.tm.Type("?")
+	h.wait("Keys")
+	empty := helpText(h.quit())
+	if !strings.Contains(onRow, "e edit") || strings.Contains(empty, "e edit") {
 		t.Fatalf("help bar on a row:\n%s\non an empty table:\n%s", onRow, empty)
 	}
 }

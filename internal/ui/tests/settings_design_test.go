@@ -80,8 +80,8 @@ func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 }
 
 func TestSettingsTrackFooterKeys(t *testing.T) {
-	f := footer(settingsAt(t, 120, 36, "]", "]", "]", "]"))
-	if !strings.Contains(f, "a add  r rename  x remove  J/K reorder") {
+	f := helpText(strings.Join(settingsAt(t, 120, 40, "]", "]", "]", "]", "?"), "\n"))
+	if !strings.Contains(f, "a add") || !strings.Contains(f, "r rename") || !strings.Contains(f, "x remove") || !strings.Contains(f, "J/K reorder") {
 		t.Fatalf("footer %q", f)
 	}
 }

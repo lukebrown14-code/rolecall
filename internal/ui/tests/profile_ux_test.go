@@ -18,11 +18,11 @@ func TestProfileOffersEditFileOnce(t *testing.T) {
 
 // The key line follows focus: once tab moves to the content, j k scroll it.
 func TestProfileKeyLineFollowsFocus(t *testing.T) {
-	if line := lastLine(t, 120, 36, "5"); !strings.Contains(line, "j k section") {
-		t.Fatalf("list focus: %q", line)
+	if help := helpAt(t, 120, 40, "5"); !strings.Contains(help, "section") {
+		t.Fatalf("list focus: %q", help)
 	}
-	if line := lastLine(t, 120, 36, "5", "tab"); !strings.Contains(line, "j k scroll") {
-		t.Fatalf("content focus: %q", line)
+	if help := helpAt(t, 120, 40, "5", "tab"); !strings.Contains(help, "scroll") {
+		t.Fatalf("content focus: %q", help)
 	}
 }
 
