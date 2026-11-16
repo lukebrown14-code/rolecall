@@ -94,15 +94,15 @@ _Avoid_: agency (as a field), employer (for the recruiter)
 
 **Likely duplicate**:
 A saved Application that is probably the same role as a new one: the same employer and normalised title, or the same ad text. Refused unless the Owner says it is a different role.
-_Avoid_: dupe, copy
+_Avoid_: dupe
 
 **Deadlines**:
 The view of every Lead and Draft with a closing date, soonest first, with the ones whose date was unclear at the end.
-_Avoid_: calendar, due list
+_Avoid_: due list
 
 **Insights**:
 The Stats panel that counts the gaps recorded across every Fit write-up, to show which skills would unlock the most roles.
-_Avoid_: analytics, report
+_Avoid_: analytics
 
 **Follow-up due**:
 A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status, and it clears only when the Status changes.
