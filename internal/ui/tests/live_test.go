@@ -41,7 +41,7 @@ func newLiveHarness(t *testing.T, setup func(root string)) *liveHarness {
 		t.Fatal(err)
 	}
 	h := &liveHarness{t: t, root: root, tm: teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))}
-	h.wait("Leads 4")
+	h.wait("Leads 7")
 	return h
 }
 

@@ -27,6 +27,15 @@ job they could have had. Neither is the safe option, so just be accurate.
   Workspace's preferences (`<workspace>/profile/writing-preferences.md`); the later file wins.
 - `<application folder>/jd.md` — the ad. `new-job.py` printed its visa and clearance signals at
   capture; start from those.
+- `meta.yml` through `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/meta.py" show --folder <folder>`:
+  the recruiter and real employer (`company`), contract terms, pay and sponsorship. Judge the
+  real employer, not the agency. Weigh the terms against `workspace.json` `visa`
+  (`max_contract_months`, `needs_sponsorship`): a 12-month term against a 6-month cap, or no
+  sponsorship when the Owner needs it, is a blocker; say so in `## Blockers`.
+- **If `jd_completeness` is `blurb`, stop.** A blurb cannot carry a verdict. Ask the Owner for
+  the full ad (or fetch it), write it to `jd.md`, set `jd_completeness: full` with
+  `meta.py patch --folder <folder> --set jd_completeness=full`, then assess. With `summary`,
+  assess but say the ad was condensed.
 
 Every script takes the Workspace from `--data <path>` or `ROLECALL_WORKSPACE`. Resolve it before
 running anything, and do not guess a path.
@@ -47,15 +56,16 @@ running anything, and do not guess a path.
 
 ## 3. The verdict
 
-There are exactly four values. Use these spellings and capitalisation, in `fit.md` and in
-`meta.yml`:
+There are exactly four values, and they are the only words for a verdict. Use these spellings
+and capitalisation in `fit.md`, in `meta.yml` and when you report back; never a label such as
+"worth applying" or "don't apply":
 
-| Verdict | `fit` value | Meaning |
-| :-- | :-- | :-- |
-| **Strong — apply** | `Strong` | No blockers; nearly all must-haves evidenced; a clear lead story |
-| **Good — worth applying** | `Good` | No blockers; most must-haves met; gaps are learnable or peripheral |
-| **Marginal — your call** | `Marginal` | No blockers, but two or more must-haves unevidenced, or a real seniority mismatch. Say what would have to be true for it to land |
-| **Poor — don't apply** | `Poor` | A hard blocker, or a different discipline |
+| `fit` value | Meaning |
+| :-- | :-- |
+| `Strong` | No blockers; nearly all must-haves evidenced; a clear lead story |
+| `Good` | No blockers; most must-haves met; gaps are learnable or peripheral |
+| `Marginal` | No blockers, but two or more must-haves unevidenced, or a real seniority mismatch. Say what would have to be true for it to land |
+| `Poor` | A hard blocker, or a different discipline |
 
 ## 4. Write `fit.md`
 
@@ -101,10 +111,15 @@ Matches: <3–5 keywords the facts evidence, comma-separated>
 
 <the strongest evidence-backed angle, if applying>
 
-## Gaps (for gaps.md if proceeding)
+## Gaps
 
-- <what the ad asks for that the Profile cannot evidence>
+- <skill or area> — <what the ad asks for that the Profile cannot evidence>
 ```
+
+List each gap as its own bullet, **name first** (one skill or area: `Terraform`, `Azure`,
+`C#/.NET`), then ` — ` and the detail. Use the same name every time a gap recurs: the TUI's
+Insights panel counts these names across every `fit.md` to show which skills would unlock the
+most roles.
 
 A row's Status cell in the table starts with **Met**, **Strong**, **Exceeds** or **Not evidenced**,
 so the count of must-haves met is read correctly.

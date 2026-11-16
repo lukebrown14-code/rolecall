@@ -59,6 +59,12 @@ func filterReasonLabel(reason string) string {
 		return "outside Search area"
 	case store.FilterContractLength:
 		return "contract too long"
+	case store.FilterClosed:
+		return "closing date passed"
+	case store.FilterPulled:
+		return "listing pulled"
+	case store.FilterDuplicate:
+		return "Likely duplicate"
 	}
 	return reason
 }

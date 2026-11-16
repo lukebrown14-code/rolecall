@@ -297,7 +297,7 @@ func (m model) movedOutView(p pal) string {
 func (m model) screenCount(si int) int {
 	n := 0
 	for _, t := range screenDefs[si].tables {
-		if t != allView && t != tableDismissed && t != tableFiltered {
+		if t != allView && t != tableDismissed && t != tableFiltered && t != tableDeadlines {
 			n += m.count(si, t)
 		}
 	}
@@ -311,7 +311,7 @@ func (m model) filtered() bool { return m.track > 0 || m.text != "" }
 func (m model) screenCountLabel(si int) string {
 	total := 0
 	for _, t := range screenDefs[si].tables {
-		if t != allView && t != tableDismissed && t != tableFiltered {
+		if t != allView && t != tableDismissed && t != tableFiltered && t != tableDeadlines {
 			total += m.totalCount(si, t)
 		}
 	}
@@ -628,7 +628,7 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 	// The sheet keeps the list's columns: text from the inset to where the rows' Fit ends.
 	pad := strings.Repeat(" ", inset)
 	right := w - rightMargin - rowPad
-	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.Company))
+	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.CompanyLabel()))
 	if a.Malformed != nil {
 		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	} else {
@@ -789,13 +789,26 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 				div[i] = divider{label: t, n: m.count(m.screen, t)}
 			}
 		}
+	case tableDeadlines:
+		for i, a := range rows {
+			if m.expired(a) {
+				div[i] = divider{label: groupExpired, n: deadlineEnd(rows, i, m.expired)}
+				break
+			}
+		}
+		for i, a := range rows {
+			if a.Closes == "" {
+				div[i] = divider{label: "Date unclear", n: len(rows) - i}
+				break
+			}
+		}
 	case tableLeads, tableDraft:
 		if m.leadsNewest && m.views()[m.table] == tableLeads {
 			break // newest first mixes expired Leads in with the rest
 		}
 		for i, a := range rows {
 			if m.expired(a) {
-				div[i] = divider{label: "Expired", n: len(rows) - i}
+				div[i] = divider{label: groupExpired, n: len(rows) - i}
 				break
 			}
 		}
@@ -829,7 +842,7 @@ func groupEnd(div map[int]divider, i, n int) int {
 // the Applications whose documents are Ready, " · 1 follow-up due · 2 Ready". Closed and
 // Expired groups have nothing left to nudge or send, so they carry none.
 func (m model) rollup(label string, group []store.Application) string {
-	if label == tableClosed || label == "Expired" {
+	if label == tableClosed || label == groupExpired {
 		return ""
 	}
 	due, ready := 0, 0
@@ -849,6 +862,15 @@ func (m model) rollup(label string, group []store.Application) string {
 		out += fmt.Sprintf(" · %d Ready", ready)
 	}
 	return out
+}
+
+// deadlineEnd counts the rows from i on that keep in.
+func deadlineEnd(rows []store.Application, i int, in func(store.Application) bool) int {
+	n := 0
+	for ; i < len(rows) && in(rows[i]); i++ {
+		n++
+	}
+	return n
 }
 
 func tableOf(a store.Application) string { _, t := appLocation(a); return t }
@@ -1109,14 +1131,16 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		return dim.Render(prefix + m.agoEntry(e))
 	}
 	var out []string
-	if strings.TrimSpace(a.Company) != "" {
-		out = append(out, dim.Render(a.Company))
+	if strings.TrimSpace(a.CompanyLabel()) != "" {
+		out = append(out, dim.Render(a.CompanyLabel()))
 	}
 	out = append(out, dim.Render(a.Track))
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
 		// No close date is a quiet dash, not the same words on every row.
-		if text, s := closeInfo(a.Closes, m.now()); s == closeNone {
+		if text, s := closeInfo(a.Closes, m.now()); s == closeNone && a.ClosesUnclear {
+			out = append(out, st(p.Warn).Render("closes: "+closesUnclearText))
+		} else if s == closeNone {
 			out = append(out, dim.Render(glyphNone))
 		} else {
 			out = append(out, p.CloseStyle(s, st, dimC).Render(text))
@@ -1136,6 +1160,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 				c = dimC
 			}
 			out = append(out, st(c).Render(label))
+		}
+		// Badges come last, so a narrow row drops them before anything else.
+		for _, b := range m.adBadges(a) {
+			c := map[badgeTone]color.Color{toneOK: p.Ok, toneWarn: p.Warn, toneBad: p.Bad}[b.tone]
+			out = append(out, st(c).Render(b.text))
 		}
 	case tableDismissed:
 		if lastChange(a) != nil {
@@ -1264,3 +1293,6 @@ func (m model) docText(a store.Application, name string) string {
 		return strings.Join(keep, " ")
 	})
 }
+
+// groupExpired is the divider over Leads and Drafts whose close date has passed.
+const groupExpired = "Expired"

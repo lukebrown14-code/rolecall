@@ -53,6 +53,8 @@ func emptyViewNoun(table string) string {
 		return "Leads a Search rule dismissed"
 	case tableDraft:
 		return "Drafts"
+	case tableDeadlines:
+		return "Leads or Drafts with a close date"
 	case tableApplied:
 		return "Applied Applications"
 	case tableInterviewing:

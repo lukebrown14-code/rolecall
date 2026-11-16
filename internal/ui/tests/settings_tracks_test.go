@@ -64,7 +64,7 @@ func TestSettingsAddTrackRules(t *testing.T) {
 func TestSettingsRemoveTrackRefusedWhileUsedWithCount(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Spare"]}`)
 	h.tm.Type("x")
-	requireAll(t, h.tm.plain(), "SWE is used by 11 Applications")
+	requireAll(t, h.tm.plain(), "SWE is used by 14 Applications")
 	requireAll(t, h.file(), `"SWE"`)
 }
 

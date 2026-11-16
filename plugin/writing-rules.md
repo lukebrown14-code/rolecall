@@ -127,12 +127,15 @@ the documents, and never talk the Owner into a role to be agreeable.
 
 Weigh **must-haves met**, not total requirements. Count only what the ad frames as essential.
 
-| Verdict | Meaning |
+The verdict is one of exactly four Fit values, the same word everywhere: in `fit.md`, in
+`meta.yml`, in the TUI and in conversation. No other labels ("worth applying", "don't apply").
+
+| Fit | Meaning |
 | :-- | :-- |
-| **Strong — apply** | No blockers; nearly all must-haves evidenced; a clear lead story |
-| **Good — worth applying** | No blockers; most must-haves met; gaps are learnable or peripheral |
-| **Marginal — your call** | No blockers, but two or more must-haves unevidenced, or a real seniority mismatch (the role expects meaningfully more seniority than the Profile can evidence). Say what would have to be true for it to land |
-| **Poor — don't apply** | A hard blocker, or the role is a different discipline |
+| `Strong` | No blockers; nearly all must-haves evidenced; a clear lead story |
+| `Good` | No blockers; most must-haves met; gaps are learnable or peripheral |
+| `Marginal` | No blockers, but two or more must-haves unevidenced, or a real seniority mismatch (the role expects meaningfully more seniority than the Profile can evidence). Say what would have to be true for it to land |
+| `Poor` | A hard blocker, or the role is a different discipline |
 
 `fit.md` holds: the verdict and one-line reason, the blockers, must-haves met vs unmet, the
 strongest lead story if applying, and what is missing if not. **Be blunt.** A padded verdict

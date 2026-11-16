@@ -51,6 +51,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
+import adfacts  # noqa: E402
 import rules as search_rules  # noqa: E402
 from signals import FAVOURABLE, blocker_hits, blockers_for  # noqa: E402
 from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
@@ -735,6 +736,26 @@ def norm_url(u):
     return urllib.parse.urlunsplit((sp.scheme, sp.netloc.lower(), sp.path.rstrip("/"), "", ""))
 
 
+def seen_roles(workspace):
+    """employer|title keys of every captured Application, whatever its Status.
+
+    The same ad often comes back under another URL (a board's tracking link, a second
+    listing). The employer is the company and, for an agency ad, the recruiter too."""
+    keys = set()
+    for app in meta_store.scan(workspace):
+        if app.malformed:
+            continue
+        title = adfacts.title_key(app.title)
+        for employer in (app.company, app.recruiter):
+            if title and adfacts.company_key(employer):
+                keys.add(f"{adfacts.company_key(employer)}|{title}")
+    return keys
+
+
+def role_key(job):
+    return f"{adfacts.company_key(job['company'])}|{adfacts.title_key(job['title'])}"
+
+
 def seen_urls(workspace):
     """Normalised URLs of every captured Application, whatever its Status.
 
@@ -918,6 +939,7 @@ def main(argv=None):
     except ValueError as error:
         sys.exit(f"workspace.json {error}")
     seen = seen_urls(workspace)
+    seen_keys = seen_roles(workspace)
     if search_area is None and not args.all_locations:
         print(NO_SEARCH_AREA)
     print(f"Sweeping tracks {', '.join(tracks)} ... ({len(seen)} URLs already known)")
@@ -952,7 +974,7 @@ def main(argv=None):
         matches = role_matches(j["title"], tracks)
         for match in matches:
             by_role[match["id"]]["matched"] += 1
-        if ukey in seen:
+        if ukey in seen or role_key(j) in seen_keys:
             for match in matches:
                 by_role[match["id"]]["known"] += 1
             skipped_seen += 1

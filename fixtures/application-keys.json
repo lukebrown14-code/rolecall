@@ -29,7 +29,22 @@
     "Source",
     "FilterReason",
     "FilterNote",
-    "FilterOverruled"
+    "FilterOverruled",
+    "Recruiter",
+    "EmploymentType",
+    "TermMonths",
+    "Extension",
+    "Sponsorship",
+    "PayMin",
+    "PayMax",
+    "PayUnit",
+    "Currency",
+    "ClosesUnclear",
+    "JDCompleteness",
+    "AddedBy",
+    "SearchQuery",
+    "Listing",
+    "ListingChecked"
   ],
   "goOnly": [
     "JDHasText",

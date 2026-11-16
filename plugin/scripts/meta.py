@@ -43,7 +43,66 @@ STATUSES = {
 }
 FITS = {"", "Strong", "Good", "Marginal", "Poor"}
 # Why a Search rule dismissed an Application (filter_reason). SCHEMA.md lists them.
-FILTER_REASONS = {"expired", "blocker", "applicant_cap", "location", "contract_length"}
+FILTER_REASONS = {
+    "expired", "blocker", "applicant_cap", "location", "contract_length",
+    "closed", "pulled", "duplicate",
+}
+NUMBER = re.compile(r"^[0-9]+(\.[0-9]+)?$")
+
+# The ad facts (SCHEMA.md): key -> (attribute, JSON name, kind). A kind is a set of allowed
+# values, "text", "int" (whole number >= 1), "number", "bool", "date" or "currency".
+FACTS = {
+    "recruiter": ("recruiter", "Recruiter", "text"),
+    "employment_type": ("employment_type", "EmploymentType",
+                        {"permanent", "contract", "fixed-term", "casual", "part-time"}),
+    "term_months": ("term_months", "TermMonths", "int"),
+    "extension": ("extension", "Extension", {"yes", "no", "possible"}),
+    "sponsorship": ("sponsorship", "Sponsorship", {"offered", "not-offered", "unknown"}),
+    "pay_min": ("pay_min", "PayMin", "number"),
+    "pay_max": ("pay_max", "PayMax", "number"),
+    "pay_unit": ("pay_unit", "PayUnit", {"hour", "day", "week", "month", "year"}),
+    "currency": ("currency", "Currency", "currency"),
+    "closes_unclear": ("closes_unclear", "ClosesUnclear", "bool"),
+    "jd_completeness": ("jd_completeness", "JDCompleteness", {"full", "summary", "blurb"}),
+    "added_by": ("added_by", "AddedBy", {"sweep", "agent", "owner"}),
+    "search_query": ("search_query", "SearchQuery", "text"),
+    "listing": ("listing", "Listing", {"live", "gone", "closed"}),
+    "listing_checked": ("listing_checked", "ListingChecked", "date"),
+}
+_FACT_DEFAULTS = {"text": "", "int": None, "number": None, "bool": False, "date": "",
+                  "currency": ""}
+
+
+def fact_value(key, value):
+    """The typed value of an ad fact, or raise MetaError naming the key."""
+    _, _, kind = FACTS[key]
+    if value == "" and kind != "bool":
+        return _FACT_DEFAULTS.get(kind, "") if not isinstance(kind, set) else ""
+    if isinstance(kind, set):
+        if value not in kind:
+            raise MetaError(f"invalid {key}")
+        return value
+    if kind == "int":
+        if not re.fullmatch(r"[0-9]+", value) or int(value) < 1:
+            raise MetaError(f"invalid {key}")
+        return int(value)
+    if kind == "number":
+        if not NUMBER.fullmatch(value):
+            raise MetaError(f"invalid {key}")
+        number = float(value)
+        return int(number) if number.is_integer() else number
+    if kind == "bool":
+        if value not in ("true", "false"):
+            raise MetaError(f"invalid {key}")
+        return value == "true"
+    if kind == "date":
+        if not DATE.fullmatch(value):
+            raise MetaError(f"invalid {key}")
+        return value
+    if kind == "currency":
+        if not re.fullmatch(r"[A-Z]{3}", value):
+            raise MetaError(f"invalid {key}")
+    return value
 ESCAPES = {
     "0": "\x00",
     "a": "\x07",
@@ -113,6 +172,8 @@ class Application:
         self.filter_reason = ""
         self.filter_note = ""
         self.filter_overruled = False
+        for attribute, _, kind in FACTS.values():
+            setattr(self, attribute, "" if isinstance(kind, set) else _FACT_DEFAULTS[kind])
         self.status_log = []
         self.applied_date = None
         self.last_change = None
@@ -148,6 +209,7 @@ class Application:
             "FilterReason": self.filter_reason,
             "FilterNote": self.filter_note,
             "FilterOverruled": self.filter_overruled,
+            **{name: getattr(self, attribute) for attribute, name, _ in FACTS.values()},
             "StatusLog": [entry.to_dict() for entry in self.status_log],
             "AppliedDate": self.applied_date.to_dict() if self.applied_date else None,
             "LastChange": self.last_change.to_dict() if self.last_change else None,
@@ -379,6 +441,11 @@ def _read_meta(folder, data):
             if value not in ("true", "false"):
                 return fail(number, "invalid filter_overruled")
             app.filter_overruled = value == "true"
+        elif key in FACTS:
+            try:
+                setattr(app, FACTS[key][0], fact_value(key, value))
+            except MetaError as error:
+                return fail(number, str(error))
         elif key == "fit":
             if value not in FITS:
                 return fail(number, "invalid Fit")
@@ -666,6 +733,16 @@ def rule_findings(workspace, fields, today=None):
     return [f for f in found if not f.advisory]
 
 
+def duplicates_of(workspace, fields, jd_text=""):
+    """Saved Applications that look like the role in ``fields`` (adfacts.likely_duplicates)."""
+    import adfacts  # noqa: PLC0415
+
+    return adfacts.likely_duplicates(
+        scan(workspace), fields.get("company", ""), fields.get("title", ""), jd_text,
+        fields.get("recruiter", ""),
+    )
+
+
 def _entry_line(status, at, approx):
     if status not in STATUSES:
         raise MetaError(f"invalid Status {status!r}")
@@ -696,7 +773,7 @@ def _meta_text(fields, status_log):
 # The scalar keys create writes, in file order.
 CREATE_KEYS = (
     "title", "company", "track", "url", "closes", "fit",
-    "posted", "posted_label", "applicants", "source",
+    "posted", "posted_label", "applicants", "source", *FACTS,
 )
 
 
@@ -866,6 +943,24 @@ def _parser():
         help="save even though a Search rule rules it out (only when the Owner asks)",
     )
 
+    for key in FACTS:
+        create_parser.add_argument("--" + key.replace("_", "-"), dest="fact_" + key, default="")
+    create_parser.add_argument(
+        "--allow-duplicate",
+        action="store_true",
+        help="save even though a saved Application looks like the same role",
+    )
+    create_parser.add_argument("--jd-file", help="ad text, checked for a duplicate ad")
+
+    show_parser = commands.add_parser("show", help="print one Application as JSON")
+    show_parser.add_argument("--folder", required=True)
+
+    dup_parser = commands.add_parser("find-duplicates", help="saved Applications like this role")
+    dup_parser.add_argument("--company", required=True)
+    dup_parser.add_argument("--title", required=True)
+    dup_parser.add_argument("--recruiter", default="")
+    dup_parser.add_argument("--jd-file")
+
     dismiss_parser = commands.add_parser(
         "dismiss-by-rule", help="dismiss an Application a Search rule rules out"
     )
@@ -917,7 +1012,22 @@ def main(argv=None):
                 "posted_label": args.posted_label,
                 "applicants": args.applicants,
                 "source": args.source,
+                **{key: getattr(args, "fact_" + key) for key in FACTS},
             }
+            for key in FACTS:
+                if fields[key]:
+                    fact_value(key, fields[key])  # refuse a bad value before any write
+            if fields["closes"] and fields["closes_unclear"] == "true":
+                raise MetaError("give --closes or --closes-unclear true, not both")
+            if not args.allow_duplicate:
+                jd_text = Path(args.jd_file).read_text() if args.jd_file else ""
+                dupes = duplicates_of(workspace, fields, jd_text)
+                if dupes:
+                    listed = "\n  ".join(f"{app.folder} ({why})" for app, why in dupes)
+                    raise MetaError(
+                        "not saved, it looks like a saved Application:\n  " + listed +
+                        "\nUse that one, or pass --allow-duplicate if it is a different role"
+                    )
             if args.posted and not _valid_date(args.posted):
                 raise MetaError(f"--posted wants YYYY-MM-DD, not {args.posted!r}")
             if args.applicants and not args.applicants.isdigit():
@@ -937,6 +1047,22 @@ def main(argv=None):
                 workspace, fields, _parse_moment(args.at) if args.at else None
             )
             print(folder)
+        elif args.command == "show":
+            app = rescan(resolve_folder(workspace, args.folder))
+            if app is None:
+                raise MetaError(f"no meta.yml in {args.folder}")
+            json.dump(app.to_dict(), sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        elif args.command == "find-duplicates":
+            jd_text = Path(args.jd_file).read_text() if args.jd_file else ""
+            found = duplicates_of(
+                workspace,
+                {"company": args.company, "title": args.title, "recruiter": args.recruiter},
+                jd_text,
+            )
+            json.dump([{"Folder": str(app.folder), "Why": why} for app, why in found],
+                      sys.stdout, indent=2)
+            print()
         elif args.command == "dismiss-by-rule":
             folder = resolve_folder(workspace, args.folder)
             if not dismiss_by_rule(folder, args.reason, args.note):

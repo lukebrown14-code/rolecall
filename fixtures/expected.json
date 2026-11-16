@@ -221,6 +221,98 @@
     }
   },
   {
+    "AddedBy": "sweep",
+    "Company": "Numbat Health",
+    "Currency": "AUD",
+    "EmploymentType": "permanent",
+    "HasJD": true,
+    "JDCompleteness": "blurb",
+    "JDHasText": true,
+    "LastChange": {
+      "Approx": false,
+      "At": "2026-09-28T01:00:00Z",
+      "Status": "Lead"
+    },
+    "Listing": "gone",
+    "ListingChecked": "2026-09-30",
+    "PayMax": 170000,
+    "PayMin": 140000,
+    "PayUnit": "year",
+    "Schema": 1,
+    "SearchQuery": "backend engineer",
+    "Status": "Lead",
+    "StatusLog": [
+      {
+        "Approx": false,
+        "At": "2026-09-28T01:00:00Z",
+        "Status": "Lead"
+      }
+    ],
+    "Title": "Backend Engineer (Level 3)",
+    "Track": "SWE"
+  },
+  {
+    "AddedBy": "sweep",
+    "Company": "Quokka Energy",
+    "Currency": "AUD",
+    "EmploymentType": "contract",
+    "Extension": "possible",
+    "HasFit": true,
+    "HasJD": true,
+    "JDCompleteness": "full",
+    "JDHasText": true,
+    "LastChange": {
+      "At": "2026-09-26T01:00:00Z",
+      "Status": "Lead"
+    },
+    "PayMax": 1100,
+    "PayMin": 900,
+    "PayUnit": "day",
+    "Recruiter": "Wattle Talent",
+    "Schema": 1,
+    "SearchQuery": "data engineer melbourne",
+    "Source": "linkedin",
+    "Sponsorship": "offered",
+    "Status": "Lead",
+    "StatusLog": [
+      {
+        "At": "2026-09-26T01:00:00Z",
+        "Status": "Lead"
+      }
+    ],
+    "TermMonths": 6,
+    "Title": "Data Engineer",
+    "Track": "SWE"
+  },
+  {
+    "AddedBy": "agent",
+    "ClosesUnclear": true,
+    "Company": "Bilby Freight",
+    "Currency": "AUD",
+    "EmploymentType": "contract",
+    "HasFit": true,
+    "HasJD": true,
+    "JDHasText": true,
+    "LastChange": {
+      "At": "2026-09-27T01:00:00Z",
+      "Status": "Lead"
+    },
+    "PayMin": 850,
+    "PayUnit": "hour",
+    "Schema": 1,
+    "Sponsorship": "not-offered",
+    "Status": "Lead",
+    "StatusLog": [
+      {
+        "At": "2026-09-27T01:00:00Z",
+        "Status": "Lead"
+      }
+    ],
+    "TermMonths": 12,
+    "Title": "Reliability Engineer",
+    "Track": "SWE"
+  },
+  {
     "Title": "Broken",
     "Company": "Example",
     "Track": "SWE",
@@ -319,7 +411,8 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "HasFit": true
   },
   {
     "Title": "Engineer #1",

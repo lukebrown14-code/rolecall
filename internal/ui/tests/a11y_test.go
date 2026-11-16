@@ -27,7 +27,7 @@ func TestNoColorDropsColourAndKeepsMarkers(t *testing.T) {
 		t.Fatalf("NO_COLOR dropped bold and underline as well:\n%q", view)
 	}
 	plain := ansi.Strip(view)
-	for _, want := range []string{"s [Leads 4]", "▞ rolecall", "t [All 4]"} {
+	for _, want := range []string{"s [Leads 7]", "▞ rolecall", "t [All 7]"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("without colour, %q is not readable:\n%s", want, plain)
 		}
@@ -66,7 +66,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 		}
 	}
 	plain := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
-	for _, want := range []string{"[All 4]", "Move", "cancel"} {
+	for _, want := range []string{"[All 7]", "Move", "cancel"} {
 		if !strings.Contains(plain, want) {
 			t.Fatalf("ASCII fallback lost %q:\n%s", want, plain)
 		}

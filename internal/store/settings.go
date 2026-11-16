@@ -32,6 +32,9 @@ type WorkspaceSettings struct {
 	Rules      SearchRules
 	SourceList []Source
 	Blockers   int // entries in blockers
+	// Visa is the Owner's visa limits; PayFX overrides DefaultPayFX.
+	Visa  Visa
+	PayFX map[string]float64
 	// Schema is the workspace.json schema, 1 when the key is absent. NewerSchema marks a
 	// schema above 1, so the screen can say the file is from a newer rolecall.
 	Schema      int
@@ -110,6 +113,14 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 	rules, err := decodeSearchRules(w.Values["search_rules"])
 	if err != nil {
 		out.Err = fmt.Errorf("%s: search_rules: %w", w.Path, err)
+		return out, nil
+	}
+	if out.Visa, err = decodeVisa(w.Values[keyVisa]); err != nil {
+		out.Err = fmt.Errorf("%s: visa: %w", w.Path, err)
+		return out, nil
+	}
+	if out.PayFX, err = decodePayFX(w.Values[keyPayFX]); err != nil {
+		out.Err = fmt.Errorf("%s: pay_fx: %w", w.Path, err)
 		return out, nil
 	}
 	out.Rules, out.SourceList = rules, decodeSources(w.Values["sources"])

@@ -1,0 +1,19 @@
+schema: 1
+title: Data Engineer
+company: Quokka Energy
+track: SWE
+recruiter: Wattle Talent
+employment_type: contract
+term_months: 6
+extension: possible
+sponsorship: offered
+pay_min: 900
+pay_max: 1100
+pay_unit: day
+currency: AUD
+jd_completeness: full
+added_by: sweep
+search_query: "data engineer melbourne"
+source: linkedin
+status_log:
+  - {status: Lead, at: 2026-09-26T01:00:00Z}
