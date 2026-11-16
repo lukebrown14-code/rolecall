@@ -56,6 +56,14 @@ const (
 
 var currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 
+// The number grammar of pay_min, pay_max and term_months, as plugin/scripts/meta.py
+// checks it: plain digits with an optional decimal part, so no sign, exponent, hex, inf
+// or NaN reaches strconv. fixtures/conformance.json holds both sides to it.
+var (
+	numberPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+	wholePattern  = regexp.MustCompile(`^[0-9]+$`)
+)
+
 // AdFacts are the optional meta.yml keys about the ad. Company is always the employer;
 // Recruiter is the agency that posted the ad for it, if one did. Empty means unknown.
 type AdFacts struct {
@@ -89,8 +97,11 @@ func (a *Application) readAdFact(k, v string) (handled bool, err error) {
 		if v == "" {
 			return true, nil
 		}
+		if !numberPattern.MatchString(v) {
+			return true, fmt.Errorf("invalid %s", k)
+		}
 		f, err := strconv.ParseFloat(v, 64)
-		if err != nil || f < 0 || f != f {
+		if err != nil {
 			return true, fmt.Errorf("invalid %s", k)
 		}
 		*dst = &f
@@ -119,7 +130,7 @@ func (a *Application) readAdFact(k, v string) (handled bool, err error) {
 	case keyTermMonths:
 		if v != "" {
 			n, err := strconv.Atoi(v)
-			if err != nil || n < 1 {
+			if !wholePattern.MatchString(v) || err != nil || n < 1 {
 				return true, fmt.Errorf("invalid term_months")
 			}
 			f.TermMonths = &n

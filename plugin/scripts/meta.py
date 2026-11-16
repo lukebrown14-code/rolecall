@@ -96,7 +96,7 @@ def fact_value(key, value):
             raise MetaError(f"invalid {key}")
         return value == "true"
     if kind == "date":
-        if not DATE.fullmatch(value):
+        if not _valid_date(value):
             raise MetaError(f"invalid {key}")
         return value
     if kind == "currency":

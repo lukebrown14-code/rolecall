@@ -71,6 +71,8 @@ func OpenWithFileSystem(root string, files FileSystem) (*Store, error) {
 	return &Store{root: root, files: files}, nil
 }
 
+// Scan reads every Application under jobs/ (the archive aside). A folder that fails to
+// read comes back Malformed with the I/O error, so the rest still show.
 func (s *Store) Scan() ([]Application, error) {
 	apps := []Application{}
 	tracks, err := os.ReadDir(filepath.Join(s.root, "jobs"))
@@ -95,7 +97,8 @@ func (s *Store) Scan() ([]Application, error) {
 			dir := filepath.Join(s.root, "jobs", track.Name(), folder.Name())
 			a, err := s.Rescan(dir)
 			if err != nil {
-				return nil, err
+				// One unreadable folder is one Malformed Application, not an empty Workspace.
+				a = &Application{Folder: dir, Schema: 1, Status: StatusLead, Malformed: &ParseError{Path: dir, Reason: err}}
 			}
 			if a != nil {
 				apps = append(apps, *a)

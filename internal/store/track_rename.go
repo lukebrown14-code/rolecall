@@ -72,10 +72,11 @@ func (s *Store) TrackUseAll() (map[string]int, error) {
 }
 
 // RenameTrack renames a Track across the Workspace: the track of every readable meta.yml
-// under jobs/ (archive included, written with the usual meta.yml rules), then tracks in
-// workspace.json, then the role tracks in jobs/roles.json. Folders never move, and
+// under jobs/ (archive included, written with the usual meta.yml rules), then the role
+// tracks in jobs/roles.json, then tracks in workspace.json last. Folders never move, and
 // malformed meta.yml files are skipped and reported. Both JSON files are checked before
-// anything is written.
+// anything is written. A failure partway returns what was changed with the error; since
+// workspace.json still lists the old Track, running the same rename again finishes it.
 func (s *Store) RenameTrack(old, name string) (RenameResult, error) {
 	var res RenameResult
 	name = strings.TrimSpace(name)
@@ -94,6 +95,23 @@ func (s *Store) RenameTrack(old, name string) (RenameResult, error) {
 	if err != nil {
 		return res, err
 	}
+	rolesPath := filepath.Join(s.root, "jobs", "roles.json")
+	var nextRoles []byte
+	var rolesMode os.FileMode
+	if hasRoles {
+		if nextRoles, err = renameRoleTracks(roles, old, name); err != nil {
+			return res, err
+		}
+		info, err := os.Stat(rolesPath)
+		if err != nil {
+			return res, err
+		}
+		rolesMode = info.Mode().Perm()
+	}
+	partial := func(err error) error {
+		return fmt.Errorf("renamed %d of the Applications on %s, then failed (run the rename again to finish): %w",
+			res.Applications, old, err)
+	}
 	err = s.eachMeta(func(dir string, b []byte) error {
 		a := readApplication(dir, b)
 		switch {
@@ -111,26 +129,17 @@ func (s *Store) RenameTrack(old, name string) (RenameResult, error) {
 		return nil
 	})
 	if err != nil {
-		return res, err
+		return res, partial(err)
+	}
+	if hasRoles {
+		if err := s.atomicWrite(rolesPath, nextRoles, rolesMode); err != nil {
+			return res, partial(err)
+		}
+		res.Roles = true
 	}
 	tracks[i] = name
 	if err := s.SetTracks(tracks); err != nil {
-		return res, err
-	}
-	if hasRoles {
-		rolesPath := filepath.Join(s.root, "jobs", "roles.json")
-		next, err := renameRoleTracks(roles, old, name)
-		if err != nil {
-			return res, err
-		}
-		info, err := os.Stat(rolesPath)
-		if err != nil {
-			return res, err
-		}
-		if err := s.atomicWrite(rolesPath, next, info.Mode().Perm()); err != nil {
-			return res, err
-		}
-		res.Roles = true
+		return res, partial(err)
 	}
 	return res, nil
 }

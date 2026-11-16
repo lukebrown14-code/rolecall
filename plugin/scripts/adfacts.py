@@ -175,28 +175,39 @@ def jd_hash(text):
     return hashlib.sha256(norm.encode("utf-8")).hexdigest()
 
 
-def _employers(app):
-    keys = {company_key(app.company)}
-    if getattr(app, "recruiter", ""):
-        keys.add(company_key(app.recruiter))
-    return keys - {""}
+def _employer(company, recruiter):
+    """(company key, recruiter key); the recruiter stands in for a missing company."""
+    rec = company_key(recruiter)
+    return (company_key(company) or rec, rec)
+
+
+def same_employer(a, b):
+    """The same company, or one side's company is the other's recruiter (an agency
+    posting under its own name). Two employers sharing only a recruiter are not the same.
+    Mirrors sameEmployer in the Go store."""
+    if not a[0] or not b[0]:
+        return False
+    return a[0] == b[0] or a[0] == b[1] or a[1] == b[0]
 
 
 def likely_duplicates(apps, company, title, jd_text="", recruiter=""):
     """Saved Applications that are probably the same role, with why each matched."""
     wanted_title = title_key(title)
-    wanted = {company_key(company), company_key(recruiter)} - {""}
+    wanted = _employer(company, recruiter)
     digest = jd_hash(jd_text)
     out = []
     for app in apps:
         if getattr(app, "malformed", None):
             continue
         reasons = []
-        if wanted_title and title_key(app.title) == wanted_title and wanted & _employers(app):
+        if wanted_title and title_key(app.title) == wanted_title and same_employer(
+                wanted, _employer(app.company, getattr(app, "recruiter", ""))):
             reasons.append("same employer and title")
         if digest:
             try:
-                theirs = (Path(app.folder) / "jd.md").read_text()
+                jd = Path(app.folder) / "jd.md"
+                # A symlinked jd.md is not the harness's file (the Go store refuses it too).
+                theirs = "" if jd.is_symlink() else jd.read_text()
             except OSError:
                 theirs = ""
             if jd_hash(theirs) == digest:

@@ -217,3 +217,26 @@ def test_recheck_records_listing_and_check_dismisses_pulled_ads(tmp_path):
     assert meta.rescan(gone).listing_checked == "2026-11-16"
     run_script(ws, RULES, "check", "--apply", "--today", "2026-11-16")
     assert meta.rescan(gone).filter_reason == "pulled" and meta.rescan(live).status == "Lead"
+
+
+def test_two_employers_sharing_only_a_recruiter_are_not_duplicates(tmp_path):
+    ws = workspace(tmp_path)
+    meta.create(ws, {"title": "Analyst", "company": "AGL", "recruiter": "Chandler Macleod",
+                     "track": "SWE"})
+    result = run_script(ws, META, "find-duplicates", "--company", "Origin",
+                        "--recruiter", "Chandler Macleod", "--title", "Analyst")
+    assert json.loads(result.stdout) == []
+    # With no company stated, the recruiter stands in for it.
+    result = run_script(ws, META, "find-duplicates", "--company", "",
+                        "--recruiter", "Chandler Macleod", "--title", "Analyst")
+    assert len(json.loads(result.stdout)) == 1
+
+
+def test_a_symlinked_jd_is_not_read_for_the_text_match(tmp_path):
+    ws = workspace(tmp_path)
+    first = meta.create(ws, {"title": "Data Engineer", "company": "AGL", "track": "SWE"})
+    outside = tmp_path / "outside.md"
+    outside.write_text(LONG_AD)
+    (first / "jd.md").unlink(missing_ok=True)
+    (first / "jd.md").symlink_to(outside)
+    assert adfacts.likely_duplicates(meta.scan(ws), "Other", "Other", LONG_AD) == []
