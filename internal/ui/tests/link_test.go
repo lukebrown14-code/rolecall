@@ -29,7 +29,9 @@ func linkWorkspace(t *testing.T, link string) string {
 func TestLinkOpensTheAdInTheBrowser(t *testing.T) {
 	h := &fakeHarness{}
 	d := newDriver(t, linkWorkspace(t, adURL), setupNow, 120, 40, ui.WithExternalRunner(h.runner))
-	requireAll(t, d.plain(), "w open link", "c copy link")
+	d.Type("?")
+	requireAll(t, helpText(d.View()), "w open link", "c copy link")
+	d.Type("esc")
 	d.Type("w")
 	if len(h.calls) != 1 {
 		t.Fatalf("w ran %d commands, want 1", len(h.calls))

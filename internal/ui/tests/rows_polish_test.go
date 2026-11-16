@@ -117,14 +117,14 @@ func TestFirstRunScreen(t *testing.T) {
 func TestLeadsSortToggle(t *testing.T) {
 	root := fixtureCopy(t, fernCloses("2026-09-01"))
 	byClose := chipped(runKeys(t, root, 140, "1"))
-	if !strings.Contains(byClose, "Expired · 1") || !strings.Contains(byClose, "o sort newest") {
+	if !strings.Contains(byClose, "Expired · 1") || !strings.Contains(helpText(runKeys(t, root, 140, "1", "?")), "o sort newest") {
 		t.Fatalf("default order:\n%s", byClose)
 	}
 	newest := chipped(runKeys(t, root, 120, "1", "o"))
 	if strings.Contains(newest, "Expired") || !strings.Contains(newest, "Leads newest first") {
 		t.Fatalf("newest first:\n%s", newest)
 	}
-	if v := chipped(runKeys(t, root, 140, "1", "o", "j")); !strings.Contains(v, "o sort by close date") {
+	if v := helpText(runKeys(t, root, 140, "1", "o", "j", "?")); !strings.Contains(v, "o sort by close date") {
 		t.Fatalf("key line does not offer the close date order:\n%s", v)
 	}
 }

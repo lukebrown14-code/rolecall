@@ -199,8 +199,8 @@ func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {
-	// Wide enough that the new ctrl+s and ctrl+z keys leave room: 1-6 is dropped first.
 	h := newSettingsHarness(t, 160, "", nil)
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "1-6", "screen", "e", "edit workspace.json")
+	h.tm.Type("?")
+	requireAll(t, helpText(h.tm.plain()), "1-6 screen", "e edit workspace.json")
 }
