@@ -107,8 +107,9 @@ func TestStatsTrackFilterOffersOffListTracks(t *testing.T) {
 	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "closed  ✕ Rejected 1 · ↩ Withdrawn 1   ⊘ Dismissed 1") {
 		t.Fatalf("t did not reach the Unknown Track, or Stats is not filtered to it:\n%s", view)
 	}
+	// On Applied, Platform has no rows, so its chip is left out.
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "3"))
-	if !strings.Contains(view, "TRACK t [All 9] SWE 5  Platform 0  Unknown 4") {
+	if !strings.Contains(view, "TRACK t [All 9] SWE 5  Unknown 4") {
 		t.Fatalf("Applied track filter does not add up:\n%s", view)
 	}
 	// T from All goes back to the last option, the off-list one.
@@ -126,48 +127,55 @@ func TestStatsIgnoresAnUndoneMove(t *testing.T) {
 		return strings.Join(lines[4:len(lines)-3], "\n") // below the context row, above the footer
 	}
 	before := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "4")))
-	after := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "m", "a", "y", "u", "4")))
+	// j: docs-none, the second Draft (Engineer #1 has a Fit and leads).
+	after := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "j", "m", "a", "y", "u", "4")))
 	if before != after {
 		t.Fatalf("an undone move changed Stats:\n--- before ---\n%s\n--- after ---\n%s", before, after)
 	}
-	moved := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "m", "a", "y", "4")))
+	moved := body(chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "j", "m", "a", "y", "4")))
 	if moved == before {
 		t.Fatalf("the move itself did not reach Stats, so the undo test proves nothing:\n%s", moved)
 	}
 }
 
 // The funnel never calls a rise or a flat count a drop: a rung that all came through the
-// one before says what share of it reached it; one that did not says where it came from,
-// as counts, never "0% of". A later Status implies Applied, so the numbers match the
-// screens. At 80 wide everything down to the By track table reads; Common gaps follows.
+// one before says what share of it reached it; one that did not says how they arrived,
+// as counts, never "0% of" or "none", and a caption says a bar can outgrow the one
+// above. A later Status implies Applied, so the numbers match the screens. At 80 wide
+// everything down to the By track table reads; Insights follows.
 func TestStatsFunnelExplainsEachRung(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 40, "4"))
 	for _, want := range []string{
 		"Applications that ever reached each Status",
-		"◌ Lead ███████████████ 7",
-		"2 none came from Leads",
-		"11 none came from Drafts",
+		"so a bar can outgrow the one above",
+		"◌ Lead ███████████████░░░░░░░░░ 7",
+		"2 2 started at Draft",
+		"11 11 never a Draft",
 		"4 36% of Applied",
 		"2 50% of Interviewing",
 		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3",
-		"2 of 6",
+		"33% · 2 of 6",
 		"Not counted: 5 applied in the last 14 days (too new)",
-		"13 Jul → 28 Sep",
-		"0 this week · 12-week avg 0.1",
+		"13 Jul 28 Sep",
+		"0 this week · max 1/wk",
 		"Applied  Counted  Responses  Rate",
-		"SWE                   5        0          0     —",
 		"Unknown               6        6          2   33%",
+		"SWE                   5        0          0     —",
+		"No Applications sent: Platform",
 	} {
 		if !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(strings.Fields(want), " ")) {
 			t.Errorf("Stats lacks %q:\n%s", want, view)
 		}
+	}
+	if strings.Contains(view, "none") {
+		t.Errorf("a funnel note says none:\n%s", view)
 	}
 	for _, jargon := range []string{"logged", "skipped", "Judged"} {
 		if strings.Contains(view, jargon) {
 			t.Errorf("Stats uses the data-model word %q:\n%s", jargon, view)
 		}
 	}
-	// Common gaps, below the By track table, may scroll into view at 80x24.
+	// Insights, below the By track table, may scroll into view at 80x24.
 	if strings.Contains(view, "drop") {
 		t.Fatalf("Stats shows a drop-off:\n%s", view)
 	}

@@ -19,7 +19,11 @@ func (m model) searchHelpKeys() []helpKey {
 	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != settings.GroupSearch || m.settings.Row > 1 {
 		return nil
 	}
-	return []helpKey{help(groupAction, "enter", "edit Search area").at(prioCore)}
+	what := "edit Search area"
+	if m.layout().w < mediumWidth {
+		what = descEdit // leaves room for the pinned ←→ section
+	}
+	return []helpKey{help(groupAction, "enter", what).at(prioCore)}
 }
 
 // searchKey opens the Search area form on enter over Places or Remote roles.
@@ -45,6 +49,7 @@ func newSearchAreaForm(places []string, remote string) *form {
 			Note: "comma-separated · empty keeps every location"},
 		formField{Label: fieldRemote, Value: remote, Choices: choices})
 	f.ShowDirty = true
+	f.SelectValue() // typing replaces the current Places, as on the inline rows
 	return f
 }
 

@@ -132,6 +132,7 @@ status_log:
 | `search_query` | string | — | the search that surfaced it |
 | `listing` | enum | — | whether the ad was still up when last checked: `live` · `gone` · `closed` |
 | `listing_checked` | date `YYYY-MM-DD` | — | when `listing` was last checked (`rules.py recheck`) |
+| `followed_up` | date `YYYY-MM-DD` | — | the day the Owner last followed up on a sent Application without its Status changing. Written by the TUI (`l`, the Owner's action; its undo removes it or puts back the day before). Follow-up due counts from the later of this and the last change. A value that is not a date reads as unset (the file is not malformed). Not the legacy `followup` key |
 
 **Pay.** Readers estimate an annual AUD figure as pay × the unit's multiplier (hour 1976, day
 230, week 52, month 12, year 1) × the currency's AUD rate (built in: AUD 1, USD 1.55, GBP 1.95,
@@ -159,7 +160,8 @@ file malformed, as an invalid `closes` does.
 
 **Unknown keys must be preserved** by every writer, byte for byte. Legacy keys from the
 dashboard era (`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`,
-`outcome_date`, `rejection_reason`) fall under this rule. No writer adds them any more.
+`outcome_date`, `rejection_reason`) fall under this rule. No writer adds them any more. The
+legacy `followup` is unrelated to `followed_up` and is never read.
 
 ### `status_log`
 
@@ -176,14 +178,15 @@ Each entry is a flow map on one line:
 - An entry is never appended if it repeats the current Status.
 - An empty log (`status_log: []` or no entries) is read as `Lead`.
 - **Applied date** = `at` of the **first** `Applied` entry. It's never stored separately.
-- **Last change** = `at` of the last entry. Follow-up due is measured from it.
+- **Last change** = `at` of the last entry. Follow-up due is measured from it, or from
+  `followed_up` when that day is later.
 - `approx: true` marks a date rebuilt by migration. Readers show it with a `~` prefix.
 
 ### Who may change what
 
 | Writer | May write | Must not |
 |---|---|---|
-| **TUI** | creates folders. Writes any key through Add / Edit. Appends any Status | touch docs, `fit.md`, `out/` |
+| **TUI** | creates folders. Writes any key through Add / Edit, and `followed_up` through `l`. Appends any Status | touch docs, `fit.md`, `out/` |
 | **Agent** (skills) | creates folders (capture, find) through `meta.py create`, never by hand. Writes `title` `company` `track` `url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session |
 | **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
@@ -315,8 +318,8 @@ that rule a role out, so none lives in prose:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `needs_sponsorship` | bool | the Owner needs visa sponsorship. A Lead whose `sponsorship` is `not-offered` is badged "needs sponsorship" |
-| `max_contract_months` | int ≥ 1 | the longest term the Owner's visa allows. A Lead with `term_months` is badged "fits 6-month cap" or "12 mo > 6-month cap" |
+| `needs_sponsorship` | bool | the Owner needs visa sponsorship. A Lead whose `sponsorship` is `not-offered` is badged "no sponsorship", one whose `sponsorship` is `offered` "sponsors visa" |
+| `max_contract_months` | int ≥ 1 | the longest term the Owner's visa allows. A Lead with `term_months` is badged "contract fits visa cap" or "12-mo contract > 6-mo visa cap" |
 
 `pay_fx` is an object of currency code → AUD rate for the pay estimate (above).
 

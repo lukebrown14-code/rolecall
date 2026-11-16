@@ -1,19 +1,19 @@
- ▞ rolecall [1 Leads 7] 2 Drafts 2  3 Applied 9  4 Stats        █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall [1 Leads 7] 2 Drafts 2  3 Applied 9  4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings            space menu  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW s Leads 7 [Dismissed 2] Filtered 1 │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
+   VIEW s Leads 7 [Dismissed 2] Filtered 1 │ TRACK t [All 2] SWE 1  Unknown 1                                           
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
- ▌ ⊘ docs-dismissed                               ~7d     fit —  │ Fictional Labs · SWE · dismissed ~7d ago             
+ ▌ ⊘ docs-dismissed                                              │ Fictional Labs · SWE                                 
  ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
-   ⊘ Engineer #1                            ~Jan 2026  fit Good  │ ⊘ Dismissed                                   fit —  
+   ⊘ Engineer #1                                       Good      │ ⊘ Dismissed · ~7d ago              fit not assessed  
      Example · Unknown · dismissed ~Jan 2026                     │                                                      
-                                                                 │ DOCS    □□□□ 0/4 ready                               
+                                                                 │ DOCS         □□□□ 0/4 ready                          
                                                                  │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │   ⊘ Dismissed                               ~24 Sep  
                                                                  │                                                      
-                                                                 │ NOTES   none yet                              n add  
+                                                                 │ NOTES        none yet                         n add  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Leads › Dismissed · All tracks · row 1 of 2
- enter open  m move  a add  / search                                                                             ? help
+   Leads › Dismissed · All tracks · row 1 of 2                                                                          
+ enter open  m move  a add  / search                                                                             ? help 

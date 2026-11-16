@@ -318,13 +318,29 @@ func (m model) profileEmptyHint() string {
 	return "Nothing here yet · e to write it in your editor"
 }
 
+// profileSetupWords is the one instruction for setting up a Profile, which the welcome's
+// step and the missing-Profile screen both give: fill in the Contact here, then the rest
+// with create-profile when a Harness is connected, or by hand in the Editor when not. It
+// never sends the Owner to a Harness that is not set.
+func (m model) profileSetupWords() string {
+	if m.harness != "" {
+		return "fill in your Contact, then run create-profile in your Harness"
+	}
+	return "fill in your Contact, then write the rest in your Editor"
+}
+
+// keyContact opens the Contact form on the Profile screen, so a first-run form skipped
+// with esc can be filled in any time.
+const keyContact = "c"
+
 // profileMissingHint is how to create a Profile the Workspace does not have yet.
 func (m model) profileMissingHint() string {
-	how := "Create " + profilePath + " with your name and email"
-	if m.harness != "" {
-		how = "Run create-profile in your Harness to write it, or create " + profilePath + " yourself"
-	}
-	return how + ", then press r to read it."
+	return "Set up your Profile: " + m.profileSetupWords() + "."
+}
+
+// contactMissing reports a Profile with a required Contact field empty, or no Profile.
+func (m model) contactMissing() bool {
+	return !m.profileLoaded() || len(m.profile.profile.Missing) > 0
 }
 
 // contactWarning names the required Contact fields that are missing, so the Owner can fix
@@ -373,8 +389,19 @@ func (m model) profileHelpKeys() []helpKey {
 			move = "scroll"
 		}
 		keys = append(keys, help(groupAction, "e", "edit file").at(prioCore), help(groupNav, "j k", move),
-			help(groupNav, "g G", "first, last").at(prioHelpOnly), help(groupNav, "tab", "focus").at(prioScreen))
+			help(groupNav, "g G", "first, last").at(prioHelpOnly))
+		if m.profileListShown(m.viewWidth()) {
+			// Which pane j k act on matters as much as j k, so tab reaches the key line.
+			keys = append(keys, help(groupNav, "tab", "focus").at(prioCore))
+		}
 	}
+	// c is first while the Contact still needs filling in; once it is complete it stays
+	// one key away for a change.
+	contact := help(groupAction, keyContact, "edit Contact").at(prioScreen)
+	if m.contactMissing() {
+		contact = help(groupAction, keyContact, "fill in Contact").at(prioCore)
+	}
+	keys = append(keys, contact)
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
 	}
@@ -399,6 +426,13 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.quit()
 	case "esc":
 		m.clearSearch() // an error is cleared before the screen sees esc
+		return m, nil
+	case keyContact:
+		var contact map[string]string
+		if m.profile != nil {
+			contact = m.profile.profile.Contact
+		}
+		m.overlay = contactPopupTitled("Your Contact", contact)
 		return m, nil
 	}
 	if !m.profileLoaded() {
@@ -484,11 +518,16 @@ func (m model) profileContextLabel(p pal, w int) string {
 		return pad + p.Text(p.Fg).Bold(true).Render(m.profile.entryName()) +
 			p.Text(p.Dim).Render(" "+strconv.Itoa(pos)+" of "+strconv.Itoa(of))
 	}
-	pane := "SECTIONS"
-	if m.profile.focus == profileContent {
-		pane = "CONTENT"
+	// Both panes are named and the focused one is bracketed, so where j k act reads
+	// without colour (NO_COLOR keeps the brackets) as well as from the accent rule.
+	pane := func(name string, focused bool) string {
+		if focused {
+			return p.SelChip(name)
+		}
+		return p.Text(p.Dim).Render(" " + name + " ")
 	}
-	return pad + p.Heading(pane)
+	content := m.profile.focus == profileContent
+	return pad[:max(0, len(pad)-1)] + pane("SECTIONS", !content) + " " + pane("CONTENT", content)
 }
 
 // profileBody is the list and content panes, or the missing-Profile notice. Both panes
@@ -500,6 +539,8 @@ func (m model) profileBody(p pal, w, h int) string {
 		for _, l := range wrapWords(m.profileMissingHint(), w-inset-rightMargin) {
 			text += "\n" + pad + p.Text(p.Dim).Render(l)
 		}
+		hint := func(k, words string) string { return p.Key().Render(k) + p.Text(p.Dim).Render(" "+words) }
+		text += "\n\n" + pad + hint(keyContact, "fill in your Contact") + p.Text(p.Dim).Render(" · ") + hint("r", "read it again")
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, strings.Replace(text, "\n", "\n\n", 1))
 	}
 	pane := lipgloss.NewStyle().Width(m.profilePaneWidth(w)).Height(h).MaxHeight(h).
@@ -534,10 +575,13 @@ func (m model) profileContentView(p pal) string {
 func (m model) profileSectionList(p pal, h int) string {
 	st := m.profile
 	listW := m.profileListWidth()
+	// The list loses the fill, not the mark, while the content pane holds the focus, as
+	// the list does under a sheet.
+	filled := st.focus != profileContent
 	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {
 		suffix, colour := m.profileSectionSuffix(p, section)
-		rows = append(rows, profileListRow(p, listW, shortHeading(section.Heading), suffix, colour, i == st.selected, false))
+		rows = append(rows, profileListRow(p, listW, shortHeading(section.Heading), suffix, colour, i == st.selected, filled, false))
 	}
 	if len(st.profile.Files) > 0 {
 		// The other files are files, not sections: a labelled rule, then their names in italic.
@@ -546,7 +590,7 @@ func (m model) profileSectionList(p pal, h int) string {
 			p.Text(p.Rule).Render(strings.Repeat("─", max(0, listW-inset-gutter-xansi.StringWidth(otherFiles)-1))))
 	}
 	for i, file := range st.profile.Files {
-		rows = append(rows, profileListRow(p, listW, file.Name, "", p.Dim, st.sectionCount()+i == st.selected, true))
+		rows = append(rows, profileListRow(p, listW, file.Name, "", p.Dim, st.sectionCount()+i == st.selected, filled, true))
 	}
 	return strings.Join(p.ClipLines(rows, st.row()-h/bothSides, h, strings.Repeat(" ", inset)), "\n")
 }
@@ -591,7 +635,7 @@ func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string
 // profileListRow is one entry in the list column: the marker and name on the left, the
 // count right-aligned in the column. The name is cut to leave room for the suffix, and a
 // section with no count leaves the column blank.
-func profileListRow(p pal, listW int, name, suffix string, colour color.Color, selected, file bool) string {
+func profileListRow(p pal, listW int, name, suffix string, colour color.Color, selected, filled, file bool) string {
 	width := listW - gutter // two blank cells before the divider
 	room := width - inset
 	if suffix != "" {
@@ -601,12 +645,12 @@ func profileListRow(p pal, listW int, name, suffix string, colour color.Color, s
 	left := strings.Repeat(" ", inset) + p.Text(p.Dim).Italic(file).Render(heading)
 	gap := width - inset - xansi.StringWidth(heading) - xansi.StringWidth(suffix)
 	if selected {
-		line := p.SelBase(true)
-		left = strings.Repeat(" ", edge) + p.SelGutter(true) + p.SelText(true).Italic(file).Render(heading)
+		line := p.SelBase(filled)
+		left = strings.Repeat(" ", edge) + p.SelGutter(filled) + p.SelText(filled).Italic(file).Render(heading)
 		if suffix == "" {
-			return p.SelLine(true, width, left)
+			return p.SelLine(filled, width, left)
 		}
-		return p.SelLine(true, width, left+line.Render(strings.Repeat(" ", max(1, gap)))+line.Foreground(colour).Render(suffix))
+		return p.SelLine(filled, width, left+line.Render(strings.Repeat(" ", max(1, gap)))+line.Foreground(colour).Render(suffix))
 	}
 	if suffix == "" {
 		return left

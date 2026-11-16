@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
@@ -66,7 +67,9 @@ func TestMalformedMovePreservesBytes(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("⚠")) })
 	// m is refused at the key with the parse error: no Move pop-up for a record the
 	// store cannot read.
-	tm.Type("Gm")
+	tm.Type("/malformed")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	tm.Type("m")
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool { return bytes.Contains(b, []byte("Can't read SWE/malformed")) })
 	tm.Type("d")
 	tm.Type("q")

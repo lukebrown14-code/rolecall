@@ -100,8 +100,12 @@ func TestDownloadIsHiddenAndInertWithoutPDFs(t *testing.T) {
 	h2.key(tea.KeyEnter)
 	h2.tm.Type("d")
 	v = h2.show("Fern")
-	if strings.Contains(v, "d download") || strings.Contains(v, "PDFs") || strings.Contains(v, "PDF to") {
+	if strings.Contains(v, "d download") || strings.Contains(v, "PDF to") {
 		t.Fatalf("d was not inert:\n%s", v)
+	}
+	// It says why rather than doing nothing.
+	if !strings.Contains(v, "d: no PDFs built for this Application yet") {
+		t.Fatalf("d did not say why it did nothing:\n%s", v)
 	}
 	if len(h2.runs) != 0 {
 		t.Fatalf("ran %q", h2.runs)

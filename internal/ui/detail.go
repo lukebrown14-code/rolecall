@@ -85,8 +85,13 @@ func (e docEntry) group() string {
 	case strings.HasPrefix(e.name, "sent/"):
 		return "Sent"
 	}
-	return "Source"
+	return groupDocuments
 }
+
+// groupDocuments is the Docs tab's heading over the source Documents, the DOCS meter's name
+// for them.
+const groupDocuments = "Documents"
+
 func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
 // title is the entry as the Owner knows it: a document's name, a built PDF's own file
@@ -115,11 +120,22 @@ func (e docEntry) displayStatus(a store.Application) (string, bool) {
 		return "", true
 	case e.name == coverLetterFile && a.ResumeOnly && !e.hasText:
 		return resumeOnlyNote, false
+	case e.name == gapsFile && !e.hasText:
+		return docMissing + " · " + notCounted, false
+	case e.name == gapsFile:
+		return docReady + " · " + notCounted, true
 	case !e.hasText:
 		return docMissing, false
 	}
 	return docReady, true
 }
+
+// notCounted marks the Docs tab's Gaps, which the DOCS meter does not count toward ready.
+const notCounted = "not counted"
+
+// pdfNotBuilt is the Docs tab's PDF row while out/ holds none, so the tab lists every
+// Document the DOCS meter counts.
+const pdfNotBuilt = "not built yet"
 
 func docEntries(a store.Application) []docEntry {
 	entries := []docEntry{{jdFile, a.JDHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}, {gapsFile, a.GapsHasText}}
@@ -150,14 +166,38 @@ func (m model) current() (store.Application, bool) {
 	return m.selected()
 }
 
-// openDetail opens an Application on its first tab: Overview where the card is folded away,
-// otherwise the JD. A malformed one opens on the JD, where its parse error shows.
+// openDetail opens an Application on the tab last chosen in this session where it has
+// that tab, so reading the Fit across Leads stays on Fit; otherwise on its first tab:
+// Overview where the card is folded away, the JD beside it. A malformed one opens on the
+// JD, where its parse error shows.
 func (m *model) openDetail(folder string) {
 	tab := tabJD
 	if a, ok := m.application(folder); ok && a.Malformed == nil {
-		tab = m.detailTabs(a)[0]
+		tabs := m.detailTabs(a)
+		tab = tabs[0]
+		if slices.Contains(tabs, m.lastTab) {
+			tab = m.lastTab
+		}
 	}
 	m.detail = &detailState{folder: folder, tab: tab, body: viewport.New()}
+}
+
+// stepDetail opens the detail of the row step rows from the open one in the current view
+// (J the next, K the previous), on the same tab where it has it. At either end it stays.
+func (m model) stepDetail(step int) model {
+	rows := m.rows()
+	at := slices.IndexFunc(rows, func(a store.Application) bool { return a.Folder == m.detail.folder })
+	if at < 0 {
+		at = min(m.cursor, len(rows)-1) // the open one left the view: step from where it stood
+	}
+	next := at + step
+	if at < 0 || next < 0 || next >= len(rows) {
+		return m
+	}
+	m.lastTab = m.detail.tab
+	m.cursor = next
+	m.openDetail(rows[next].Folder)
+	return m
 }
 
 func (m model) closeDetail() model {
@@ -176,7 +216,7 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	minBodyHeight = 3
-	sheetChrome   = 3  // the sheet's title and tabs rows and the scroll cue
+	sheetChrome   = 4  // the sheet's title, tabs and next step rows and the scroll cue
 	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
@@ -366,9 +406,9 @@ func (m model) emptyDocument(a store.Application, tab detailTab, name string) st
 func fitSummary(a store.Application, reasoning bool) string {
 	switch {
 	case a.Fit == "" && reasoning:
-		return fitNone + " · reasoning saved below"
+		return fitUnassessed + " · reasoning saved below"
 	case a.Fit == "":
-		return fitNone + " · no reasoning saved"
+		return fitUnassessed + " · no reasoning saved"
 	case !reasoning:
 		return a.Fit + " · no reasoning saved"
 	}
@@ -410,9 +450,21 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 			step = len(tabs) - 1
 		}
 		d.tab = tabs[(slices.Index(tabs, d.tab)+step)%len(tabs)]
+		m.lastTab = d.tab
 		d.body.GotoTop()
 		return m, nil, true
-	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "?", "q", "ctrl+c":
+	case "J", "K":
+		// The next or previous row's detail, without going back to the list.
+		step := 1
+		if key == "K" {
+			step = -1
+		}
+		return m.stepDetail(step), nil, true
+	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "q", "ctrl+c":
+		return m, nil, false
+	case "x", "s", "o":
+		// Row and view keys the detail does not run: the shared dispatcher says why in a
+		// note, the same one a list row gives, rather than do nothing.
 		return m, nil, false
 	}
 	if isScreenKey(key) {
@@ -473,6 +525,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 			for tab, name := range markdownTabFiles {
 				if name == e.name {
 					d.tab = tab
+					m.lastTab = tab
 					d.body.GotoTop()
 					return m.syncDetail(), nil, true
 				}
@@ -574,13 +627,15 @@ var pipeline = []string{store.StatusLead, store.StatusDraft, store.StatusApplied
 
 // detailStrip is the card folded into two lines for the medium and narrow size classes:
 // the timeline as a track, then documents · Fit · close date · Track. Each line sheds
-// detail to fit w rather than wrapping.
+// detail to fit w rather than wrapping: the Track, the close date, then the documents
+// fold into their meter. The Overview tab beneath it leaves the Status, documents and Fit
+// to it.
 func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	pad := strings.Repeat(" ", inset)
 	if a.Malformed != nil {
 		return make([]string, stripLines)
 	}
-	parts := []string{m.fileMarks(p, a), p.fitWords(a.Fit)}
+	parts := []string{m.fileMarks(p, a), p.cardFit(a.Fit)}
 	if beforeApplied(tableOf(a)) {
 		if text, s := closeInfo(a.Closes, m.now()); s != closeNone {
 			parts = append(parts, p.CloseStyle(s, p.Text, p.Dim).Render(text))
@@ -588,7 +643,16 @@ func (m model) detailStrip(p pal, a store.Application, w int) []string {
 	}
 	parts = append(parts, p.Text(p.Dim).Render(a.Track))
 	sep := p.Text(p.Dim).Render("  ·  ")
-	for len(parts) > 1 && xansi.StringWidth(strings.Join(parts, sep)) > w {
+	fits := func() bool { return xansi.StringWidth(strings.Join(parts, sep)) <= w }
+	for len(parts) > 2 && !fits() { //nolint:mnd // the documents and the Fit
+		parts = parts[:len(parts)-1]
+	}
+	if !fits() {
+		// The Overview leaves the Fit to the strip, so the documents fold into their meter
+		// before the Fit goes.
+		parts[0] = p.DocsMeter(a)
+	}
+	for len(parts) > 1 && !fits() {
 		parts = parts[:len(parts)-1]
 	}
 	return []string{pad + m.timelineTrack(p, a, w), pad + xansi.Truncate(strings.Join(parts, sep), w, "…")}
@@ -716,7 +780,7 @@ func fitTabs(p pal, tabs []string, at, w int) string {
 }
 
 // detailContent is the current tab: rendered Markdown with a scroll cue, or the
-// document list grouped Source / Built / Sent.
+// document list grouped Documents / PDFs / Sent.
 func (m model) detailContent(p pal, a store.Application, paneW int) string {
 	if m.detail.tab != tabDocs {
 		// The shared overflow cue, on the line under the text: what is below while there is
@@ -741,13 +805,25 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 			stateW = xansi.StringWidth(s) + gutter
 		}
 	}
+	heading := func(g string) {
+		if group != "" {
+			lines = append(lines, "")
+		}
+		group = g
+		lines = append(lines, p.Heading(g))
+	}
+	// With nothing in out/ yet, the PDF the DOCS meter counts still has its row, after the
+	// source Documents. It is not an entry: there is nothing to open.
+	notBuilt := func() {
+		if group == groupDocuments && len(a.PDFs) == 0 {
+			heading("PDFs · out/")
+			lines = append(lines, "  "+p.Text(p.Dim).Render("○ "+padRight(docPDF, docColumn)+pdfNotBuilt))
+		}
+	}
 	for i, e := range docEntries(a) {
 		if g := e.group(); g != group {
-			if group != "" {
-				lines = append(lines, "")
-			}
-			group = g
-			lines = append(lines, p.Heading(g))
+			notBuilt()
+			heading(g)
 		}
 		status, ready := e.displayStatus(a)
 		mark, nameC := p.Text(p.Ok).Render("✓ "), p.Fg
@@ -768,6 +844,7 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		lines = append(lines, row)
 	}
+	notBuilt()
 	return strings.Join(lines, "\n")
 }
 
@@ -778,5 +855,5 @@ func (m model) detailCard(p pal, a store.Application, h int) string {
 		return ""
 	}
 	w := m.cardWidth()
-	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, true))
+	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, h, cardDetail))
 }

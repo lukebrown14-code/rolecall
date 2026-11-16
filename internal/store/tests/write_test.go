@@ -106,3 +106,42 @@ func TestPatchRereadsAndPreservesComments(t *testing.T) {
 		t.Fatal(files)
 	}
 }
+
+// followed_up is set as one patched line before status_log, read back, and removed again
+// leaving the file as it was. A value that is not a date reads as unset, not malformed.
+func TestSetFollowedUp(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../../../fixtures/workspace")); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := store.Open(root)
+	folder := filepath.Join(root, "jobs/SWE/orbit")
+	path := filepath.Join(folder, "meta.yml")
+	before, _ := os.ReadFile(path)
+	if err := s.SetFollowedUp(folder, "2026-11-16"); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(path)
+	if !strings.Contains(string(b), "followed_up: \"2026-11-16\"\nstatus_log:") {
+		t.Fatalf("followed_up not written before status_log:\n%s", b)
+	}
+	a, err := s.Rescan(folder)
+	if err != nil || a == nil || a.FollowedUp != "2026-11-16" {
+		t.Fatalf("read back %+v (%v)", a, err)
+	}
+	if err := s.SetFollowedUp(folder, "16 Nov"); err == nil {
+		t.Fatal("a non-date was written")
+	}
+	if err := s.SetFollowedUp(folder, ""); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(before) {
+		t.Fatalf("removing followed_up did not restore the file:\n%s", after)
+	}
+	if err := os.WriteFile(path, []byte(strings.Replace(string(before), "status_log:", "followed_up: soon\nstatus_log:", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if a, err := s.Rescan(folder); err != nil || a.Malformed != nil || a.FollowedUp != "" {
+		t.Fatalf("an unreadable followed_up: %+v (%v)", a, err)
+	}
+}

@@ -287,6 +287,7 @@ func TestAddURLWithoutPluginAdvances(t *testing.T) {
 	h := newFetchHarness(t) // no plugin
 	h.tm.Type("a")
 	h.wait("Add a Lead")
+	h.tm.Type("up") // the form opens on Title without a Plugin
 	h.tm.Type("https://example.test/x")
 	h.enter() // no fetch: moves to Title
 	h.enter() // Title is next and empty

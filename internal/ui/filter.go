@@ -151,9 +151,9 @@ func (m model) statusPart(p pal, form trackForm) filterPart {
 }
 
 // trackPart is the Track filter: All and each Track (see filterTracks), with the rows each
-// would show in this view. An off-list Track ("Unknown") with no rows here is left out
-// unless it is the one chosen: it is not the Owner's Track, so a 0 beside it says
-// nothing. Empty when the Workspace has no Tracks.
+// would show in this view. A Track with no rows here is left out unless it is the one
+// chosen: t skips it (cycleTrack), and a row of zeros only crowds the line. Empty when the
+// Workspace has no Tracks.
 func (m model) trackPart(p pal, form trackForm) filterPart {
 	if !m.trackApplies() {
 		return filterPart{}
@@ -163,7 +163,7 @@ func (m model) trackPart(p pal, form trackForm) filterPart {
 	for i, t := range m.filterTracks() {
 		idx := i + 1
 		n := m.trackTotal(idx)
-		if n == 0 && idx > len(m.tracks) && idx != m.track {
+		if n == 0 && idx != m.track {
 			continue
 		}
 		if idx == m.track {

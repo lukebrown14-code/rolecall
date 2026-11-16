@@ -24,7 +24,7 @@ func withEmptyMeta(t *testing.T, meta string) string {
 // the frame keeps its height in the list and in Detail.
 func TestHostileMetaStringsNeverReachTheTerminal(t *testing.T) {
 	root := withEmptyMeta(t, `title: "Evil\u001b]0;PWNED\u0007 title\there and\nnewline"`+"\n"+
-		`company: "Co\e[2J\u009b31m"`+"\ntrack: SWE\nstatus_log: []\n")
+		`company: "Co\e[2J\u009b31m"`+"\ntrack: SWE\ncloses: 2026-10-02\nstatus_log: []\n") // closes first, so it is the first row
 	for _, size := range [][2]int{{80, 24}, {120, 40}} {
 		d := newDriver(t, root, fixtureClock, size[0], size[1])
 		for _, step := range []string{"list", "enter"} {
@@ -48,7 +48,7 @@ func TestHostileMetaStringsNeverReachTheTerminal(t *testing.T) {
 // A blank Title reads "(untitled)" in the row, the preview and the Detail header alike,
 // and a blank Company leaves no separator hanging.
 func TestBlankTitleAndCompanyReadTheSameEverywhere(t *testing.T) {
-	root := withEmptyMeta(t, "title: \"  \"\ncompany: \"\"\ntrack: SWE\nstatus_log: []\n")
+	root := withEmptyMeta(t, "title: \"  \"\ncompany: \"\"\ntrack: SWE\ncloses: 2026-10-02\nstatus_log: []\n") // the first row
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	row := rowWith(strings.Split(d.plain(), "\n"), "▌")
 	if !strings.Contains(row, "(untitled)") {

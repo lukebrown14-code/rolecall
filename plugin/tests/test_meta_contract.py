@@ -42,6 +42,7 @@ DEFAULTS = {
     "FilterReason": "",
     "FilterNote": "",
     "FilterOverruled": False,
+    "FollowedUp": "",
     "Recruiter": "",
     "EmploymentType": "",
     "TermMonths": None,

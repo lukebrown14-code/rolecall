@@ -79,7 +79,7 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 // The rename name step says what the next screen does: review the reach, then confirm.
 func TestSettingsRenamePopupSaysReviewNotNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		f := footer(settingsAt(t, size[0], size[1], "]", "]", "]", "]", "r"))
+		f := footer(settingsAt(t, size[0], size[1], "]", "]", "]", "]", "enter"))
 		if !strings.Contains(f, "enter review") {
 			t.Fatalf("%dx%d rename footer %q", size[0], size[1], f)
 		}
@@ -153,7 +153,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	})
 	t.Run("rename track", func(t *testing.T) {
 		h := tracksHarness(t, `{"tracks":["SWE"]}`)
-		h.tm.Type("r")
+		h.tm.Type("enter")
 		for range 3 {
 			h.tm.Type("backspace")
 		}

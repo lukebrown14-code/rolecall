@@ -31,23 +31,27 @@ func detailPane(t *testing.T, screen, name string, w, h int, edit func(string)) 
 	return chipped(driveModel(t, m, screen, "/"+name).View().Content)
 }
 
-// The pane leads with the Status and the Fit on one line, then labelled sections that each
-// end in at most one bare key: "DOCS … p prepare docs", "NEXT … m move", "NOTES … n add".
+// The pane leads with the Status, its age and the Fit on one line, then the next step and
+// labelled sections that each end in at most one bare key: "NEXT … n note", "DOCS … p
+// prepare docs", "NOTES … n add". A key the next step offers shows on NEXT alone.
 func TestDetailPaneSectionsEndInOneKey(t *testing.T) {
 	view := detailPane(t, "3", "docs-written", 120, 36, nil)
-	for _, want := range []string{"◆ Interviewing", "fit —", "DOCS", "NEXT", "TIMELINE", "NOTES", "n notes"} {
+	for _, want := range []string{"◆ Interviewing · ~7d", "fit not assessed", "DOCS", "NEXT", "TIMELINE", "NOTES", "n note"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}
 	}
-	for _, gone := range []string{"STATUS  ", "FIT  ", "TRACK  ", "[m]", "[n]"} {
+	if strings.Contains(lineWith(view, "NOTES"), "n notes") {
+		t.Errorf("NOTES repeats the n key NEXT offers:\n%s", view)
+	}
+	for _, gone := range []string{"STATUS  ", "TRACK  ", "[m]", "[n]"} {
 		if strings.Contains(view, gone) {
 			t.Errorf("detail keeps %q:\n%s", gone, view)
 		}
 	}
 	// Sections run in the design's order.
 	at := -1
-	for _, s := range []string{"DOCS", "NEXT", "TIMELINE", "NOTES"} {
+	for _, s := range []string{"NEXT", "DOCS", "TIMELINE", "NOTES"} {
 		i := strings.Index(view, s)
 		if i < at {
 			t.Errorf("%s comes before the section above it:\n%s", s, view)
@@ -101,7 +105,7 @@ func TestDetailAssessedFit(t *testing.T) {
 
 func TestDetailNotAssessedFit(t *testing.T) {
 	view := detailPane(t, "2", "docs-none", 120, 36, nil)
-	if !hasLineWith(view, "fit —", "✎ Draft") {
+	if !hasLineWith(view, "fit not assessed", "✎ Draft") {
 		t.Errorf("the Status line does not say the Fit is not assessed:\n%s", view)
 	}
 }
@@ -148,7 +152,9 @@ func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 func TestDetailOverviewFitsSmallSizes(t *testing.T) {
 	for _, s := range [][2]int{{80, 24}, {60, 16}} {
 		view := chipped(driveModel(t, driveStart(t, fixtureCopy(t, threeEntryLog), fixtureClock, s[0], s[1], ui.WithHarness("h")), "3", "/zedcorp", "enter", "enter").View().Content)
-		if !strings.Contains(view, "DOCS") || !strings.Contains(view, "◆ Interviewing  ") {
+		// Without the card the strip says the Status, documents and Fit, so the Overview
+		// leads with the next step and the facts; the sheet keeps the documents.
+		if !strings.Contains(view, "FOLLOW-UP") || !strings.Contains(view, "TIMELINE") || !strings.Contains(view, "fit Good") {
 			t.Errorf("%dx%d: overview lacks its sections:\n%s", s[0], s[1], view)
 		}
 		for _, l := range strings.Split(view, "\n") {

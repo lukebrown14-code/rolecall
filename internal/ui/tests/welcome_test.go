@@ -26,7 +26,7 @@ func TestWelcomeListsSetupStepsNotDone(t *testing.T) {
 	d := newDriver(t, contactOnly(t), fixtureClock, 120, 36, ui.WithEditorSource("default"))
 	v := d.plain()
 	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "e  pick an Editor",
-		"h  connect a Harness", "5  create your Profile: run create-profile in your Harness", "?  see every key"} {
+		"h  connect a Harness", "5  set up your Profile: fill in your Contact, then write the rest in your Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("welcome lacks %q:\n%s", want, v)
 		}
@@ -39,7 +39,7 @@ func TestWelcomeListsSetupStepsNotDone(t *testing.T) {
 
 	done := newDriver(t, emptyJobs(t), fixtureClock, 120, 36, ui.WithEditor("nvim"), ui.WithHarness("claude {prompt}"))
 	v = done.plain()
-	for _, gone := range []string{"Set up", "pick an Editor", "connect a Harness", "create your Profile"} {
+	for _, gone := range []string{"Set up", "pick an Editor", "connect a Harness", "set up your Profile"} {
 		if strings.Contains(v, gone) {
 			t.Errorf("welcome lists a done step %q:\n%s", gone, v)
 		}
@@ -62,5 +62,34 @@ func TestWelcomeKeysLandOnTheirSettingsRow(t *testing.T) {
 				t.Fatalf("esc did not return to the welcome:\n%s", v)
 			}
 		})
+	}
+}
+
+// The welcome and the missing-Profile screen give one instruction, and with a Harness
+// connected both name create-profile; without one neither does.
+func TestWelcomeAndProfileGiveTheSameSetupInstruction(t *testing.T) {
+	for _, tc := range []struct {
+		opts []ui.Option
+		want string
+	}{
+		{nil, "fill in your Contact, then write the rest in your Editor"},
+		{[]ui.Option{ui.WithHarness("claude {prompt}")}, "fill in your Contact, then run create-profile in your Harness"},
+	} {
+		root := emptyJobs(t)
+		if err := os.RemoveAll(filepath.Join(root, "profile")); err != nil {
+			t.Fatal(err)
+		}
+		d := newDriver(t, root, fixtureClock, 140, 36, tc.opts...)
+		welcome := d.plain()
+		d.Type("5")
+		profile := d.plain()
+		for name, v := range map[string]string{"welcome": welcome, "Profile": profile} {
+			if !strings.Contains(v, tc.want) {
+				t.Errorf("%s lacks %q:\n%s", name, tc.want, v)
+			}
+			if tc.opts == nil && strings.Contains(v, "create-profile") {
+				t.Errorf("%s names create-profile with no Harness:\n%s", name, v)
+			}
+		}
 	}
 }

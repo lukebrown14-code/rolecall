@@ -242,7 +242,8 @@ func TestSizeClassesShareOneLayout(t *testing.T) {
 func TestPopupsStayInsideTheBody(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	for _, size := range [][2]int{{60, 16}, {56, 14}, {80, 24}} {
-		for _, keys := range [][]string{{"1", "m"}, {"a"}, {"?"}, {"6", "enter"}} {
+		// Below wide the help is a screen of its own, not a pop-up (TestHelpIsFullScreenBelowWide).
+		for _, keys := range [][]string{{"1", "m"}, {"a"}, {"6", "enter"}} {
 			lines := strings.Split(chipped(runKeysSized(t, root, size[0], size[1], keys...)), "\n")
 			top, bottom := -1, -1
 			for i, l := range lines {
@@ -280,7 +281,7 @@ func TestWrapsOnlyAtSpaces(t *testing.T) {
 		}
 	}
 	reader := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "/docs-written", "enter", "enter", "right", "right"))
-	if !strings.Contains(reader, "fit —") {
+	if !strings.Contains(reader, "fit not assessed") {
 		t.Errorf("card split the Fit:\n%s", reader)
 	}
 }

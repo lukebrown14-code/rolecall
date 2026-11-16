@@ -49,9 +49,10 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 		graphicFloor = 3.0 // WCAG AA for rules, dividers and glyphs
 	)
 	// The selection fill is a tint, so it cannot reach 3:1 against the page and still keep
-	// the title and accent at 4.5:1 on it; the dark fill is as light as the text floor
-	// allows, and the light tint is nearly white by design. The gutter mark carries the rest.
-	selFillFloor := map[string]float64{"dark": 2.3, "light": 1.1}
+	// the title and accent at 4.5:1 on it: on white the accent's 4.5:1 caps the fill near
+	// 1.2:1. Each fill is as deep as the text floor allows; the accent gutter mark, at
+	// 3:1 and more on both, carries the selection's non-text contrast.
+	selFillFloor := map[string]float64{"dark": 2.3, "light": 1.17}
 	check := func(t *testing.T, what string, fg, bg color.Color, floor float64) {
 		t.Helper()
 		if got := contrastRatio(fg, bg); got < floor {
@@ -66,7 +67,7 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 			p, d := th.t.Base(), th.t.Dimmed()
 			text := []role{{"text", p.Fg}, {"muted", p.Dim}, {"sub", p.Sub}, {"accent", p.Accent}, {"ok", p.Ok},
 				{"info", p.Info}, {"warn", p.Warn}, {"danger", p.Bad}, {"purple", p.Purple}, {"gold", p.Gold},
-				{"lead", p.Lead}, {"draft", p.Draft}}
+				{"lead", p.Lead}, {"draft", p.Draft}, {"marginal", p.Marginal}}
 			for _, r := range text {
 				check(t, r.name+" on background", r.c, p.Bg, textFloor)
 				check(t, r.name+" on the pop-up fill", r.c, p.Panel, textFloor)
@@ -129,5 +130,41 @@ func TestStatusesAreDistinct(t *testing.T) {
 			}
 			colours[p.StatusColor(s)] = s
 		}
+	}
+}
+
+// Each Fit word has a colour of its own, Strong green, Good blue, Marginal violet and Poor
+// muted, and none borrows the amber or red that a row keeps for time, so a Fit never reads
+// as a deadline.
+func TestFitColoursAreApartFromUrgency(t *testing.T) {
+	for _, th := range []theme.Mode{theme.Dark, theme.Light} {
+		p := th.Base()
+		seen := map[color.Color]string{}
+		for _, fit := range []string{"Strong", "Good", "Marginal", "Poor"} {
+			c := p.FitColor(fit)
+			if seen[c] != "" {
+				t.Errorf("fit %s shares its colour with %s", fit, seen[c])
+			}
+			seen[c] = fit
+			if c == p.Warn || c == p.Bad || c == p.Gold || c == p.Accent {
+				t.Errorf("fit %s is drawn in an urgency, Offer or accent colour", fit)
+			}
+		}
+		if p.FitColor("Poor") != p.Dim || p.FitColor("") != p.Dim {
+			t.Error("Poor and not assessed stay muted")
+		}
+	}
+}
+
+// The light selection fill is a tint of the teal accent, not a blue: green leads, then
+// blue, then red, as in the accent, and it sits nearer the page than the accent.
+func TestLightSelectionIsAnAccentTint(t *testing.T) {
+	p := theme.Light.Base()
+	r, g, b, _ := p.Sel.RGBA()
+	if g < b || b <= r {
+		t.Errorf("light Sel %v is not a teal tint", p.Sel)
+	}
+	if contrastRatio(p.Sel, p.Accent) < contrastRatio(p.Bg, p.Accent)*0.8 {
+		t.Errorf("light Sel is too close to the accent to read as a tint of the page")
 	}
 }

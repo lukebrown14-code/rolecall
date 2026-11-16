@@ -63,6 +63,7 @@ func (m model) rulePopup(r settings.Rule) mode {
 	f := newFormOf("Edit "+r.Label, formField{Label: r.Label, Value: m.ruleText(r.Key), Unit: r.Unit, Placeholder: r.Example,
 		Note: "empty clears it"})
 	f.ShowDirty = true
+	f.SelectValue() // typing replaces the current value, as on the inline rows
 	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
 		next, err := m.saveRule(r, f.Value(r.Label))
 		if err != nil {
@@ -76,6 +77,7 @@ func (m model) rulePopup(r settings.Rule) mode {
 // saveRule writes one Rules row, names what it saved and offers its undo.
 func (m model) saveRule(r settings.Rule, text string) (model, error) {
 	was := m.ruleText(r.Key)
+	shown := m.rowShown(settings.GroupRules, r.Label) // what the undo puts back, as the row reads now
 	if err := m.setRule(r.Key, text); err != nil {
 		return m, err
 	}
@@ -91,12 +93,8 @@ func (m model) saveRule(r settings.Rule, text string) (model, error) {
 			msg += " " + r.Unit
 		}
 	}
-	back := "unset"
-	if was != "" {
-		back = was
-	}
 	return m.saved(msg, settingsFile, &settingsUndo{
-		what: fmt.Sprintf("%s back to %s", r.Label, back),
+		what: fmt.Sprintf("%s back to %s", r.Label, shown),
 		restore: func(m model) model {
 			if err := m.setRule(r.Key, was); err != nil {
 				m.err = err

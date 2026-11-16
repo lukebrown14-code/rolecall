@@ -126,7 +126,8 @@ func TestDetailHeaderShowsCloseAndAppliedDates(t *testing.T) {
 		os.WriteFile(meta, bytes.Replace(b, []byte("track: SWE\n"), []byte("track: SWE\ncloses: 2026-12-01\n"), 1), 0o600)
 	})
 	h.open("3", 1, "Orbit")
-	h.show("Orbit Labs · SWE · applied 6d ago", "applied 25 Sep 2026 · 6d ago")
+	// The card's subtitle is Company · Track; its Status line says the age.
+	h.show("Orbit Labs · SWE", "● Applied · 6d in Applied", "applied 25 Sep 2026 · 6d ago")
 }
 
 func TestDetailJDRendersMarkdown(t *testing.T) {
@@ -174,7 +175,7 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		wants []string
 	}{
 		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
-		{"fit", 1, []string{"fit — · no reasoning saved"}},
+		{"fit", 1, []string{"fit not assessed · no reasoning saved"}},
 		{"notes", 2, []string{"No notes yet · e to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -453,9 +454,10 @@ func TestResumeReaderScrollAndRefresh(t *testing.T) {
 	h.show("[Resume]", "Updated end")
 	h.tm.Type("g")
 	h.show("New start")
+	// The next detail opens on the tab last chosen, at its top.
 	h.key(tea.KeyEscape)
 	h.key(tea.KeyEnter)
-	h.show("[JD]")
+	h.show("[Resume]", "New start")
 }
 
 func TestResumeReaderHiddenWithoutText(t *testing.T) {

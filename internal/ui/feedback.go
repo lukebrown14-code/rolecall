@@ -16,6 +16,10 @@ import (
 // colour-blind Owner still tells a failure from a warning and from a closed Status.
 const errorMark = "✘"
 
+// errNoHarness is the error a Handoff key gives while no Harness is set. The feedback
+// line offers h, which opens Settings › This machine on the Harness row.
+var errNoHarness = errors.New(unsetMachineSetting(labelHarness))
+
 // parseFixes says how to fix each reason the store refuses a meta.yml, in place of the
 // parser's own words.
 var parseFixes = map[string]string{
@@ -165,6 +169,9 @@ func (m model) feedbackMsg(p pal) (string, string) {
 		icon, c, hint = errorMark, p.Bad, "esc hide"
 		if _, ok := parseError(m.err); ok {
 			hint = "e fix in editor · esc hide"
+		}
+		if errors.Is(m.err, errNoHarness) && m.connectsHarness("h") {
+			hint = "h " + descConnectHarness + " · esc hide"
 		}
 	case m.building != nil && m.toast == "":
 		msg, icon, c, raw = "Building "+m.building.title+"…", m.spinner.View(), p.Info, true

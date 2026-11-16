@@ -33,10 +33,16 @@ func WithFirstRunSetup() Option {
 	}
 }
 
-func newContactForm(contact map[string]string) *form {
+// contactIntro says, above the fields, why the Contact is asked for and how to come back
+// to it, so a first form nobody asked for explains itself.
+const contactIntro = "rolecall puts these on every Resume and Cover letter. You can change them any time: 5 Profile, then c."
+
+// newContactForm is the Contact form. Its placeholders say what goes in a field, in
+// words no one would mistake for a value, never a plausible person's details.
+func newContactForm(title string, contact map[string]string) *form {
 	placeholders := map[string]string{
-		fieldName: "Alex Quinn", fieldEmail: "alex.quinn@example.test", fieldPhone: "+61 400 000 000",
-		fieldLocation: "Brisbane, QLD", fieldLinkedIn: "linkedin.com/in/alexquinn",
+		fieldName: "your full name", fieldEmail: "your email address", fieldPhone: "your phone number",
+		fieldLocation: "your city", fieldLinkedIn: "your LinkedIn profile link",
 	}
 	var fields []formField
 	for _, name := range setupContactFields {
@@ -57,13 +63,22 @@ func newContactForm(contact map[string]string) *form {
 		}
 		fields = append(fields, f)
 	}
-	return newFormOf("Welcome · your Contact", fields...)
+	f := newFormOf(title, fields...)
+	f.Intro = contactIntro
+	return f
 }
 
-// contactPopup is the first-run Contact form. Saving writes only the Contact table of
-// profile/master-profile.md.
+// contactPopup is the first-run Contact form: esc skips it until the next launch.
 func contactPopup(contact map[string]string) mode {
-	return &formPopup{form: newContactForm(contact), width: popSmall, save: func(m *model, f *form) (mode, error) {
+	p := contactPopupTitled("Welcome to rolecall · first, your Contact", contact).(*formPopup)
+	p.form.Cancel = "skip"
+	return p
+}
+
+// contactPopupTitled is the Contact form under title. Saving writes only the Contact table
+// of profile/master-profile.md.
+func contactPopupTitled(title string, contact map[string]string) mode {
+	return &formPopup{form: newContactForm(title, contact), width: popSmall, save: func(m *model, f *form) (mode, error) {
 		values := map[string]string{}
 		for _, name := range setupContactFields {
 			values[name] = f.Value(name)

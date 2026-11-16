@@ -70,17 +70,24 @@ func (m model) formBox(p pal, f *form, w int) string {
 		}
 		rows = append(rows, row)
 	}
-	title := f.Title
-	if f.Discarding {
-		// The question goes in the title, not a body line: a form taller than its pop-up
-		// scrolls, and the confirmation must never scroll out of sight.
-		title = "Discard changes?"
+	if f.Intro != "" {
+		// What the Form is for, above the fields; the pop-up wraps it.
+		rows = append([]string{p.Text(p.Sub).Render(f.Intro), ""}, rows...)
 	}
+	title := f.Title
 	note := ""
 	if required {
 		note = "* required"
 	}
-	return popupNote(p, title, note, false, w, m.viewWidth(), strings.Join(rows, "\n"), p.Keys(f.Keys()))
+	if f.Discarding {
+		// The question goes in the title, not a body line: a form taller than its pop-up
+		// scrolls, and the confirmation must never scroll out of sight. Losing typed text
+		// is drawn as a warning (⚠ and the Warn border), at least as strong as the Docs
+		// not Ready question, with what is lost said first.
+		title, note = "Discard changes?", ""
+		rows = append([]string{p.Text(p.Sub).Render("Your typed values will be lost."), ""}, rows...)
+	}
+	return popupNote(p, title, note, f.Discarding, w, m.viewWidth(), strings.Join(rows, "\n"), p.Keys(f.Keys()))
 }
 
 // formValue is one field's value cell: a choice between arrows, the URL spinner, an empty
@@ -142,6 +149,10 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 		if over = xansi.StringWidth(shown) + xansi.StringWidth(unit) - avail; over > 0 {
 			shown = xansi.TruncateLeft(shown, over+1, "…")
 		}
+	}
+	if focused && f.Selected {
+		// A selected opening value: the first key typed replaces it.
+		return p.Text(valC).Reverse(true).Render(shown) + cursor + unit + aside
 	}
 	return p.Text(valC).Render(shown) + cursor + unit + aside
 }

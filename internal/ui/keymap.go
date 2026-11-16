@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"slices"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
@@ -16,9 +18,10 @@ const keyBackspace = "backspace"
 // `keys` are the keys that run it; `keyLabel` is what the help shows (often a friendlier
 // alias, e.g. "enter" for enter and v). `listed` is when the help advertises the key;
 // `enabled` is when the dispatcher runs it. They are the same for almost every key. They
-// differ for the ones that stay quiet until the Owner has set the Plugin or Harness
-// (build, assess fit, prepare docs): the key still works and says what is missing, but the
-// help does not advertise it.
+// differ for build, which stays quiet until the Owner has set the Plugin: the key still
+// works and says what is missing, but the help does not advertise it. The Harness keys
+// (assess fit, prepare docs, follow-up) are listed without a Harness too, dimmed in the
+// help and palette with "(needs a Harness)", so the Owner can find them.
 type listAction struct {
 	keys     []string
 	keyLabel string
@@ -33,7 +36,31 @@ type listAction struct {
 	// alwaysInHelp keeps the key in the `?` pop-up while listed is false, so Help names it
 	// before it first does something (u undo, before any move).
 	alwaysInHelp bool
-	run          func(m *model, key string) tea.Cmd
+	// needsHarness marks a Handoff key: with no Harness set it is listed dimmed, help-only,
+	// with needsHarnessNote after its description.
+	needsHarness bool
+	// why is what the key says when it is pressed where it does not apply ("x: only Leads
+	// and Drafts can be dismissed"), or "" to stay silent; nil for keys that always apply.
+	why func(model) string
+	run func(m *model, key string) tea.Cmd
+}
+
+// needsHarnessNote follows a Handoff key's description while no Harness is set.
+const needsHarnessNote = "(needs a Harness)"
+
+// descConnectHarness is h's one name: in the help, the palette, the welcome checklist and
+// the no-Harness error.
+const descConnectHarness = "connect a Harness"
+
+// onRowWhy is a why that speaks only when a row is under the cursor: with no row, a row
+// key stays silent as before.
+func onRowWhy(reason func(model) string) func(model) string {
+	return func(m model) string {
+		if !onRow(m) {
+			return ""
+		}
+		return reason(m)
+	}
 }
 
 // text is a fixed help description.
@@ -69,6 +96,18 @@ func followUpRow(m model) bool {
 	return ok && followUpDue(a, m.now(), m.followUpDays)
 }
 
+// linkAction is a key that acts on the row's job-ad link: w opens it, c copies it.
+func linkAction(key, desc string, run func(*model) tea.Cmd) listAction {
+	return listAction{
+		keys: []string{key}, keyLabel: key, desc: text(desc),
+		group: groupAction, prio: fixed(prioMinor),
+		listed:  hasLink,
+		enabled: hasLink,
+		why:     onRowWhy(func(model) string { return key + ": this Application has no link" }),
+		run:     func(m *model, _ string) tea.Cmd { return run(m) },
+	}
+}
+
 // listActions is every row action the list and detail views accept, in the order the help
 // lists them. The dispatcher and the help both read it.
 var listActions = []listAction{
@@ -99,7 +138,7 @@ var listActions = []listAction{
 			if a, ok := m.current(); ok && a.Malformed != nil {
 				return "fix in editor"
 			}
-			return "edit"
+			return descEdit
 		},
 		group: groupAction,
 		prio: func(m model) int {
@@ -137,8 +176,10 @@ var listActions = []listAction{
 		},
 	},
 	{
+		// While a move can be undone u is core on the key line, so the toast's offer
+		// outlasts the next key and a one-key dismiss always shows its way back.
 		keys: []string{"u"}, keyLabel: "u", desc: text("undo"),
-		group: groupAction, prio: fixed(prioMinor), alwaysInHelp: true,
+		group: groupAction, prio: fixed(prioCore), alwaysInHelp: true,
 		// Undo acts on the last move, not the row under the cursor, so it stays listed on a
 		// malformed row too.
 		listed:  func(m model) bool { return len(m.undo) > 0 },
@@ -146,10 +187,19 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.undoLast() },
 	},
 	{
+		// On the lean key line wherever it applies: triage is mostly x.
 		keys: []string{"x"}, keyLabel: "x", desc: text("dismiss"),
-		group: groupAction, prio: fixed(prioMinor),
+		group: groupAction, prio: fixed(prioLean),
+		// Not in the detail view, where a reader's stray x would close what they are
+		// reading: there it points to m, as on a row it does not apply to.
 		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
-		enabled: leadOrDraft,
+		enabled: func(m model) bool { return m.detail == nil && leadOrDraft(m) },
+		why: onRowWhy(func(m model) string {
+			if m.detail != nil && leadOrDraft(m) {
+				return "x: dismisses from the list only · m to move"
+			}
+			return "x: only Leads and Drafts can be dismissed · m to move"
+		}),
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok && a.Unsent() {
 				return m.move(a, store.StatusDismissed, false)
@@ -185,20 +235,8 @@ var listActions = []listAction{
 		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.startBuild() },
 	},
-	{
-		keys: []string{"w"}, keyLabel: "w", desc: text("open link"),
-		group: groupAction, prio: fixed(prioMinor),
-		listed:  hasLink,
-		enabled: hasLink,
-		run:     func(m *model, _ string) tea.Cmd { return m.openLink() },
-	},
-	{
-		keys: []string{"c"}, keyLabel: "c", desc: text("copy link"),
-		group: groupAction, prio: fixed(prioMinor),
-		listed:  hasLink,
-		enabled: hasLink,
-		run:     func(m *model, _ string) tea.Cmd { return m.copyLink() },
-	},
+	linkAction("w", "open link", (*model).openLink),
+	linkAction("c", "copy link", (*model).copyLink),
 	{
 		keys: []string{"d"}, keyLabel: "d", desc: text("download"),
 		group: groupAction, prio: fixed(prioMinor),
@@ -210,6 +248,7 @@ var listActions = []listAction{
 			a, ok := m.current()
 			return ok && len(a.PDFs) > 0
 		},
+		why: onRowWhy(func(model) string { return "d: no PDFs built for this Application yet" }),
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok && len(a.PDFs) > 0 {
 				return m.download(a)
@@ -219,32 +258,55 @@ var listActions = []listAction{
 	},
 	{
 		keys: []string{"f"}, keyLabel: "f", desc: text("assess fit"),
-		group: groupAction, prio: fixed(prioMinor),
-		listed:  func(m model) bool { return onRow(m) && m.harness != "" },
+		group: groupAction, prio: fixed(prioMinor), needsHarness: true,
+		listed:  onRow,
 		enabled: always,
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillAssessFit) },
 	},
 	{
 		// Only on a Follow-up due Application. It has its own key so r is always rescan.
 		keys: []string{"F"}, keyLabel: "F", desc: text(descNudge),
-		group: groupAction, prio: fixed(prioMinor),
-		listed:  func(m model) bool { return followUpRow(m) && usable(m) && m.harness != "" },
+		group: groupAction, prio: fixed(prioMinor), needsHarness: true,
+		listed:  func(m model) bool { return followUpRow(m) && usable(m) },
 		enabled: followUpRow,
+		why:     onRowWhy(func(model) string { return "F: only on a Follow-up due Application" }),
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillDraftFollowUp) },
 	},
 	{
-		keys: []string{"p"}, keyLabel: "p", desc: text("prepare docs"),
+		// Records today's follow-up without a Status change, so the ⚑ clears (followup.go).
+		keys: []string{keyFollowedUp}, keyLabel: keyFollowedUp, desc: text(descFollowedUp),
 		group: groupAction, prio: fixed(prioMinor),
-		listed:  func(m model) bool { return usable(m) && leadOrDraft(m) && m.harness != "" },
-		enabled: always,
+		listed:  func(m model) bool { a, ok := m.current(); return ok && usable(m) && followUpStatus(a.Status) },
+		enabled: func(m model) bool { a, ok := m.current(); return ok && a.Malformed == nil && followUpStatus(a.Status) },
+		why:     onRowWhy(func(model) string { return keyFollowedUp + ": only on Applied and Interviewing Applications" }),
+		run: func(m *model, _ string) tea.Cmd {
+			if a, ok := m.current(); ok {
+				return m.recordFollowUp(a)
+			}
+			return nil
+		},
+	},
+	{
+		keys: []string{"p"}, keyLabel: "p", desc: text("prepare docs"),
+		group: groupAction, prio: fixed(prioMinor), needsHarness: true,
+		listed: func(m model) bool { return usable(m) && leadOrDraft(m) },
+		// Without a Harness it runs anywhere, to say so; with one, only where it applies.
+		enabled: func(m model) bool { return m.harness == "" || !onRow(m) || leadOrDraft(m) },
+		why:     onRowWhy(func(model) string { return "p: only Leads and Drafts get documents prepared" }),
 		run:     func(m *model, _ string) tea.Cmd { return m.startHandoff(skillPrepareDocuments) },
 	},
 	{
 		// "view", not "status": s changes which rows show, while m changes a Status.
-		keys: []string{"s"}, keyLabel: "s", desc: text("view"),
+		keys: []string{"s"}, keyLabel: "s", desc: text(descChangeView),
 		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
 		enabled: func(m model) bool { return m.detail == nil && len(m.views()) > 1 },
+		why: func(m model) string {
+			if m.detail != nil {
+				return "s: changes the view from the list only"
+			}
+			return "" // one view: nothing to change to
+		},
 		run: func(m *model, _ string) tea.Cmd {
 			// The same cycle as ←→ and as t on the Track filter: All, each Status, Closed, All.
 			m.table = (m.table + 1) % len(m.views())
@@ -256,23 +318,39 @@ var listActions = []listAction{
 		keys: []string{"o"}, keyLabel: "o",
 		desc: func(m model) string {
 			if m.leadsNewest {
-				return "sort by close date"
+				return "sort by deadline"
 			}
 			return "sort newest"
 		},
 		group: groupFilter, prio: fixed(prioMinor),
 		listed:  func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads && !m.welcoming() },
 		enabled: func(m model) bool { return m.detail == nil && m.views()[m.table] == tableLeads },
+		why:     func(model) string { return "o: sorts the Leads view only" },
 		run: func(m *model, _ string) tea.Cmd {
 			folder := m.cursorFolder()
 			m.leadsNewest = !m.leadsNewest
 			m.keepCursor(folder)
-			m.toast = "Leads by close date, soonest first"
+			m.toast = "Leads by deadline, soonest first"
 			if m.leadsNewest {
 				m.toast = "Leads newest first"
 			}
 			return nil
 		},
+	},
+	{
+		// z (vim's view-adjusting prefix, free on every list) switches one-line rows at
+		// wide sizes, where one line has room for every column.
+		keys: []string{"z"}, keyLabel: "z",
+		desc: func(m model) string {
+			if m.compactRows {
+				return "two-line rows"
+			}
+			return "compact rows"
+		},
+		group: groupFilter, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && m.layout().wide() && !m.welcoming() },
+		enabled: func(m model) bool { return m.detail == nil && m.layout().wide() },
+		run:     func(m *model, _ string) tea.Cmd { return m.toggleCompactRows() },
 	},
 	{
 		keys: []string{"a"}, keyLabel: "a", desc: text("add"),
@@ -293,13 +371,25 @@ var listActions = []listAction{
 	},
 }
 
+// descChangeView is s's one name, in the help, the palette, the space menu and an empty
+// view's hint. ←→ do the same; s is the key the menu and palette can send.
+const descChangeView = "change view"
+
 // actionKeys is the row actions the help lists here, in order, built from the one table.
+// A Handoff key with no Harness set is help-only and dimmed, marked needsHarnessNote.
 func (m model) actionKeys() []helpKey {
 	var keys []helpKey
 	for _, a := range listActions {
-		if a.listed(m) {
-			keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(a.prio(m)))
+		if !a.listed(m) {
+			continue
 		}
+		if a.needsHarness && m.harness == "" {
+			k := help(a.group, a.keyLabel, a.desc(m)+" "+needsHarnessNote).at(prioHelpOnly)
+			k.dim = true
+			keys = append(keys, k)
+			continue
+		}
+		keys = append(keys, help(a.group, a.keyLabel, a.desc(m)).at(a.prio(m)))
 	}
 	return keys
 }
@@ -320,18 +410,30 @@ func (m model) dormantKeys() []helpKey {
 }
 
 // runListAction finds the action a key triggers here: the first enabled action whose keys
-// include it. handled is false when no action claims the key. early is true when the
+// include it. A known key that does not apply here says why in a note toast instead of
+// doing nothing. handled is false when no action claims the key. early is true when the
 // caller should return at once rather than fall through to the end-of-update sync.
 func (m *model) runListAction(key string) (cmd tea.Cmd, handled, early bool) {
 	for _, a := range listActions {
-		if !a.enabled(*m) {
+		if a.enabled(*m) && slices.Contains(a.keys, key) {
+			return a.run(m, key), true, a.early
+		}
+	}
+	for _, a := range listActions {
+		if a.why == nil || !slices.Contains(a.keys, key) {
 			continue
 		}
-		for _, k := range a.keys {
-			if k == key {
-				return a.run(m, key), true, a.early
-			}
+		if why := a.why(*m); why != "" {
+			m.toast, m.toastKind = why, toastNote
+			return nil, true, false
 		}
 	}
 	return nil, false, false
+}
+
+// connectsHarness reports whether h opens Settings › This machine on the Harness row
+// here: while no Harness is set, on every screen but Settings, after any Application has
+// been added as well as on the welcome. It is how the no-Harness error is fixed.
+func (m model) connectsHarness(key string) bool {
+	return key == "h" && m.harness == "" && m.screen != settingsScreen && !m.fieldOpen()
 }

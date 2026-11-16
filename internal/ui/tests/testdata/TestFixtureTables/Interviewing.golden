@@ -1,23 +1,23 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats        █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings            space menu  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW s All 9  Applied 1 [Interviewing 2] Offer 2  Closed 4 │ TRACK t [All 2] SWE 1  Platform 0  Unknown 1
+   VIEW s All 9  Applied 1 [Interviewing 2] Offer 2  Closed 4 │ TRACK t [All 2] SWE 1  Unknown 1                        
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ Engineer #1                                          
- ▌ ◆ Engineer #1                     ⚑ 9mo  ~Jan 2026  fit Good  │ Example · Unknown · applied ~Jan 2025 · interviewi…  
+ ▌ ◆ Engineer #1                                ⚑ 9mo  Good      │ Example · Unknown                                    
  ▌   Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │                                                      
-   ◆ docs-written                                 ~7d     fit —  │ ◆ Interviewing                             fit Good  
-     Fictional Labs · SWE · interviewing ~7d ago                 │                                                      
-                                                                 │ DOCS    □□□ 0/3 ready                                
-                                                                 │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
+   ◆ docs-written                                                │ ◆ Interviewing · ~9mo in Interviewing      fit Good  
+     Fictional Labs · SWE · interviewing ~7d ago                 │ FOLLOW-UP    due · no change in 9mo   l followed up  
                                                                  │                                                      
-                                                                 │ FOLLOW-UP  due · no change in 9mo            m move  
+                                                                 │ DOCS         □□□ 0/3 ready                           
+                                                                 │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │   ● Applied                             ~1 Jan 2025  
                                                                  │   ◆ Interviewing                        ~1 Jan 2026  
                                                                  │   ★ Offer                                      next  
                                                                  │                                                      
-                                                                 │ NOTES   none yet                              n add  
+                                                                 │ NOTES        none yet                         n add  
+                                                                 │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › Interviewing · All tracks · row 1 of 2
- enter open  m move  a add  / search                                                                             ? help
+   Applied › Interviewing · All tracks · row 1 of 2                                                                     
+ enter open  m move  a add  / search                                                                             ? help 

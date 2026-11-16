@@ -1,6 +1,8 @@
 package ui_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -28,24 +30,47 @@ func TestDetailFlagsAMislabelledRate(t *testing.T) {
 	requireAll(t, squash(d.plain()), "PAY $850/hour AUD · ~A$1680k/yr", "⚠ looks like a day rate", "CLOSES date unclear")
 }
 
-// Lead rows carry the visa and blurb badges after the dates.
+// Lead rows carry the visa and ad badges after the dates, worded for the role, blockers
+// first and marked ⚠ so they read without colour.
 func TestLeadRowsCarryVisaBadges(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 200, 40)
 	d.Type("1")
-	requireAll(t, d.plain(), "fits 6-month cap", "12 mo > 6-month cap", "needs sponsorship", "sponsors", "blurb only",
-		"closes: date unclear")
+	v := d.plain()
+	requireAll(t, v, "contract fits visa cap · sponsors visa", "ad summary only",
+		"closes: date unclear · ⚠ 12-mo contract > 6-mo visa cap · ⚠ no sponsorship")
+	for _, old := range []string{"blurb only", "needs sponsorship", "month cap"} {
+		if strings.Contains(v, old) {
+			t.Fatalf("old badge wording %q:\n%s", old, v)
+		}
+	}
 }
 
-// Deadlines, on the Drafts screen, lists every Lead and Draft with a close date or an
-// unclear one, the unclear ones last.
+// A blocker badge leads the badges, so a row cut short drops the lighter ones first.
+func TestBlockerBadgesComeFirst(t *testing.T) {
+	d := newDriver(t, fixtureCopy(t, func(root string) {
+		meta := filepath.Join(root, "jobs", "SWE", "lead-blurb", "meta.yml")
+		b, err := os.ReadFile(meta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(meta, []byte(string(b)+"sponsorship: not-offered\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}), fixtureClock, 200, 40)
+	d.Type("1")
+	requireAll(t, lineWith(d.plain(), "Numbat Health"), "SWE · ⚠ no sponsorship · ad summary only")
+}
+
+// Deadlines, on the Drafts screen, lists every Lead and Draft with a deadline still to
+// come, a Lead whose ad nears max_posting_age_days included, then the unclear ones.
 func TestDeadlinesListsLeadsAndDraftsByCloseDate(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 140, 40)
 	d.Type("2")
 	d.Type("s")
 	v := d.plain()
-	requireAll(t, v, "[Deadlines 1]", "Date unclear", "Reliability Engineer")
+	requireAll(t, v, "[Deadlines 2]", "Deadlines · 1", "Platform Engineer", "expires in 3 days", "Date unclear · 1", "Reliability Engineer")
 	if strings.Contains(v, "Data Engineer") {
-		t.Fatalf("a Lead with no close date is listed:\n%s", v)
+		t.Fatalf("a Lead with no deadline is listed:\n%s", v)
 	}
 }
 

@@ -13,7 +13,7 @@ import (
 // the key in the Keys colour at the right edge. Detail and Profile draw every field
 // this way, so a row says how to change itself.
 const (
-	fieldLabelW = 8 // the label column, including the gap before the value
+	fieldLabelW = 8 // Profile's label column, including the gap before the value; the card's is cardLabelW
 	fieldMinVal = 3 // the least value kept before the action words are dropped
 )
 
@@ -169,11 +169,11 @@ func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
 	stop := func(status, when string, current bool) {
 		line(p.StatusMark(status)+" "+p.Text(p.StatusColor(status)).Bold(current).Render(status), when)
 	}
-	if len(a.StatusLog) == 0 {
-		// Nothing logged yet: say so, and how a first move logs it.
+	log := effectiveLog(a) // an undone move leaves no stop
+	if len(log) == 0 {
+		// Nothing logged yet (or only an undone first move): say so, and how a first move logs it.
 		line(p.Text(p.Dim).Render("Not moved yet · ")+p.Key().Render("m")+p.Text(p.Dim).Render(" to move"), "")
 	}
-	log := effectiveLog(a) // an undone move leaves no stop
 	years := m.spansYears(log)
 	for i, e := range log {
 		stop(e.Status, m.logDate(p, e, years), i == len(log)-1)
@@ -193,52 +193,182 @@ func nextStatus(status string) string {
 	return pipeline[i+1]
 }
 
-// fieldBlock is an Application's detail as rows inside w cells, in the design's order: the
-// Status with the Fit, the close date while it matters, the Documents, the next step, the
-// timeline and the Notes. Each section offers at most one key. The preview, the detail
-// card and the sheet's Overview tab draw it.
-func (m model) fieldBlock(p pal, a store.Application, w int) []string {
-	return m.fieldRows(p, a, w, true)
+// cardMode is where an Application's card rows are drawn, which decides what they leave to
+// the frame around them.
+type cardMode int
+
+const (
+	cardPreview cardMode = iota // beside the list, with the start of fit.md and jd.md below
+	cardDetail                  // beside the detail tabs, with the link below
+	cardSheet                   // the bottom sheet's Overview: the title chip says the Status and the line under the tabs the next step
+	cardFull                    // the narrow detail's Overview: the strip says the Status, Documents and Fit, the line under the tabs the next step
+)
+
+// cardLabelW is the card's one label column: its widest label, SPONSORSHIP, and a
+// two-cell gap, so every value in a card starts at the same cell.
+const cardLabelW = len("SPONSORSHIP") + 2
+
+// cardRow is a field row in the card's label column.
+func (p pal) cardRow(label, value, key, action string, w int) string {
+	return p.fieldRowIn(cardLabelW, label, value, key, action, w)
 }
 
-// overviewRows is the Overview tab's rows: the fieldBlock, less the next step where the
-// full-screen detail already keeps it on the line under the tabs.
+// blockLabel is a card block's heading, TIMELINE, FIT or JD: a field label on a line of its
+// own, so the card has one heading style.
+func (p pal) blockLabel(label string) string { return p.Text(p.Dim).Render(label) }
+
+// fitUnassessed is a Fit not yet assessed, as the card and the Fit tab word it.
+const fitUnassessed = "not assessed"
+
+// cardFit is the card's Fit: "fit Good" in the Fit's colour, or "fit not assessed".
+func (p pal) cardFit(fit string) string {
+	if fit == "" {
+		return p.Text(p.Dim).Render(fitLabel + fitUnassessed)
+	}
+	return p.fitWords(fit)
+}
+
+// overviewRows is the Overview tab's rows: the card's, less what the frame around them
+// already says.
 func (m model) overviewRows(p pal, a store.Application, w int) []string {
-	return m.fieldRows(p, a, w, m.sheetShown())
+	if m.sheetShown() {
+		return m.fieldRows(p, a, w, cardSheet)
+	}
+	return m.fieldRows(p, a, w, cardFull)
 }
 
-func (m model) fieldRows(p pal, a store.Application, w int, next bool) []string {
-	rows := m.statusLine(p, a, w)
+// fieldRows is an Application's card as rows inside w cells, in the design's order: the
+// Status with its age and the Fit, the next step, the facts (the close date while it
+// matters, what the Sweep and the ad recorded), the Documents, the timeline and the
+// Notes. A key shows once: a row whose key the next step offers leaves it to NEXT.
+func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []string {
+	nextKey := ""
+	if s, ok := m.nextAction(a); ok {
+		nextKey = s.key
+	}
+	keep := func(key string) bool { return key != nextKey }
+	var rows []string
+	section := func(lines ...string) {
+		if len(lines) == 0 {
+			return
+		}
+		if len(rows) > 0 {
+			rows = append(rows, "")
+		}
+		rows = append(rows, lines...)
+	}
+	var head []string
+	switch mode {
+	case cardPreview, cardDetail:
+		head = m.statusLine(p, a, w, true)
+		if line := m.nextLine(p, a, w, true); line != "" {
+			head = append(head, line)
+		}
+	case cardSheet:
+		head = m.statusLine(p, a, w, false)
+	}
+	section(head...)
+	section(m.factRows(p, a, w, keep)...)
+	if mode != cardFull {
+		section(m.docsBlock(p, a, w, keep)...)
+	}
+	if line := m.followedUpRow(p, a, w); line != "" {
+		section(line)
+	}
+	section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	section(m.notesRow(p, a, w, keep))
+	return rows
+}
+
+// statusLine is "● Applied · 6w in Applied" with the Fit at the right edge. Without status
+// (the sheet, whose title chip says it) it is the age and the Fit. Short of room the age
+// drops the Status it repeats ("● Applied · 6w"); where the halves still do not fit on one
+// line, the Fit takes the line below.
+func (m model) statusLine(p pal, a store.Application, w int, status bool) []string {
+	fit := p.cardFit(a.Fit)
+	left := func(long bool) string {
+		var parts []string
+		if status {
+			parts = append(parts, p.Text(p.StatusColor(a.Status)).Bold(true).Render(p.StatusGlyph(a.Status)+" "+a.Status))
+		}
+		if age := m.stageAge(p, a, long || !status); age != "" {
+			parts = append(parts, age)
+		}
+		return strings.Join(parts, p.Text(p.Dim).Render(" · "))
+	}
+	fits := func(l string) bool { return xansi.StringWidth(l)+gutter+xansi.StringWidth(fit) <= w }
+	l := left(true)
+	if !fits(l) {
+		l = left(false)
+	}
+	switch {
+	case l == "":
+		return []string{xansi.Truncate(fit, w, "…")}
+	case !fits(l):
+		return []string{xansi.Truncate(l, w, "…"), xansi.Truncate(fit, w, "…")}
+	}
+	return []string{spread(l, fit, w)}
+}
+
+// stageAge is how long the Application has had its Status, as the card's Status line says
+// it: "added 1d ago" for a Lead never moved, "6w in Applied" while it is open, "today" on
+// the day it moved, and "3d ago" once closed or dismissed, with SCHEMA's ~ for an
+// approximate date. Not long, an open one leaves off the Status, "6w", for a line that
+// already names it. The list rows leave the age to the card.
+func (m model) stageAge(p pal, a store.Application, long bool) string {
+	e := lastChange(a)
+	if e == nil {
+		return ""
+	}
+	if m.futureDate(e) {
+		return p.Text(p.Warn).Render(futureFlag)
+	}
+	_, days, ok := daysFrom(e.At, m.now())
+	if !ok {
+		return ""
+	}
+	approx := ""
+	if e.Approx {
+		approx = "~"
+	}
+	rel, _ := ago(e.At, m.now())
+	var s string
+	switch t := tableOf(a); {
+	case a.Status == store.StatusLead && len(effectiveLog(a)) <= 1:
+		s = "added " + approx + rel
+	case t == tableDismissed || t == tableFiltered || t == tableClosed:
+		s = approx + rel
+	case days == 0:
+		s = approx + rel
+	default:
+		s = approx + span(max(-days, 0))
+		if long {
+			s += " in " + a.Status
+		}
+	}
+	return p.Text(p.Dim).Render(s)
+}
+
+// factRows are the card's facts: the close date while it matters, then what the Sweep and
+// the ad recorded.
+func (m model) factRows(p pal, a store.Application, w int, keep func(string) bool) []string {
+	var rows []string
+	key, action := "e", descEdit
+	if !keep(key) {
+		key, action = "", ""
+	}
 	if text, s := closeInfo(a.Closes, m.now()); s != closeNone && beforeApplied(tableOf(a)) {
-		rows = append(rows, p.fieldRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), "e", "edit", w))
+		rows = append(rows, p.cardRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), key, action, w))
 	} else if a.ClosesUnclear && a.Closes == "" && beforeApplied(tableOf(a)) {
-		rows = append(rows, p.fieldRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), "e", "edit", w))
+		rows = append(rows, p.cardRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), key, action, w))
 	}
-	rows = append(rows, m.sweepRows(p, a, w)...)
-	rows = append(rows, "")
-	rows = append(rows, m.docsBlock(p, a, w)...)
-	if line := m.nextLine(p, a, w, true); line != "" && next {
-		rows = append(rows, "", line)
-	}
-	rows = append(rows, "", p.Text(p.Dim).Render("TIMELINE"))
-	rows = append(rows, m.verticalTimeline(p, a, w)...)
-	return append(rows, "", m.notesRow(p, a, w))
+	return append(rows, m.sweepRows(p, a, w)...)
 }
 
-// statusLine is "● Applied" with the Fit at the right edge: "fit —" until one is assessed.
-// Where both do not fit on one line, the Fit takes the line below.
-func (m model) statusLine(p pal, a store.Application, w int) []string {
-	fit := p.fitWords(a.Fit)
-	status := p.Text(p.StatusColor(a.Status)).Bold(true).Render(p.StatusGlyph(a.Status) + " " + a.Status)
-	if xansi.StringWidth(status)+gutter+xansi.StringWidth(fit) > w {
-		return []string{xansi.Truncate(status, w, "…"), xansi.Truncate(fit, w, "…")}
-	}
-	return []string{spread(status, fit, w)}
-}
-
-// docsBlock is "DOCS ■■□□ 2/4" with the one key that fixes the next missing Document, then
-// the Documents side by side, wrapped where they do not fit on one line.
-func (m model) docsBlock(p pal, a store.Application, w int) []string {
+// docsBlock is "DOCS ■■□□ 2/4" with the one key that fixes the next missing Document,
+// unless NEXT already offers it, then the Documents side by side, wrapped where they do
+// not fit on one line.
+func (m model) docsBlock(p pal, a store.Application, w int, keep func(string) bool) []string {
 	key, action := "", ""
 	for _, c := range docChips(a) {
 		if c.ready || m.isWriting(a, c.file) {
@@ -252,6 +382,9 @@ func (m model) docsBlock(p pal, a store.Application, w int) []string {
 			key, action = "b", "build"
 		}
 	}
+	if !keep(key) {
+		key, action = "", ""
+	}
 	docs := make([]string, 0, len(docChips(a))+1)
 	for _, c := range docChips(a) {
 		docs = append(docs, m.chipText(p, a, c))
@@ -260,7 +393,7 @@ func (m model) docsBlock(p pal, a store.Application, w int) []string {
 		// Marked like the other Documents: neither ready nor missing, but not needed.
 		docs = append(docs, p.Text(p.Dim).Render(m.glyph(notNeededMark)+" "+docCoverLetter))
 	}
-	rows := []string{p.fieldRow("DOCS", p.DocsMeter(a), key, action, w)}
+	rows := []string{p.cardRow("DOCS", p.DocsMeter(a), key, action, w)}
 	const indent, sep = "  ", "   "
 	line := indent
 	for _, d := range docs {
@@ -277,32 +410,52 @@ func (m model) docsBlock(p pal, a store.Application, w int) []string {
 	return append(rows, xansi.Truncate(line, w, "…"))
 }
 
-// notesRow is the Notes' first line, or "none yet" with the key that adds them.
-func (m model) notesRow(p pal, a store.Application, w int) string {
+// notesRow is the Notes' first line, or "none yet" with the key that adds them, unless
+// NEXT already offers it.
+func (m model) notesRow(p pal, a store.Application, w int, keep func(string) bool) string {
+	key, value, action := "n", p.Text(p.Dim).Render("none yet"), "add"
 	if t := m.docText(a, notesFile); t != "" {
-		return p.fieldRow("NOTES", p.Text(p.Fg).Render(markdownMarks.Replace(t)), "n", "notes", w)
+		value, action = p.Text(p.Fg).Render(markdownMarks.Replace(t)), "notes"
 	}
-	return p.fieldRow("NOTES", p.Text(p.Dim).Render("none yet"), "n", "add", w)
+	if !keep(key) {
+		key, action = "", ""
+	}
+	return p.cardRow("NOTES", value, key, action, w)
 }
 
-// sweepLabelW is the label column of the Sweep rows, wide enough for APPLICANTS.
-const sweepLabelW = 12
+// addedOn is the day the Application was added, its first Status entry, as a short date
+// ("2 Oct"), or "" when the log does not say.
+func (m model) addedOn(a store.Application) string {
+	if len(a.StatusLog) == 0 {
+		return ""
+	}
+	t, ok := parseDay(a.StatusLog[0].At)
+	if !ok {
+		return ""
+	}
+	return shortDate(t, m.now())
+}
 
 // sweepRows are what the Sweep recorded of where a Lead came from: when it was posted,
 // how many had applied, its Source, and the Search rule that dismissed it, if one did.
-// Each row shows only when the Application says; a long value wraps under itself.
+// Each row shows only when the Application says; a long value wraps under itself. A
+// figure the Sweep took on another day says which day, so it never reads as a second,
+// different age beside today's.
 func (m model) sweepRows(p pal, a store.Application, w int) []string {
 	var rows []string
+	indent := strings.Repeat(" ", cardLabelW)
 	add := func(label, value string, extra ...string) {
-		indent := strings.Repeat(" ", sweepLabelW)
-		lines := wrapWords(value, max(1, w-sweepLabelW))
-		rows = append(rows, p.fieldRowIn(sweepLabelW, label, p.Text(p.Fg).Render(lines[0]), "", "", w))
+		lines := wrapWords(value, max(1, w-cardLabelW))
+		rows = append(rows, p.cardRow(label, p.Text(p.Fg).Render(lines[0]), "", "", w))
 		for _, l := range lines[1:] {
 			rows = append(rows, indent+p.Text(p.Fg).Render(l))
 		}
 		for _, e := range extra {
 			rows = append(rows, indent+e)
 		}
+	}
+	warning := func(s string) string {
+		return p.Text(p.Warn).Render(xansi.Truncate(glyphWarn+" "+s, max(1, w-cardLabelW), "…"))
 	}
 	if a.Posted != "" || a.PostedLabel != "" {
 		var parts []string
@@ -313,11 +466,16 @@ func (m model) sweepRows(p pal, a store.Application, w int) []string {
 			}
 		}
 		if a.PostedLabel != "" {
-			parts = append(parts, "site said \""+a.PostedLabel+"\"")
+			// The site's own label is as old as the Lead: it was read when the Lead was added.
+			said := "site said \"" + a.PostedLabel + "\""
+			if on := m.addedOn(a); on != "" {
+				said += " on " + on
+			}
+			parts = append(parts, said)
 		}
 		var extra []string
 		if warn := ageWarning(a, m.rules, m.now()); warn != "" {
-			extra = append(extra, p.Text(p.Warn).Render(xansi.Truncate(glyphWarn+" "+warn, max(1, w-sweepLabelW), "…")))
+			extra = append(extra, warning(warn))
 		}
 		add("POSTED", strings.Join(parts, " · "), extra...)
 	}
@@ -330,14 +488,21 @@ func (m model) sweepRows(p pal, a store.Application, w int) []string {
 	for _, f := range m.adFactRows(a) {
 		var extra []string
 		if f.warn != "" {
-			extra = append(extra, p.Text(p.Warn).Render(xansi.Truncate(glyphWarn+" "+f.warn, max(1, w-sweepLabelW), "…")))
+			extra = append(extra, warning(f.warn))
 		}
 		add(f.label, f.value, extra...)
 	}
 	if a.Filtered() {
 		value := filterReasonLabel(a.FilterReason)
 		if a.FilterNote != "" {
-			value += " · " + a.FilterNote
+			// The note was written when the rule dismissed the Lead: its ages are that day's.
+			note := a.FilterNote
+			if e := lastChange(a); e != nil {
+				if t, ok := parseDay(e.At); ok {
+					note = "as of " + shortDate(t, m.now()) + ": " + note
+				}
+			}
+			value += " · " + note
 		}
 		add("FILTERED", value)
 	}

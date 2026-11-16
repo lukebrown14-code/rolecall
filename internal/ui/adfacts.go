@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -122,16 +123,29 @@ func money(v float64) string {
 	return s
 }
 
-// Row badges: what the ad says that matters against the Owner's visa.
-const badgeBlurb = "blurb only"
+// Row badges: what the ad says that matters against the Owner's visa. This is the one
+// place their words live; the detail's AD row reuses badgeBlurb.
+const (
+	badgeBlurb       = "ad summary only"
+	badgeNoSponsor   = "no sponsorship"
+	badgeSponsors    = "sponsors visa"
+	badgeContractFit = "contract fits visa cap"
+)
 
-// badgeTone is how a badge reads: fine, a caution, or a blocker.
+// badgeContractOver is a contract longer than the visa allows: "12-mo contract > 6-mo visa cap".
+func badgeContractOver(months, limit int) string {
+	return fmt.Sprintf("%d-mo contract > %d-mo visa cap", months, limit)
+}
+
+// badgeTone is how a badge reads: a blocker against the visa, a fit with it, or a
+// neutral note about the ad. A row draws a blocker with ⚠ and in bold, so it reads
+// without colour; amber and red stay for time.
 type badgeTone int
 
 const (
-	toneOK badgeTone = iota
-	toneWarn
-	toneBad
+	toneBlock badgeTone = iota
+	toneOK
+	toneNote
 )
 
 type badge struct {
@@ -139,30 +153,31 @@ type badge struct {
 	tone badgeTone
 }
 
-// adBadges are a Lead's or Draft's badges: the contract against the visa cap, the
-// sponsorship against the Owner's need, and an ad that is only a blurb.
+// adBadges are a Lead's or Draft's badges, blockers first, then what fits the visa, then
+// notes about the ad: a narrow row cuts from the right, so it drops the least important.
 func (m model) adBadges(a store.Application) []badge {
 	if !a.Unsent() {
 		return nil
 	}
 	var out []badge
-	if cap := m.visa.MaxContractMonths; cap > 0 && a.TermMonths != nil {
-		if *a.TermMonths <= cap {
-			out = append(out, badge{fmt.Sprintf("fits %d-month cap", cap), toneOK})
+	if limit := m.visa.MaxContractMonths; limit > 0 && a.TermMonths != nil {
+		if *a.TermMonths <= limit {
+			out = append(out, badge{badgeContractFit, toneOK})
 		} else {
-			out = append(out, badge{fmt.Sprintf("%d mo > %d-month cap", *a.TermMonths, cap), toneWarn})
+			out = append(out, badge{badgeContractOver(*a.TermMonths, limit), toneBlock})
 		}
 	}
 	if m.visa.NeedsSponsorship {
 		switch a.Sponsorship {
 		case store.SponsorshipNotOffered:
-			out = append(out, badge{"needs sponsorship", toneBad})
+			out = append(out, badge{badgeNoSponsor, toneBlock})
 		case store.SponsorshipOffered:
-			out = append(out, badge{"sponsors", toneOK})
+			out = append(out, badge{badgeSponsors, toneOK})
 		}
 	}
 	if a.JDCompleteness == store.JDBlurb {
-		out = append(out, badge{badgeBlurb, toneWarn})
+		out = append(out, badge{badgeBlurb, toneNote})
 	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].tone < out[j].tone })
 	return out
 }

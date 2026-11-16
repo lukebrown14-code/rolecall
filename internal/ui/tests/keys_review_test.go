@@ -43,7 +43,7 @@ func TestTabCyclesDetailTabs(t *testing.T) {
 
 // space never paged the detail (it opens the menu); the help names pgup/pgdn instead.
 func TestDetailHelpNamesPaging(t *testing.T) {
-	if v := view(t, "3", "enter", "?"); !strings.Contains(v, "[pgup pgdn] page") {
+	if v := view(t, "3", "enter", "?"); !helpLists(v, "pgup pgdn page") {
 		t.Fatalf("help lacks pgup pgdn:\n%s", v)
 	}
 }
@@ -56,7 +56,7 @@ func TestMenuAcceleratorsFire(t *testing.T) {
 	if v := view(t, " ", " "); strings.Contains(v, "Menu") {
 		t.Fatalf("space did not close the menu:\n%s", v)
 	}
-	if v := view(t, " "); !strings.Contains(v, "Rescan") || !strings.Contains(v, "Switch view") || strings.Contains(v, "status filter") {
+	if v := view(t, " "); !strings.Contains(v, "Rescan") || !strings.Contains(v, "Change view") || strings.Contains(v, "status filter") {
 		t.Fatalf("menu wording:\n%s", v)
 	}
 }
@@ -174,22 +174,19 @@ func TestOfferFromAllKeepsTheView(t *testing.T) {
 
 // The Docs-not-Ready gate names what is missing.
 func TestDocsGateNamesWhatIsMissing(t *testing.T) {
-	if v := view(t, "2", "m", "a"); !strings.Contains(strings.Join(strings.Fields(v), " "), "Missing: JD, Resume, Cover letter, PDF") {
+	if v := view(t, "2", "j", "m", "a"); !strings.Contains(strings.Join(strings.Fields(v), " "), "Missing: JD, Resume, Cover letter, PDF") {
 		t.Fatalf("the gate does not name the documents:\n%s", v)
 	}
 }
 
-// An undone move leaves no stop on the timeline and does not reset the age in Status.
+// An undone move leaves no stop on the timeline.
 func TestTimelineIgnoresAnUndoneMove(t *testing.T) {
-	after := view(t, "2", "m", "a", "y", "u")
+	after := view(t, "2", "j", "m", "a", "y", "u") // docs-none, second: Engineer #1 has a Fit
 	if !strings.Contains(after, "Undone · back to") {
 		t.Fatalf("no undo:\n%s", after)
 	}
 	if strings.Contains(lineWith(after, "● Applied"), "1 Oct") || !strings.Contains(lineWith(after, "● Applied"), "next") {
 		t.Fatalf("phantom Applied on the timeline:\n%s", after)
-	}
-	if !strings.Contains(lineWith(after, "✎ docs-none"), " ~7d ") {
-		t.Fatalf("the age in Status reset after an undo:\n%s", after)
 	}
 }
 

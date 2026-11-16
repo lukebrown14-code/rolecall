@@ -55,7 +55,8 @@ func TestDocumentWordingIsReadyOrMissing(t *testing.T) {
 	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"3", "/docs-written", "enter"}, {"3", "/docs-ready", "enter"}, {"2", "enter"}, {"?"}} {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, keys...))
 		for _, line := range strings.Split(view, "\n") {
-			low := strings.ToLower(line)
+			// The fixture's docs-written folder names a row; the card can share its line.
+			low := strings.ReplaceAll(strings.ToLower(line), "docs-written", "")
 			if !strings.Contains(low, "pdf") && !strings.Contains(low, "resume") && !strings.Contains(low, " jd") && !strings.Contains(low, "cover letter") {
 				continue
 			}

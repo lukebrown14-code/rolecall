@@ -10,12 +10,12 @@ import (
 
 // Fixes from the cold design review of the overhauled TUI.
 
-// A row moved today reads "today" like any other Status's, with no abbreviated Status
-// name beside it: the glyph and the section say the Status.
+// A row moved today carries no age column and no abbreviated Status name: the glyph and
+// the section say the Status, and the preview says how long it has been there.
 func TestRowMovedTodayKeepsItsStage(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "3", "m", "i"))
-	if row := lineWith(view, "Software Engineer"); !strings.Contains(row, " today ") || strings.Contains(row, "Interv") {
-		t.Errorf("moved row = %q, want today and no abbreviated Status", row)
+	if row := lineWith(view, "Software Engineer"); strings.Contains(row, "today") || strings.Contains(row, "Interv") {
+		t.Errorf("moved row = %q, want no age and no abbreviated Status", row)
 	}
 }
 
@@ -28,18 +28,38 @@ func TestBreadcrumbShowsAStatusFilterNamedLikeItsScreen(t *testing.T) {
 	}
 }
 
-// The Menu blanks the rows it covers, so no word is cut off against its border.
-func TestMenuBlanksTheRowsBehindIt(t *testing.T) {
-	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 24, "3", " "))
+// The Menu clears only its own cells and a margin around them: the frame behind stays in
+// view beside it, in whole words, and the pane divider is never cut.
+func TestMenuClearsOnlyItsFootprint(t *testing.T) {
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", " "))
+	right := -1 // the Menu's right border column
 	for _, l := range strings.Split(view, "\n") {
-		trim := strings.TrimSpace(l)
-		if !strings.HasPrefix(trim, "│") && !strings.HasPrefix(trim, "╭") && !strings.HasPrefix(trim, "╰") {
+		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ Menu") {
+			right = ansi.StringWidth(l[:i])
+		}
+	}
+	if right < 0 {
+		t.Fatalf("no Menu:\n%s", view)
+	}
+	divider := colOf(lineWith(view, "┬"), "┬") // the pane divider's column; the centred Menu may cover it
+	beside := 0
+	for _, l := range strings.Split(view, "\n") {
+		if trim := strings.TrimSpace(l); !strings.HasPrefix(trim, "│") && !strings.HasPrefix(trim, "╭") && !strings.HasPrefix(trim, "╰") {
 			continue
 		}
-		end := max(strings.LastIndex(l, "│"), strings.LastIndex(l, "╮"), strings.LastIndex(l, "╯"))
-		if rest := l[end:]; strings.TrimSpace(strings.TrimLeft(rest, "│╮╯")) != "" {
-			t.Errorf("text beside the Menu border: %q", l)
+		rest := ansi.Cut(l, right+1, ansi.StringWidth(l))
+		if !strings.HasPrefix(rest, " ") {
+			t.Errorf("no margin beside the Menu border: %q", l)
 		}
+		if strings.Trim(rest, " │") != "" {
+			beside++
+		}
+		if divider > right && !strings.Contains(rest, "│") {
+			t.Errorf("the pane divider is cut beside the Menu: %q", l)
+		}
+	}
+	if beside == 0 {
+		t.Errorf("the Menu blanks the whole rows behind it:\n%s", view)
 	}
 }
 
@@ -57,7 +77,7 @@ func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 // still shows under it.
 func TestDetailTabsNeverWrap(t *testing.T) {
 	for _, keys := range [][]string{{"3", "/docs-written", "enter", "enter"}, {"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}} {
-		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 16, keys...))
+		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 14, keys...))
 		if strings.Contains(view, "\n  Notes   Docs") {
 			t.Errorf("keys %q: tabs wrap:\n%s", keys, view)
 		}

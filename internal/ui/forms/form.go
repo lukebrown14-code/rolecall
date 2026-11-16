@@ -31,7 +31,7 @@ const (
 	RoleURL
 )
 
-// Field is one row of a Form: a text input, or a Choice cycled with ←→ (or ↑↓).
+// Field is one row of a Form: a text input, or a Choice cycled with ←→ (or space).
 type Field struct {
 	Label       string
 	Role        FieldRole
@@ -60,6 +60,14 @@ type Form struct {
 	// discarding is the "Discard changes?" question esc asks while typed text would be
 	// lost.
 	Discarding bool
+	// Intro is a short line above the fields saying what the Form is for; "" for none.
+	Intro string
+	// Cancel names what esc does on a Form with nothing typed: "cancel" unless set (the
+	// first-run Contact form's esc is "skip").
+	Cancel string
+	// Selected is true while the focused field's opening value is selected (SelectValue):
+	// the first key typed replaces it and backspace clears it. Any other key drops it.
+	Selected bool
 
 	// URL fetch state (v0.2, Add only).
 	Fetching bool     // a fetch is in flight; the URL field shows a spinner
@@ -109,13 +117,11 @@ func DropLastGrapheme(s string) string {
 	return s[:last]
 }
 
-// paste adds clipboard text to the focused text field.
+// paste adds clipboard text to the focused text field, replacing a selected value.
 func (f *Form) Paste(s string) {
-	if fld := &f.Fields[f.Focus]; fld.Choices == nil {
-		fld.Value += Pasted(s)
-		fld.Err = ""
-		f.Edited(fld)
-	}
+	selected := f.Selected
+	f.Selected = false
+	f.typeText(&f.Fields[f.Focus], Pasted(s), selected)
 }
 
 // focused is the field the cursor is on.
@@ -190,25 +196,31 @@ func (f *Form) Update(msg tea.Msg) Result {
 	return Open
 }
 
-// key applies one key press. It reports whether the Form was submitted.
+// key applies one key press. It reports whether the Form was submitted. ↑↓, tab and
+// shift+tab move focus on every field; ←→ and space change a Choice, so passing over a
+// Choice never changes it.
 func (f *Form) Key(k tea.KeyPressMsg) bool {
 	fld := &f.Fields[f.Focus]
-	switch s := k.String(); s {
-	case "tab", "down", "up", "shift+tab", "left", "right":
-		if fld.Choices != nil && s != "tab" && s != "shift+tab" {
+	s := k.String()
+	selected := f.Selected
+	f.Selected = false // any key drops the selection; typing and backspace replace it first
+	switch s {
+	case "left", "right", "space":
+		if fld.Choices != nil {
 			i := slices.IndexFunc(fld.Choices, func(c Choice) bool { return c.Value == fld.Value })
 			step := 1
-			if s == "up" || s == "left" {
+			if s == "left" {
 				step = len(fld.Choices) - 1
 			}
 			fld.Value = fld.Choices[(max(i, 0)+step)%len(fld.Choices)].Value
 			return false
 		}
-		next := f.Focus
-		switch s {
-		case "tab", "down":
-			next = min(f.Focus+1, len(f.Fields)-1)
-		case "shift+tab", "up":
+		if s == "space" {
+			f.typeText(fld, " ", selected)
+		}
+	case "tab", "down", "up", "shift+tab":
+		next := min(f.Focus+1, len(f.Fields)-1)
+		if s == "up" || s == "shift+tab" {
 			next = max(f.Focus-1, 0)
 		}
 		if next != f.Focus {
@@ -217,9 +229,13 @@ func (f *Form) Key(k tea.KeyPressMsg) bool {
 			fld.CheckFormat()
 			f.Focus = next
 		}
-	case keyBackspace:
+	case keyBackspace, keyClear:
 		if fld.Choices == nil && fld.Value != "" {
-			fld.Value = DropLastGrapheme(fld.Value)
+			if selected || s == keyClear {
+				fld.Value = ""
+			} else {
+				fld.Value = DropLastGrapheme(fld.Value)
+			}
 			fld.Err = ""
 			f.Edited(fld)
 		}
@@ -233,13 +249,33 @@ func (f *Form) Key(k tea.KeyPressMsg) bool {
 		}
 		return f.CheckAll()
 	default:
-		if fld.Choices == nil && k.Text != "" {
-			fld.Value += k.Text
-			fld.Err = ""
-			f.Edited(fld)
+		if k.Text != "" {
+			f.typeText(fld, k.Text, selected)
 		}
 	}
 	return false
+}
+
+// typeText adds typed text to a text field, replacing its value while it is selected.
+// A Choice takes no typing.
+func (f *Form) typeText(fld *Field, text string, selected bool) {
+	if fld.Choices != nil {
+		return
+	}
+	if selected {
+		fld.Value = ""
+	}
+	fld.Value += text
+	fld.Err = ""
+	f.Edited(fld)
+}
+
+// SelectValue selects the focused field's opening value, so the first key typed replaces
+// it and backspace clears it, as a Settings value edits. A Choice or empty field has
+// nothing to select.
+func (f *Form) SelectValue() {
+	fld := f.Focused()
+	f.Selected = fld.Choices == nil && fld.Value != ""
 }
 
 // checkAll checks every field, marks each one that fails, and moves focus to the first
@@ -314,7 +350,11 @@ func (f *Form) Keys() [][2]string {
 	if slices.ContainsFunc(f.Fields, func(fld Field) bool { return fld.Choices != nil }) {
 		keys = append(keys, [2]string{"←→", "change"})
 	}
-	return append(keys, [2]string{"esc", "cancel"})
+	cancel := f.Cancel
+	if cancel == "" {
+		cancel = "cancel"
+	}
+	return append(keys, [2]string{"esc", cancel})
 }
 
 // labelWidth is the label column: as wide as the longest label.
@@ -328,6 +368,7 @@ func (f *Form) LabelWidth() int {
 
 const (
 	keyBackspace = "backspace"
+	keyClear     = "ctrl+u" // empties the focused text field
 	hintSave     = "save"
 	hintNext     = "next"
 )

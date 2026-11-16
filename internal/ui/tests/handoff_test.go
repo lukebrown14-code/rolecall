@@ -161,9 +161,18 @@ func TestHandoffWithoutHarnessShowsHint(t *testing.T) {
 	if len(f.calls) != 0 {
 		t.Fatalf("harness ran with no harness configured: %v", f.calls)
 	}
-	m = driveModel(t, m, "esc", "?")
-	if view := plain(m); strings.Contains(view, "assess fit") || strings.Contains(view, "prepare docs") {
-		t.Fatalf("f/p still listed without a harness:\n%s", view)
+	// The error offers the key that fixes it, and h lands on the Harness row.
+	if view := plain(m); !strings.Contains(view, "h connect a Harness") {
+		t.Fatalf("the no-Harness error offers no key:\n%s", view)
+	}
+	if view := plain(driveModel(t, m, "h")); !strings.Contains(view, "Settings › This machine") ||
+		!strings.Contains(selectedRow(t, view), "Harness") || strings.Contains(view, "No Harness set") {
+		t.Fatalf("h did not open Settings on the Harness row:\n%s", view)
+	}
+	// Help names f and p, dimmed and marked as needing a Harness, so they can be found.
+	view := plain(driveModel(t, m, "esc", "?"))
+	if !helpLists(view, "f assess fit") || !helpLists(view, "p prepare docs") || !strings.Contains(view, "(needs a Harness)") {
+		t.Fatalf("help hides f/p without a harness:\n%s", view)
 	}
 }
 

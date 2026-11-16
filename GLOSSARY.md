@@ -97,7 +97,7 @@ A saved Application that is probably the same role as a new one: the same employ
 _Avoid_: dupe
 
 **Deadlines**:
-The view of every Lead and Draft with a closing date, soonest first, with the ones whose date was unclear at the end.
+The view of every Lead and Draft with a deadline still to come, soonest first: a closing date, or a Lead whose ad is within the expiry warning of the max posting age. Those whose closing date has passed follow, then the ones whose date was unclear.
 _Avoid_: due list
 
 **Insights**:
@@ -105,7 +105,7 @@ The Stats panel that counts the gaps recorded across every Fit write-up, to show
 _Avoid_: analytics
 
 **Follow-up due**:
-A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status, and it clears only when the Status changes.
+A sent Application (Applied or Interviewing) that has gone the follow-up period without a Status change or a recorded follow-up. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again.
 _Avoid_: stale, reminder
 
 **Response**:

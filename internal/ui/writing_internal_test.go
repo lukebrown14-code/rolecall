@@ -22,7 +22,8 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	key := watch.DocumentKey(folder, resumeFile)
 	next, _ := m.Update(watch.Changed{Folders: []string{folder}, Written: []string{key}})
 	m = next.(model)
-	m.screen = 1 // Drafts, where docs-none is the first row
+	m.screen = 1 // Drafts, where docs-none is the second row: Engineer #1 has a Fit
+	m.cursor = 1
 	view := xansi.Strip(m.View().Content)
 	if !strings.Contains(view, "Resume writing…") || !strings.Contains(view, "1/4") {
 		t.Fatalf("no writing mark:\n%s", view)

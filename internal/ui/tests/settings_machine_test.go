@@ -161,8 +161,7 @@ func TestSettingsHarnessAndPluginShowKeysWithoutRestart(t *testing.T) {
 	d.Type("enter")
 	d.Type("/opt/plugin")
 	d.Type("enter")
-	d.Type("2")
-	d.Type("j")
+	d.Type("2") // Engineer #1, buildable, leads Drafts: it has a Fit
 	d.Type("?")
 	requireAll(t, d.plain(), "assess fit", "build")
 }

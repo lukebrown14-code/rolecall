@@ -19,6 +19,7 @@ const (
 	descNudge     = "draft follow-up"
 	descMove      = "move"
 	descOpen      = "open"
+	descEdit      = "edit"
 	stepAddJD     = "add the JD"
 )
 
@@ -58,9 +59,9 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
 		if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
-			// The flag runs from the last Status change, so only a move clears it: a note
-			// would not, and NEXT does not suggest one.
-			step := nextStep{label: followUpLabel, what: m.followUpWords(a), why: "clears when the Status changes", key: "m", desc: descMove}
+			// The flag runs from the last Status change or recorded follow-up, so a move or
+			// z clears it: a note would not, and NEXT does not suggest one.
+			step := nextStep{label: followUpLabel, what: m.followUpWords(a), why: keyFollowedUp + " once you have followed up", key: keyFollowedUp, desc: descFollowedUp}
 			if harness {
 				step.key, step.desc = "F", descNudge
 			}
@@ -95,7 +96,7 @@ func (m model) writeStep(a store.Application, what, file string) nextStep {
 	return nextStep{what: what, why: "on the Docs tab"}
 }
 
-// nextLine is the next step as a field row, "NEXT    add the JD   enter open" or
+// nextLine is the next step as a field row, "NEXT         add the JD   enter open" or
 // "FOLLOW-UP  due 9 days ago   F draft follow-up", inside w cells. The reason joins the
 // words only when the whole row fits. When even the words and the key do not fit, wrap
 // puts the key and its action on a second line at the same right edge (the card is
@@ -109,7 +110,8 @@ func (m model) nextLine(p pal, a store.Application, w int, wrap bool) string {
 	if s.label != "" {
 		name = s.label
 	}
-	labelW := max(fieldLabelW, xansi.StringWidth(name)+2) //nolint:mnd // the gap after a long label
+	// The card's label column, so the step's words start where every other value does.
+	labelW := max(cardLabelW, xansi.StringWidth(name)+2) //nolint:mnd // the gap after a long label
 	what := p.Text(p.Fg).Render(s.what)
 	fits := func(value string) bool {
 		return labelW+xansi.StringWidth(value)+1+xansi.StringWidth(s.key+" "+s.desc) <= w
@@ -120,7 +122,7 @@ func (m model) nextLine(p pal, a store.Application, w int, wrap bool) string {
 		}
 	}
 	if wrap && s.key != "" && !fits(what) {
-		return p.fieldRowIn(labelW, name, what, "", "", w) + "\n" + p.fieldRow("", "", s.key, s.desc, w)
+		return p.fieldRowIn(labelW, name, what, "", "", w) + "\n" + p.fieldRowIn(labelW, "", "", s.key, s.desc, w)
 	}
 	return p.fieldRowIn(labelW, name, what, s.key, s.desc, w)
 }

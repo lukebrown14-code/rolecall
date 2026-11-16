@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"fmt"
+	"github.com/charmbracelet/x/ansi"
 	"slices"
 	"strings"
 	"testing"
@@ -91,30 +92,12 @@ func TestMenuEnterRunsTheItemUnderTheCursor(t *testing.T) {
 	}
 }
 
-// menuItems is the menu's item lines (label and right-hand key) at 120x36.
-func menuItems(t *testing.T) []string {
-	t.Helper()
-	m := driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36)
-	var items []string
-	for _, l := range strings.Split(chipped(driveModel(t, m, " ").View().Content), "\n") {
-		parts := strings.Split(l, "│")
-		if len(parts) >= 3 && strings.TrimSpace(parts[1]) != "" {
-			items = append(items, strings.TrimSpace(parts[1]))
-		}
-	}
-	return items
-}
-
 func TestMenuItemsShowTheirKeyAndThePressedKeyDoesTheSame(t *testing.T) {
-	items := menuItems(t)
+	items := menuLabels(menuView(t))
 	m := driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36)
 	checked := 0
 	for i, it := range items {
-		f := strings.Fields(strings.TrimLeft(it, "▌▸ "))
-		key := f[len(f)-1]
-		if len(f) < 2 {
-			t.Fatalf("item %q shows no key", it)
-		}
+		key := it[1]
 		switch key {
 		case "a", "/", "s", ":", "?":
 			keys := []string{" "}
@@ -135,10 +118,10 @@ func TestMenuItemsShowTheirKeyAndThePressedKeyDoesTheSame(t *testing.T) {
 }
 
 func TestPaletteMenuItemOpensThePalette(t *testing.T) {
-	items := menuItems(t)
+	items := menuLabels(menuView(t))
 	idx := -1
 	for i, it := range items {
-		if strings.HasSuffix(it, " :") {
+		if it[1] == ":" {
 			idx = i
 		}
 	}
@@ -163,21 +146,44 @@ func TestCapitalMDoesNothing(t *testing.T) {
 	}
 }
 
-// menuLabels is the item labels and keys of the menu open in view.
+// menuView is the menu open on Leads at 120x36.
+func menuView(t *testing.T) string {
+	t.Helper()
+	return driveModel(t, driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36), " ").View().Content
+}
+
+// menuLabels is the item labels and keys of the menu open in view: key first, then the
+// label. The group heading is not an item.
 func menuLabels(view string) [][2]string {
 	var out [][2]string
-	for _, l := range strings.Split(chipped(view), "\n") {
-		parts := strings.Split(l, "│")
-		if len(parts) < 3 {
+	lines := strings.Split(chipped(view), "\n")
+	left, right := menuBox(lines)
+	if left < 0 {
+		return nil
+	}
+	for _, l := range lines {
+		if ansi.StringWidth(l) <= right || ansi.Cut(l, left, left+1) != "│" || ansi.Cut(l, right, right+1) != "│" {
 			continue
 		}
-		f := strings.Fields(strings.TrimLeft(strings.TrimSpace(parts[1]), "▌▸ "))
-		if len(f) < 2 {
+		text := strings.TrimSpace(ansi.Cut(l, left+1, right))
+		f := strings.Fields(strings.TrimLeft(text, "▌▸ "))
+		if len(f) < 2 || text == "THIS ROW" {
 			continue
 		}
-		out = append(out, [2]string{strings.Join(f[:len(f)-1], " "), f[len(f)-1]})
+		out = append(out, [2]string{strings.Join(f[1:], " "), f[0]})
 	}
 	return out
+}
+
+// menuBox is the display columns of the Menu's left and right borders, or -1, -1. The
+// frame stays drawn beside the Menu, so rows are read between its borders only.
+func menuBox(lines []string) (left, right int) {
+	for _, l := range lines {
+		if strings.Contains(l, "╭─ Menu") {
+			return colOf(l, "╭"), colOf(l, "╮")
+		}
+	}
+	return -1, -1
 }
 
 // TestEveryMenuItemRunsWhatItsLabelSaysOnEveryScreen opens the menu on every screen,
@@ -188,14 +194,19 @@ func TestEveryMenuItemRunsWhatItsLabelSaysOnEveryScreen(t *testing.T) {
 	places := [][]string{{"1"}, {"1", "enter"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}, {"6", "right"},
 		{"6", "right", "right"}, {"6", "right", "right", "right"}}
 	screens := []string{"Leads", "Drafts", "Applied", "Stats", "Profile", "Settings"}
-	root := fixtureCopy(t, nil)
 	for _, place := range places {
 		t.Run(strings.Join(place, " "), func(t *testing.T) {
-			m := driveModel(t, driveStart(t, root, heldNow, 120, 36), place...)
+			m := driveModel(t, driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36), place...)
 			before := chipped(m.View().Content)
 			items := menuLabels(driveModel(t, m, " ").View().Content)
 			if len(items) < len(screens) {
 				t.Fatalf("menu lists %q", items)
+			}
+			// Each run starts from its own Workspace copy: an item that writes (Dismiss)
+			// must not leave the other run finding it already done.
+			run := func(keys ...string) string {
+				fresh := driveStart(t, fixtureCopy(t, nil), heldNow, 120, 36)
+				return chipped(driveModel(t, fresh, append(slices.Clone(place), keys...)...).View().Content)
 			}
 			for i, it := range items {
 				label, key := it[0], it[1]
@@ -203,19 +214,27 @@ func TestEveryMenuItemRunsWhatItsLabelSaysOnEveryScreen(t *testing.T) {
 				for range i {
 					keys = append(keys, "down")
 				}
-				got := chipped(driveModel(t, m, append(keys, "enter")...).View().Content)
-				if direct := chipped(driveModel(t, m, key).View().Content); got != direct {
+				got := run(append(keys, "enter")...)
+				if direct := run(key); got != direct {
 					t.Fatalf("%q ran something other than its key %q", label, key)
 				}
 				var ok bool
 				switch label {
-				case "Add Application":
+				case "Add":
 					ok = strings.Contains(got, "Add a Lead")
-				case "Command palette":
+				case "Commands":
 					ok = strings.Contains(got, "╭─ : ")
 				case "Help":
 					ok = strings.Contains(got, "Keys ·")
-				case "Search", "Switch view", "Track filter":
+				case "Open":
+					ok = strings.Contains(got, "· detail")
+				case "Move":
+					ok = strings.Contains(got, "Move ")
+				case "Dismiss":
+					ok = strings.Contains(got, "✓ Dismissed")
+				case "Edit", "Fix in editor", "Notes", "Undo":
+					ok = true // it ran the key itself (checked above)
+				case "Search", "Change view", "Track filter":
 					// They change the list in place: no pop-up opens, and the screen changes.
 					ok = !strings.Contains(got, "╭") && got != before
 				case "Rescan":

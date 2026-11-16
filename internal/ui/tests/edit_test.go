@@ -98,7 +98,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	h.advance()
 	h.advance()
 	h.advance()
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyUp}) // Platform → SWE
+	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyLeft}) // Platform → SWE
 	h.advance()
 	h.saveForm(3)
 	view := h.quit()
@@ -127,7 +127,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	h.tm.Type("e")
 	h.wait("Resume only", "No")
 	h.saveForm(6)
-	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyDown}) // No → Yes
+	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyRight}) // No → Yes
 	h.advance()
 	view := h.quit()
 
