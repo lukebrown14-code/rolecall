@@ -46,7 +46,7 @@ func TestMenuBlanksTheRowsBehindIt(t *testing.T) {
 // After a Settings save, u undo is on the key line at every size.
 func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 	for _, sz := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		line := lastLine(t, sz[0], sz[1], "6", "]", "enter", "backspace", "backspace", "backspace", "300", "enter")
+		line := lastLine(t, sz[0], sz[1], "6", "]", "]", "]", "enter", "backspace", "backspace", "backspace", "300", "enter")
 		if !strings.Contains(line, "u undo") || strings.Contains(line, "ctrl+s") {
 			t.Errorf("%dx%d: saved change but no undo key: %q", sz[0], sz[1], line)
 		}
@@ -74,7 +74,7 @@ func TestDetailTabsNeverWrap(t *testing.T) {
 // into it.
 func TestTypingHidesTheGlobalKeys(t *testing.T) {
 	for _, sz := range [][2]int{{120, 36}, {60, 16}} {
-		line := lastLine(t, sz[0], sz[1], "6", "]", "]", "]", "enter")
+		line := lastLine(t, sz[0], sz[1], "6", "]", "]", "]", "]", "]", "enter")
 		for _, k := range []string{"1-6 screen", ": commands", "? help"} {
 			if strings.Contains(line, k) {
 				t.Errorf("%dx%d: %q offered while typing: %q", sz[0], sz[1], k, line)

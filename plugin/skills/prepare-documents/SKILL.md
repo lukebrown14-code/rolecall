@@ -5,6 +5,12 @@ description: Write an Application's tailored resume, cover letter and gaps.md fr
 
 # Prepare documents
 
+> **Plugin paths.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder (the one holding `skills/`
+> and `scripts/`). Claude Code fills it in; in another harness, or if it reaches the shell
+> unexpanded, use the absolute path of the folder two levels above this file. Never run a
+> script by a path relative to the Workspace, and never hand-write `meta.yml` because a
+> script was not found: stop and say which path failed.
+
 Tailoring is **selection, not invention**: everything on the page is already in the Owner's
 Profile. Your job is to choose what this ad asks for, in the Owner's own phrasing, and to prove
 the result by building it.
@@ -33,7 +39,7 @@ the hand-back.
 ## 2. Read the inputs, in this order
 
 - `profile/master-profile.md` and `profile/projects.md` — the only facts you may use.
-- `plugin/writing-rules.md`, then `plugin/styles/au.md`, then
+- `${CLAUDE_PLUGIN_ROOT}/writing-rules.md`, then `${CLAUDE_PLUGIN_ROOT}/styles/au.md`, then
   `<workspace>/profile/writing-preferences.md` — the layering order. **Later files win:** the
   style guide overrides the general rules, and the Owner's preferences override both in tone and
   convention. The facts-only rule below overrides all three.
@@ -74,7 +80,7 @@ The templates depend on this structure; deviate and the layout breaks silently.
   ad's wording, each one evidenced in the body below it or in the Profile. A keyword with nothing
   behind it is an overclaim, and the build catches it.
 - The Owner's conventions (length, work-rights line, approved job titles, metrics) live in
-  `profile/writing-preferences.md` and `plugin/styles/au.md`. Follow them exactly.
+  `profile/writing-preferences.md` and `${CLAUDE_PLUGIN_ROOT}/styles/au.md`. Follow them exactly.
 
 ## 5. Write `cover-letter.md`
 
@@ -88,7 +94,7 @@ The letter is an **offer of help, not a request for consideration**.
 - Carry the closing practical note exactly once; the build styles it by its opening words,
   `One practical note`.
 - **Respect the configured word cap** (default 350), the closing note included. It is hard.
-- Use none of the banned phrases in `plugin/styles/au.md` ("I am writing to apply…", "I believe I
+- Use none of the banned phrases in `${CLAUDE_PLUGIN_ROOT}/styles/au.md` ("I am writing to apply…", "I believe I
   would be a great fit…", and the rest of that section).
 
 ## 6. Write `gaps.md`
@@ -106,7 +112,7 @@ or from a previous Application.
 When — and only when — the Owner has chosen it, set the key through the shared writer:
 
 ```sh
-python3 plugin/scripts/meta.py --data "$ROLECALL_WORKSPACE" \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/meta.py" --data "$ROLECALL_WORKSPACE" \
   patch --folder <application folder> --set resume_only=true
 ```
 
@@ -117,7 +123,7 @@ Use `resume_only=true`; keep the key absent or `false` otherwise. Never edit `me
 The build turns the Markdown into PDFs **and** is what proves the documents are sound:
 
 ```sh
-python3 plugin/scripts/build.py <job_dir> --data <workspace>
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/build.py" <job_dir> --data <workspace>
 ```
 
 `build.py` **refuses** to produce a document that breaks a hard rule, naming the file and the fix.

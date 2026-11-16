@@ -10,8 +10,11 @@ import (
 )
 
 // gateHelpKeys are the Documents keys, shown while those rows have focus.
-func (m model) gateHelpKeys() []helpKey {
-	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != settings.GroupDocuments {
+func (m model) gateHelpKeys() []helpKey { return m.enterEditHelp(settings.GroupDocuments) }
+
+// enterEditHelp is "enter edit" while a group whose every row opens a pop-up has focus.
+func (m model) enterEditHelp(group int) []helpKey {
+	if m.settings == nil || m.settings.Ws.Err != nil || !m.settingsRowsFocused() || m.settings.Group != group {
 		return nil
 	}
 	return []helpKey{help(groupAction, "enter", "edit").at(prioCore)}

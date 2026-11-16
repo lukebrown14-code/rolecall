@@ -10,6 +10,9 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
+// dataFlag is the flag that names the Workspace to every Plugin script.
+const dataFlag = "--data"
+
 // buildable reports whether b can build an Application: a Lead or Draft whose
 // Documents are Written or Ready (Ready is rebuilt).
 func buildable(a store.Application) bool {
@@ -69,7 +72,7 @@ func (m *model) startBuild() tea.Cmd {
 
 // build runs the Plugin's build.py on the Application in captured mode.
 func (m model) build(a store.Application) tea.Cmd {
-	args := []string{filepath.Join(m.plugin, "scripts", "build.py"), a.Folder, "--data", m.store.Root()}
+	args := []string{filepath.Join(m.plugin, "scripts", "build.py"), a.Folder, dataFlag, m.store.Root()}
 	return m.runCaptured("python3", args, func(r CapturedResult) tea.Msg {
 		return buildFinished{folder: a.Folder, output: combinedOutput(r), err: r.Err}
 	})

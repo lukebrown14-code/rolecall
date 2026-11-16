@@ -23,7 +23,7 @@ func TestNavigationSkipsReadOnlyRowsAndPreservesPreviousState(t *testing.T) {
 		t.Fatalf("k above the first field should rest on the header: %+v", up)
 	}
 	current = original
-	for range 3 {
+	for range 5 {
 		current = current.Navigate("]", machine)
 	}
 	rows = current.Rows(current.Group, machine)
@@ -35,7 +35,7 @@ func TestNavigationSkipsReadOnlyRowsAndPreservesPreviousState(t *testing.T) {
 func TestArrowsSwitchSectionsAndGGoesToTheEnds(t *testing.T) {
 	machine := settings.Machine{Editor: "vi", EditorAvailable: true}
 	st := settings.State[string]{}.Navigate("right", machine)
-	if st.Group != settings.GroupDocuments {
+	if st.Group != settings.GroupRules {
 		t.Fatalf("right did not switch section: %+v", st)
 	}
 	if st = st.Navigate("left", machine).Navigate("left", machine); st.Group != settings.GroupMachine {

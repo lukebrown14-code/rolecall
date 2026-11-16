@@ -23,7 +23,7 @@ rolecall with the Plugin into `~/.local` (`~/.local/bin/rolecall`). Make sure `~
 on your `PATH`.
 
 Run the same command again to update; your Workspace and settings are kept. Set
-`ROLECALL_VERSION=v0.2.2` to pick a release or `ROLECALL_PREFIX=/usr/local` to install elsewhere.
+`ROLECALL_VERSION=v0.3.0` to pick a release or `ROLECALL_PREFIX=/usr/local` to install elsewhere.
 
 To install by hand instead, download `rolecall_<os>_<arch>.tar.gz` from
 [Releases](https://github.com/lukebrown14-code/rolecall/releases), extract it, and keep the

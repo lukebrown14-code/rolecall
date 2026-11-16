@@ -9,6 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
+
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // moveTo presses j until the field cursor marks the row with label.
@@ -26,6 +28,8 @@ func moveTo(t *testing.T, d *driver, label string) {
 func editFollowUp(t *testing.T, d *driver) {
 	t.Helper()
 	d.Type("6")
+	d.Type("]")
+	d.Type("]")
 	d.Type("]")
 	d.Type("]")
 	moveTo(t, d, "Follow-up")
@@ -51,7 +55,7 @@ func TestSettingsBracketsAndArrowsMoveBetweenSections(t *testing.T) {
 	d.Type("6")
 	requireAll(t, d.plain(), "[Search]")
 	d.Type("]")
-	requireAll(t, d.plain(), "[Documents]")
+	requireAll(t, d.plain(), "[Rules]")
 	d.Type("[")
 	d.Type("[")
 	requireAll(t, d.plain(), "[This machine]")
@@ -85,7 +89,7 @@ func TestSettingsEnterSavesAtOnceAndUUndoes(t *testing.T) {
 // No group offers a save or revert key: every change is already saved.
 func TestSettingsKeyLineHasNoStagedSaveKeys(t *testing.T) {
 	for _, sz := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		for _, keys := range [][]string{{"6"}, {"6", "]"}, {"6", "]", "]"}, {"6", "[", "enter", "x"}} {
+		for _, keys := range [][]string{{"6"}, {"6", "]", "]", "]"}, {"6", "]", "]", "]", "]"}, {"6", "[", "enter", "x"}} {
 			help := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], append(keys, "?")...))
 			line := lastLine(t, sz[0], sz[1], keys...)
 			for _, gone := range []string{"ctrl+s", "ctrl+z", "revert"} {
@@ -100,6 +104,8 @@ func TestSettingsKeyLineHasNoStagedSaveKeys(t *testing.T) {
 func TestSettingsEscCancelsAnInlineEdit(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
 	d.Type("6")
+	d.Type("]")
+	d.Type("]")
 	d.Type("]")
 	d.Type("]")
 	moveTo(t, d, "Follow-up")
@@ -119,7 +125,7 @@ func TestSettingsEscCancelsAnInlineEdit(t *testing.T) {
 // program running, and a second ctrl+c quits.
 func TestSettingsCtrlCOverTypedTextAsksBeforeDropping(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("enter")
 	d.Type("nano")
 	if ctrlC(t, d) {
@@ -159,7 +165,7 @@ func TestSettingsCtrlCInAPopupWithTypedTextAsks(t *testing.T) {
 
 func TestSettingsCtrlCWithAnUntouchedFieldQuits(t *testing.T) {
 	d, _ := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("enter")
 	if !ctrlC(t, d) {
 		t.Fatal("ctrl+c did not quit with nothing typed")
@@ -179,7 +185,7 @@ func TestSettingsUnsetValueOpensEmptyWithTheDefaultShown(t *testing.T) {
 	t.Setenv("VISUAL", "")
 	t.Setenv("EDITOR", "")
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 40, ui.WithConfigHome(home))
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	requireAll(t, squash(d.plain()), "Editor vi default")
 	d.Type("enter")
 	requireAll(t, d.plain(), "▏vi")
@@ -197,7 +203,7 @@ func TestSettingsUnsetValueOpensEmptyWithTheDefaultShown(t *testing.T) {
 // A set value opens selected: the first key typed replaces it.
 func TestSettingsSetValueIsReplacedByTyping(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 0)
+	selectRow(d, settings.GroupMachine, 0)
 	d.Type("enter")
 	d.Type("hx")
 	d.Type("enter")
@@ -208,24 +214,26 @@ func TestSettingsSetValueIsReplacedByTyping(t *testing.T) {
 }
 
 func TestSettingsTabsShowEveryGroupWhenTheyFit(t *testing.T) {
-	for _, w := range []int{60, 72, 80, 120} {
+	for _, w := range []int{80, 120} {
 		lines := settingsAt(t, w, 24)
-		if l := rowWith(lines, "SETTINGS"); !strings.Contains(l, "[Search]  Documents  Tracking  This machine") {
+		if l := rowWith(lines, "SETTINGS"); !strings.Contains(l, "[Search]  Rules  Sources  Documents  Tracking  This machine") {
 			t.Errorf("%d: tabs %q", w, l)
 		}
 	}
-	if l := rowWith(settingsAt(t, 56, 16), "SETTINGS"); !strings.Contains(l, "[Search] 1 of 4") {
-		t.Errorf("56: tabs %q", l)
+	for _, w := range []int{56, 60, 72} {
+		if l := rowWith(settingsAt(t, w, 16), "SETTINGS"); !strings.Contains(l, "[Search] 1 of 6") {
+			t.Errorf("%d: tabs %q", w, l)
+		}
 	}
 }
 
 // g and G go to the first and last row, as in lists.
 func TestSettingsGAndShiftGGoToTheEnds(t *testing.T) {
-	lines := settingsAt(t, 120, 36, "]", "]", "G")
+	lines := settingsAt(t, 120, 36, "]", "]", "]", "]", "G")
 	if l := rowWith(lines, "Follow-up due after"); !strings.Contains(l, "▌") {
 		t.Errorf("G: %q", l)
 	}
-	lines = settingsAt(t, 120, 36, "]", "]", "G", "g")
+	lines = settingsAt(t, 120, 36, "]", "]", "]", "]", "G", "g")
 	if l := rowWith(lines, "▌ SWE"); l == "" {
 		t.Errorf("g:\n%s", strings.Join(lines, "\n"))
 	}
@@ -245,7 +253,7 @@ func TestEscInSettingsOpenedByDigitReturns(t *testing.T) {
 func TestSettingsInlineFieldIsNoWiderThanThirtyCells(t *testing.T) {
 	d, _ := machineDriver(t, 120)
 	d.Type("6")
-	for range 3 {
+	for range 5 {
 		d.Type("]")
 	}
 	moveTo(t, d, "Editor")
@@ -265,6 +273,8 @@ func TestSettingsInlineFieldIsNoWiderThanThirtyCells(t *testing.T) {
 func TestSettingsTrackCountsSplitActiveAndClosed(t *testing.T) {
 	d, _ := machineDriver(t, 120)
 	d.Type("6")
+	d.Type("]")
+	d.Type("]")
 	d.Type("]")
 	d.Type("]")
 	requireAll(t, squash(d.plain()), "applications · ", " active")

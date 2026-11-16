@@ -13,7 +13,10 @@ func TestSStatusFilterCyclesViews(t *testing.T) {
 	if v := chipped(runKeys(t, root, 120, "1", "s")); !strings.Contains(v, "Leads › Dismissed") {
 		t.Fatalf("s on Leads did not switch to Dismissed:\n%s", v)
 	}
-	if v := chipped(runKeys(t, root, 120, "1", "s", "s")); !strings.Contains(v, "Leads › All tracks") {
+	if v := chipped(runKeys(t, root, 120, "1", "s", "s")); !strings.Contains(v, "Leads › Filtered") {
+		t.Fatalf("s on Dismissed did not switch to Filtered:\n%s", v)
+	}
+	if v := chipped(runKeys(t, root, 120, "1", "s", "s", "s")); !strings.Contains(v, "Leads › All tracks") {
 		t.Fatalf("s did not wrap back to Leads:\n%s", v)
 	}
 	if v := chipped(runKeys(t, root, 120, "3", "s")); !strings.Contains(v, "Applied › Applied · All tracks · ") {

@@ -44,8 +44,12 @@ A board vendor with a public API or scrapeable structure the Sweep knows how to 
 _Avoid_: board type, provider
 
 **Source**:
-A single company's board on a Platform, configured per Workspace (e.g. greenhouse:cultureamp).
+One place the Owner looks for roles, as an entry in the Source registry (workspace.json `sources`): an api Source the Sweep fetches (a Platform and its target boards, e.g. greenhouse with cultureamp), or a browser or manual Source (LinkedIn, Jora) the Harness searches by hand. Each has an access status (works, 403, login wall, cloudflare) and may carry its own Search rules.
 _Avoid_: board (alone), feed
+
+**Search rule**:
+A setting in workspace.json `search_rules` that rules a role out without judgement: a posting-age limit, an applicant cap per Source, a contract-length preference. Applied by the Sweep, by the Lead writer and by a rules check over saved Applications. Writing style is not a Search rule.
+_Avoid_: filter (for the setting), preference
 
 **Sweep**:
 A mechanical run of all Sources: fetch, filter by Track and Search area, dedupe. Judges nothing; its output is candidates the Harness triages into Leads.
@@ -79,6 +83,10 @@ _Avoid_: dismissed (for this)
 **Dismissed**:
 The Status of an unsent Application the Owner chose not to pursue. Kept and restorable, and skipped by future Sweeps.
 _Avoid_: rejected, deleted, passed (for this)
+
+**Filtered**:
+A Dismissed Application a Search rule removed, with the reason (expired, blocker, applicant_cap…) recorded beside it. Listed apart from the ones the Owner dismissed, and restorable; once restored no rule dismisses it again.
+_Avoid_: expired (as a Status), discarded
 
 **Follow-up due**:
 A sent Application whose Status hasn't changed for the follow-up period. It is a reminder, not a Status, and it clears only when the Status changes.

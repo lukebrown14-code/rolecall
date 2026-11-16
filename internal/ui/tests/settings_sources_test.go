@@ -67,7 +67,7 @@ func newSourcesHarness(t *testing.T, width int, initial string, edit func(path s
 // machine opens Settings on its This machine group.
 func (h *sourcesHarness) machine() string {
 	h.d.Type("6")
-	for range 3 {
+	for range 5 {
 		h.d.Type("]")
 	}
 	return squash(h.d.plain())
@@ -106,6 +106,8 @@ func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 	h.d.Type("6")
 	h.d.Type("]")
 	h.d.Type("]")
+	h.d.Type("]")
+	h.d.Type("]")
 	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 7 days config.toml") {
 		t.Fatalf("Follow-up source missing:\n%s", h.d.plain())
 	}
@@ -119,6 +121,8 @@ func TestSettingsNamesWorkspaceAndFollowUpSources(t *testing.T) {
 func TestSettingsFollowUpDaysOutOfRangeIsClampedWithAWarning(t *testing.T) {
 	h := newSourcesHarness(t, 140, "follow_up_days = -3\n", nil)
 	h.d.Type("6")
+	h.d.Type("]")
+	h.d.Type("]")
 	h.d.Type("]")
 	h.d.Type("]")
 	if v := squash(h.d.plain()); !strings.Contains(v, "Follow-up due after 1 day config.toml") ||
@@ -145,7 +149,7 @@ func TestSettingsBrokenConfigKeepsTheScreenAndEOpensConfig(t *testing.T) {
 	h.d.Type("esc") // clear the error
 	h.d.Type("esc") // back out of Settings
 	h.d.Type("6")   // and in again: config.toml is re-read, still broken
-	for range 3 {
+	for range 5 {
 		h.d.Type("[") // This machine back to Search
 	}
 	v = squash(h.d.plain())
@@ -156,8 +160,9 @@ func TestSettingsBrokenConfigKeepsTheScreenAndEOpensConfig(t *testing.T) {
 	if last := h.cmds[len(h.cmds)-1]; !strings.HasSuffix(last[len(last)-1], "config.toml") {
 		t.Fatalf("e on Search should open the broken config.toml: %q", h.cmds)
 	}
-	h.d.Type("]")
-	h.d.Type("]")
+	for range 4 {
+		h.d.Type("]")
+	}
 	h.d.Type("G")     // Follow-up due after, a config.toml row
 	h.d.Type("enter") // refused: no inline field opens
 	if v := h.d.plain(); !strings.Contains(v, "[Tracking]") || strings.Contains(v, "enter save") || !strings.Contains(v, "✘") {

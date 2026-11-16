@@ -1,13 +1,19 @@
 ---
 name: find-jobs
-description: Sweep the Owner's configured Sources for roles worth applying for and save each one as a Lead Application. Use when the Owner asks to find, search for or look for jobs, wants a fresh sweep, or asks what is out there. Runs plugin/scripts/sweep.py over the Workspace tracks and Sources, reads the ads, judges each against the Profile, and creates a Lead folder only for roles genuinely worth a look.
+description: Sweep the Owner's configured Sources for roles worth applying for and save each one as a Lead Application. Use when the Owner asks to find, search for or look for jobs, wants a fresh sweep, or asks what is out there. Runs the plugin sweep script over the Workspace tracks and Sources, reads the ads, judges each against the Profile, and creates a Lead folder only for roles genuinely worth a look.
 ---
 
 # Find jobs
 
+> **Plugin paths.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder (the one holding `skills/`
+> and `scripts/`). Claude Code fills it in; in another harness, or if it reaches the shell
+> unexpanded, use the absolute path of the folder two levels above this file. Never run a
+> script by a path relative to the Workspace, and never hand-write `meta.yml` because a
+> script was not found: stop and say which path failed.
+
 Find roles worth applying for and save each as a **Lead** Application.
 
-**The script collects; you judge.** `plugin/scripts/sweep.py` fetches, filters and dedupes. It
+**The script collects; you judge.** `${CLAUDE_PLUGIN_ROOT}/scripts/sweep.py` fetches, filters and dedupes. It
 does not decide anything. Deciding what is worth the Owner's time needs the full ad read against
 the Profile, and that is this skill's whole job.
 
@@ -22,7 +28,7 @@ the Profile, and that is this skill's whole job.
 - The Owner's preferences in `profile/writing-preferences.md` and the general rules in
   the Workspace's writing rules.
 
-Never hardcode a track, a Source or a preference. If a Workspace value is missing, say so
+Never hardcode a track, a Source or a Search rule. If a Workspace value is missing, say so
 rather than inventing a default.
 
 ## 1. Read the config
@@ -35,15 +41,29 @@ fact authority. Edit the JSON catalogue to change search titles, priorities or s
 Read `workspace.json` when present. The script uses its tracks, or its built-in title keywords
 when absent; say when defaults are being used. `sources`, when present, wholly replaces
 the source plan. Otherwise the script combines built-in targets with the catalogue's
-`additional_sources`. Inspect the selected Workspace's catalogue with:
+`additional_sources`. In its list form, `sources` is the **Source registry**: every place the
+Owner searches, each with a `type` (`api` the script fetches; `browser` or `manual` you search),
+an `access` status, parsing hints (`age_format`, `applicants_format`) and its own `rules`.
+
+Read `search_rules` too: the posting-age limit, the applicant caps per Source, the
+labels the Owner has already ruled on (`ambiguous_age_labels`) and the longest contract
+the Owner prefers. These are the rules. Do not look for them in `writing-preferences.md`, and do
+not apply a rule that is only written in prose there: ask the Owner to add it to
+`search_rules` (Settings → Rules) instead. Print the effective rules with:
 
 ```sh
-python3 plugin/scripts/sweep.py --roles
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/rules.py" show
+```
+
+Inspect the selected Workspace's catalogue with:
+
+```sh
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sweep.py" --roles
 ```
 
 `null` means the catalogue is absent; a malformed catalogue must be fixed before sweeping.
 
-Run `python3 plugin/scripts/sweep.py --platforms` to see which Platforms the script knows and
+Run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sweep.py" --platforms` to see which Platforms the script knows and
 the targets each one defaults to. Platforms are code; which of them a Workspace sweeps is
 config.
 
@@ -55,7 +75,7 @@ environment variable in this skill so the commands stay short.
 The script defaults to all Workspace tracks. Pass tracks explicitly when narrowing scope:
 
 ```sh
-python3 plugin/scripts/sweep.py --track <track> --track <track>   # one --track per configured track
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sweep.py" --track <track> --track <track>   # one --track per configured track
 ```
 
 The script filters by the Workspace's `search_area` (`places` and `remote` in `workspace.json`,
@@ -67,11 +87,20 @@ Writes `jobs/sweep-candidates.md`. It has already dropped any role whose URL bel
 existing Application, whatever its Status — Dismissed included — so everything listed is new.
 Its **Source health** table is part of the result: a **FAILED** source means those roles are
 missing from this Sweep, not absent from the market. Say so rather than reporting a quiet run.
+A failure names its access problem (`403`, `login wall`, `cloudflare`) when the script can
+tell. **Filtered by Search rules** counts what each rule removed; a role marked
+**borderline age** is yours to raise with the Owner, never to drop on your own judgement.
 
 ## 3. Fill the gaps the script cannot reach
 
-Use the catalogue's `titles` to search beyond configured boards, including
-`manual_search_sources`. For the manual searches (Seek, LinkedIn), read `search_area` from
+Use the catalogue's `titles` to search beyond configured boards, including every Source the
+report lists under **Not reachable by this script** (the registry's enabled `browser` and
+`manual` entries, then the catalogue's older `manual_search_sources`). Use each Source's
+`age_format` and `applicants_format` to read the age and the applicant count, and apply its
+rules: skip a role over that Source's applicant cap, or at or past the age limit. Check a
+label with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/rules.py" label "1mo ago" --source jora`:
+`discard` means leave it out, `borderline` means save it only if it is otherwise strong and
+tell the Owner. For the manual searches (Seek, LinkedIn), read `search_area` from
 `workspace.json` and search each of its `places` (add remote roles only when `remote` is not
 `no`); without a Search area, ask the Owner where to search rather than assuming. Cover at least one title per role family in the requested tracks,
 in priority order; vary aliases when results are sparse. For stretch families, assess the
@@ -107,7 +136,7 @@ For every role worth a look, create one Application folder with the same rules a
 capture-job. Do not hand-write `meta.yml`.
 
 ```sh
-python3 plugin/scripts/meta.py create \
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/meta.py" create \
   --track SWE \
   --title "Senior Backend Engineer" \
   --company "Acme" \
@@ -118,6 +147,16 @@ python3 plugin/scripts/meta.py create \
 - `--track` is the Workspace track the role belongs to.
 - `--url` is the ad URL exactly as found. Never type one you have not seen.
 - `--closes` only when the ad states a date in `YYYY-MM-DD` form. Omit it otherwise.
+- `--posted YYYY-MM-DD` when the ad or the script gives a posting date, and
+  `--posted-label` with the age exactly as the site shows it (`"14d ago"`,
+  `"Posted 30+ Days Ago"`). Give the label even when you work the date out from it.
+- `--applicants` with the count the site shows, and `--source` with the registry `name`
+  you found it on (`linkedin`, `greenhouse`).
+- The command **refuses** a Lead a Search rule rules out and names the rule: leave that role
+  out and list it in the hand-back. Pass `--override-rules` only when the Owner asked for that
+  role anyway. A borderline age prints a warning and saves; mention it in the hand-back.
+- If the script cannot be found, stop and say which path failed. Never write `meta.yml` by
+  hand instead.
 - The command prints the new folder and writes `meta.yml` with `schema: 1`, those keys, and
   exactly one first `Lead` entry.
 
@@ -140,8 +179,25 @@ The URL and the triage reason are enough. Do not invent ad text.
 
 ### Writer rules
 
-- Never append any other Status from this skill. The only entry it writes is the new folder's
-  first `Lead`.
+- Never append any other Status from this skill except through the rules check below. The
+  only other entry it writes is the new folder's first `Lead`.
+- Never move a folder to discard it (no `_discarded/`, no `_archive/`), and never edit a file in
+  `jobs/_archive/`: it is a read-only record the app does not read.
+
+### Apply the rules to saved Leads
+
+When the Owner adds or changes a Search rule, or asks to clear out old Leads, run the dry
+run first and show the Owner its output:
+
+```sh
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/rules.py" check
+```
+
+It lists the Leads a rule would dismiss, the borderline ones it keeps, and the Drafts a rule
+would remove, separately. Nothing is written. Only after the Owner confirms, run
+`rules.py check --apply`. Add `--include-drafts` only when the Owner said yes to the Drafts as
+well: they may already have documents. Each Application is dismissed in place with a
+`filter_reason` and appears under Leads → Filtered, where the Owner can restore it.
 - Never touch `notes.md`, `sent/` or the Profile fact table (`profile/projects.md`).
 - Never rewrite `meta.yml` by hand; set keys through the shared writer so unknown keys and
   comments survive byte for byte.
@@ -153,8 +209,15 @@ The URL and the triage reason are enough. Do not invent ad text.
 
 Report how many roles you saved as Leads, the top pick and why, and anything notable about the
 market — a track producing nothing usable is a real finding, not a failure. Say plainly what
-you could not reach, and name any **FAILED** source. List roles you screened out with one line
-each so the Owner can check whether the filtering was too aggressive.
+you could not reach, and name any **FAILED** source. Give a coverage report:
+
+- every Source searched (by the script or by hand) and when;
+- how many roles each Search rule filtered out (from the report, plus your manual searches);
+- every Source that failed or could not be searched, and why (403, login wall, Cloudflare).
+
+List roles you screened out with one line each so the Owner can check whether the filtering
+was too aggressive. If a Source's access status in the registry is out of date, say so and
+suggest the change (Settings → Sources).
 
 The Owner picks which Lead to pursue; then the next steps run in order:
 

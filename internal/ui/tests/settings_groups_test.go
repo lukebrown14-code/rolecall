@@ -15,12 +15,12 @@ func TestEverySettingsGroupShowsItsRows(t *testing.T) {
 	if settings.Groups[settings.GroupMachine] != settings.GroupMachineName {
 		t.Fatalf("GroupMachine = %d, which is %q, not %q", settings.GroupMachine, settings.Groups[settings.GroupMachine], settings.GroupMachineName)
 	}
-	if settings.GroupSearch != 0 || settings.GroupDocuments != 1 || settings.GroupTracking != 2 || settings.GroupMachine != 3 {
-		t.Fatalf("group indices are not in display order: %d %d %d %d", settings.GroupSearch, settings.GroupDocuments, settings.GroupTracking, settings.GroupMachine)
+	if settings.GroupSearch != 0 || settings.GroupRules != 1 || settings.GroupSources != 2 || settings.GroupDocuments != 3 || settings.GroupTracking != 4 || settings.GroupMachine != 5 {
+		t.Fatalf("group indices are not in display order: %d %d %d %d %d %d", settings.GroupSearch, settings.GroupRules, settings.GroupSources, settings.GroupDocuments, settings.GroupTracking, settings.GroupMachine)
 	}
 
 	// A row only this group shows, in display order.
-	want := []string{"Places", "Cover letter maximum", "Follow-up due after", "Editor"}
+	want := []string{"Places", "Max posting age", "+ add a Source", "Cover letter maximum", "Follow-up due after", "Editor"}
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
 	m = driveModel(t, m, "6")
 	for i, name := range settings.Groups {

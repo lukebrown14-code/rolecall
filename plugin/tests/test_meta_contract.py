@@ -35,6 +35,13 @@ DEFAULTS = {
     "StatusLog": [],
     "AppliedDate": None,
     "LastChange": None,
+    "Posted": "",
+    "PostedLabel": "",
+    "Applicants": None,
+    "Source": "",
+    "FilterReason": "",
+    "FilterNote": "",
+    "FilterOverruled": False,
 }
 
 

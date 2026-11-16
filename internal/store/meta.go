@@ -14,6 +14,30 @@ import (
 var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 var entryPattern = regexp.MustCompile(`^  - \{status: ([A-Za-z]+), at: ([^,}]+)(, approx: (true|false))?\}([ \t]+#.*)?$`)
 
+// The meta.yml keys a Sweep writes about where a Lead came from and which Search rule,
+// if any, dismissed it.
+const (
+	keyPosted          = "posted"
+	keyPostedLabel     = "posted_label"
+	keyApplicants      = "applicants"
+	keySource          = "source"
+	keyFilterReason    = "filter_reason"
+	keyFilterNote      = "filter_note"
+	keyFilterOverruled = "filter_overruled"
+)
+
+// The Search rules a filter_reason can name.
+const (
+	FilterExpired        = "expired"
+	FilterBlocker        = "blocker"
+	FilterApplicantCap   = "applicant_cap"
+	FilterLocation       = "location"
+	FilterContractLength = "contract_length"
+)
+
+// FilterReasons are the valid filter_reason values.
+var FilterReasons = []string{FilterExpired, FilterBlocker, FilterApplicantCap, FilterLocation, FilterContractLength}
+
 func validStatus(s string) bool { return slices.Contains(Statuses, s) }
 
 // ParseError is a meta.yml the store cannot read: the file, the first line it failed
@@ -120,6 +144,37 @@ func readApplication(dir string, b []byte) Application {
 			default:
 				return fail(n+1, fmt.Errorf("invalid Fit"))
 			}
+		case keyPosted:
+			if v != "" {
+				if _, err := time.Parse("2006-01-02", v); err != nil {
+					return fail(n+1, fmt.Errorf("invalid posted date"))
+				}
+			}
+			a.Posted = v
+		case keyPostedLabel:
+			a.PostedLabel = DisplayText(v)
+		case keyApplicants:
+			if v != "" {
+				count, err := strconv.Atoi(v)
+				if err != nil || count < 0 {
+					return fail(n+1, fmt.Errorf("invalid applicants"))
+				}
+				a.Applicants = &count
+			}
+		case keySource:
+			a.Source = strings.TrimSpace(DisplayText(v))
+		case keyFilterReason:
+			if v != "" && !slices.Contains(FilterReasons, v) {
+				return fail(n+1, fmt.Errorf("invalid filter_reason"))
+			}
+			a.FilterReason = v
+		case keyFilterNote:
+			a.FilterNote = DisplayText(v)
+		case keyFilterOverruled:
+			if v != "true" && v != "false" {
+				return fail(n+1, fmt.Errorf("invalid filter_overruled"))
+			}
+			a.FilterOverruled = v == "true"
 		case "resume_only":
 			if v != "true" && v != "false" {
 				return fail(n+1, fmt.Errorf("invalid resume_only"))

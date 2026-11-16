@@ -1,0 +1,12 @@
+schema: 1
+title: Backend Engineer
+company: Stale Corp
+track: SWE
+url: https://example.test/stale
+posted: 2026-08-01
+posted_label: "1mo ago"
+source: linkedin
+filter_reason: expired
+filter_note: "posted 2026-08-01, 54 days ago; limit 30"
+status_log:
+  - {status: Dismissed, at: 2026-09-24T01:00:00Z}

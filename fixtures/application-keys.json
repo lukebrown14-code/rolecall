@@ -22,7 +22,14 @@
     "ResumeOnly",
     "StatusLog",
     "AppliedDate",
-    "LastChange"
+    "LastChange",
+    "Posted",
+    "PostedLabel",
+    "Applicants",
+    "Source",
+    "FilterReason",
+    "FilterNote",
+    "FilterOverruled"
   ],
   "goOnly": [
     "JDHasText",

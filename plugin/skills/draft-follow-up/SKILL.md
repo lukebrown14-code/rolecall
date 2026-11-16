@@ -5,6 +5,12 @@ description: Draft a short follow-up message for an Application that is Follow-u
 
 # Draft follow-up
 
+> **Plugin paths.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder (the one holding `skills/`
+> and `scripts/`). Claude Code fills it in; in another harness, or if it reaches the shell
+> unexpanded, use the absolute path of the folder two levels above this file. Never run a
+> script by a path relative to the Workspace, and never hand-write `meta.yml` because a
+> script was not found: stop and say which path failed.
+
 The Owner sent this Application and has heard nothing for the follow-up period. Write the
 message they could send to nudge it along, and stop. You write one file,
 `<application folder>/follow-up.md`. Nothing else.
@@ -19,7 +25,7 @@ message, edits it and sends it themselves.
 - `<application folder>/jd.md` — the role, so the message names it correctly.
 - `profile/master-profile.md` in the Workspace, only for the Owner's name and one fact worth
   repeating. The only facts you may use are in the Profile.
-- The plugin writing rules and style (`plugin/writing-rules.md`, `plugin/styles/au.md`), then the
+- The plugin writing rules and style (`${CLAUDE_PLUGIN_ROOT}/writing-rules.md`, `${CLAUDE_PLUGIN_ROOT}/styles/au.md`), then the
   Workspace's preferences (`<workspace>/profile/writing-preferences.md`); the later file wins.
 
 Every script takes the Workspace from `--data <path>` or `ROLECALL_WORKSPACE`. Resolve it before

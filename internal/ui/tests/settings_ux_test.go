@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // A Harness not on PATH and a Plugin folder that is missing, or lacks skills/, are saved
 // but warned about, as an Editor not on PATH is.
 func TestSettingsHarnessAndPluginWarnButSave(t *testing.T) {
 	d, cfg := machineDriver(t, 120)
-	selectRow(d, 3, 2)
+	selectRow(d, settings.GroupMachine, 2)
 	d.Type("enter")
 	d.Type("no-such-harness-xyz {dir}")
 	d.Type("enter")
@@ -44,20 +46,20 @@ func TestSettingsHarnessAndPluginWarnButSave(t *testing.T) {
 // Harness example stays in view while the value is edited.
 func TestSettingsExplainsTheFocusedRow(t *testing.T) {
 	for _, w := range []int{120, 80} {
-		lines := settingsAt(t, w, 30, "]", "]", "]", "j", "j")
+		lines := settingsAt(t, w, 30, "]", "]", "]", "]", "]", "j", "j")
 		v := strings.Join(lines, "\n")
 		requireAll(t, squash(v), "AI coding tool")
-		lines = settingsAt(t, w, 30, "]", "]", "]", "j", "j", "j")
+		lines = settingsAt(t, w, 30, "]", "]", "]", "]", "]", "j", "j", "j")
 		requireAll(t, squash(strings.Join(lines, "\n")), "skills/ folder")
 	}
-	// Sources and Blockers are read-only, so the cursor never rests on them: each says what
-	// it is in its row, and the group's own text says where they are set.
+	// Blockers are read-only, so the cursor never rests on them: the row says what it is,
+	// and the group's own text says where they are set.
 	search := squash(strings.Join(settingsAt(t, 120, 30, "k"), "\n"))
-	requireAll(t, search, "read-only · job boards the Sweep reads", "read-only · signals that rule a role out",
-		"Sources and Blockers are set in workspace.json")
-	editing := strings.Join(settingsAt(t, 120, 30, "]", "]", "]", "j", "j", "enter"), "\n")
+	requireAll(t, search, "read-only · signals that rule a role out",
+		"Blockers are set in workspace.json")
+	editing := strings.Join(settingsAt(t, 120, 30, "]", "]", "]", "]", "]", "j", "j", "enter"), "\n")
 	requireAll(t, editing, `▏claude "/{skill} {dir}"`) // the example as the empty field's placeholder
-	typed := strings.Join(settingsAt(t, 120, 30, "]", "]", "]", "j", "j", "enter", "x"), "\n")
+	typed := strings.Join(settingsAt(t, 120, 30, "]", "]", "]", "]", "]", "j", "j", "enter", "x"), "\n")
 	requireAll(t, typed, `example: claude "/{skill} {dir}"`) // and beside it once typing hides the placeholder
 }
 

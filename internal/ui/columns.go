@@ -40,6 +40,9 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 	case "written":
 		docs = glyphMissing
 	}
+	if table == tableFiltered {
+		return append(out, entryDate(lastChange(a)), filterReasonLabel(a.FilterReason))
+	}
 	if table == tableDismissed {
 		return append(out, entryDate(lastChange(a)))
 	}
@@ -66,7 +69,7 @@ func SortApplications(rows []store.Application, table string) {
 		if beforeApplied(table) {
 			return a.Closes
 		}
-		if table == tableDismissed {
+		if table == tableDismissed || table == tableFiltered {
 			if lastChange(a) != nil {
 				return lastChange(a).At
 			}

@@ -53,8 +53,47 @@ class Config:
 
     @property
     def sources(self):
+        """The ATS plan as platform -> targets, from either form of ``sources``.
+
+        The list form (the Source registry) contributes its enabled ``api`` entries; the
+        legacy object form is returned as it is."""
         sources = self.raw.get("sources")
-        return sources if isinstance(sources, dict) else {}
+        if isinstance(sources, dict):
+            return sources
+        plan = {}
+        for entry in self.source_registry:
+            if entry["type"] == "api" and entry["enabled"] and entry.get("platform"):
+                plan.setdefault(entry["platform"], []).extend(entry.get("targets") or [])
+        return plan
+
+    @property
+    def source_registry(self):
+        """Every Source as a registry entry (SCHEMA.md), whichever form the file uses.
+
+        A legacy object becomes one enabled ``api`` entry per platform; an entry of the
+        wrong shape is skipped here and reported by the Sweep's validation."""
+        sources = self.raw.get("sources")
+        if isinstance(sources, dict):
+            return [
+                {"name": name, "type": "api", "platform": name, "targets": list(targets),
+                 "access": "unknown", "enabled": True}
+                for name, targets in sources.items() if isinstance(targets, list)
+            ]
+        out = []
+        for entry in sources if isinstance(sources, list) else []:
+            if not isinstance(entry, dict) or not isinstance(entry.get("name"), str):
+                continue
+            item = dict(entry)
+            item.setdefault("type", "manual")
+            item.setdefault("access", "unknown")
+            item["enabled"] = entry.get("enabled", True) is not False
+            out.append(item)
+        return out
+
+    @property
+    def search_rules(self):
+        rules = self.raw.get("search_rules")
+        return rules if isinstance(rules, dict) else {}
 
 
 def load(path):

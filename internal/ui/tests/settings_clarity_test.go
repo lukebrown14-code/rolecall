@@ -3,15 +3,17 @@ package ui_test
 import (
 	"strings"
 	"testing"
+
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // The Track removal refusal is a warning pop-up next to the rows, not a footer error, and
 // it says what to do about the Applications still on the Track.
 func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "]", "]", "x")
+		lines := settingsAt(t, size[0], size[1], "]", "]", "]", "]", "x")
 		v := strings.Join(lines, "\n")
-		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 10 Applications", "incl. 1 Dismissed", "Move its Applications to another Track")
+		requireAll(t, v, "Can't remove Track SWE", "SWE is used by 11 Applications", "incl. 2 Dismissed", "Move its Applications to another Track")
 		if strings.Contains(v, "rename") {
 			t.Errorf("%dx%d: the refusal offers rename, which does not remove anything:\n%s", size[0], size[1], v)
 		}
@@ -26,7 +28,7 @@ func TestSettingsRemoveTrackRefusalSaysWhatToDoNext(t *testing.T) {
 func TestSettingsRefusalCountAddsUp(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE"]}`)
 	h.tm.Type("x")
-	requireAll(t, h.tm.plain(), "⚠ Can't remove Track SWE", "10 Applications,", "incl. 1 Dismissed, 1 unreadable.", "esc close")
+	requireAll(t, h.tm.plain(), "⚠ Can't remove Track SWE", "11 Applications,", "incl. 2 Dismissed, 1 unreadable.", "esc close")
 	h.tm.Type("esc")
 	if strings.Contains(h.tm.plain(), "Can't remove") {
 		t.Fatalf("esc left the refusal open:\n%s", h.tm.plain())
@@ -43,13 +45,10 @@ func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 		}
 		// The reason follows the value, or wraps under it where there is no room.
 		v := squash(strings.Join(lines, "\n"))
-		if !strings.Contains(v, "Sources 1 read-only") {
-			t.Errorf("%dx%d Sources: %s", size[0], size[1], v)
-		}
 		if !strings.Contains(v, "Blockers 2 read-only") {
 			t.Errorf("%dx%d Blockers: %s", size[0], size[1], v)
 		}
-		lines = settingsAt(t, size[0], size[1], "]", "]", "]")
+		lines = settingsAt(t, size[0], size[1], "]", "]", "]", "]", "]")
 		if v := strings.Join(lines, "\n"); !strings.Contains(v, "fixed this session") {
 			t.Errorf("%dx%d Workspace lacks its reason:\n%s", size[0], size[1], v)
 		}
@@ -59,7 +58,7 @@ func TestSettingsReadOnlyRowsAreMarked(t *testing.T) {
 // An unset editable value shows an example of what to type, not a bare "not set".
 func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		lines := settingsAt(t, size[0], size[1], "]", "]", "]")
+		lines := settingsAt(t, size[0], size[1], "]", "]", "]", "]", "]")
 		v := strings.Join(lines, "\n")
 		wants := []string{"~/Downloads", "claude", "~/rolecall/plugin"}
 		if size[1] > 16 {
@@ -80,7 +79,7 @@ func TestSettingsUnsetRowsHintWhatToEnter(t *testing.T) {
 // The rename name step says what the next screen does: review the reach, then confirm.
 func TestSettingsRenamePopupSaysReviewNotNext(t *testing.T) {
 	for _, size := range [][2]int{{120, 36}, {80, 24}, {60, 16}} {
-		f := footer(settingsAt(t, size[0], size[1], "]", "]", "r"))
+		f := footer(settingsAt(t, size[0], size[1], "]", "]", "]", "]", "r"))
 		if !strings.Contains(f, "enter review") {
 			t.Fatalf("%dx%d rename footer %q", size[0], size[1], f)
 		}
@@ -96,6 +95,8 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 		h := newSettingsHarness(t, 120, `{"letterWordCap":300}`, nil)
 		h.tm.Type("6")
 		h.tm.Type("]")
+		h.tm.Type("]")
+		h.tm.Type("]")
 		h.tm.Type("enter")
 		h.tm.Type("enter")
 		requireAll(t, h.tm.plain(), "Saved Cover letter maximum: 300 words")
@@ -103,6 +104,8 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	t.Run("gate names the stored number", func(t *testing.T) {
 		h := newSettingsHarness(t, 120, `{"letterWordCap":300}`, nil)
 		h.tm.Type("6")
+		h.tm.Type("]")
+		h.tm.Type("]")
 		h.tm.Type("]")
 		h.tm.Type("enter")
 		for range 3 {
@@ -122,7 +125,7 @@ func TestSettingsSavesConfirmOnTheFeedbackLine(t *testing.T) {
 	})
 	t.Run("machine", func(t *testing.T) {
 		d, _ := machineDriver(t, 120)
-		selectRow(d, 3, 0)
+		selectRow(d, settings.GroupMachine, 0)
 		d.Type("enter")
 		for range 3 {
 			d.Type("backspace")

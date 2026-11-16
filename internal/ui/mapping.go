@@ -24,8 +24,10 @@ const settingsScreen = 5
 // Tables: the views within a screen. Applied, Interviewing and Offer are named after
 // their one Status.
 const (
-	tableLeads        = "Leads"
-	tableDismissed    = "Dismissed"
+	tableLeads     = "Leads"
+	tableDismissed = "Dismissed"
+	// tableFiltered holds the Dismissed Applications a Search rule removed, with its reason.
+	tableFiltered     = "Filtered"
 	tableDraft        = "Drafts"
 	tableApplied      = store.StatusApplied
 	tableInterviewing = store.StatusInterviewing
@@ -55,7 +57,7 @@ var screenDefs []screenDef
 
 func init() {
 	screenDefs = []screenDef{
-		{name: screenLeads, tables: []string{tableLeads, tableDismissed}, hasTables: true},
+		{name: screenLeads, tables: []string{tableLeads, tableDismissed, tableFiltered}, hasTables: true},
 		{name: screenDraft, tables: []string{tableDraft}, hasTables: true},
 		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
@@ -102,6 +104,15 @@ func (m model) views() []string { return screenDefs[m.screen].tables }
 // hasTables reports whether the active screen holds Application rows. Screens without
 // them have no rows and no view row, and handle their own keys.
 func (m model) hasTables() bool { return screenDefs[m.screen].hasTables }
+
+// appLocation is the screen and table an Application is listed in: its Status's, except
+// that one a Search rule dismissed is Filtered rather than Dismissed.
+func appLocation(a store.Application) (screen, table string) {
+	if a.Filtered() {
+		return screenLeads, tableFiltered
+	}
+	return StatusLocation(a.Status)
+}
 
 // StatusLocation maps an Application Status to its screen and table.
 func StatusLocation(status string) (screen, table string) {

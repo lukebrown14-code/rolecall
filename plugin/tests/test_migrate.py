@@ -423,3 +423,15 @@ def test_no_configured_tracks_reports_and_skips_new_rows(tmp_path):
     assert "no tracks" in result.stdout
     assert not (workspace / "jobs/SWE/northwind-platform-engineer-2026-09-01").exists()
     assert not (workspace / "jobs/SWE/initech-site-reliability-engineer-2026-08-15").exists()
+
+
+def test_archive_gets_a_read_only_notice_and_read_only_files(tmp_path):
+    workspace = copy_fixture_workspace(tmp_path, FIXTURE)
+    result = run_script(workspace, MIGRATE)
+    assert result.returncode == 0, result.stderr
+    archive = workspace / "jobs" / "_archive"
+    notice = archive / "README.md"
+    assert "Read-only archive" in notice.read_text()
+    assert "does not read anything in this folder" in notice.read_text()
+    for name in ARCHIVE_FILES:
+        assert not (archive / name).stat().st_mode & 0o222

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	xansi "github.com/charmbracelet/x/ansi"
@@ -211,6 +212,7 @@ func (m model) fieldRows(p pal, a store.Application, w int, next bool) []string 
 	if text, s := closeInfo(a.Closes, m.now()); s != closeNone && beforeApplied(tableOf(a)) {
 		rows = append(rows, p.fieldRow("CLOSES", p.CloseStyle(s, p.Text, p.Dim).Render(text), "e", "edit", w))
 	}
+	rows = append(rows, m.sweepRows(p, a, w)...)
 	rows = append(rows, "")
 	rows = append(rows, m.docsBlock(p, a, w)...)
 	if line := m.nextLine(p, a, w, true); line != "" && next {
@@ -279,4 +281,56 @@ func (m model) notesRow(p pal, a store.Application, w int) string {
 		return p.fieldRow("NOTES", p.Text(p.Fg).Render(markdownMarks.Replace(t)), "n", "notes", w)
 	}
 	return p.fieldRow("NOTES", p.Text(p.Dim).Render("none yet"), "n", "add", w)
+}
+
+// sweepLabelW is the label column of the Sweep rows, wide enough for APPLICANTS.
+const sweepLabelW = 12
+
+// sweepRows are what the Sweep recorded of where a Lead came from: when it was posted,
+// how many had applied, its Source, and the Search rule that dismissed it, if one did.
+// Each row shows only when the Application says; a long value wraps under itself.
+func (m model) sweepRows(p pal, a store.Application, w int) []string {
+	var rows []string
+	add := func(label, value string, extra ...string) {
+		indent := strings.Repeat(" ", sweepLabelW)
+		lines := wrapWords(value, max(1, w-sweepLabelW))
+		rows = append(rows, p.fieldRowIn(sweepLabelW, label, p.Text(p.Fg).Render(lines[0]), "", "", w))
+		for _, l := range lines[1:] {
+			rows = append(rows, indent+p.Text(p.Fg).Render(l))
+		}
+		for _, e := range extra {
+			rows = append(rows, indent+e)
+		}
+	}
+	if a.Posted != "" || a.PostedLabel != "" {
+		var parts []string
+		if a.Posted != "" {
+			parts = append(parts, a.Posted)
+			if age := postedAge(a, m.now()); age != "" {
+				parts = append(parts, age+" ago")
+			}
+		}
+		if a.PostedLabel != "" {
+			parts = append(parts, "site said \""+a.PostedLabel+"\"")
+		}
+		var extra []string
+		if warn := ageWarning(a, m.rules, m.now()); warn != "" {
+			extra = append(extra, p.Text(p.Warn).Render(xansi.Truncate(glyphWarn+" "+warn, max(1, w-sweepLabelW), "…")))
+		}
+		add("POSTED", strings.Join(parts, " · "), extra...)
+	}
+	if a.Applicants != nil {
+		add("APPLICANTS", strconv.Itoa(*a.Applicants))
+	}
+	if a.Source != "" {
+		add("SOURCE", a.Source)
+	}
+	if a.Filtered() {
+		value := filterReasonLabel(a.FilterReason)
+		if a.FilterNote != "" {
+			value += " · " + a.FilterNote
+		}
+		add("FILTERED", value)
+	}
+	return rows
 }

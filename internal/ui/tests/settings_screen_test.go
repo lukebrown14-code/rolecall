@@ -90,7 +90,11 @@ func TestSettingsShowsEveryValueFromItsFile(t *testing.T) {
 	h.tm.Type("6")
 	requireAll(t, h.tm.plain(), "Search", "Documents", "Tracking", "This machine",
 		"Places", "Australia, APAC", "Remote roles", "count if in my Places")
-	requireAll(t, squash(h.tm.plain()), "Sources 3 read-only", "Blockers 2 read-only")
+	requireAll(t, squash(h.tm.plain()), "Blockers 2 read-only")
+	h.tm.Type("]")
+	requireAll(t, h.tm.plain(), "Max posting age", "Expiry warning", "5 days")
+	h.tm.Type("]")
+	requireAll(t, h.tm.plain(), "+ add a Source")
 	h.tm.Type("]")
 	requireAll(t, h.tm.plain(), "Cover letter maximum", "300 words", "Cover letter minimum", "150",
 		"Key Skills minimum", "8", "Key Skills maximum", "12")
@@ -114,25 +118,27 @@ func TestSettingsJKMoveTheFieldCursorWithinASection(t *testing.T) {
 }
 
 func TestSettingsEOpensWorkspaceJSONAndCountUpdatesOnReturn(t *testing.T) {
-	h := newSettingsHarness(t, 120, `{"sources":[1,2]}`, func(path string) {
-		writeWorkspaceFile(t, filepath.Dir(path), `{"sources":[1,2,3,4,5]}`)
+	h := newSettingsHarness(t, 120, `{"sources":{"boardone":[]}}`, func(path string) {
+		writeWorkspaceFile(t, filepath.Dir(path), `{"sources":{"boardone":[],"boardtwo":["a"]}}`)
 	})
 	h.tm.Type("6")
-	requireAll(t, squash(h.tm.plain()), "Sources 2")
+	h.tm.Type("]")
+	h.tm.Type("]")
+	requireAll(t, squash(h.tm.plain()), "boardone api")
 	h.tm.Type("e")
 	if got := h.opened(); len(got) != 1 || got[0] != filepath.Join(h.root, "workspace.json") {
 		t.Fatalf("editor opened %v", got)
 	}
-	requireAll(t, squash(h.tm.plain()), "Sources 5")
+	requireAll(t, squash(h.tm.plain()), "boardtwo api · boardtwo · 1 target · unknown")
 }
 
 func TestSettingsReReadsOnEnteringTheScreen(t *testing.T) {
-	h := newSettingsHarness(t, 120, `{"sources":[1]}`, nil)
+	h := newSettingsHarness(t, 120, `{"search_area":{"places":["Old"]}}`, nil)
 	h.tm.Type("6")
-	writeWorkspaceFile(t, h.root, `{"sources":[1,2,3]}`)
+	writeWorkspaceFile(t, h.root, `{"search_area":{"places":["Newplace"]}}`)
 	h.tm.Type("1")
 	h.tm.Type("6")
-	requireAll(t, squash(h.tm.plain()), "Sources 3")
+	requireAll(t, squash(h.tm.plain()), "Places Newplace")
 }
 
 func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T) {
@@ -184,12 +190,12 @@ func TestSettingsNarrowHidesGroupsAndHeaderNamesTheGroup(t *testing.T) {
 	h := newSettingsHarness(t, 56, "", nil)
 	h.tm.Type("6")
 	v := h.tm.plain()
-	requireAll(t, v, "[Search] 1 of 4", "Places")
+	requireAll(t, v, "[Search] 1 of 6", "Places")
 	if strings.Contains(v, "This machine") {
 		t.Fatalf("every group named where they do not fit:\n%s", v)
 	}
 	h.tm.Type("]")
-	requireAll(t, h.tm.plain(), "[Documents] 2 of 4", "Cover letter maximum")
+	requireAll(t, h.tm.plain(), "[Rules] 2 of 6", "Max posting age")
 }
 
 func TestSettingsHelpListsScreensOneToSix(t *testing.T) {

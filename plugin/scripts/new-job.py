@@ -508,6 +508,11 @@ def main(argv=None):
         "--source",
         help="ad URL to record when the text comes from --paste or --file",
     )
+    parser.add_argument("--posted", default="", help="YYYY-MM-DD the ad was posted")
+    parser.add_argument("--posted-label", default="", help='the age as the site shows it, e.g. "14d ago"')
+    parser.add_argument("--applicants", default="", help="applicant count the site shows")
+    parser.add_argument("--from", dest="from_source", default="",
+                        help="Source registry name the ad was found on, e.g. linkedin")
     add_data_argument(parser)
     args = parser.parse_args(argv)
 
@@ -557,7 +562,20 @@ def main(argv=None):
         "track": args.track,
         "url": "" if ad_source == "pasted" else ad_source,
         "closes": _valid_closes(facts["closes"]),
+        "posted": args.posted,
+        "posted_label": args.posted_label,
+        "applicants": args.applicants,
+        "source": args.from_source,
     }
+    if args.posted and not meta_store._valid_date(args.posted):
+        sys.exit(f"rolecall: --posted wants YYYY-MM-DD, not {args.posted!r}")
+    if args.applicants and not args.applicants.isdigit():
+        sys.exit(f"rolecall: --applicants wants a whole number, not {args.applicants!r}")
+    # The Owner chose this ad, so a Search rule warns here rather than refusing.
+    try:
+        broken = meta_store.rule_findings(workspace, fields)
+    except ValueError as error:
+        sys.exit(f"rolecall: workspace.json {error}")
     try:
         folder = meta_store.create(workspace, fields, datetime.now(timezone.utc))
     except meta_store.MetaError as error:
@@ -578,6 +596,10 @@ def main(argv=None):
     if company == "company" or role == "role":
         print("\n  Company/role could not be read from the JD -- re-run with --company")
         print("  and --role, or correct meta.yml before assessing fit.")
+
+    for finding in broken:
+        print(f"\n  Search rule: {finding.reason} -- {finding.note}. Saved because you asked;")
+        print("  dismiss it if the rule should stand.")
 
     hits = scan(jd, blockers_for(load(workspace).blockers))
     if hits:

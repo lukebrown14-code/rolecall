@@ -75,11 +75,13 @@ type model struct {
 	profile               *profileState
 	profileStarted        bool // the Profile has more than Contact, so the welcome drops its Profile step
 	settings              *settingsState
-	leadsNewest           bool           // Leads sorted newest first instead of by close date; s toggles
-	writing               map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
-	writingGen            int
-	legacy                []string        // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
-	clipboard             ClipboardWriter // nil uses the system clipboard program
+	// rules are workspace.json's Search rules, re-read with every scan, for the age warning.
+	rules       store.SearchRules
+	leadsNewest bool           // Leads sorted newest first instead of by close date; s toggles
+	writing     map[string]int // documents written just now (watch.DocumentKey) and their mark's generation
+	writingGen  int
+	legacy      []string        // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
+	clipboard   ClipboardWriter // nil uses the system clipboard program
 }
 
 // New loads a Workspace. The clock is injected for subsequent date-sensitive views.
@@ -107,6 +109,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		m.apps = a
 		m.tracks, e = s.Tracks()
 		m.legacy = s.LegacyFiles()
+		m.loadRules()
 		if p, err := s.Profile(); err == nil {
 			m.profileStarted = profileBeyondContact(p)
 		}
@@ -174,7 +177,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	}
 	var out []store.Application
 	for _, a := range m.apps {
-		s, t := StatusLocation(a.Status)
+		s, t := appLocation(a)
 		if s == screenDefs[screen].name && t == table && m.matches(a) {
 			out = append(out, a)
 		}
@@ -215,7 +218,7 @@ func (m model) totalCount(screen int, table string) int {
 	}
 	n := 0
 	for _, a := range m.apps {
-		s, t := StatusLocation(a.Status)
+		s, t := appLocation(a)
 		if s == screenDefs[screen].name && t == table {
 			n++
 		}
@@ -297,6 +300,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		fm.finishFetch(&m, done)
 		return m, nil
+	}
+	if done, ok := msg.(sourceTested); ok {
+		return m.finishSourceTest(done), nil
 	}
 	if done, ok := msg.(buildFinished); ok {
 		m.capturedRun = false
@@ -488,9 +494,19 @@ func (m *model) reload(folder string) bool {
 		return false
 	}
 	m.apps, m.err = apps, nil
+	m.loadRules()
 	m.dropBodies()
 	m.keepCursor(folder)
 	return true
+}
+
+// loadRules re-reads the Search rules. A workspace.json that does not read leaves the
+// rules unset: Settings reports the file, and no age warning is better than a wrong one.
+func (m *model) loadRules() {
+	m.rules = store.SearchRules{}
+	if ws, err := m.store.Settings(); err == nil && ws.Err == nil {
+		m.rules = ws.Rules
+	}
 }
 
 // rescanAll is `r`: it rereads workspace.json as well as every Application.

@@ -70,7 +70,7 @@ func (fm *formMode) startFetch(m *model) (mode, tea.Cmd) {
 // fetch runs the Plugin's new-job.py in captured mode. The form stays responsive; the
 // URL field shows the spinner until fetchFinished arrives.
 func (m model) fetch(url string) tea.Cmd {
-	args := []string{filepath.Join(m.plugin, "scripts", "new-job.py"), "--fetch-only", "--url", url, "--data", m.store.Root()}
+	args := []string{filepath.Join(m.plugin, "scripts", "new-job.py"), "--fetch-only", "--url", url, dataFlag, m.store.Root()}
 	return m.runCaptured("python3", args, func(r CapturedResult) tea.Msg {
 		return parseFetch(url, r)
 	})

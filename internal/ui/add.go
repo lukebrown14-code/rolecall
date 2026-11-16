@@ -177,7 +177,7 @@ func (m *model) selectFolder(folder string) {
 		if a.Folder != folder {
 			continue
 		}
-		screen, table := StatusLocation(a.Status)
+		screen, table := appLocation(a)
 		for i, d := range screenDefs {
 			if d.name == screen {
 				m.screen = i

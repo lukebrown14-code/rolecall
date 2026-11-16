@@ -71,6 +71,22 @@ class Report:
     text: str
 
 
+@dataclass
+class ArchiveNotice:
+    """The read-only notice beside archived files, so none is mistaken for a live list."""
+
+    path: Path
+
+
+ARCHIVE_NOTICE = """# Read-only archive
+
+rolecall does not read anything in this folder. These are dashboard-era files kept as
+history after the migration: editing them changes nothing in the app. The live data is
+each Application's `meta.yml` (one folder per role under `jobs/<track>/`), shown by the
+rolecall TUI. The files here are made read-only so they are not edited by mistake.
+"""
+
+
 def _rel(workspace, path):
     return Path(path).relative_to(workspace).as_posix()
 
@@ -550,6 +566,9 @@ def plan(workspace):
             destination = archive / f"{stem}-{number}{suffix}"
             number += 1
         changes.append(Archive(source, destination))
+    archived = any(isinstance(change, Archive) for change in changes)
+    if (archived or archive.is_dir()) and not (archive / "README.md").exists():
+        changes.append(ArchiveNotice(archive / "README.md"))
 
     return changes + reports
 
@@ -573,8 +592,10 @@ def render(workspace, changes):
         elif isinstance(change, Archive):
             lines.append(
                 f"archive {_rel(workspace, change.source)} -> "
-                f"{_rel(workspace, change.destination)}"
+                f"{_rel(workspace, change.destination)} (read-only)"
             )
+        elif isinstance(change, ArchiveNotice):
+            lines.append(f"write {_rel(workspace, change.path)} (read-only archive notice)")
         else:
             lines.append(f"{change.verb} {_rel(workspace, change.folder)}")
             lines.extend("  " + detail for detail in change.details)
@@ -590,6 +611,12 @@ def apply(workspace, changes):
         if isinstance(change, Archive):
             change.destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             os.replace(change.source, change.destination)
+            os.chmod(change.destination, 0o400)
+            written += 1
+            continue
+        if isinstance(change, ArchiveNotice):
+            change.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            meta.atomic_write(change.path, ARCHIVE_NOTICE.encode("utf-8"), 0o400)
             written += 1
             continue
         change.folder.mkdir(parents=True, exist_ok=True, mode=0o700)

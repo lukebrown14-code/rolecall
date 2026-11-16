@@ -7,13 +7,17 @@
     python3 plugin/scripts/sweep.py --all-locations # ignore the location filter
     python3 plugin/scripts/sweep.py --probe greenhouse:cultureamp  # one source, health JSON
     python3 plugin/scripts/sweep.py --platforms    # the registry as JSON
+    python3 plugin/scripts/sweep.py --test-source linkedin  # one registry Source, health JSON
 
 This does the mechanical half of a job sweep: fetch, filter by track and
 location, drop anything already captured as an Application, and flag visa and
 clearance signals. It writes jobs/sweep-candidates.md.
 
-Sources come from the Workspace's workspace.json ``sources`` key (platform name
--> target list) when present -- a whole-key replacement. Otherwise the built-in
+Sources come from the Workspace's workspace.json ``sources`` key when present -- a
+whole-key replacement. It is either the Source registry (a list of entries, SCHEMA.md) or
+the older platform name -> target list object. Registry entries of type ``browser`` or
+``manual`` are not fetched; the report lists them, with their access status, parsing hints
+and rules, for the find-jobs skill to search by hand. Otherwise the built-in
 defaults are extended by jobs/roles.json additional_sources. That catalogue also
 supplies title filters and fit guidance; --roles prints it without fetching jobs.
 Platforms themselves are code: the PLATFORMS registry is the single place a new
@@ -27,6 +31,9 @@ with this file. Only roles that pass that judgement become Lead Applications.
 Every source reports its health: a board that failed to load is listed as FAILED,
 never silently counted as zero jobs.
 
+Search rules (workspace.json ``search_rules``, applied by rules.py) drop roles past the
+posting-age limit; the report counts what each rule removed.
+
 Seek and LinkedIn return 403 and cannot be fetched by anything here.
 """
 
@@ -39,13 +46,17 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
+import rules as search_rules  # noqa: E402
 from signals import FAVOURABLE, blocker_hits, blockers_for  # noqa: E402
 from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
+
+ACCESS = ("works", "403", "login wall", "cloudflare", "unknown")
+SOURCE_TYPES = ("api", "browser", "manual")
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
@@ -179,7 +190,28 @@ def load_blockers(workspace):
 
 
 class SourceError(Exception):
-    """A source could not be read: network error, HTTP error or bad JSON."""
+    """A source could not be read: network error, HTTP error or bad JSON.
+
+    ``access`` says why, in the registry's words: 403, login wall, cloudflare, or error."""
+
+    def __init__(self, message, access="error"):
+        super().__init__(message)
+        self.access = access
+
+
+CLOUDFLARE_RE = re.compile(r"just a moment|cf-chl|cf-ray|attention required|cloudflare", re.I)
+LOGIN_RE = re.compile(r"<title>[^<]*(sign ?in|log ?in|join)[^<]*</title>|authwall|login-form", re.I)
+
+
+def classify_access(status, body=""):
+    """The registry access status an HTTP response shows: works, 403, login wall or cloudflare."""
+    if CLOUDFLARE_RE.search(body or "") and status in (403, 429, 503):
+        return "cloudflare"
+    if status in (401, 999) or (status < 400 and LOGIN_RE.search(body or "")):
+        return "login wall"
+    if status == 403:
+        return "403"
+    return "works" if status < 400 else "error"
 
 
 def get(url, timeout=25):
@@ -189,7 +221,15 @@ def get(url, timeout=25):
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
             return r.read().decode(r.headers.get_content_charset() or "utf-8", "replace")
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ssl.SSLError, OSError) as e:
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read(4096).decode("utf-8", "replace")
+        except OSError:
+            body = ""
+        access = classify_access(e.code, body)
+        label = "" if access == "error" else f" [{access}]"
+        raise SourceError(f"{url} -- {e}{label}", access) from e
+    except (urllib.error.URLError, TimeoutError, ssl.SSLError, OSError) as e:
         raise SourceError(f"{url} -- {e}") from e
 
 
@@ -213,6 +253,19 @@ def parse_json(raw, what):
 def display_name(slug):
     """'relevanceai' / 'octopus-deploy' -> a readable company name."""
     return re.sub(r"[-_]+", " ", slug).strip().title()
+
+
+def posted_date(value):
+    """YYYY-MM-DD from an API's posting time (ISO 8601 text or epoch milliseconds), or ''."""
+    if value in (None, ""):
+        return ""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        try:
+            return datetime.fromtimestamp(value / 1000, timezone.utc).strftime("%Y-%m-%d")
+        except (OverflowError, OSError, ValueError):
+            return ""
+    m = re.match(r"(\d{4}-\d{2}-\d{2})", str(value))
+    return m.group(1) if m else ""
 
 
 def strip_html(html):
@@ -243,6 +296,7 @@ def from_greenhouse(slug):
             "location": (j.get("location") or {}).get("name", ""),
             "url": j.get("absolute_url", ""),
             "closes": j.get("application_deadline") or "",
+            "posted": posted_date(j.get("first_published") or j.get("updated_at")),
             "content": strip_html(j.get("content", "")),
             "source": f"greenhouse:{slug}",
         })
@@ -260,6 +314,7 @@ def from_ashby(slug):
             "location": j.get("location", ""),
             "url": j.get("jobUrl", ""),
             "closes": "",
+            "posted": posted_date(j.get("publishedAt")),
             "content": strip_html(j.get("descriptionHtml", "") or "") or j.get("descriptionPlain", "") or "",
             "source": f"ashby:{slug}",
         })
@@ -278,6 +333,7 @@ def from_lever(slug):
             "location": (j.get("categories") or {}).get("location", ""),
             "url": j.get("hostedUrl", ""),
             "closes": "",
+            "posted": posted_date(j.get("createdAt")),
             "content": strip_html(j.get("descriptionPlain", "") or j.get("description", "")),
             "source": f"lever:{slug}",
         })
@@ -313,6 +369,7 @@ def from_smartrecruiters(slug):
                                                 (loc.get("country") or "").upper()])),
             "url": f"https://jobs.smartrecruiters.com/{slug}/{j.get('id')}",
             "closes": "",
+            "posted": posted_date(j.get("releasedDate")),
             "content": content,
             "source": f"smartrecruiters:{slug}",
         })
@@ -373,7 +430,110 @@ def resolve_sources(workspace):
         extra = (ROLE_CATALOGUE or {}).get("additional_sources", {})
         return [(name, list(dict.fromkeys([*defaults, *extra.get(name, [])])))
                 for name, (_, defaults) in PLATFORMS.items()]
+    if isinstance(cfg, list):
+        plan = {}
+        for entry in validate_registry(cfg):
+            if entry["type"] == "api" and entry["enabled"]:
+                targets = plan.setdefault(entry["platform"], [])
+                targets.extend(t for t in entry["targets"] if t not in targets)
+        return list(plan.items())
     return validate_sources(cfg, "workspace.json sources")
+
+
+def validate_registry(entries, label="workspace.json sources"):
+    """The Source registry entries, checked; raises ValueError naming the bad entry."""
+    out, names = [], set()
+    for index, entry in enumerate(entries):
+        where = f"{label}[{index}]"
+        if not isinstance(entry, dict) or not isinstance(entry.get("name"), str) or not entry["name"].strip():
+            raise ValueError(f"{where}: each Source wants a name")
+        name = entry["name"].strip()
+        where = f"{label} {name!r}"
+        if name.lower() in names:
+            raise ValueError(f"{where}: listed twice")
+        names.add(name.lower())
+        kind = entry.get("type")
+        if kind not in SOURCE_TYPES:
+            raise ValueError(f"{where}: type must be one of {', '.join(SOURCE_TYPES)}")
+        access = entry.get("access", "unknown")
+        if access not in ACCESS:
+            raise ValueError(f"{where}: access must be one of {', '.join(ACCESS)}")
+        enabled = entry.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ValueError(f"{where}: enabled must be true or false")
+        item = {**entry, "name": name, "type": kind, "access": access, "enabled": enabled}
+        if kind == "api":
+            platform = entry.get("platform")
+            if platform not in PLATFORMS:
+                raise ValueError(f"{where}: api Sources need a platform -- registered: {', '.join(PLATFORMS)}")
+            targets = entry.get("targets")
+            if not isinstance(targets, list) or not all(isinstance(t, str) and t.strip() for t in targets):
+                raise ValueError(f"{where}: wants a list of targets")
+            item["targets"] = targets
+        out.append(item)
+    return out
+
+
+def source_registry(workspace):
+    """Every registry entry, validated; the legacy object form reads as api entries."""
+    cfg = config(workspace).get("sources")
+    if isinstance(cfg, list):
+        return validate_registry(cfg)
+    return load(workspace).source_registry
+
+
+def manual_sources(workspace):
+    """Sources this script cannot fetch: registry browser/manual entries, then the
+    catalogue's older manual_search_sources (free text)."""
+    try:
+        entries = [e for e in source_registry(workspace) if e["type"] != "api"]
+    except ValueError:
+        entries = []
+    for text in (ROLE_CATALOGUE or {}).get("manual_search_sources", []) or []:
+        if isinstance(text, str) and text.strip():
+            entries.append({"name": text.strip(), "type": "manual", "access": "unknown",
+                            "enabled": True, "legacy": True})
+    return entries
+
+
+def test_source(workspace, name):
+    """Check one registry Source; print one JSON line and exit 0 only when it works.
+
+    An api Source fetches every target. A browser Source with a url is fetched once to
+    read its access status. A manual Source is searched by hand and cannot be tested."""
+    try:
+        entries = source_registry(workspace)
+    except ValueError as error:
+        sys.exit(str(error))
+    entry = next((e for e in entries if e["name"].lower() == name.strip().lower()), None)
+    if entry is None:
+        sys.exit(f"No Source named '{name}' -- listed: {', '.join(e['name'] for e in entries) or 'none'}")
+    result = {"name": entry["name"], "ok": False, "count": 0, "access": "error", "note": ""}
+    if entry["type"] == "api":
+        collector, _ = PLATFORMS[entry["platform"]]
+        failed, count, access = [], 0, "works"
+        for target in entry["targets"]:
+            _, h = collect(entry["platform"], target, collector)
+            count += h["count"]
+            if not h["ok"]:
+                failed.append(f"{target}: {h['note']}")
+                access = h.get("access", "error")
+        result.update(ok=not failed, count=count, access=access if failed else "works",
+                      note="; ".join(failed) or f"{len(entry['targets'])} target(s) read")
+    elif entry.get("url"):
+        try:
+            body = get(entry["url"])
+            access = classify_access(200, body)
+        except SourceError as error:
+            access, body = error.access, ""
+            result["note"] = str(error)
+        result.update(ok=access == "works", access=access)
+        if access == "works" and not result["note"]:
+            result["note"] = "page loads; search it by hand"
+    else:
+        result.update(access="manual", note="manual Source: no url to test; search it by hand")
+    print(json.dumps(result))
+    sys.exit(0 if result["ok"] else 1)
 
 
 def validate_sources(cfg, label):
@@ -617,10 +777,11 @@ def collect(name, target, fn):
             note = f"{len(jobs) - MP_MAX_ADS} ads over the {MP_MAX_ADS}-fetch cap listed without ad text"
         return jobs, {"source": name, "target": target, "ok": True, "count": len(jobs), "note": note}
     except SourceError as e:
-        err = str(e)
+        err, access = str(e), e.access
     except Exception as e:  # malformed payload: still a dead source, not zero jobs
-        err = f"{type(e).__name__}: {e}"
-    return [], {"source": name, "target": target, "ok": False, "count": 0, "note": err}
+        err, access = f"{type(e).__name__}: {e}", "error"
+    return [], {"source": name, "target": target, "ok": False, "count": 0, "note": err,
+                "access": access}
 
 
 def health_lines(health):
@@ -632,11 +793,75 @@ def health_lines(health):
     lines += ["| Source | Target | Status | Jobs | Note |", "| :-- | :-- | :-- | --: | :-- |"]
     for h in health:
         status = "ok" if h["ok"] else "**FAILED**"
+        if not h["ok"] and h.get("access") not in (None, "error"):
+            status = f"**FAILED** ({h['access']})"
         if h["ok"] and h["count"] == 0:
             status = "ok (0 posted)"
         lines.append(f"| {h['source']} | {h['target'].replace('|', '/')} | {status} | {h['count']} | "
                      f"{h['note'].replace('|', '/')} |")
     return lines + [""]
+
+
+def rule_lines(rules, filtered):
+    """How many roles each Search rule removed, and which, so nothing vanishes unseen."""
+    lines = ["## Filtered by Search rules", ""]
+    active = []
+    if rules.max_posting_age_days:
+        active.append(f"posting age under {rules.max_posting_age_days} days")
+    for name, days in sorted(rules.source_age.items()):
+        active.append(f"{name}: posting age under {days} days")
+    for name, cap in sorted(rules.max_applicants.items()):
+        active.append(f"{name}: at most {cap} applicants (checked by hand; APIs give no count)")
+    if not active:
+        return lines + ["No Search rules set (workspace.json `search_rules`).", ""]
+    lines += ["Rules: " + "; ".join(active) + ".", ""]
+    counts = {}
+    for _, finding in filtered:
+        counts[finding.reason] = counts.get(finding.reason, 0) + 1
+    lines += ["| Rule | Removed |", "| :-- | --: |"]
+    for reason in search_rules.REASONS:
+        if reason in counts:
+            lines.append(f"| {reason} | {counts[reason]} |")
+    if not counts:
+        lines.append("| (none) | 0 |")
+    lines.append("")
+    for job, finding in filtered:
+        lines.append(f"- {job['title']} — {job['company']} — {finding.reason}: {finding.note}")
+    return lines + ([""] if filtered else [])
+
+
+def manual_lines(entries, rules):
+    """The Sources the skill must search by hand, with what it needs to read them."""
+    lines = ["## Not reachable by this script", ""]
+    for entry in entries:
+        if not entry["enabled"]:
+            lines.append(f"- ~~{entry['name']}~~ (disabled)")
+            continue
+        bits = [entry["type"], f"access: {entry['access']}"]
+        if entry.get("url"):
+            bits.append(entry["url"])
+        lines.append(f"- **{entry['name']}** — " + " · ".join(bits))
+        if entry.get("age_format"):
+            lines.append(f"  - posting age reads like: {entry['age_format']}")
+        if entry.get("applicants_format"):
+            lines.append(f"  - applicant count reads like: {entry['applicants_format']}")
+        cap = rules.applicant_cap(entry["name"])
+        limit = rules.age_limit(entry["name"])
+        own = [f"at most {cap} applicants"] if cap is not None else []
+        own += [f"posted under {limit} days ago"] if limit else []
+        if own:
+            lines.append("  - rules: " + ", ".join(own))
+        if entry.get("notes"):
+            lines.append(f"  - {entry['notes']}")
+    if not entries:
+        lines += [
+            "- **Seek** and **LinkedIn** return 403. The skill covers them via WebSearch, which",
+            "  yields leads rather than readable ads.",
+        ]
+    lines += ["- Sources without a public API need the skill's WebFetch path. Record every one",
+              "  searched, and why any could not be (403, login wall, Cloudflare), in the hand-back.",
+              ""]
+    return lines
 
 
 # ----------------------------------------------------------------------- main
@@ -659,9 +884,14 @@ def main(argv=None):
                     help="fetch exactly one source, print its health JSON, exit non-zero if unhealthy")
     ap.add_argument("--platforms", action="store_true",
                     help="print the platform registry (name -> default targets) as JSON and exit")
+    ap.add_argument("--test-source", metavar="NAME",
+                    help="check one registry Source, print its health JSON, exit non-zero if it fails")
     ap.add_argument("--all-locations", action="store_true")
     add_data_argument(ap)
     args = ap.parse_args(argv)
+    if args.test_source:
+        test_source(workspace, args.test_source)
+        return
     if args.platforms:
         print(json.dumps({name: list(defaults) for name, (_, defaults) in PLATFORMS.items()}))
         return
@@ -683,6 +913,10 @@ def main(argv=None):
 
     search_area = active_search_area(config(workspace).get("search_area"))
     blockers, favourable = load_blockers(workspace)
+    try:
+        rules = search_rules.load_rules(workspace)
+    except ValueError as error:
+        sys.exit(f"workspace.json {error}")
     seen = seen_urls(workspace)
     if search_area is None and not args.all_locations:
         print(NO_SEARCH_AREA)
@@ -707,6 +941,7 @@ def main(argv=None):
     coverage = coverage_rows(tracks, health, args.source)
     by_role = {row["id"]: row for row in coverage}
     kept, skipped_seen, skipped_loc, skipped_track = [], 0, 0, 0
+    filtered = []  # (job, Finding) a Search rule removed
     this_run = set()
     for j in jobs:
         ukey = norm_url(j["url"])
@@ -731,6 +966,12 @@ def main(argv=None):
                 by_role[match["id"]]["outside"] += 1
             skipped_loc += 1
             continue
+        findings = search_rules.evaluate(rules, source=j["source"], posted=j.get("posted", ""))
+        rule = search_rules.deciding(findings)
+        if rule:
+            filtered.append((j, rule))
+            continue
+        j["borderline"] = [f.note for f in findings if not f.certain]
         j["tracks"] = hit
         j["matches"] = matches
         j["signals"] = scan(j.get("content", "") or j["title"], blockers, favourable)
@@ -745,6 +986,7 @@ def main(argv=None):
     clean.sort(key=lambda j: (not any(k == "favourable" for _, k in j["signals"]), j["title"]))
 
     failed = [h for h in health if not h["ok"]]
+    swept_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# Sweep candidates",
         "",
@@ -756,10 +998,14 @@ def main(argv=None):
           if ROLE_CATALOGUE is not None else []),
         f"Swept {date.today().isoformat()} · tracks {', '.join(tracks)} · "
         f"{len(jobs)} fetched, {len(kept)} matched, {skipped_seen} already known"
+        + (f", {len(filtered)} filtered by rules" if filtered else "")
         + (f" · **{len(failed)} source(s) FAILED**" if failed else ""),
+        "",
+        f"Scanned at {swept_at}.",
         "",
         *([f"Search area: {NO_SEARCH_AREA}.", ""] if search_area is None else []),
         *health_lines(health),
+        *rule_lines(rules, filtered),
         *coverage_lines(coverage),
         "---",
         "",
@@ -774,6 +1020,8 @@ def main(argv=None):
             f" · {'/'.join(j['tracks'])}{' · ' + j['type_hint'] if j.get('type_hint') else ''}{sig}",
             f"- {j['url']}",
             f"- source: `{j['source']}`" + ("" if j.get("content") else "  **(no ad text — fetch it)**"),
+            *([f"- posted: {j['posted']}"] if j.get("posted") else []),
+            *[f"- **borderline age, ask the Owner:** {note}" for note in j.get("borderline", [])],
             *match_lines(j["matches"]),
             "",
         ]
@@ -786,14 +1034,7 @@ def main(argv=None):
             lines += [f"- **{j['title']}** — {j['company']} — {why}", f"  {j['url']}",
                       *match_lines(j["matches"]), ""]
 
-    lines += [
-        "## Not reachable by this script",
-        "",
-        "- **Seek** and **LinkedIn** return 403. The skill covers them via WebSearch, which",
-        "  yields leads rather than readable ads.",
-        "- Sources without a public API need the skill's WebFetch path.",
-        "",
-    ]
+    lines += manual_lines(manual_sources(workspace), rules)
 
     out = Path(workspace) / "jobs" / "sweep-candidates.md"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -802,6 +1043,8 @@ def main(argv=None):
     print(f"  skipped: {skipped_seen} already known, {skipped_track} off-track, "
           f"{skipped_loc} wrong location")
     print(f"  sources: {len(health) - len(failed)} ok, {len(failed)} FAILED")
+    if filtered:
+        print(f"  filtered by Search rules: {len(filtered)}")
     for h in failed:
         print(f"    FAILED {h['source']} {h['target']}: {h['note']}")
     print(f"\nWrote {out}")

@@ -107,6 +107,8 @@ type settingsGroupHandler struct {
 // settingsHandlers is every group's handler, in display order.
 var settingsHandlers = []settingsGroupHandler{
 	{group: settings.GroupSearch, help: model.searchHelpKeys, key: model.searchKey},
+	{group: settings.GroupRules, help: model.rulesHelpKeys, key: model.rulesKey},
+	{group: settings.GroupSources, help: model.sourcesHelpKeys, key: model.sourcesKey},
 	{group: settings.GroupDocuments, help: model.gateHelpKeys, key: model.gatesKey},
 	{group: settings.GroupTracking, help: model.trackHelpKeys, key: model.tracksKey},
 	{group: settings.GroupMachine, help: model.machineHelpKeys},
@@ -187,6 +189,9 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.undoSetting(), nil
+	}
+	if next, cmd, ok := m.sourceTestKey(k); ok {
+		return next, cmd
 	}
 	for _, h := range settingsHandlers {
 		if h.key == nil {

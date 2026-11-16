@@ -8,6 +8,7 @@ built from every Application's ``meta.yml`` URL, whatever its Status.
 
 import importlib.util
 import json
+from datetime import date
 import sys
 from pathlib import Path
 
@@ -713,3 +714,26 @@ def test_michael_page_company_and_cap(monkeypatch):
     assert jobs[-1]["content"] == ""
     _jobs, health = sw.collect("michaelpage", "u", lambda target: jobs)
     assert "cap" in health["note"]
+
+
+def test_sweep_drops_roles_past_the_age_limit_and_counts_them(tmp_path, monkeypatch):
+    workspace = copy_fixture_workspace(tmp_path)
+    config = json.loads((workspace / "workspace.json").read_text())
+    config["search_rules"] = {"max_posting_age_days": 30}
+    (workspace / "workspace.json").write_text(json.dumps(config))
+    old = candidate("Software Engineer Old", "https://example.test/jobs/old")
+    old["posted"] = "2020-01-01"
+    new = candidate("Software Engineer New", "https://example.test/jobs/new")
+    new["posted"] = date.today().isoformat()
+    output = run_sweep(monkeypatch, workspace, lambda target: [old, new], "--track", "SWE")
+    assert "### Software Engineer New — Fictional Labs" in output
+    assert "### Software Engineer Old" not in output
+    assert "## Filtered by Search rules" in output and "| expired | 1 |" in output
+    assert "Software Engineer Old — Fictional Labs — expired" in output
+    assert "1 filtered by rules" in output and "Scanned at " in output
+
+
+def test_failed_source_names_its_access_problem():
+    text = "\n".join(sw.health_lines([{"source": "x", "target": "y", "ok": False, "count": 0,
+                                        "note": "403", "access": "cloudflare"}]))
+    assert "**FAILED** (cloudflare)" in text

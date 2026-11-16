@@ -13,23 +13,32 @@ import (
 )
 
 // Groups are the groups in display order; the Group* indices match this order.
-var Groups = []string{"Search", "Documents", "Tracking", GroupMachineName}
+var Groups = []string{"Search", GroupRulesName, GroupSourcesName, "Documents", "Tracking", GroupMachineName}
 
 // Group indices, in display order. A handler names its group with one of these rather
 // than a bare integer, so inserting a group cannot silently move another's behaviour.
 const (
 	GroupSearch = iota
+	GroupRules
+	GroupSources
 	GroupDocuments
 	GroupTracking
 	GroupMachine
 )
 
-const GroupMachineName = "This machine"
+// Group names the code refers to.
+const (
+	GroupMachineName = "This machine"
+	GroupRulesName   = "Rules"
+	GroupSourcesName = "Sources"
+)
 
 // GroupAbout is one plain sentence per group, for the about text while the cursor rests
 // on the section header.
 var GroupAbout = []string{
-	"Where the job Sweep looks for roles, and what rules one out. Sources and Blockers are set in " + settingsFile + ": e opens it.",
+	"Where the job Sweep looks for roles, and what rules one out. Blockers are set in " + settingsFile + ": e opens it.",
+	"The Search rules the Sweep applies to every Lead it finds. A Lead a rule dismisses waits in Leads › Filtered with its reason.",
+	"The job boards and careers pages the Sweep reads. Enter turns one on or off; t tests whether the Sweep can read it.",
 	"The limits the Build checks a cover letter and Key Skills against.",
 	"The kinds of role you apply for, and when an Application is due a follow-up.",
 	"Settings for this computer only, kept in " + configFile + " outside the Workspace.",
@@ -46,6 +55,7 @@ const (
 	LabelASCII     = "ASCII glyphs"
 	LabelInherit   = "Inherit colours"
 	LabelAddTrack  = "+ add a Track"
+	LabelAddSource = "+ add a Source"
 )
 
 // Examples shown beside an unset value and while it is edited.
@@ -249,11 +259,13 @@ func (st State[Undo]) Rows(group int, machine Machine) []Row {
 				About: "The places a role must be in for the Sweep to keep it. Leave it empty to keep every location."},
 			{Label: fieldRemote, Value: RemoteLabel(ws.Remote), Source: FileSource(ws.Remote != ""),
 				About: "Whether the Sweep keeps a remote role, and from where."},
-			{Label: "Sources", Value: strconv.Itoa(ws.Sources), ReadOnly: true, Reason: "read-only · job boards the Sweep reads",
-				About: "The job boards the Sweep reads, and which companies on each." + editInWorkspace},
 			{Label: "Blockers", Value: strconv.Itoa(ws.Blockers), ReadOnly: true, Reason: "read-only · signals that rule a role out",
 				About: "Signals that rule a role out for you, such as a security clearance." + editInWorkspace},
 		}
+	case GroupRulesName:
+		return st.ruleRows()
+	case GroupSourcesName:
+		return st.sourceRows()
 	case "Documents":
 		return st.gateRows()
 	case "Tracking":
@@ -324,7 +336,7 @@ func (st State[Undo]) trackingRows(machine Machine) []Row {
 	if len(rows) == 1 {
 		rows[0].Section = "Tracks"
 	}
-	unit := "days"
+	unit := unitDays
 	if machine.FollowUpDays == 1 {
 		unit = "day"
 	}
@@ -461,9 +473,92 @@ func plural(n int, one, many string) string {
 
 const (
 	settingsFile    = "workspace.json"
+	unitDays        = "days"
 	configFile      = "config.toml"
 	fieldPlaces     = "Places"
 	fieldRemote     = "Remote roles"
 	minFollowUpDays = config.MinFollowUpDays
 	maxFollowUpDays = config.MaxFollowUpDays
 )
+
+// Rule is one Rules row: its search_rules key, its label, the unit it counts and what it does.
+type Rule struct{ Key, Label, Unit, Example, About string }
+
+// Rules are the Rules rows in display order.
+var Rules = []Rule{
+	{store.RuleMaxPostingAge, "Max posting age", unitDays, "30",
+		"The Sweep dismisses a Lead whose ad is older than this. Leave it empty to keep every age."},
+	{store.RuleExpiryWarning, "Expiry warning", unitDays, "5",
+		"A Lead this close to the max posting age says how many days it has left."},
+	{store.RuleMaxApplicants, "Applicant caps", "", "linkedin 100, seek 50",
+		"The most applicants a Lead from each Source may have before the Sweep dismisses it."},
+	{store.RuleAmbiguousLabels, "Ambiguous age labels", "", "1mo ago = discard, 4w ago = keep",
+		"What the Sweep does with an age label that gives no exact date: discard the Lead, or keep it."},
+	{store.RuleMaxContract, "Max contract length", "months", "12",
+		"A contract longer than this is flagged. The Lead is kept; the flag is advice."},
+}
+
+// RuleText is a Search rule as the Owner types it: "" while unset.
+func RuleText(r store.SearchRules, key string) string {
+	if !r.Set[key] {
+		return ""
+	}
+	switch key {
+	case store.RuleMaxPostingAge:
+		return strconv.Itoa(r.MaxPostingAgeDays)
+	case store.RuleExpiryWarning:
+		return strconv.Itoa(r.ExpiryWarningDays)
+	case store.RuleMaxContract:
+		return strconv.Itoa(r.MaxContractMonths)
+	case store.RuleMaxApplicants:
+		return store.FormatApplicantCaps(r.MaxApplicants)
+	case store.RuleAmbiguousLabels:
+		return store.FormatAgeLabels(r.AmbiguousAgeLabels)
+	}
+	return ""
+}
+
+// ruleRows lists the Search rules with their values. The expiry warning shows its
+// default while unset.
+func (st State[Undo]) ruleRows() []Row {
+	rows := make([]Row, len(Rules))
+	for i, r := range Rules {
+		value := RuleText(st.Ws.Rules, r.Key)
+		if value == "" && r.Key == store.RuleExpiryWarning {
+			value = strconv.Itoa(store.DefaultExpiryWarningDays)
+		}
+		rows[i] = Row{Label: r.Label, Value: value, Unit: r.Unit, Source: FileSource(st.Ws.Rules.Set[r.Key]), Example: r.Example, About: r.About}
+	}
+	return rows
+}
+
+// SourceValue is a Source as its row reads: "api · greenhouse · 12 targets · works", or
+// "browser · login wall · disabled".
+func SourceValue(src store.Source) string {
+	parts := []string{src.Type}
+	if src.Type == store.SourceAPI {
+		parts = append(parts, src.Platform, plural(len(src.Targets), "target", "targets"))
+	}
+	parts = append(parts, src.AccessText())
+	if !src.On() {
+		parts = append(parts, "disabled")
+	}
+	return strings.Join(parts, " · ")
+}
+
+// sourceRows lists one row per Source, then the row to add one.
+func (st State[Undo]) sourceRows() []Row {
+	var rows []Row
+	for _, src := range st.Ws.SourceList {
+		about := "Enter turns this Source off or on; t tests whether the Sweep can read it."
+		if src.Notes != "" {
+			about = src.Notes + " " + about
+		}
+		if src.URL != "" {
+			about = src.URL + " · " + about
+		}
+		rows = append(rows, Row{Label: src.Name, Value: SourceValue(src), Source: settingsFile, About: about})
+	}
+	return append(rows, Row{Label: LabelAddSource, Action: true,
+		About: "Add a job board, careers page or API the Sweep reads."})
+}
