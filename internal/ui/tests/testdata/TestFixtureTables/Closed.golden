@@ -1,20 +1,20 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats        █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings            space menu  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   VIEW s All 9  Applied 1  Interviewing 2  Offer 2 [Closed 4] │ TRACK t [All 4] SWE 2  Platform 0  Unknown 2
+   VIEW s All 9  Applied 1  Interviewing 2  Offer 2 [Closed 4] │ TRACK t [All 4] SWE 2  Unknown 2                       
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
    ✕ Closed · 4 ──────────────────────────────────────────────── │ Engineer #1                                          
- ▌ ✕ Engineer #1                            ~Jan 2026  fit Good  │ Example · Unknown · rejected ~Jan 2026               
+ ▌ ✕ Engineer #1                                       Good      │ Example · Unknown                                    
  ▌   Example · Unknown · rejected ~Jan 2026                      │                                                      
-   ↩ Engineer #1                            ~Jan 2026  fit Good  │ ✕ Rejected                                 fit Good  
+   ↩ Engineer #1                                       Good      │ ✕ Rejected · ~Jan 2026                     fit Good  
      Example · Unknown · withdrawn ~Jan 2026                     │                                                      
-   ✕ docs-ready                                   ~7d     fit —  │ DOCS    □□□ 0/3 ready                                
+   ✕ docs-ready                                                  │ DOCS         □□□ 0/3 ready                           
      Fictional Labs · SWE · rejected ~7d ago                     │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
-   ↩ docs-resume-only                             ~7d     fit —  │                                                      
+   ↩ docs-resume-only                                            │                                                      
      Fictional Labs · SWE · withdrawn ~7d ago                    │ TIMELINE                                             
                                                                  │   ● Applied                             ~1 Jan 2025  
                                                                  │   ✕ Rejected                            ~1 Jan 2026  
                                                                  │                                                      
-                                                                 │ NOTES   none yet                              n add  
+                                                                 │ NOTES        none yet                         n add  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › Closed · All tracks · row 1 of 4
- enter open  m move  a add  / search                                                                             ? help
+   Applied › Closed · All tracks · row 1 of 4                                                                           
+ enter open  m move  a add  / search                                                                             ? help 

@@ -49,7 +49,7 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 	}
 }
 
-// ←→ switch views on a table screen; T cycles the track filter backwards.
+// ←→ switch views on a table screen; T cycles the track filter backwards, past empty Tracks.
 func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "right"))
 	if !strings.Contains(view, "Leads › Dismissed") {
@@ -59,23 +59,32 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 	if !strings.Contains(view, "Leads › All tracks") {
 		t.Fatalf("← did not switch back to Leads:\n%s", view)
 	}
+	// T from All goes back to the last Track with rows here: the off-list Unknown has none
+	// on Leads, so it is passed over for Platform.
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 120, "1", "T"))
-	if !strings.Contains(view, "[Unknown 0]") {
-		t.Fatalf("T did not cycle back to the last track, the off-list Unknown:\n%s", view)
+	if !strings.Contains(view, "[Platform 1]") {
+		t.Fatalf("T did not cycle back to the last Track with rows, Platform:\n%s", view)
 	}
 }
 
 // The `?` pop-up lists the context's keys, then the global ones, and offers paging only
 // when there is a second page.
 func TestHelpIsContextAwareAndPagesOnlyWhenNeeded(t *testing.T) {
-	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "enter", "?"))
-	for _, want := range []string{"Keys · Applied · JD", "NAVIGATE", "←→ switches tab"} {
+	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 80, "3", "enter", "?"))
+	for _, want := range []string{"Keys · Applied · JD", "NAVIGATE"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("detail help lacks %q:\n%s", want, view)
 		}
 	}
-	if strings.Contains(view, "1/1") || strings.Contains(view, "↑↓ page") {
+	if !helpLists(view, "←→ tab") {
+		t.Fatalf("detail help lacks ←→ tab:\n%s", view)
+	}
+	if strings.Contains(view, "1/1") || strings.Contains(view, "page 1 of") || strings.Contains(view, "↑↓ page") {
 		t.Fatalf("one-page help offers paging:\n%s", view)
+	}
+	if short := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 30, "3", "enter", "?")); !strings.Contains(short, "page 1 of") ||
+		!strings.Contains(short, "↑↓ page") {
+		t.Fatalf("a help taller than its box does not page:\n%s", short)
 	}
 	if strings.Contains(view, "/ search") || helpLists(view, "a add") {
 		t.Fatalf("detail help lists list-only keys:\n%s", view)

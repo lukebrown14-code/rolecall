@@ -23,6 +23,7 @@ func inheritColors() Palette {
 	const (
 		red, green, yellow, blue, magenta, cyan = 1, 2, 3, 4, 5, 6
 		brightBlack, brightRed, brightBlue      = 8, 9, 12
+		brightMagenta                           = 13
 	)
 	return Palette{
 		Fg: lipgloss.NoColor{}, Sub: lipgloss.NoColor{}, OnFill: lipgloss.NoColor{},
@@ -30,7 +31,8 @@ func inheritColors() Palette {
 		Accent: c(cyan), Sel: c(brightBlack), Ok: c(green), Info: c(blue), Warn: c(brightRed), Bad: c(red),
 		Bg: lipgloss.NoColor{}, Panel: lipgloss.NoColor{},
 		Purple: c(magenta), Gold: c(yellow), Lead: lipgloss.NoColor{}, Draft: c(brightBlue),
-		Inherit: true,
+		Marginal: c(brightMagenta),
+		Inherit:  true,
 	}
 }
 
@@ -42,7 +44,7 @@ func InheritDimmed() Palette {
 	p := inheritColors()
 	d := p.Dim
 	p.Fg, p.Sub, p.Accent, p.Ok, p.Info, p.Warn, p.Bad = d, d, d, d, d, d, d
-	p.Purple, p.Gold, p.Lead, p.Draft = d, d, d, d
+	p.Purple, p.Gold, p.Lead, p.Draft, p.Marginal = d, d, d, d, d
 	p.Sel, p.Backdrop = lipgloss.NoColor{}, true
 	return p
 }

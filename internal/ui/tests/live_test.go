@@ -141,11 +141,11 @@ func TestLiveNewApplicationAppearsAndIsWatched(t *testing.T) {
 	h.write(filepath.Join(h.folder("newco"), "meta.yml"), newLead)
 	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("newco"), "fit: Marginal")
-	h.wait("fit Marginal")
+	h.wait("Marginal")
 	// A whole folder appearing at once, with out/ already inside it.
 	h.write(filepath.Join(h.folder("late"), "meta.yml"), strings.Replace(newLead, "Brand New Role", "Late Arrival", 1))
 	h.wait("Late Arrival")
-	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "fit Marginal") || !strings.Contains(v, "Newco") {
+	if v := h.finalView(); !strings.Contains(rowLine(v, "Brand New Role"), "Marginal") || !strings.Contains(v, "Newco") {
 		t.Fatalf("new Application row missing or stale:\n%s", v)
 	}
 }
@@ -160,10 +160,9 @@ func TestLiveNewTrackFolderIsWatched(t *testing.T) {
 
 func TestLiveCursorStaysOnSameFolder(t *testing.T) {
 	h := newLiveHarness(t, nil)
-	h.tm.Type("j") // second Lead: Empty log
-	h.tm.Type("j") // third Lead: Fern
-	// A new Lead sorts above Fern (a close date), and another row changes Fit.
-	h.write(filepath.Join(h.folder("early"), "meta.yml"), strings.Replace(newLead, "track: SWE\n", "track: SWE\ncloses: 2026-12-01\n", 1))
+	// The first Lead is Fern, whose ad nears max_posting_age_days. A new Lead closing
+	// sooner sorts above it, and another row changes Fit.
+	h.write(filepath.Join(h.folder("early"), "meta.yml"), strings.Replace(newLead, "track: SWE\n", "track: SWE\ncloses: 2026-10-02\n", 1))
 	h.wait("Brand New Role")
 	h.addMetaKey(h.folder("empty"), "fit: Good")
 	h.wait("Good")
@@ -185,7 +184,7 @@ func TestLiveDetailViewRerendersAndKeepsScrollPosition(t *testing.T) {
 	h := newLiveHarness(t, func(root string) {
 		os.WriteFile(filepath.Join(root, "jobs", "SWE", "fern", "jd.md"), []byte(jdWithItems("")), 0o644)
 	})
-	h.tm.Type("jj") // Fern
+	// Fern is the first Lead: its ad nears max_posting_age_days.
 	h.key(tea.KeyEnter)
 	h.wait("item 01")
 	for i := 0; i < 5; i++ {

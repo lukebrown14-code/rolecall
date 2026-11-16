@@ -45,8 +45,12 @@ func rowLines(view string) []string {
 	return out
 }
 
+// fitWord finds a row's Fit, alone at the end of its title line.
+var fitWord = regexp.MustCompile(`  (Strong|Good|Marginal|Poor) *$`)
+
 // No list line is longer than the terminal, and the right columns start at the same
-// cell on every row, at every size.
+// cell on every row, at every size: every Fit word starts at one cell, left-aligned in a
+// column as wide as "Marginal", and every Follow-up flag ends at one cell.
 func TestListRowsAlignAndNeverWrap(t *testing.T) {
 	for _, s := range columnSizes {
 		w, h := s[0], s[1]
@@ -60,52 +64,67 @@ func TestListRowsAlignAndNeverWrap(t *testing.T) {
 		if len(rows) < 3 {
 			t.Fatalf("%dx%d: found %d rows:\n%s", w, h, len(rows), view)
 		}
-		end := ansi.StringWidth(strings.TrimRight(rows[0], " "))
+		fitAt, flagEnd := -1, -1
 		for _, r := range rows {
-			if got := ansi.StringWidth(strings.TrimRight(r, " ")); got != end {
-				t.Errorf("%dx%d: Fit column ends at cell %d, want %d: %q", w, h, got, end, r)
+			if m := fitWord.FindStringSubmatchIndex(r); m != nil {
+				at := ansi.StringWidth(r[:m[2]])
+				if fitAt >= 0 && at != fitAt {
+					t.Errorf("%dx%d: Fit starts at cell %d, want %d: %q", w, h, at, fitAt, r)
+				}
+				fitAt = at
 			}
+			if i := strings.Index(r, "⚑"); i >= 0 {
+				end := ansi.StringWidth(r[:i]) + ansi.StringWidth(strings.Fields(r[i:])[0]+" "+strings.Fields(r[i:])[1])
+				if flagEnd >= 0 && end != flagEnd {
+					t.Errorf("%dx%d: flag ends at cell %d, want %d: %q", w, h, end, flagEnd, r)
+				}
+				flagEnd = end
+			}
+		}
+		if fitAt < 0 || flagEnd < 0 {
+			t.Errorf("%dx%d: no Fit or no flag found:\n%s", w, h, view)
 		}
 	}
 }
 
-// The latest stage date is fully visible on its row, at every size, however much of the
-// title is cut to make room.
-func TestListStageDateIsAlwaysWhole(t *testing.T) {
+// A Follow-up due flag is whole on its row, at every size, however much of the title is
+// cut to make room.
+func TestListFollowUpFlagIsAlwaysWhole(t *testing.T) {
 	for _, s := range columnSizes {
 		view := listView(t, s[0], s[1])
 		var found bool
 		for _, r := range rowLines(view) {
-			if strings.Contains(r, "● Software Eng") {
+			if strings.Contains(r, "◆ Engineer #1") {
 				found = true
-				if !strings.Contains(r, " 6d ") {
-					t.Errorf("%dx%d: stage date cut: %q", s[0], s[1], r)
+				if !strings.Contains(r, "⚑ 9mo  Good") {
+					t.Errorf("%dx%d: flag or Fit cut: %q", s[0], s[1], r)
 				}
 			}
 		}
 		if !found {
-			t.Errorf("%dx%d: Software Engineer row not shown:\n%s", s[0], s[1], view)
+			t.Errorf("%dx%d: Engineer #1 row not shown:\n%s", s[0], s[1], view)
 		}
 	}
 }
 
-// The Fit column is labelled as everywhere else: "fit Good", or "fit —" when there is
-// none, never a bare · that reads as a separator.
+// The Fit column is the Fit word alone, "Good", and blank when there is none: no "fit"
+// label repeated down the list, no age, and never a bare · or — that reads as a value.
 func TestListFitColumn(t *testing.T) {
 	view := listView(t, 120, 36)
 	for _, r := range rowLines(view) {
+		end := strings.TrimRight(r, " ")
 		switch {
 		case strings.Contains(r, "● Software Eng"):
-			if !strings.HasSuffix(strings.TrimRight(r, " "), " fit —") {
-				t.Errorf("unassessed row lacks fit —: %q", r)
+			if !strings.HasSuffix(end, "Software Engineer") {
+				t.Errorf("unassessed row draws something after its title: %q", r)
 			}
-		case strings.Contains(r, "Engineer #1") && strings.Contains(r, "⚑"), strings.Contains(r, "◆ Engineer #1"):
-			if !strings.HasSuffix(strings.TrimRight(r, " "), "fit Good") {
-				t.Errorf("assessed row lacks fit Good: %q", r)
+		case strings.Contains(r, "Engineer #1"):
+			if !strings.HasSuffix(end, "  Good") {
+				t.Errorf("assessed row lacks Good: %q", r)
 			}
 		}
-		if strings.HasSuffix(strings.TrimRight(r, " "), "·") {
-			t.Errorf("row ends in a bare separator: %q", r)
+		if strings.Contains(r, "fit") || strings.HasSuffix(end, "·") || strings.HasSuffix(end, "—") {
+			t.Errorf("row shows a fit label or ends in a bare mark: %q", r)
 		}
 	}
 }
@@ -126,7 +145,7 @@ func TestListLongTitleTruncates(t *testing.T) {
 	view := chipped(runKeysSized(t, root, 60, 16, "3"))
 	for _, r := range rowLines(view) {
 		if strings.Contains(r, "Principal") {
-			if !strings.Contains(r, "…") || !strings.Contains(r, " 6d ") {
+			if !strings.Contains(r, "…") {
 				t.Errorf("long title row: %q", r)
 			}
 			return
@@ -136,9 +155,10 @@ func TestListLongTitleTruncates(t *testing.T) {
 }
 
 // The old Fit phrasings appear nowhere in the screens that talk about Fit: a Fit reads
-// "fit Good" or "fit —" everywhere, the list, the preview, the detail and the Fit tab.
+// "fit Good" everywhere, the list, the preview, the detail and the Fit tab; one not assessed
+// reads "fit not assessed" in the card and on the Fit tab.
 func TestFitWordingIsConsistent(t *testing.T) {
-	banned := []string{"fit not assessed", "fit: ", "no fit assessment", "score"}
+	banned := []string{"fit: ", "no fit assessment", "score"}
 	screens := [][]string{{"1"}, {"2"}, {"3"}, {"3", "enter"}, {"3", "enter", "right"}, {"3", "enter", "right", "right"}, {"?"}, {"3", "/docs-written", "enter", "enter", "right", "right"}}
 	for _, w := range []int{120, 80, 60} {
 		for _, keys := range screens {

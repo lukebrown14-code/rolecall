@@ -11,8 +11,9 @@ description: Draft a short follow-up message for an Application that is Follow-u
 > script by a path relative to the Workspace, and never hand-write `meta.yml` because a
 > script was not found: stop and say which path failed.
 
-The Owner sent this Application and has heard nothing for the follow-up period. Write the
-message they could send to nudge it along, and stop. You write one file,
+The Owner sent this Application and has heard nothing for the follow-up period: no Status
+change, and no follow-up recorded, for `follow_up_days` (default 14). Write the message they
+could send to nudge it along, and stop. You write one file,
 `<application folder>/follow-up.md`. Nothing else.
 
 **You never send.** No email, no form, no network call, no calendar entry. The Owner reads the
@@ -20,8 +21,14 @@ message, edits it and sends it themselves.
 
 ## 1. Read the facts
 
-- `<application folder>/meta.yml` — the title, company, `contact` if there is one, and the
-  `status_log`. The dates in it say when the Owner applied and when the Status last changed.
+- `<application folder>/meta.yml` — the title, company, `contact` if there is one, the
+  `status_log` and `followed_up`. The log says when the Owner applied and when the Status last
+  changed; `followed_up: YYYY-MM-DD`, when present, is the day the Owner last recorded a
+  follow-up (`l` in rolecall).
+- When it is due: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py --data <workspace> follow-up --folder <application folder>`
+  (add `--days <n>` when the Owner changed `follow_up_days` in Settings). It prints `FollowedUp`,
+  `From` (the later of the last Status change and `followed_up`), `Since` (which of the two),
+  `DueOn` and `Due`, reckoned as the app's `⚑` flag is.
 - `<application folder>/jd.md` — the role, so the message names it correctly.
 - `profile/master-profile.md` in the Workspace, only for the Owner's name and one fact worth
   repeating. The only facts you may use are in the Profile.
@@ -31,6 +38,10 @@ message, edits it and sends it themselves.
 Every script takes the Workspace from `--data <path>` or `ROLECALL_WORKSPACE`. Resolve it before
 running anything, and do not guess a path.
 
+Before drafting, tell the Owner when they last followed up, if `FollowedUp` is set. When `Due`
+is false, the follow-up is not due yet: say so, give `DueOn`, and draft only if the Owner still
+wants a message now.
+
 ## 2. Write `follow-up.md`
 
 - Address the `contact` from `meta.yml` by name. With no contact, write `Hello,` and say so in
@@ -38,6 +49,8 @@ running anything, and do not guess a path.
 - Three to five sentences. Name the role and the date the Owner applied (or their last
   contact, when the Status is Interviewing), ask for an update, and repeat one fact from the
   Profile that is relevant to the ad. Add nothing the Profile cannot evidence.
+- When `Since` is `followed_up`, this is a second nudge: say briefly that the Owner followed up
+  on that day, rather than writing as if it were the first.
 - Polite and brief. No apology, no pressure, no invented urgency or competing offers.
 - Put a one-line `Subject:` first, then a blank line, then the body.
 
@@ -45,5 +58,10 @@ Overwrite an existing `follow-up.md` only after saying you are replacing it.
 
 ## 3. Report
 
-Say where the file is, whether a contact was found, and that nothing was sent. Do not append to
-`status_log` and do not edit `meta.yml`.
+Say where the file is, whether a contact was found, and that nothing was sent. Then tell the
+Owner: once they have sent it, press `l` on the Application in rolecall to record the follow-up.
+That writes `followed_up` and clears the `⚑` until `follow_up_days` after that day.
+
+Do not append to `status_log` and do not edit `meta.yml`, `followed_up` included, even when the
+Owner says the message went: recording a follow-up is the Owner's action in the app, as a
+Status change is, and SCHEMA.md does not list `followed_up` among the keys an agent writes.

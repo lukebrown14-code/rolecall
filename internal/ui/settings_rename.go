@@ -10,20 +10,11 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// renameKey opens the rename pop-up on r over a Track row. handled is false anywhere else,
-// so r keeps meaning rescan.
-func (m model) renameKey(k tea.KeyPressMsg) (next model, handled bool) {
-	if k.String() != "r" || !m.settingsRowsFocused() || !m.onTrack() {
-		return m, false
-	}
-	m.overlay = m.renamePopup(m.settings.Ws.Tracks[m.settings.Row])
-	return m, true
-}
-
 // renamePopup asks for a Track's new name; enter goes on to review what will change.
 func (m model) renamePopup(old string) mode {
 	f := newFormOf("Rename Track "+old, formField{Label: "New name", Required: true, Value: old})
 	f.Submit = hintReview
+	f.SelectValue() // typing replaces the old name
 	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
 		name := strings.TrimSpace(f.Value("New name"))
 		if name == old {

@@ -41,8 +41,9 @@ func TestFormCtrlSShowsEveryMissingFieldUnderIt(t *testing.T) {
 }
 
 func TestFormChecksAFieldsFormatOnLeavingIt(t *testing.T) {
-	// URL, Title, Company, Track, then Closes: a bad date is flagged as soon as tab leaves it.
-	v := addForm(t, "tab", "tab", "tab", "tab", "31/12/2026", "tab")
+	// From Title (where the form opens without a Plugin), Company, Track, then Closes: a bad
+	// date is flagged as soon as tab leaves it.
+	v := addForm(t, "tab", "tab", "tab", "31/12/2026", "tab")
 	requireAll(t, v, "✘ Closes must be YYYY-MM-DD")
 	// Passing an empty required field is fine: only saving asks for it.
 	if strings.Contains(v, "Title is required") {
@@ -74,6 +75,7 @@ func TestFormEscAsksBeforeDiscardingTypedText(t *testing.T) {
 func TestFormCtrlSSavesFromAnyField(t *testing.T) {
 	h := searchHarness(t, `{"search_area":{"places":["Old"],"remote":"no"}}`)
 	h.tm.Type("enter")
+	h.tm.Type("right") // keep the selected value and type after it
 	h.tm.Type("paste:, New")
 	h.tm.Type("ctrl+s") // from the first of two fields
 	requireAll(t, h.file(), `"Old"`, `"New"`)
@@ -119,4 +121,30 @@ func TestSettingsUndoRestoresARemovedTrack(t *testing.T) {
 	}
 	h.tm.Type("u")
 	requireAll(t, h.file(), `"Spare"`, `"Other"`)
+}
+
+// Esc over typed text asks in the warning style, as strong as Docs not Ready: ⚠ in the
+// title, what is lost said first, and no "* required" note.
+func TestDiscardQuestionIsAWarning(t *testing.T) {
+	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
+	d.Type("a")
+	d.Type("Typed")
+	d.Type("esc")
+	v := d.plain()
+	requireAll(t, v, "⚠ Discard changes?", "Your typed values will be lost.", "y discard")
+	if strings.Contains(v, "* required") {
+		t.Fatalf("the discard question still shows the required note:\n%s", v)
+	}
+}
+
+// Editing a Settings value starts with it selected: typing replaces it instead of
+// appending ("Australianano").
+func TestSettingsPopupTypingReplacesTheValue(t *testing.T) {
+	h := searchHarness(t, `{"search_area":{"places":["Australia"],"remote":"no"}}`)
+	h.tm.Type("enter")
+	h.tm.Type("nano")
+	h.tm.Type("ctrl+s")
+	if f := h.file(); !strings.Contains(f, `"nano"`) || strings.Contains(f, "Australia") {
+		t.Fatalf("typing did not replace the value:\n%s", f)
+	}
 }

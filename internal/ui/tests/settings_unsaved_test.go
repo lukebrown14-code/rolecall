@@ -279,3 +279,12 @@ func TestSettingsTrackCountsSplitActiveAndClosed(t *testing.T) {
 	d.Type("]")
 	requireAll(t, squash(d.plain()), "applications · ", " active")
 }
+
+// Undoing the save of a setting that was unset names what it falls back to, as the row
+// showed it, not "not set".
+func TestSettingsUndoNamesTheFallback(t *testing.T) {
+	h := newSourcesHarness(t, 140, "", nil)
+	editFollowUp(t, h.d)
+	h.d.Type("u")
+	requireAll(t, h.d.plain(), "Follow-up due after back to the default (14)")
+}

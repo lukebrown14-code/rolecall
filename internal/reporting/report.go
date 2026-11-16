@@ -3,14 +3,15 @@ package reporting
 
 import (
 	"math"
+	"slices"
 	"time"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// statsWeeks is the number of Monday-start weeks in the weekly chart.
+// StatsWeeks is the number of Monday-start weeks in the weekly chart.
 const (
-	statsWeeks          = 12
+	StatsWeeks          = 12
 	daysPerWeek         = 7
 	defaultFollowUpDays = 14
 )
@@ -288,7 +289,7 @@ func Build(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 		report.Response.Rate = percentOf(report.Response.Reached, report.Response.Applied)
 	}
 
-	report.Weeks = weeksOf(paths, now, statsWeeks)
+	report.Weeks = weeksOf(paths, now, StatsWeeks)
 	report.Tracks = tracksOf(tracked, paths, now, days)
 	return report
 }
@@ -399,4 +400,41 @@ func tracksOf(apps []store.Application, paths []path, now time.Time, followUpDay
 		}
 	}
 	return out
+}
+
+// OrderTracks splits the per-track rows for the table: sent is the Tracks with any
+// Applied, busiest first, and idle the rest, which have nothing to show. Within each,
+// Tracks keep order (the workspace.json Tracks), then any other Track in the order the
+// report found it.
+func OrderTracks(rows []TrackStats, order []string) (sent, idle []TrackStats) {
+	rank := make(map[string]int, len(order))
+	for i, t := range order {
+		if _, ok := rank[t]; !ok {
+			rank[t] = i
+		}
+	}
+	pos := func(i int) int {
+		if r, ok := rank[rows[i].Track]; ok {
+			return r
+		}
+		return len(order) + i
+	}
+	idx := make([]int, len(rows))
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortStableFunc(idx, func(a, b int) int {
+		if rows[a].Applied != rows[b].Applied {
+			return rows[b].Applied - rows[a].Applied
+		}
+		return pos(a) - pos(b)
+	})
+	for _, i := range idx {
+		if rows[i].Applied > 0 {
+			sent = append(sent, rows[i])
+		} else {
+			idle = append(idle, rows[i])
+		}
+	}
+	return sent, idle
 }

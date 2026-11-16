@@ -121,7 +121,8 @@ func (m model) settingsHelpKeys() []helpKey {
 		if m.settings.Edit.Discarding {
 			return []helpKey{help(groupAction, "y", "discard").at(prioCore), help(groupNav, keyNoEsc, "keep editing").at(prioPinned)}
 		}
-		return []helpKey{help(groupAction, "enter", "save").at(prioCore), help(groupNav, "esc", "cancel").at(prioPinned)}
+		return []helpKey{help(groupAction, "enter", "save").at(prioCore), help(groupAction, keyClearField, "clear").at(prioCore),
+			help(groupNav, "esc", "cancel").at(prioPinned)}
 	}
 	keys := []helpKey{}
 	for _, h := range settingsHandlers {
@@ -140,7 +141,13 @@ func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.Ws.Err == nil {
 		// ←→ switch sections as they switch views elsewhere; tab and [ ] do too, unlisted, as
 		// help says tab switches panes and would wrap [ ] in brackets.
-		keys = append(keys, help(groupNav, "←→", "section").at(prioCore), help(groupNav, "j k", "select"),
+		// Below the medium width there is no group list beside the rows, so the section key
+		// is pinned: it is the only sign the other sections are there.
+		section := help(groupNav, "←→", "section").at(prioCore)
+		if m.layout().w < mediumWidth {
+			section = section.at(prioPinned)
+		}
+		keys = append(keys, section, help(groupNav, "j k", "select"),
 			help(groupNav, "g G", "first, last").at(prioHelpOnly))
 	}
 	if m.err != nil {
@@ -154,9 +161,6 @@ func (m model) settingsHelpKeys() []helpKey {
 // settingsKey handles the keys Settings accepts. e hands the group's file to the Owner's
 // editor and the screen re-reads when it exits; Enter saves each change at once.
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if next, ok := m.renameKey(k); ok {
-		return next, nil
-	}
 	switch k.String() {
 	case "r":
 		m.rescanAll()
@@ -190,7 +194,7 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m.undoSetting(), nil
 	}
-	if next, cmd, ok := m.sourceTestKey(k); ok {
+	if next, cmd, ok := m.sourceCheckKey(k); ok {
 		return next, cmd
 	}
 	for _, h := range settingsHandlers {
@@ -234,6 +238,17 @@ func (m model) saved(msg, file string, undo *settingsUndo) model {
 		m.settings = &st
 	}
 	return m
+}
+
+// rowShown is the value a group's row named label shows, unit and all, or "not set": what
+// an undo names, so it reads as the row did before the save.
+func (m model) rowShown(group int, label string) string {
+	for _, r := range m.settingsRows(group) {
+		if r.Label == label && r.Value != "" {
+			return r.ValueText()
+		}
+	}
+	return "not set"
 }
 
 // undoSetting puts back the value the last Settings save replaced.
@@ -443,7 +458,8 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 		if i == m.settings.Row {
 			selLine = len(lines)
 		}
-		mark, label := "  ", p.Text(p.Dim).Render(r.Label)
+		// Names in the body text colour and values a step quieter, so a row reads by its name.
+		mark, label := "  ", p.Text(p.Fg).Render(r.Label)
 		switch {
 		case selected:
 			mark, label = p.SelGutter(true), p.SelText(true).Render(r.Label)
@@ -467,7 +483,7 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 		if r.Value == "" {
 			value = bg.Foreground(quiet).Italic(true).Render("not set")
 		} else {
-			value = bg.Foreground(p.Fg).Render(fitValue(r.Label, r.ValueText(), valueW))
+			value = bg.Foreground(p.Sub).Render(fitValue(r.Label, r.ValueText(), valueW))
 		}
 		colW := valueW
 		value += bg.Render(strings.Repeat(" ", max(0, colW-xansi.StringWidth(value))))
@@ -548,7 +564,7 @@ func (m model) inlineField(p pal, bg lipgloss.Style, quiet color.Color, e settin
 	tail = bg.Foreground(quiet).Render(strings.Join(parts, " · "))
 	switch {
 	case e.Discarding:
-		tail = bg.Foreground(p.Warn).Bold(true).Render("Discard changes? y discard · n keep editing")
+		tail = bg.Foreground(p.Warn).Bold(true).Render("⚠ Discard changes? y discard · n keep editing")
 	case e.Err != "":
 		tail = bg.Foreground(p.Bad).Render(errorMark + " " + e.Err)
 	}

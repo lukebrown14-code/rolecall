@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -14,11 +15,29 @@ import (
 // addValues holds the Add/Edit form's answers.
 type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
 
-// fieldURL and fieldTrack are the Add/Edit form's URL and Track field labels.
+// fieldURL, fieldTitle and fieldTrack are the Add/Edit form's URL, Title and Track field labels.
 const (
 	fieldURL   = "URL"
+	fieldTitle = "Title"
 	fieldTrack = "Track"
 )
+
+// validURL accepts an empty URL or a web address, so a title typed into the URL field is
+// caught when the field is left rather than saved as a link w and c would open. orig, the
+// value the form opened with, is always accepted: Edit never refuses a saved URL it did
+// not change.
+func validURL(orig string) func(string) error {
+	return func(s string) error {
+		s = strings.TrimSpace(s)
+		if s == "" || s == strings.TrimSpace(orig) {
+			return nil
+		}
+		if u, err := url.Parse(s); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return errors.New("URL must start with https://")
+		}
+		return nil
+	}
+}
 
 // validFirstTrack applies the Track name rules to a typed first Track; blank is left to
 // the required check.
@@ -58,12 +77,16 @@ func (m *model) openAdd() tea.Cmd {
 		return nil
 	}
 	f := newForm(&addValues{track: first}, m.tracks, false)
-	if m.plugin != "" {
-		// With the Plugin, enter on a URL fetches the ad and fills the fields below it.
-		for i := range f.Fields {
-			if f.Fields[i].Label == fieldURL {
-				f.Fields[i].Note = "optional · enter fetches the ad"
-			}
+	for i := range f.Fields {
+		switch {
+		case m.plugin != "" && f.Fields[i].Label == fieldURL:
+			// With the Plugin, enter on a URL fetches the ad and fills the fields below
+			// it, so the form opens there.
+			f.Fields[i].Note = "optional · enter fetches the ad"
+		case m.plugin == "" && f.Fields[i].Label == fieldTitle:
+			// Without it the URL is only an optional link, so the form opens on the
+			// first field it needs: a title typed straight away lands in Title.
+			f.Focus = i
 		}
 	}
 	m.overlay = &formMode{form: f}
@@ -77,8 +100,9 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	for i, t := range tracks {
 		trackChoices[i] = choice{Value: t, Label: t}
 	}
-	url := formField{Label: fieldURL, Role: forms.RoleURL, Value: v.url, Placeholder: "https://…", Note: "optional"}
-	titleField := formField{Label: "Title", Required: true, Value: v.title}
+	link := formField{Label: fieldURL, Role: forms.RoleURL, Value: v.url, Placeholder: "https://…", Note: "optional",
+		Validate: validURL(v.url)}
+	titleField := formField{Label: fieldTitle, Required: true, Value: v.title}
 	company := formField{Label: "Company", Required: true, Value: v.company}
 	track := formField{Label: fieldTrack, Value: v.track, Choices: trackChoices}
 	if len(tracks) == 0 {
@@ -88,11 +112,11 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	}
 	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD", Validate: validCloses}
 	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: "—"}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
-	fields := []formField{url, titleField, company, track, closes, fit}
+	fields := []formField{link, titleField, company, track, closes, fit}
 	if !withResumeOnly {
 		return newFormOf("Add a Lead", fields...)
 	}
-	f := newFormOf("Edit "+titleLabel(v.title), url, titleField, company, track, closes, fit,
+	f := newFormOf("Edit "+titleLabel(v.title), link, titleField, company, track, closes, fit,
 		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}})
 	f.ShowDirty = true
 	return f
@@ -100,7 +124,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 
 // addValues reads the form's answers.
 func readAddValues(f *form) addValues {
-	return addValues{title: f.Value("Title"), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
+	return addValues{title: f.Value(fieldTitle), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
 		closes: f.Value("Closes"), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
 }
 

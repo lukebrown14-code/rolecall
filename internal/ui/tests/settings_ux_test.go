@@ -79,7 +79,7 @@ func TestSettingsOffListTrackCanBeAddedAndRenamed(t *testing.T) {
 	if strings.Contains(h.tm.plain(), "not listed") {
 		t.Fatalf("still off the list:\n%s", h.tm.plain())
 	}
-	h.tm.Type("r")
+	h.tm.Type("enter")
 	requireAll(t, h.tm.plain(), "Rename Track Unknown")
 	h.tm.Type("esc")
 	h.tm.Type("u")
@@ -92,7 +92,7 @@ func TestSettingsOffListTrackCanBeAddedAndRenamed(t *testing.T) {
 func TestSettingsRenameConfirmGrammar(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Platform"]}`)
 	h.tm.Type("j")
-	h.tm.Type("r")
+	h.tm.Type("enter")
 	for range "Platform" {
 		h.tm.Type("backspace")
 	}
@@ -107,5 +107,51 @@ func TestSettingsHelpNamesTheSectionKeysPlainly(t *testing.T) {
 	if strings.Contains(view, "[[") {
 		t.Fatalf("help nests brackets:\n%s", view)
 	}
-	requireAll(t, view, "[←→]", "section")
+	if !helpLists(view, "←→ section") {
+		t.Fatalf("help lacks ←→ section:\n%s", view)
+	}
+}
+
+// ctrl+u empties an inline field, so a new value replaces the old one instead of being
+// typed after it; the key line offers it while the field is open.
+func TestSettingsCtrlUEmptiesTheField(t *testing.T) {
+	d, cfg := machineDriver(t, 120)
+	selectRow(d, settings.GroupMachine, 0)
+	d.Type("enter")
+	d.Type("right") // drop the selection: typing would now append
+	requireAll(t, keyLineOf(d.View()), "ctrl+u clear")
+	d.Type("ctrl+u")
+	d.Type("nano")
+	d.Type("enter")
+	if b, _ := os.ReadFile(cfg); !strings.Contains(string(b), `editor = "nano"`) {
+		t.Fatalf("ctrl+u did not empty the field:\n%s", b)
+	}
+}
+
+// An undo names the value as its row showed it: yes/no, with the unit, or the default
+// in effect.
+func TestSettingsUndoNamesTheRowsValue(t *testing.T) {
+	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 140, 40)
+	selectRow(d, settings.GroupRules, len(settings.Rules)) // Needs sponsorship: Yes, not true
+	requireAll(t, squash(d.plain()), "▌ "+settings.LabelNeedsSponsorship+" Yes")
+	d.Type("enter")
+	d.Type("u")
+	requireAll(t, d.plain(), "Undone · "+settings.LabelNeedsSponsorship+" back to Yes")
+	d.Type("k") // Max contract length, with its unit
+	d.Type("enter")
+	d.Type("ctrl+u")
+	d.Type("enter")
+	d.Type("u")
+	requireAll(t, d.plain(), "Undone · Max contract length back to 12 months")
+}
+
+// r on a Track row rescans, as it does everywhere; enter is what renames a Track.
+func TestSettingsROnATrackRescans(t *testing.T) {
+	h := tracksHarness(t, `{"tracks":["SWE","Platform"]}`)
+	h.tm.Type("r")
+	if strings.Contains(h.tm.plain(), "Rename Track") {
+		t.Fatalf("r renamed a Track:\n%s", h.tm.plain())
+	}
+	h.tm.Type("enter")
+	requireAll(t, h.tm.plain(), "Rename Track SWE")
 }

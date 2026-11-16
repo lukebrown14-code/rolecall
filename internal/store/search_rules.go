@@ -302,26 +302,13 @@ func (s *Store) SetSourceEnabled(name string, on bool) error {
 // browser or manual, and an api Source names one of SourcePlatforms. A legacy sources
 // object is rewritten as the list, keeping every platform and target.
 func (s *Store) AddSource(src Source) error {
-	src.Name = strings.TrimSpace(src.Name)
-	switch {
-	case src.Name == "":
-		return errors.New("a Source needs a name")
-	case !slices.Contains(SourceTypes, src.Type):
-		return errors.New("type must be api, browser or manual")
-	case src.Type == SourceAPI && !slices.Contains(SourcePlatforms, src.Platform):
-		return errors.New("an api Source needs a platform: " + strings.Join(SourcePlatforms, ", "))
-	case src.Access != "" && !slices.Contains(SourceAccess, src.Access):
-		return errors.New("access must be one of " + strings.Join(SourceAccess, ", "))
-	}
-	if src.Type != SourceAPI {
-		src.Platform, src.Targets = "", nil
+	src, err := checkSource(src)
+	if err != nil {
+		return err
 	}
 	return s.changeSources(func(list []json.RawMessage) ([]json.RawMessage, error) {
-		for _, item := range list {
-			var other Source
-			if json.Unmarshal(item, &other) == nil && strings.EqualFold(other.Name, src.Name) {
-				return nil, fmt.Errorf("a Source named %q is already listed", other.Name)
-			}
+		if err := nameFree(list, src.Name, ""); err != nil {
+			return nil, err
 		}
 		raw, err := json.Marshal(src)
 		if err != nil {
@@ -329,6 +316,90 @@ func (s *Store) AddSource(src Source) error {
 		}
 		return append(list, raw), nil
 	})
+}
+
+// UpdateSource rewrites the named Source's name, type, platform, targets, URL and access,
+// by the rules AddSource checks. Its other keys (enabled, notes, rules and the rest) and
+// its place in the list are kept.
+func (s *Store) UpdateSource(name string, src Source) error {
+	src, err := checkSource(src)
+	if err != nil {
+		return err
+	}
+	return s.changeSources(func(list []json.RawMessage) ([]json.RawMessage, error) {
+		if err := nameFree(list, src.Name, name); err != nil {
+			return nil, err
+		}
+		for i, item := range list {
+			var old Source
+			if json.Unmarshal(item, &old) != nil || old.Name != name {
+				continue
+			}
+			// Marshalled as AddSource writes it, so the omitempty keys drop out when empty.
+			fields, err := sourceFields(src)
+			if err != nil {
+				return nil, err
+			}
+			for _, key := range sourceFormKeys {
+				if item, err = setObjectKey(item, key, fields[key]); err != nil {
+					return nil, err
+				}
+			}
+			list[i] = item
+			return list, nil
+		}
+		return nil, fmt.Errorf("no Source named %q", name)
+	})
+}
+
+// sourceFormKeys are the keys of a Source its form edits; UpdateSource keeps every other.
+var sourceFormKeys = []string{"name", "type", "platform", "targets", keySourceURL, "access"}
+
+// keySourceURL is a Source's search page.
+const keySourceURL = "url"
+
+// sourceFields is a Source's JSON keys and values; an empty optional key is absent.
+func sourceFields(src Source) (map[string]json.RawMessage, error) {
+	raw, err := json.Marshal(src)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]json.RawMessage
+	err = json.Unmarshal(raw, &fields)
+	return fields, err
+}
+
+// checkSource trims a Source's name and checks it by the registry's rules: a name, a
+// known type and access, and a platform for an api Source. Only an api Source keeps a
+// platform and targets.
+func checkSource(src Source) (Source, error) {
+	src.Name = strings.TrimSpace(src.Name)
+	switch {
+	case src.Name == "":
+		return src, errors.New("a Source needs a name")
+	case !slices.Contains(SourceTypes, src.Type):
+		return src, errors.New("type must be api, browser or manual")
+	case src.Type == SourceAPI && !slices.Contains(SourcePlatforms, src.Platform):
+		return src, errors.New("an api Source needs a platform: " + strings.Join(SourcePlatforms, ", "))
+	case src.Access != "" && !slices.Contains(SourceAccess, src.Access):
+		return src, errors.New("access must be one of " + strings.Join(SourceAccess, ", "))
+	}
+	if src.Type != SourceAPI {
+		src.Platform, src.Targets = "", nil
+	}
+	return src, nil
+}
+
+// nameFree refuses a Source name the list already holds, in any case, other than the
+// Source named self (the one being edited).
+func nameFree(list []json.RawMessage, name, self string) error {
+	for _, item := range list {
+		var other Source
+		if json.Unmarshal(item, &other) == nil && other.Name != self && strings.EqualFold(other.Name, name) {
+			return fmt.Errorf("a Source named %q is already listed", other.Name)
+		}
+	}
+	return nil
 }
 
 // RemoveSource takes the named Source off the registry, as the undo of AddSource does.

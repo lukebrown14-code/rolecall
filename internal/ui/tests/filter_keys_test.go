@@ -31,8 +31,12 @@ func TestOTogglesLeadsSort(t *testing.T) {
 	if !strings.Contains(v, "Leads newest first") {
 		t.Fatalf("o did not sort newest:\n%s", v)
 	}
-	base := chipped(runKeys(t, root, 120, "3"))
-	if got := chipped(runKeys(t, root, 120, "3", "o")); got != base {
+	// On Applied o sorts nothing: it says so, and the next key leaves the screen as it was.
+	if got := chipped(runKeys(t, root, 120, "3", "o")); !strings.Contains(got, "o: sorts the Leads view only") {
+		t.Fatalf("o on Applied did not say why:\n%s", got)
+	}
+	base := chipped(runKeys(t, root, 120, "3", "j"))
+	if got := chipped(runKeys(t, root, 120, "3", "o", "j")); got != base {
 		t.Fatalf("o changed the Applied screen:\n%s", got)
 	}
 }
@@ -60,17 +64,26 @@ func TestPaletteFindsStatusFilterAndSort(t *testing.T) {
 // Help has three sections, keys as chips, and no internal wording.
 func TestHelpSectionsChipsAndWording(t *testing.T) {
 	v := chipped(runKeys(t, fixtureCopy(t, nil), 140, "1", "?"))
-	for _, want := range []string{"NAVIGATE", "ACT", "FILTER & FIND", "[s]", "[o]", "[t]", "[/]", "[: ctrl+k]", "[m]"} {
+	for _, want := range []string{"NAVIGATE", "ACT", "FILTER & FIND"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("help lacks %q:\n%s", want, v)
 		}
+	}
+	// Keys are bare, as the key line and the palette draw them: brackets mean "active".
+	for _, want := range []string{"s change view", "o sort newest", "t track filter", "/ search", ": ctrl+k commands", "m move"} {
+		if !helpLists(v, want) {
+			t.Errorf("help lacks %q:\n%s", want, v)
+		}
+	}
+	if box := v[strings.Index(v, "╭─ Keys"):]; strings.ContainsAny(box[:strings.Index(box, "╰")], "[]") {
+		t.Errorf("help brackets a key:\n%s", v)
 	}
 	for _, bad := range []string{"Supporting screen", "prototype", "placeholder", "lorem", "TODO"} {
 		if strings.Contains(strings.ToLower(v), strings.ToLower(bad)) {
 			t.Errorf("help contains %q:\n%s", bad, v)
 		}
 	}
-	if !helpLists(v, "s view") || !helpLists(v, "o sort newest") {
+	if !helpLists(v, "s change view") || !helpLists(v, "o sort newest") {
 		t.Errorf("help lacks the new keys:\n%s", v)
 	}
 }

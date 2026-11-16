@@ -60,8 +60,8 @@ func TestPopupKeyLineShowsThePopupKeys(t *testing.T) {
 func TestTrackFilterReadsItsKeyOnce(t *testing.T) {
 	for _, size := range [][3]int{{120, 36, 0}, {80, 24, 0}, {60, 16, 1}} {
 		lines := strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), size[0], size[1], "3")), "\n")
-		ctx := lines[2-size[2]] // the short class drops the rule under the tab bar
-		want := "TRACK t [All 9] SWE 5  Platform 0"
+		ctx := lines[2-size[2]]                    // the short class drops the rule under the tab bar
+		want := "TRACK t [All 9] SWE 5  Unknown 4" // Platform has no rows here, so no chip
 		if size[0] < 100 {
 			want = "t [All 9]▸" // collapsed to one piece when narrow
 		}

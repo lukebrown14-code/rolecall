@@ -21,9 +21,9 @@ func (h *settingsHarness) metaTrack(rel string) string {
 	return ""
 }
 
-// startRename presses r on SWE and types the new name, stopping at the confirm pop-up.
+// startRename presses enter on SWE and types the new name, stopping at the confirm pop-up.
 func (h *settingsHarness) startRename(name string) {
-	h.tm.Type("r")
+	h.tm.Type("enter")
 	for range "SWE" {
 		h.tm.Type("backspace")
 	}
@@ -76,7 +76,7 @@ func TestSettingsRenameConfirmRewritesAndReportsMalformed(t *testing.T) {
 func TestSettingsRenameAppliesNameRules(t *testing.T) {
 	h := tracksHarness(t, `{"tracks":["SWE","Platform"]}`)
 	for name, want := range map[string]string{"platform": "already exists", "A/B": "/", "": "required"} {
-		h.tm.Type("r")
+		h.tm.Type("enter")
 		for range "SWE" {
 			h.tm.Type("backspace")
 		}

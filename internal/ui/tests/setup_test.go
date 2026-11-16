@@ -86,3 +86,34 @@ func TestFirstRunFormStaysClosedOnceContactIsComplete(t *testing.T) {
 		t.Fatalf("form opened for a complete Contact:\n%s", d.plain())
 	}
 }
+
+// The first-run form says what it is for and that esc skips it, and its placeholders say
+// what goes in a field: none reads as a person's details.
+func TestFirstRunFormExplainsItselfAndItsPlaceholdersAreNotData(t *testing.T) {
+	d := newDriver(t, freshWorkspace(t), setupNow, 120, 40, ui.WithFirstRunSetup())
+	v := strings.Join(strings.Fields(d.plain()), " ")
+	requireAll(t, v, "Welcome to rolecall", "rolecall puts these on every Resume", "change them any time", "esc skip",
+		"your full name", "your email address")
+	for _, gone := range []string{"Alex", "alex.quinn", "esc cancel"} {
+		if strings.Contains(v, gone) {
+			t.Fatalf("the first-run form shows %q:\n%s", gone, d.plain())
+		}
+	}
+}
+
+// A skipped Contact form opens again from Profile with c, and saving it writes the Contact.
+func TestProfileCOpensTheContactForm(t *testing.T) {
+	root := freshWorkspace(t)
+	d := newDriver(t, root, setupNow, 120, 40, ui.WithFirstRunSetup())
+	d.Type("esc")
+	d.Type("5")
+	requireAll(t, d.plain(), "c fill in Contact")
+	d.Type("c")
+	requireAll(t, d.plain(), "Your Contact", "Name", "Email", "esc cancel")
+	d.Type("Alex Quinn")
+	d.Type("enter")
+	d.Type("alex@example.test")
+	d.Type("ctrl+s")
+	requireAll(t, masterProfile(t, root), "| Name | Alex Quinn |", "| Email | alex@example.test |")
+	requireAll(t, d.plain(), "Saved Contact", "NAME", "Alex Quinn")
+}

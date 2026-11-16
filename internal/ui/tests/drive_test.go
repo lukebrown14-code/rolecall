@@ -70,6 +70,9 @@ func keyMessages(k string) []tea.Msg {
 	if k == "ctrl+z" {
 		return []tea.Msg{tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl}}
 	}
+	if k == "ctrl+u" {
+		return []tea.Msg{tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}}
+	}
 	if text, ok := strings.CutPrefix(k, "paste:"); ok {
 		return []tea.Msg{tea.PasteMsg{Content: text}}
 	}

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -37,34 +36,43 @@ func TestFollowUpDueIsDayBased(t *testing.T) {
 }
 
 // The right-hand columns line up: within one view a flagged row and an unflagged one
-// start every column at the same cell, and the title keeps what is left.
+// start every column at the same cell, the Fit word starts its column's first cell
+// whatever its length, and the title keeps what is left. A row has no age column.
 func TestRowColumnsLineUp(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	m := model{now: func() time.Time { return now }, followUpDays: 14}
 	p := m.pal()
 	flagged := store.Application{Title: "Flagged", Company: "Acme", Track: "SWE", Status: store.StatusInterviewing,
 		Fit: "Marginal", AppliedDate: &store.StatusEntry{At: "2026-01-01"}, LastChange: &store.StatusEntry{Status: store.StatusInterviewing, At: "2026-01-01"}}
-	plain := store.Application{Title: "A very long interview stage title", Company: "Acme", Track: "SWE", Status: store.StatusApplied,
-		AppliedDate: &store.StatusEntry{At: "2026-09-27"}, LastChange: &store.StatusEntry{Status: store.StatusApplied, At: "2026-09-27"}}
+	good := store.Application{Title: "A very long interview stage title", Company: "Acme", Track: "SWE", Status: store.StatusApplied,
+		Fit: "Good", AppliedDate: &store.StatusEntry{At: "2026-09-27"}, LastChange: &store.StatusEntry{Status: store.StatusApplied, At: "2026-09-27"}}
+	plain := good
+	plain.Fit = ""
 	const w = 60
-	show := m.slotsFor([]store.Application{flagged, plain})
+	show := m.slotsFor([]store.Application{flagged, good, plain})
 	f := xansi.Strip(m.row(p, flagged, false, show, w)[0])
+	g := xansi.Strip(m.row(p, good, false, show, w)[0])
 	l := xansi.Strip(m.row(p, plain, false, show, w)[0])
-	if xansi.StringWidth(f) != w || xansi.StringWidth(l) != w {
-		t.Fatalf("rows are not %d cells: %q %q", w, f, l)
+	for _, r := range []string{f, g, l} {
+		if xansi.StringWidth(r) != w {
+			t.Fatalf("row is not %d cells: %q", w, r)
+		}
+		if strings.Contains(r, "fit") || strings.Contains(r, " 4d") || strings.Contains(r, glyphNone) {
+			t.Fatalf("a row shows the word fit, an age or a dash: %q", r)
+		}
 	}
-	if !strings.HasSuffix(strings.TrimRight(f, " "), "fit Marginal") || !strings.HasSuffix(strings.TrimRight(l, " "), "fit —") || !strings.Contains(l, " 4d ") || !strings.Contains(f, "⚑ 9mo") {
-		t.Fatalf("columns wrong:\n%q\n%q", f, l)
+	if !strings.HasSuffix(strings.TrimRight(f, " "), "⚑ 9mo  Marginal") || !strings.HasSuffix(strings.TrimRight(g, " "), "Good") {
+		t.Fatalf("columns wrong:\n%q\n%q", f, g)
 	}
-	at := func(row, s string) int { return xansi.StringWidth(row[:strings.Index(row, s)+len(s)]) }
-	if at(f, "2026") != at(l, "4d") || at(f, "Marginal") != at(l, "—") {
-		t.Fatalf("columns do not line up:\n%q\n%q", f, l)
+	start := func(row, s string) int { return xansi.StringWidth(row[:strings.Index(row, s)]) }
+	if start(f, "Marginal") != start(g, "Good") || !strings.HasSuffix(strings.TrimRight(l, " "), "title") {
+		t.Fatalf("Fit words do not start at one cell, or a blank Fit drew something:\n%q\n%q\n%q", f, g, l)
 	}
 }
 
 // Each column is as wide as its widest value in the view, and a column empty on every
-// row is hidden, so the title takes the room: no Lead has a Follow-up flag, so a Leads
-// view reserves no cells for one.
+// row is hidden, so the title takes the room: no Lead has a Follow-up flag and none here
+// is assessed, so a Leads view reserves no cells for either.
 func TestRowColumnsFitTheView(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	m := model{now: func() time.Time { return now }, followUpDays: 14}
@@ -72,18 +80,22 @@ func TestRowColumnsFitTheView(t *testing.T) {
 	lead := store.Application{Title: "Software Engineer at a long-named place", Company: "Acme", Track: "SWE", Status: store.StatusLead,
 		LastChange: &store.StatusEntry{Status: store.StatusLead, At: "2026-09-25"}}
 	show := m.slotsFor([]store.Application{lead})
-	if show.flagW != 0 {
-		t.Fatalf("a view without a flag reserves %d cells for one", show.flagW)
+	if show.flagW != 0 || show.fitW != 0 {
+		t.Fatalf("a view without a flag or a Fit reserves cells for them: %+v", show)
 	}
 	got := xansi.Strip(m.row(p, lead, false, show, 40)[0])
-	if !strings.HasPrefix(got, "  ◌ Software Engineer at a") || !strings.Contains(got, "…  6d  fit — ") {
+	if !strings.HasPrefix(got, "  ◌ Software Engineer at a long-named…") {
 		t.Fatalf("the title does not take the unused room: %q", got)
+	}
+	lead.Fit = store.FitStrong
+	show = m.slotsFor([]store.Application{lead})
+	if show.fitW != columnGap-1+fitSlotWidth {
+		t.Fatalf("the Fit column is %d cells, want the width of Marginal and its gap", show.fitW)
 	}
 }
 
-// The widest values side by side never touch: a long-quiet flag, an approximate
-// month-and-year age and the longest Fit keep two cells between them; a years-old change
-// reads in years, not "82mo"; and a same-day change reads "today" whatever its Status.
+// The widest values side by side never touch: a long-quiet flag and the longest Fit keep
+// two cells between them, and a years-old change reads in years, not "82mo".
 func TestRowColumnsKeepAGapAtTheirWidest(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	m := model{now: func() time.Time { return now }, followUpDays: 14}
@@ -93,20 +105,12 @@ func TestRowColumnsKeepAGapAtTheirWidest(t *testing.T) {
 	one := func(a store.Application) string {
 		return xansi.Strip(m.row(p, a, false, m.slotsFor([]store.Application{a}), 60)[0])
 	}
-	if got := one(widest); !strings.Contains(got, "⚑ 23mo  ~Oct 2024  fit Marginal") {
+	if got := one(widest); !strings.Contains(got, "⚑ 23mo  Marginal") {
 		t.Fatalf("widest columns run together or are cut: %q", got)
 	}
 	old := widest
 	old.LastChange = &store.StatusEntry{Status: store.StatusApplied, At: "2019-01-01"}
 	if got := one(old); !strings.Contains(got, "⚑ 7y") {
 		t.Fatalf("a years-old change should read in years: %q", got)
-	}
-	for _, status := range []string{store.StatusLead, store.StatusInterviewing} {
-		today := widest
-		today.Status, today.Fit = status, store.FitStrong
-		today.LastChange = &store.StatusEntry{Status: status, At: "2026-10-01"}
-		if got := one(today); !regexp.MustCompile(`today {2,}fit Strong`).MatchString(got) {
-			t.Fatalf("%s: a same-day change reads today, set apart from Fit: %q", status, got)
-		}
 	}
 }

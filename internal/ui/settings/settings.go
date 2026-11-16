@@ -587,14 +587,16 @@ func SourceValue(src store.Source) string {
 func (st State[Undo]) sourceRows() []Row {
 	var rows []Row
 	for _, src := range st.Ws.SourceList {
-		about := "Enter turns this Source off or on; t tests whether the Sweep can read it."
+		about := "enter edits this Source; o turns it off or on; c checks whether the Sweep can read it."
 		if src.Notes != "" {
 			about = src.Notes + " " + about
 		}
 		if src.URL != "" {
 			about = src.URL + " · " + about
 		}
-		rows = append(rows, Row{Label: src.Name, Value: SourceValue(src), Source: settingsFile, About: about})
+		// Every Source is kept in workspace.json, so no row repeats it: the about pane
+		// names the file once for the focused Source.
+		rows = append(rows, Row{Label: src.Name, Value: SourceValue(src), About: about})
 	}
 	return append(rows, Row{Label: LabelAddSource, Action: true,
 		About: "Add a job board, careers page or API the Sweep reads."})

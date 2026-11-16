@@ -317,7 +317,7 @@ func TestProfileMissingShowsTheMessageAndNoList(t *testing.T) {
 	if !strings.Contains(view, noProfile) {
 		t.Fatalf("missing Profile message absent:\n%s", view)
 	}
-	for _, unwanted := range []string{"SECTIONS", "CONTACT", "Contact", "Experience"} {
+	for _, unwanted := range []string{"SECTIONS", "CONTACT", "▌ Contact", "Experience"} {
 		if strings.Contains(view, unwanted) {
 			t.Fatalf("missing Profile still shows %q:\n%s", unwanted, view)
 		}
@@ -580,4 +580,30 @@ func TestProfileAsciiGolden(t *testing.T) {
 		}
 	}
 	teatest.RequireEqualOutput(t, []byte(view))
+}
+
+// After tab the section list keeps only its gutter mark, not the fill, and the context
+// row brackets the focused pane, so focus reads without colour.
+func TestProfileTabMovesTheVisibleFocus(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	list := runKeysSized(t, root, 120, 36, "5")
+	content := runKeysSized(t, root, 120, 36, "5", "tab")
+	if !strings.Contains(chipped(list), "[SECTIONS]") || !strings.Contains(chipped(content), "[CONTENT]") {
+		t.Fatalf("the context row does not bracket the focused pane:\n%s\n%s", chipped(list), chipped(content))
+	}
+	contact := func(v string) string { return lineWith(v, "Contact") }
+	if contact(list) == contact(content) {
+		t.Fatalf("the list row looks the same with focus on the content:\n%q", contact(content))
+	}
+	if !strings.Contains(chipped(content), "▌ Contact") {
+		t.Fatalf("the list lost its gutter mark:\n%s", chipped(content))
+	}
+	if !strings.Contains(lastLineOf(chipped(runKeysSized(t, root, 160, 36, "5"))), "tab focus") {
+		t.Fatalf("tab focus is not on the key line at 160 columns:\n%s", chipped(runKeysSized(t, root, 160, 36, "5")))
+	}
+}
+
+func lastLineOf(v string) string {
+	lines := strings.Split(v, "\n")
+	return lines[len(lines)-1]
 }

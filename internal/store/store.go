@@ -27,6 +27,9 @@ type Application struct {
 	// its detail. FilterOverruled marks one the Owner restored: no rule dismisses it again.
 	FilterReason, FilterNote string
 	FilterOverruled          bool
+	// FollowedUp is the day (YYYY-MM-DD) the Owner last followed up without a Status
+	// change, or "". Follow-up due counts from it when it is later than the last change.
+	FollowedUp string
 	AdFacts
 	StatusLog               []StatusEntry
 	AppliedDate, LastChange *StatusEntry

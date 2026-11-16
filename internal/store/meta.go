@@ -180,6 +180,8 @@ func readApplication(dir string, b []byte) Application {
 			a.FilterReason = v
 		case keyFilterNote:
 			a.FilterNote = DisplayText(v)
+		case keyFollowedUp:
+			a.FollowedUp = readFollowedUp(v)
 		case keyFilterOverruled:
 			if v != "true" && v != "false" {
 				return fail(n+1, fmt.Errorf("invalid filter_overruled"))

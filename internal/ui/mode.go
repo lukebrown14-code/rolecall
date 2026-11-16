@@ -277,7 +277,7 @@ type helpMode struct{ page, pages int }
 
 func (hm *helpMode) Keys() [][2]string { return helpModeKeys(hm.pages) }
 
-func (hm *helpMode) View(m *model, p pal) string { return m.helpBox(p) }
+func (hm *helpMode) View(m *model, p pal) string { return m.helpView(p) }
 
 // Update pages with ↑↓; any other key closes the help. esc, ? and q only close it; every
 // other key also runs on the screen beneath, so "? m" opens Move as the help just said.

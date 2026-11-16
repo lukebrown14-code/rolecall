@@ -14,7 +14,7 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -172,6 +172,7 @@ class Application:
         self.filter_reason = ""
         self.filter_note = ""
         self.filter_overruled = False
+        self.followed_up = ""
         for attribute, _, kind in FACTS.values():
             setattr(self, attribute, "" if isinstance(kind, set) else _FACT_DEFAULTS[kind])
         self.status_log = []
@@ -209,6 +210,7 @@ class Application:
             "FilterReason": self.filter_reason,
             "FilterNote": self.filter_note,
             "FilterOverruled": self.filter_overruled,
+            "FollowedUp": self.followed_up,
             **{name: getattr(self, attribute) for attribute, name, _ in FACTS.values()},
             "StatusLog": [entry.to_dict() for entry in self.status_log],
             "AppliedDate": self.applied_date.to_dict() if self.applied_date else None,
@@ -437,6 +439,10 @@ def _read_meta(folder, data):
             app.filter_reason = value
         elif key == "filter_note":
             app.filter_note = value
+        elif key == "followed_up":
+            # Only times a reminder: a value that is not a date reads as unset, as in the
+            # Go store, rather than making the file malformed. The line itself is kept.
+            app.followed_up = value if _valid_date(value) else ""
         elif key == "filter_overruled":
             if value not in ("true", "false"):
                 return fail(number, "invalid filter_overruled")
@@ -554,6 +560,62 @@ def _parse_moment(value):
         offset = timedelta(hours=int(match.group(9)), minutes=int(match.group(10)))
         zone = timezone(-offset if match.group(8) == "-" else offset)
     return datetime(year, month, day, hour, minute, second, tzinfo=zone)
+
+
+# The TUI's default follow_up_days. The setting lives in the TUI's config.toml, which the
+# plugin does not read, so a caller passes the Owner's value when they changed it.
+DEFAULT_FOLLOW_UP_DAYS = 14
+FOLLOW_UP_STATUSES = ("Applied", "Interviewing")
+
+
+def _day(value):
+    """The day of a YYYY-MM-DD date or the date part of a timestamp, as written; or None."""
+    text = str(value or "").split("T")[0]
+    return datetime.strptime(text, "%Y-%m-%d").date() if _valid_date(text) else None
+
+
+def follow_up_from(app):
+    """The day Follow-up due counts from, and what it is, mirroring the Go TUI.
+
+    It is the later of the last Status change and ``followed_up`` (a follow-up the Owner
+    recorded with ``l``); on the same day the Status change wins. Returns
+    ``(day, "followed_up" | "last change")``, or ``(None, "")`` when neither reads.
+    """
+    changed = _day(app.last_change.at) if app.last_change else None
+    followed = _day(app.followed_up)
+    if followed is not None and (changed is None or followed > changed):
+        return followed, "followed_up"
+    if changed is not None:
+        return changed, "last change"
+    return None, ""
+
+
+def follow_up_status(app, today=None, days=DEFAULT_FOLLOW_UP_DAYS):
+    """Follow-up due for one Application, as the TUI's ⚑ flag reckons it.
+
+    Only Applied and Interviewing can be due. The Application is due ``days`` after
+    ``follow_up_from``; ``days_past`` is whole days past that (0 on the day, negative
+    before it).
+    """
+    today = today or date.today()
+    start, since = follow_up_from(app)
+    result = {
+        "Status": app.status,
+        "FollowedUp": app.followed_up,
+        "From": start.isoformat() if start else "",
+        "Since": since,
+        "Days": days,
+        "DueOn": "",
+        "DaysPast": None,
+        "Due": False,
+    }
+    if app.malformed or app.status not in FOLLOW_UP_STATUSES or start is None:
+        return result
+    due_on = start + timedelta(days=days)
+    result["DueOn"] = due_on.isoformat()
+    result["DaysPast"] = (today - due_on).days
+    result["Due"] = result["DaysPast"] >= 0
+    return result
 
 
 def _utc_stamp(value):
@@ -955,6 +1017,17 @@ def _parser():
     show_parser = commands.add_parser("show", help="print one Application as JSON")
     show_parser.add_argument("--folder", required=True)
 
+    follow_parser = commands.add_parser(
+        "follow-up", help="print when one Application is Follow-up due, as JSON"
+    )
+    follow_parser.add_argument("--folder", required=True)
+    follow_parser.add_argument(
+        "--days",
+        type=int,
+        default=DEFAULT_FOLLOW_UP_DAYS,
+        help=f"the Owner's follow_up_days (default {DEFAULT_FOLLOW_UP_DAYS})",
+    )
+
     dup_parser = commands.add_parser("find-duplicates", help="saved Applications like this role")
     dup_parser.add_argument("--company", required=True)
     dup_parser.add_argument("--title", required=True)
@@ -1052,6 +1125,16 @@ def main(argv=None):
             if app is None:
                 raise MetaError(f"no meta.yml in {args.folder}")
             json.dump(app.to_dict(), sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        elif args.command == "follow-up":
+            if not 1 <= args.days <= 90:
+                raise MetaError("--days wants follow_up_days, a whole number from 1 to 90")
+            app = rescan(resolve_folder(workspace, args.folder))
+            if app is None:
+                raise MetaError(f"no meta.yml in {args.folder}")
+            if app.malformed:
+                raise MetaError(app.malformed)
+            json.dump(follow_up_status(app, days=args.days), sys.stdout, indent=2)
             print()
         elif args.command == "find-duplicates":
             jd_text = Path(args.jd_file).read_text() if args.jd_file else ""

@@ -68,10 +68,10 @@ func emptyViewNoun(table string) string {
 }
 
 // emptyViewLine is what an empty view says and the keys that help: change the Track when
-// one filters, change the Status filter, add a Lead.
+// one filters, change the view, add a Lead.
 func (m model) emptyViewLine(table string) (string, []emptyHint) {
 	msg := "No " + emptyViewNoun(table)
-	hints := []emptyHint{{"s", "change filter"}, addLeadHint}
+	hints := []emptyHint{{"s", descChangeView}, addLeadHint}
 	switch {
 	case m.track > 0:
 		msg += " in " + m.trackName()
@@ -107,16 +107,18 @@ func (m model) welcoming() bool { return m.hasTables() && m.detail == nil && len
 
 // setupStep is one item of the welcome's checklist.
 type setupStep struct {
-	key, words string
-	done       func(model) bool
+	key   string
+	words func(model) string
+	done  func(model) bool
 }
 
 // setupSteps is the checklist in order. Editor and Harness keys open Settings › This
-// machine on their own row; 5 is the Profile screen.
+// machine on their own row; 5 is the Profile screen, whose missing-Profile notice gives
+// the same instruction (profileSetupWords), so the two never disagree.
 var setupSteps = []setupStep{
-	{"e", "pick an Editor", editorChosen},
-	{"h", "connect a Harness", func(m model) bool { return m.harness != "" }},
-	{"5", "create your Profile: run create-profile in your Harness", func(m model) bool { return m.profileStarted }},
+	{"e", text("pick an Editor"), editorChosen},
+	{"h", text("connect a Harness"), func(m model) bool { return m.harness != "" }},
+	{"5", func(m model) string { return "set up your Profile: " + m.profileSetupWords() }, func(m model) bool { return m.profileStarted }},
 }
 
 // editorChosen reports an Editor the Owner set (config, $VISUAL or $EDITOR), not the vi
@@ -216,7 +218,7 @@ func (m model) welcome(p pal) string {
 	if pending := m.pendingSetup(); len(pending) > 0 {
 		lines = append(lines, "", p.Text(p.Dim).Render("Set up"))
 		for _, s := range pending {
-			lines = append(lines, step(s.key, s.words))
+			lines = append(lines, step(s.key, s.words(m)))
 		}
 	}
 	lines = append(lines, "", step("?", "see every key"))

@@ -153,3 +153,27 @@ func TestSourcesLegacyObjectIsListedAndConvertedOnWrite(t *testing.T) {
 		t.Fatal("wrote over invalid JSON")
 	}
 }
+
+// UpdateSource rewrites a Source's own fields in place, keeping its other keys and its
+// place, and refuses what AddSource refuses.
+func TestUpdateSourceKeepsOtherKeysAndPlace(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeWorkspaceJSON(t, s.Root(), `{"sources":[{"name":"gh","type":"api","platform":"greenhouse","targets":["a"],"enabled":false,"notes":"keep me"},{"name":"seek","type":"browser"}]}`)
+	if err := s.UpdateSource("gh", store.Source{Name: "boards", Type: store.SourceBrowser, Platform: "greenhouse", Targets: []string{"a"}, URL: "https://example.test", Access: "works"}); err != nil {
+		t.Fatal(err)
+	}
+	ws, _ := s.Settings()
+	got := ws.SourceList[0]
+	if len(ws.SourceList) != 2 || got.Name != "boards" || got.Type != store.SourceBrowser || got.Platform != "" || got.Targets != nil ||
+		got.URL != "https://example.test" || got.Access != "works" || got.On() || got.Notes != "keep me" {
+		t.Fatalf("sources = %+v", ws.SourceList)
+	}
+	for _, bad := range []store.Source{{Name: "SEEK", Type: store.SourceManual}, {Name: "boards", Type: "rss"}, {Name: "", Type: store.SourceManual}} {
+		if err := s.UpdateSource("boards", bad); err == nil {
+			t.Errorf("accepted %+v", bad)
+		}
+	}
+	if err := s.UpdateSource("nope", store.Source{Name: "nope", Type: store.SourceManual}); err == nil {
+		t.Error("updated a Source that is not listed")
+	}
+}

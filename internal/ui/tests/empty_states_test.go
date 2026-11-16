@@ -64,7 +64,7 @@ func TestEmptyStatusHintsFilterAndAdd(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		d.Type("s")
 	}
-	if v := d.plain(); !strings.Contains(v, "No Offers yet · s change filter · a add a Lead") {
+	if v := d.plain(); !strings.Contains(v, "No Offers yet · s change view · a add a Lead") {
 		t.Fatalf("no status hint:\n%s", v)
 	}
 	d.Type("s")
@@ -73,13 +73,15 @@ func TestEmptyStatusHintsFilterAndAdd(t *testing.T) {
 	}
 }
 
-// A Track with nothing in it hints t.
+// A Track with nothing in this view hints t. t never lands on an empty Track, so the
+// view is reached by carrying a Track chosen elsewhere.
 func TestEmptyTrackHintsT(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
-	d.Type("2")
-	for i := 0; i < 6 && !strings.Contains(d.plain(), "t change Track"); i++ {
+	d.Type("1")
+	for i := 0; i < 6 && !strings.Contains(d.plain(), "[Platform"); i++ {
 		d.Type("t")
 	}
+	d.Type("2")
 	v := d.plain()
 	if !strings.Contains(v, "No Drafts in Platform · t change Track") {
 		t.Fatalf("no track hint:\n%s", v)

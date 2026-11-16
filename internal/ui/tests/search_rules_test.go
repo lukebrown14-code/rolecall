@@ -21,7 +21,9 @@ func TestFilteredViewRestoresAndUndoPutsTheRuleBack(t *testing.T) {
 	d.Type("s")
 	requireAll(t, d.plain(), "[Filtered 1]", "Backend Engineer", "too old")
 	d.Type("enter")
-	requireAll(t, squash(d.plain()), "FILTERED too old · posted 2026-08-01, 54 days ago;", "limit 30", "SOURCE linkedin")
+	// The note's age is the day the rule fired, and says so beside today's POSTED age.
+	requireAll(t, squash(d.plain()), "FILTERED too old · as of 24 Sep: posted 2026-08-01, 54 days ago;", "limit 30", "SOURCE linkedin",
+		"POSTED 2026-08-01 · 61d ago", `site said "1mo ago" on 24 Sep`)
 	d.Type("esc")
 	d.Type("m")
 	d.Type("enter") // Dismissed offers its previous Status: Dismissed was its first, so Lead
@@ -74,9 +76,9 @@ func TestSettingsRulesEditAndUndo(t *testing.T) {
 	requireAll(t, h.tm.plain(), "write each cap as a")
 }
 
-// Sources rows list the registry; enter turns one off and u back on; the add form writes
-// a new entry; t runs the Sweep's test of that Source and reports it.
-func TestSettingsSourcesToggleAddAndTest(t *testing.T) {
+// Sources rows list the registry; o turns one off and u back on, enter edits it; the add form writes
+// a new entry; c runs the Sweep's check of that Source and reports it.
+func TestSettingsSourcesToggleAddAndCheck(t *testing.T) {
 	var ran []string
 	runner := func(c *exec.Cmd, done func(ui.CapturedResult) tea.Msg) tea.Cmd {
 		ran = c.Args
@@ -91,12 +93,22 @@ func TestSettingsSourcesToggleAddAndTest(t *testing.T) {
 	d.Type("]")
 	requireAll(t, squash(d.plain()), "greenhouse api · greenhouse · 2 targets · works", "linkedin browser · login wall",
 		"company-careers manual · unknown · disabled", "+ add a Source")
-	d.Type("t")
+	if strings.Contains(squash(d.plain()), "greenhouse api · greenhouse · 2 targets · works workspace.json") {
+		t.Fatalf("a Source row repeats its file:\n%s", d.plain())
+	}
+	requireAll(t, keyLineOf(d.View()), "enter edit", "o turn off", "c check")
+	d.Type("c")
 	if strings.Join(ran, " ") != "python3 /opt/plugin/scripts/sweep.py --data "+root+" --test-source greenhouse" {
 		t.Fatalf("ran %q", ran)
 	}
 	requireAll(t, d.plain(), "greenhouse: works · 41 jobs")
-	d.Type("enter")
+	d.Type("enter") // enter opens the Source's form; it never turns the Source off
+	requireAll(t, d.plain(), "Edit Source greenhouse")
+	d.Type("esc")
+	if strings.Contains(squash(d.plain()), "2 targets · works · disabled") {
+		t.Fatalf("enter turned greenhouse off:\n%s", d.plain())
+	}
+	d.Type("o")
 	requireAll(t, squash(d.plain()), "Turned off greenhouse", "2 targets · works · disabled")
 	d.Type("u")
 	if b, _ := os.ReadFile(filepath.Join(root, "workspace.json")); !strings.Contains(string(b), `"enabled": true`) {
@@ -109,12 +121,42 @@ func TestSettingsSourcesToggleAddAndTest(t *testing.T) {
 	requireAll(t, squash(d.plain()), "Added Source seek", "seek browser · unknown")
 }
 
-// t with no Plugin set says where to set one.
-func TestSourceTestNeedsAPlugin(t *testing.T) {
+// c with no Plugin set says where to set one.
+func TestSourceCheckNeedsAPlugin(t *testing.T) {
 	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 140, 40)
 	d.Type("6")
 	d.Type("]")
 	d.Type("]")
-	d.Type("t")
+	d.Type("c")
 	requireAll(t, d.plain(), "No Plugin set")
+}
+
+// enter on a Source opens its form with its values; a save rewrites it in place and u
+// puts it back as it was.
+func TestSettingsEditSourceSavesAndUndoes(t *testing.T) {
+	root := fixtureCopy(t, nil)
+	d := newDriver(t, root, fixtureClock, 140, 40)
+	d.Type("6")
+	d.Type("]")
+	d.Type("]")
+	d.Type("j") // linkedin
+	d.Type("enter")
+	requireAll(t, d.plain(), "Edit Source linkedin")
+	for range 3 {
+		d.Type("enter") // Name, Type, Platform to Targets
+	}
+	d.Type("enter") // URL
+	d.Type("ctrl+u")
+	d.Type("https://example.test/jobs")
+	d.Type("ctrl+s")
+	requireAll(t, squash(d.plain()), "Saved Source linkedin · workspace.json")
+	ws := func() string { b, _ := os.ReadFile(filepath.Join(root, "workspace.json")); return string(b) }
+	if !strings.Contains(ws(), "https://example.test/jobs") {
+		t.Fatalf("not saved:\n%s", ws())
+	}
+	d.Type("u")
+	requireAll(t, d.plain(), "Undone · Source linkedin as it was")
+	if strings.Contains(ws(), "https://example.test/jobs") {
+		t.Fatalf("u did not put the Source back:\n%s", ws())
+	}
 }

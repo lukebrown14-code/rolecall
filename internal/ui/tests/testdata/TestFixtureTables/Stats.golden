@@ -1,40 +1,40 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2  3 Applied 9 [4 Stats]       █   5 Profile  6 Settings            space menu  ? help
+ ▞ rolecall  1 Leads 7  2 Drafts 2  3 Applied 9 [4 Stats] ▁▁▁▁▁▁█▁  5 Profile  6 Settings            space menu  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   STATS │ TRACK t [All 20] SWE 13  Platform 1  Unknown 6
+   STATS │ TRACK t [All 20] SWE 13  Platform 1  Unknown 6                                                               
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   FUNNEL          Applications that ever reached each Status
-   ◌ Lead          ███████████████           7
-   ✎ Draft         ████                      2  none came from Leads
-   ● Applied       ████████████████████████ 11  none came from Drafts
-   ◆ Interviewing  ████████                  4  36% of Applied
-   ★ Offer         ████                      2  50% of Interviewing
-   closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3
-
-   RESPONSE RATE   2 of 6  ▕████░░░░░░░░▏ 33%
-                   Not counted: 5 applied in the last 14 days (too new)
-                   A Response is an Application that reached Interviewing or Offer.
-
-   APPLIED / WEEK            █   13 Jul → 28 Sep  0 this week · 12-week avg 0.1
-
-   BY TRACK        Applied  Counted  Responses  Rate
-   SWE                   5        0          0     —
-   Platform              0        0          0     —
-   Unknown               6        6          2   33%
-                   Counted: applied at least 14 days ago, as in the Response rate
-
-   COMMON GAPS     Applications naming each gap in fit.md
-                   terraform           3 · would unlock 3 Applications
-                   kafka               2 · would unlock 2 Applications
-                   on-call rotations   1 · would unlock 1 Application
-
-
-
-
-
-
-
-
-
+   NOW             1 follow-up due → 3 Applied                                                                          
+                                                                                                                        
+   FUNNEL          Applications that ever reached each Status. They can start at any Status, so a bar can outgrow the   
+                   one above                                                                                            
+   ◌ Lead          ███████████████░░░░░░░░░  7                                                                          
+   ✎ Draft         ████░░░░░░░░░░░░░░░░░░░░  2  2 started at Draft                                                      
+   ● Applied       ████████████████████████ 11  11 never a Draft                                                        
+   ◆ Interviewing  █████████░░░░░░░░░░░░░░░  4  36% of Applied                                                          
+   ★ Offer         ████░░░░░░░░░░░░░░░░░░░░  2  50% of Interviewing                                                     
+   closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3                                                                 
+                                                                                                                        
+   RESPONSE RATE   ████████░░░░░░░░░░░░░░░░ 33% · 2 of 6                                                                
+                   Not counted: 5 applied in the last 14 days (too new)                                                 
+                   A Response is an Application that reached Interviewing or Offer.                                     
+                                                                                                                        
+   APPLIED / WEEK  ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁██▁▁  0 this week · max 1/wk · 12-week avg 0.1                                   
+                   13 Jul            28 Sep                                                                             
+                                                                                                                        
+   BY TRACK        Applied  Counted  Responses  Rate                                                                    
+   Unknown               6        6          2   33%                                                                    
+   SWE                   5        0          0     —                                                                    
+                   No Applications sent: Platform                                                                       
+                   Counted: applied at least 14 days ago, as in the Response rate                                       
+                                                                                                                        
+   INSIGHTS        Applications naming each gap in fit.md                                                               
+                   terraform           3 · would unlock 3 Applications                                                  
+                   kafka               2 · would unlock 2 Applications                                                  
+                   on-call rotations   1 · would unlock 1 Application                                                   
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   Stats › All tracks
- a add                                                                                                           ? help
+   Stats › All tracks                                                                                                   
+ a add                                                                                                           ? help 

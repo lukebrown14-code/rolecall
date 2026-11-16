@@ -96,7 +96,7 @@ type layout struct {
 
 // layout is the budget for the current terminal size.
 func (m model) layout() layout {
-	l := sizeLayout(m.viewWidth(), m.viewHeight())
+	l := plainLayout(sizeLayout(m.viewWidth(), m.viewHeight()))
 	l.status = m.frameStatusLines()
 	return l
 }
@@ -188,7 +188,7 @@ func (m model) sheetShown() bool {
 	if m.detail == nil || !m.hasTables() {
 		return false
 	}
-	_, _, ok := sizeLayout(m.viewWidth(), m.viewHeight()).sheetHeights(tableContext)
+	_, _, ok := plainLayout(sizeLayout(m.viewWidth(), m.viewHeight())).sheetHeights(tableContext)
 	return ok
 }
 
@@ -390,8 +390,9 @@ func (m model) tooSmallView(p pal) string {
 
 // overlayBody draws box over base inside the body: centred on the full width and
 // between the rules, never over the tab bar, context lines or status row. A box taller
-// than the body scrolls inside its border, keeping the selection bar (▌) in view. The
-// rows the box covers are blanked edge to edge, so no cut-off text shows beside it.
+// than the body scrolls inside its border, keeping the selection bar (▌) in view. Only
+// the box's own footprint and a margin around it are cleared (see popMargin), so the
+// dimmed frame stays in view beside it and no word is cut off against its border.
 func (m model) overlayBody(p pal, base, box string) string {
 	l, ctx := m.layout(), m.contextLines()
 	top, h := l.bodyTop(ctx), l.bodyHeight(ctx)
@@ -406,20 +407,49 @@ func (m model) overlayBody(p pal, base, box string) string {
 	}
 	y := top + max(0, (h-len(lines))/bothSides)
 	x := max(0, (l.w-boxW)/bothSides)
-	rows := strings.Split(base, "\n")
-	blank := strings.Repeat(" ", l.w)
-	if am, ok := m.overlay.(anchoredMode); ok && am.anchored() {
-		// Top-left under the tab bar, over the body only. The rows it covers are blanked
-		// like any pop-up's, so no word is cut off against its border.
-		y, x = top, 1
+	side, rows := popMargin()
+	layers := []*lipgloss.Layer{lipgloss.NewLayer(base)}
+	baseRows := strings.Split(base, "\n")
+	for row := max(top, y-rows); row < min(top+h, y+len(lines)+rows, len(baseRows)); row++ {
+		from, to := wordEdges(xansi.Strip(baseRows[row]), max(0, x-side), min(l.w, x+boxW+side))
+		layers = append(layers, lipgloss.NewLayer(strings.Repeat(" ", to-from)).X(from).Y(row).Z(layerClear))
 	}
-	for i := range lines {
-		if y+i < len(rows) {
-			rows[y+i] = blank
-		}
+	layers = append(layers, lipgloss.NewLayer(strings.Join(lines, "\n")).X(x).Y(y).Z(layerPopUp))
+	return lipgloss.NewCompositor(layers...).Render()
+}
+
+// wordEdges widens the cleared cells [from, to) of a backdrop row to the ends of any word
+// they cut, so the frame beside a pop-up shows whole words or nothing. Rules and
+// dividers are never words: the pane divider stays whole beside the pop-up.
+func wordEdges(row string, from, to int) (int, int) {
+	word := func(c int) bool {
+		cell := xansi.Cut(row, c, c+1)
+		return cell != "" && cell != " " && !strings.ContainsAny(cell, "│┬┴─|")
 	}
-	return lipgloss.NewCompositor(lipgloss.NewLayer(strings.Join(rows, "\n")),
-		lipgloss.NewLayer(strings.Join(lines, "\n")).X(x).Y(y).Z(1)).Render()
+	for from > 0 && word(from) && word(from-1) {
+		from--
+	}
+	for to < xansi.StringWidth(row) && word(to-1) && word(to) {
+		to++
+	}
+	return from, to
+}
+
+// The overlay's layers above the frame: the cleared margin, then the pop-up.
+const (
+	layerClear = 1
+	layerPopUp = 2
+)
+
+// popMargin is the cells cleared around a pop-up: one at each side, so no backdrop word
+// is cut against its border. Without colour there is no dimmed frame to set the pop-up
+// apart, so the margin widens to two cells and a blank row above and below, and the
+// frame behind loses its bold (see View): the pop-up is the only bold, ringed by space.
+func popMargin() (side, rows int) {
+	if noColor() {
+		return gutter, 1
+	}
+	return 1, 0
 }
 
 // clipBox fits a pop-up into h lines. Its borders stay; the lines between them scroll to

@@ -43,14 +43,19 @@ removed (too old, over a Source's applicant cap, a blocker in the ad) is Dismiss
 reason and listed under Leads → **Filtered**; restore it with `m` and no rule removes it again.
 A Lead with a posting date shows its age, and warns as it nears the age limit.
 
-**Deadlines** (Drafts screen, `s`) lists every Lead and Draft with a closing date, soonest first,
-then the passed ones, then those whose date was unclear in the ad. A Lead or Draft shows its
+**Deadlines** (Drafts screen, `s`) lists every Lead and Draft with a closing date, or a Lead
+nearing the posting age limit, soonest first, then the passed ones, then those whose date was unclear in the ad. A Lead or Draft shows its
 pay as an annual AUD estimate (flagged when a figure looks mislabelled, such as $900 an hour),
 its contract term against the visa cap in Settings → Rules, whether it needs sponsorship, and
-"blurb only" when `jd.md` is not the full ad. An agency ad reads "AGL via Chandler Macleod".
+"ad summary only" when `jd.md` is not the full ad. An agency ad reads "AGL via Chandler Macleod".
 Add warns before saving a likely duplicate. **Insights**, at the end of Stats, counts the gaps
 listed across every `fit.md` and how many Applications each would unlock. **Follow-up due** is a
-reminder on a sent Application unchanged for `follow_up_days` (default 14), not a Status.
+reminder (`⚑ 2w` on the row) on an Applied or Interviewing Application that has gone
+`follow_up_days` (default 14) without a Status change and without you recording that you
+followed up; it is not a Status. `F` hands it to draft-follow-up, which writes `follow-up.md`
+and never sends. Once you have sent it, `l` records that you followed up today
+(`followed_up: YYYY-MM-DD` in `meta.yml`): the `⚑` clears and comes back `follow_up_days` after
+that day, and `u` takes it back. A Status change restarts the count too.
 
 ## Screens and keys
 
@@ -62,30 +67,33 @@ reminder on a sent Application unchanged for `follow_up_days` (default 14), not 
 | `a` · `e` · `m` · `x` | add · edit · move to another Status · dismiss |
 | `n` | the Application's notes |
 | `f` · `p` | Handoff to the Harness: assess-fit (any row) · prepare-documents (Lead or Draft) |
-| `r` | on a Follow-up due row, Handoff to draft-follow-up; elsewhere, re-read the Workspace |
+| `F` · `l` | on a Follow-up due row, Handoff to draft-follow-up · record that you followed up today (Applied, Interviewing) |
+| `r` | re-read the Workspace |
 | `b` · `d` | build PDFs · copy the PDFs to the `downloads` folder |
-| `/` · `t` · `s` · `o` | search · Track filter · Status filter · sort |
+| `/` · `t` · `s` · `o` | search · Track filter · change view · sort |
 | `u` · `space` · `,` · `?` · `q` | undo · menu · Settings · help · quit |
 
 A Handoff runs the `harness` command from `config.toml` with the skill and the Application's
 folder, started in the Workspace wherever rolecall was launched; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
-set, the Handoff keys leave the key line, and pressing one says to set it.
+set, `?` and the palette list the Handoff keys dimmed as `(needs a Harness)`, pressing one says to
+set it, and `h` opens Settings › This machine on the Harness row.
 
 ## Settings
 
 Machine settings live in `~/.config/rolecall/config.toml`: `workspace`, `editor`,
-`follow_up_days`, `downloads`, `plugin`, `harness`, `ascii`, `inherit_terminal`. Screen `6`
+`follow_up_days`, `downloads`, `plugin`, `harness`, `ascii`, `inherit_terminal`, `compact_rows`
+(list rows on a single line at wide sizes; `z` toggles it). Screen `6`
 shows each value and where it came from; select This machine and press `e` to edit the file.
 Workspace settings (Tracks, Search area, Search rules, Sources) live in `workspace.json` and
 are edited on the same screen. **Rules** sets the age limit for postings, the applicant cap per
 Source, how borderline labels such as "1mo ago" are decided and the preferred contract length.
-**Sources** lists every place the Sweep or the Harness searches; add one, test it (its access
-status: works, 403, login wall, cloudflare) or disable it there. A changed rule removes nothing
+**Sources** lists every place the Sweep or the Harness searches; add one, edit one (`Enter`),
+check it (`c`: its access status, works, 403, login wall or cloudflare) or turn it off (`o`) there. A changed rule removes nothing
 by itself: the find-jobs skill runs a dry run (`rules.py check`) and asks before dismissing.
 
 ## When something does not show
 
-- **A new Lead is missing.** Check the Track filter (`t` → All) and the Status filter (`s`).
+- **A new Lead is missing.** Check the Track filter (`t` → All) and the view (`s`).
   Then compare the folder the skill printed with the Workspace in `rolecall doctor`: Plugin
   scripts use `--data` or `ROLECALL_WORKSPACE`, not `config.toml`, so a mismatch writes
   elsewhere. A footer warning about `SHORTLIST.md` means the Harness has old instructions.

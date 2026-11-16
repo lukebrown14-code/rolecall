@@ -35,7 +35,7 @@ func TestWideDetailKeepsTheDividerAndCardInPlace(t *testing.T) {
 // At narrow widths a toast takes the whole footer line rather than both being cut, and
 // the Status it names comes first, so it survives.
 func TestNarrowToastTakesTheFooterLine(t *testing.T) {
-	lines := plainAt(t, 56, 14, "1", "j", "j", "m", "d")
+	lines := plainAt(t, 56, 14, "1", "m", "d") // Platform Engineer expires first, so it leads
 	crumb := lines[len(lines)-2]
 	if strings.Contains(crumb, "Leads ›") || !strings.Contains(crumb, "✓ Moved to Draft · Platform") {
 		t.Fatalf("toast squeezed beside the breadcrumb: %q", crumb)
@@ -53,7 +53,7 @@ func TestPopupHintsShedRatherThanCut(t *testing.T) {
 
 // On a short terminal the Move pop-up keeps which Application it moves in view.
 func TestMovePopupPinsItsSubject(t *testing.T) {
-	view := strings.Join(plainAt(t, 56, 14, "1", "j", "j", "m", "j", "j", "j", "j"), "\n")
+	view := strings.Join(plainAt(t, 56, 14, "1", "m", "j", "j", "j", "j"), "\n")
 	if !strings.Contains(view, "Platform Engineer") || !strings.Contains(view, "Fern Systems · now") {
 		t.Fatalf("Move pop-up scrolled its subject away:\n%s", view)
 	}
@@ -103,7 +103,7 @@ func TestProfileEmptyStatesSayHowToFixThem(t *testing.T) {
 		t.Fatalf("empty Profile says nothing:\n%s", v)
 	}
 	missing := fixtureCopy(t, func(root string) { os.RemoveAll(filepath.Join(root, "profile")) })
-	if v := chipped(runKeysSized(t, missing, 100, 24, "5")); !strings.Contains(v, "then press r to read it") {
+	if v := chipped(runKeysSized(t, missing, 100, 24, "5")); !strings.Contains(v, "Set up your Profile: fill in your Contact") || !strings.Contains(v, "c fill in your Contact") {
 		t.Fatalf("missing Profile says nothing:\n%s", v)
 	}
 }
@@ -113,7 +113,7 @@ func TestProfileEmptyStatesSayHowToFixThem(t *testing.T) {
 func TestBottomSheetSharesTheListsColumns(t *testing.T) {
 	lines := plainAt(t, 80, 24, "3", "j", "enter")
 	view := strings.Join(lines, "\n")
-	for _, want := range []string{"   Engineer #1 · Example", "  [Overview]", "   ◆ Interviewing  "} {
+	for _, want := range []string{"   Engineer #1 · Example", "  [Overview]", "   FOLLOW-UP  "} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("sheet lacks %q at the text column:\n%s", want, view)
 		}

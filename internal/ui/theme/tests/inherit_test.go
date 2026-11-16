@@ -18,7 +18,7 @@ func TestInheritPaletteKeepsTextLegible(t *testing.T) {
 	for name, p := range map[string]theme.Palette{"base": theme.InheritBase(), "dimmed": theme.InheritDimmed()} {
 		for role, c := range map[string]color.Color{"text": p.Fg, "sub": p.Sub, "muted": p.Dim, "faint": p.Faint,
 			"accent": p.Accent, "ok": p.Ok, "info": p.Info, "warn": p.Warn, "danger": p.Bad, "purple": p.Purple,
-			"gold": p.Gold, "lead": p.Lead, "draft": p.Draft} {
+			"gold": p.Gold, "lead": p.Lead, "draft": p.Draft, "marginal": p.Marginal} {
 			if a, ok := c.(lipgloss.ANSIColor); ok && (a == white || a == brightBlack || a == brightYellow) {
 				t.Errorf("%s inherit palette draws %s in ANSI %d", name, role, a)
 			}

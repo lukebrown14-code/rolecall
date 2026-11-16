@@ -33,7 +33,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 						t.Errorf("navigation missing %q: %s", digit, line)
 					}
 				}
-				if ansi.StringWidth(line) > size[0]-1 {
+				if ansi.StringWidth(strings.TrimRight(line, " ")) > size[0]-1 {
 					t.Errorf("navigation reaches the right edge: %s", line)
 				}
 			})
@@ -94,7 +94,7 @@ func TestHeaderPulseAndWordmark(t *testing.T) {
 // At wide sizes the brand mark leads the tab bar and the Stats tab carries an 8-cell
 // sparkline of Applied per week, the same series as Stats' chart: the fixtures' only
 // logged Applied inside eight weeks of the held clock is orbit's on 2026-09-25, in the
-// week before the current one; empty weeks are blank. Below the wide class neither
+// week before the current one; empty weeks sit on the faint baseline. Below the wide class neither
 // shows, and the tab bar keeps the active screen.
 func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	root := fixtureCopy(t, nil)
@@ -103,7 +103,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 	if !strings.HasPrefix(wide, " ▞ rolecall") {
 		t.Errorf("wide tab bar does not lead with the brand mark: %q", wide)
 	}
-	if !strings.Contains(wide, "Stats        █ ") {
+	if !strings.Contains(wide, "Stats  ▁▁▁▁▁▁█▁ ") {
 		t.Errorf("wide tab bar lacks the sparkline beside Stats: %q", wide)
 	}
 	for _, size := range [][2]int{{80, 24}, {60, 16}} {
@@ -122,7 +122,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 			t.Fatalf("ASCII tab bar has non-ASCII %q: %q", r, bar)
 		}
 	}
-	if !strings.Contains(bar, "Stats        # ") {
+	if !strings.Contains(bar, "Stats  ______#_ ") {
 		t.Errorf("ASCII tab bar lacks the sparkline: %q", bar)
 	}
 }

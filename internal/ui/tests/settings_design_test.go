@@ -27,7 +27,7 @@ var settingsPopups = []struct {
 	{"search area", []string{"enter"}, "ctrl+s save"},
 	{"gate", []string{"]", "]", "]", "enter"}, "enter save"},
 	{"add track", []string{"]", "]", "]", "]", "a"}, "enter add"},
-	{"rename track", []string{"]", "]", "]", "]", "r"}, "enter review"},
+	{"rename track", []string{"]", "]", "]", "]", "enter"}, "enter review"},
 }
 
 func TestSettingsFooterShowsPopupKeysNotTheScreenName(t *testing.T) {
@@ -81,7 +81,7 @@ func TestSettingsPopupsFitTheirHintsAndCentre(t *testing.T) {
 
 func TestSettingsTrackFooterKeys(t *testing.T) {
 	f := helpText(strings.Join(settingsAt(t, 120, 40, "]", "]", "]", "]", "?"), "\n"))
-	if !strings.Contains(f, "a add") || !strings.Contains(f, "r rename") || !strings.Contains(f, "x remove") || !strings.Contains(f, "J/K reorder") {
+	if !strings.Contains(f, "a add") || !strings.Contains(f, "enter rename") || !strings.Contains(f, "x remove") || !strings.Contains(f, "J/K reorder") {
 		t.Fatalf("footer %q", f)
 	}
 }

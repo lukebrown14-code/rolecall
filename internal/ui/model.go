@@ -61,6 +61,7 @@ type model struct {
 	sources               SettingSources
 	external              ExternalRunner
 	detail                *detailState
+	lastTab               detailTab // the detail tab last chosen; the next detail opens on it where it has one
 	height                int
 	watchWindow           time.Duration
 	watch                 *watch.Watcher
@@ -79,7 +80,8 @@ type model struct {
 	rules       store.SearchRules
 	visa        store.Visa         // workspace.json visa, for the sponsorship and contract badges
 	payFX       map[string]float64 // workspace.json pay_fx, for the annual pay estimate
-	leadsNewest bool               // Leads sorted newest first instead of by close date; s toggles
+	leadsNewest bool               // Leads sorted newest first instead of by deadline; o toggles
+	compactRows bool               // one-line list rows at wide sizes; z toggles, compact_rows in config.toml
 	writing     map[string]int     // documents written just now (watch.DocumentKey) and their mark's generation
 	writingGen  int
 	legacy      []string        // dashboard-era files in the Workspace (store.LegacyFiles), warned about in the footer
@@ -191,7 +193,7 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 		sortNewest(out)
 		return out
 	}
-	SortApplications(out, table)
+	m.order().sort(out, table)
 	if beforeApplied(table) {
 		var live, old []store.Application
 		for _, a := range out {
@@ -206,28 +208,64 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 	return out
 }
 
-// deadlineRows is the Deadlines view: every Lead and Draft with a close date, soonest
-// first, then those whose date has passed, then those whose ad left it unclear. filter
-// applies the Track and text filters.
+// deadlineRows is the Deadlines view: every Lead and Draft with a deadline still to
+// come (a close date, or a Lead's ad within expiry_warning_days of max_posting_age_days),
+// soonest first; then those whose close date has passed; then those whose ad left the
+// close date unclear. filter applies the Track and text filters.
 func (m model) deadlineRows(filter bool) []store.Application {
-	var live, past, unclear []store.Application
+	groups := map[deadlineGroup][]store.Application{}
 	for _, a := range m.apps {
 		if a.Malformed != nil || !beforeApplied(tableOf(a)) || (filter && !m.matches(a)) {
 			continue
 		}
-		switch {
-		case a.Closes != "" && m.expired(a):
-			past = append(past, a)
-		case a.Closes != "":
-			live = append(live, a)
-		case a.ClosesUnclear:
-			unclear = append(unclear, a)
+		if g, ok := m.deadlineGroupOf(a); ok {
+			groups[g] = append(groups[g], a)
 		}
 	}
-	SortApplications(live, tableDraft)
-	SortApplications(past, tableDraft)
-	SortApplications(unclear, tableDraft)
-	return append(append(live, past...), unclear...)
+	var out []store.Application
+	for _, g := range []deadlineGroup{deadlineLive, deadlinePast, deadlineUnclear} {
+		m.order().sort(groups[g], tableDraft)
+		out = append(out, groups[g]...)
+	}
+	return out
+}
+
+// deadlineGroup is a Deadlines section.
+type deadlineGroup int
+
+const (
+	deadlineLive    deadlineGroup = iota // a deadline still to come
+	deadlinePast                         // the close date has passed: Expired
+	deadlineUnclear                      // the ad left the close date unclear
+)
+
+// deadlineGroupOf is the Deadlines section a Lead or Draft belongs in, and whether it
+// belongs in Deadlines at all. A Lead nearing max_posting_age_days is in it as soon as
+// its row warns "expires in N days"; one already past the age limit with no close date
+// is not, as it has no date left to meet.
+func (m model) deadlineGroupOf(a store.Application) (deadlineGroup, bool) {
+	_, hasCloses := parseDay(a.Closes)
+	expiring := m.postingExpiring(a)
+	switch {
+	case m.expired(a):
+		return deadlinePast, hasCloses
+	case hasCloses || expiring:
+		return deadlineLive, true
+	case a.ClosesUnclear:
+		return deadlineUnclear, true
+	}
+	return 0, false
+}
+
+// postingExpiring reports a Lead whose ad is within expiry_warning_days of
+// max_posting_age_days, today included: the rows that read "expires in N days".
+func (m model) postingExpiring(a store.Application) bool {
+	t, ok := postingExpiry(a, m.rules)
+	if !ok {
+		return false
+	}
+	left := int(t.Sub(day(m.now())).Hours() / hoursPerDay)
+	return left >= 0 && left <= m.rules.ExpiryWarningDays
 }
 
 // beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.
@@ -333,8 +371,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fm.finishFetch(&m, done)
 		return m, nil
 	}
-	if done, ok := msg.(sourceTested); ok {
-		return m.finishSourceTest(done), nil
+	if done, ok := msg.(sourceChecked); ok {
+		return m.finishSourceCheck(done), nil
 	}
 	if done, ok := msg.(buildFinished); ok {
 		m.capturedRun = false
@@ -396,6 +434,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Settings opens from anywhere, over the detail view and Stats too.
 			return m.openSettings(), nil
 		}
+		if m.connectsHarness(k.String()) {
+			// h is how the no-Harness error is fixed, from any screen: Settings › This
+			// machine on the Harness row.
+			m.err = nil
+			return m.openSettingsAt(labelHarness), nil
+		}
 		if m.detail != nil {
 			if next, cmd, handled := m.detailKey(k); handled {
 				return next.syncDetail(), cmd
@@ -455,6 +499,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // cycleTrack moves the track filter to the next track, or the previous one: All, then
 // each workspace.json track in order, then the off-list Tracks rows are on (filterTracks).
+// A Track with no rows in this view is skipped, so t never lands on an empty list; All
+// always has its turn.
 func (m *model) cycleTrack(back bool) {
 	if len(m.tracks) == 0 {
 		return
@@ -464,7 +510,14 @@ func (m *model) cycleTrack(back bool) {
 	if back {
 		step = n - 1
 	}
-	m.track = (min(m.track, n-1) + step) % n
+	next := min(m.track, n-1)
+	for range n {
+		next = (next + step) % n
+		if next == 0 || m.trackTotal(next) > 0 {
+			break
+		}
+	}
+	m.track = next
 	m.cursor = 0
 }
 

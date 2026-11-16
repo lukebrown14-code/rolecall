@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"errors"
 	"path/filepath"
 	"strings"
 
@@ -42,7 +41,7 @@ func (m *model) startHandoff(skill string) tea.Cmd {
 		return nil
 	}
 	if m.harness == "" {
-		m.err = errors.New(unsetMachineSetting(labelHarness))
+		m.err = errNoHarness
 		return nil
 	}
 	if !m.handoffAllowed(a, skill) {

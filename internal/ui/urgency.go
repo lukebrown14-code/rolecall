@@ -22,10 +22,11 @@ const (
 // entry's date, then folder.
 func sortNewest(rows []store.Application) {
 	added := func(a store.Application) string {
-		if len(a.StatusLog) == 0 {
+		log := effectiveLog(a) // an undone first move does not make a Lead new
+		if len(log) == 0 {
 			return ""
 		}
-		return a.StatusLog[0].At
+		return log[0].At
 	}
 	sort.SliceStable(rows, func(i, j int) bool {
 		if a, b := added(rows[i]), added(rows[j]); a != b {
@@ -33,6 +34,37 @@ func sortNewest(rows []store.Application) {
 		}
 		return rows[i].Folder < rows[j].Folder
 	})
+}
+
+// deadline is the last day a Lead or Draft is worth sending: its close date, or for a
+// Lead the day its ad reaches max_posting_age_days (the day ageWarning reads "expires
+// today"), whichever is sooner. ok is false when it has neither.
+func deadline(a store.Application, rules store.SearchRules) (time.Time, bool) {
+	closes, hasCloses := parseDay(a.Closes)
+	expires, hasExpiry := postingExpiry(a, rules)
+	switch {
+	case hasCloses && hasExpiry:
+		if expires.Before(closes) {
+			return expires, true
+		}
+		return closes, true
+	case hasExpiry:
+		return expires, true
+	}
+	return closes, hasCloses
+}
+
+// postingExpiry is the day a Lead's ad reaches max_posting_age_days, when the rule is set
+// and the ad says when it was posted. Only a Lead has one, as only a Lead is warned of it.
+func postingExpiry(a store.Application, rules store.SearchRules) (time.Time, bool) {
+	if rules.MaxPostingAgeDays <= 0 || a.Status != store.StatusLead {
+		return time.Time{}, false
+	}
+	posted, ok := parseDay(a.Posted)
+	if !ok {
+		return time.Time{}, false
+	}
+	return posted.AddDate(0, 0, rules.MaxPostingAgeDays), true
 }
 
 // span is a distance in days as the list words it: "4d", "3w", "2mo", and from two
@@ -94,12 +126,14 @@ func followUpDue(a store.Application, now time.Time, days int) bool {
 const heatHighAfter = 7
 
 // followUpDaysPast is how many whole days past its follow-up date a sent Application is
-// (0 on the day it falls due), and whether it is Follow-up due at all.
+// (0 on the day it falls due), and whether it is Follow-up due at all. The follow-up date
+// is follow_up_days after the later of the last Status change and the last recorded
+// follow-up (followed_up), so l clears the flag until it falls due again.
 func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
-	if (a.Status != store.StatusApplied && a.Status != store.StatusInterviewing) || lastChange(a) == nil {
+	if !followUpStatus(a.Status) {
 		return 0, false
 	}
-	t, ok := parseDay(lastChange(a).At)
+	t, ok := followUpFrom(a)
 	if !ok {
 		return 0, false
 	}
@@ -110,10 +144,14 @@ func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) 
 // followUpLate reports a Follow-up due flag drawn bold: more than heatHighAfter days past.
 func followUpLate(past int) bool { return past > heatHighAfter }
 
-// followUpWords is a Follow-up due as the detail and preview word it, "due · no change in 9mo":
-// the same span from the last change as the row's "⚑ 9mo", so the two never disagree.
+// followUpWords is a Follow-up due as the detail and preview word it: "due · no change in
+// 9mo", or "due · followed up 3w ago" once a recorded follow-up is what it counts from. The
+// span is followUpQuiet, the row's "⚑ 9mo", so the two never disagree.
 func (m model) followUpWords(a store.Application) string {
-	return "due · no change in " + m.since(lastChange(a))
+	if followedUpLater(a) {
+		return "due · followed up " + m.followUpQuiet(a) + " ago"
+	}
+	return "due · no change in " + m.followUpQuiet(a)
 }
 
 // shortDate is "3 Sep", with the year when it is not this year's.
@@ -162,13 +200,15 @@ func closeInfo(closes string, now time.Time) (string, closeState) {
 }
 
 // closeStyle draws a close date by its urgency, starting from st (the row's own style,
-// so a selected row keeps its fill) and base, the colour of an unhurried date.
+// so a selected row keeps its fill) and base, the colour of an unhurried date. Weight
+// carries the urgency as well as colour, so it reads under NO_COLOR and on the selection
+// bar: a date within a week is bold, one within two days bold with ▲.
 func (p pal) CloseStyle(s closeState, st func(color.Color) lipgloss.Style, base color.Color) lipgloss.Style {
 	switch s {
 	case closeUrgent:
 		return st(p.Bad).Bold(true)
 	case closeSoon:
-		return st(p.Warn)
+		return st(p.Warn).Bold(true)
 	case closePast:
 		return st(p.Dim).Strikethrough(true)
 	}

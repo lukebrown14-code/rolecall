@@ -1,6 +1,6 @@
- R rolecall  1 Leads 7  2 Drafts 2  3 Applied 9  4 Stats        #  [5 Profile] 6 Settings            space menu  ? help
+ R rolecall  1 Leads 7  2 Drafts 2  3 Applied 9  4 Stats  ______#_ [5 Profile] 6 Settings            space menu  ? help 
 ------------------------------------------------------------------------------------------------------------------------
-   SECTIONS                                                                                   profile/master-profile.md
+  [SECTIONS]  CONTENT                                                                         profile/master-profile.md 
 ---------------------------------+--------------------------------------------------------------------------------------
  > Contact                    +  |  SECTION Contact                                                         e edit file 
    Headlines                  2  |                                                                                      
@@ -32,5 +32,5 @@
                                  |                                                                                      
                                  |                                                                                      
 ---------------------------------+--------------------------------------------------------------------------------------
-   Profile > Contact
- e edit file                                                                                                     ? help
+   Profile > Contact                                                                                                    
+ e edit file                                                                                          tab focus  ? help 

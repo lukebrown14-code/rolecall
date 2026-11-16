@@ -14,7 +14,7 @@ import (
 // cursor to another row while it was open.
 func TestMoveActsOnTheApplicationItShows(t *testing.T) {
 	h := newLiveHarness(t, nil)
-	h.tm.Type("j") // Empty log
+	h.tm.Type("jj") // Empty log, after Fern (nearing the age limit) and Empty
 	h.tm.Type("m")
 	h.wait("Move")
 	meta := filepath.Join(h.folder("empty-log"), "meta.yml")
@@ -105,7 +105,7 @@ func TestLongTitleKeepsThePopupBorder(t *testing.T) {
 
 // A long form value shows its end, where typing happens, and its error in full.
 func TestLongFormValueShowsItsEndAndError(t *testing.T) {
-	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "a", "tab", "tab", "tab", "tab",
+	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "a", "tab", "tab", "tab",
 		"2026-01-01-and-some-more-text-here-xx", "enter"))
 	if !strings.Contains(view, "here-xx▏") {
 		t.Fatalf("the end of the value is hidden:\n%s", view)
@@ -222,7 +222,7 @@ func TestCompactAddExplainsEmptyTitle(t *testing.T) {
 
 func TestCompactMalformedErrorKeepsRecoveryKeys(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), nil, 60, 16)
-	m = driveModel(t, m, "G", "m", "d")
+	m = driveModel(t, m, "/malformed", "enter", "m", "d")
 	view := chipped(m.View().Content)
 	for _, hint := range []string{"e fix in editor", "esc hide"} {
 		if !strings.Contains(view, hint) {

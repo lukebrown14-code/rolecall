@@ -40,6 +40,7 @@ func (m model) gatePopup(g gate) mode {
 	label := strings.ToUpper(words[len(words)-1][:1]) + words[len(words)-1][1:] // "Maximum"
 	f := newFormOf("Edit "+g.Label, formField{Label: label, Required: true, Value: was, Unit: g.Unit,
 		Note: gateRange(ws, g.Key)})
+	f.SelectValue() // typing replaces the current value, as on the inline rows
 	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
 		text := f.Value(label)
 		if err := m.store.SetGate(g.Key, text); err != nil {

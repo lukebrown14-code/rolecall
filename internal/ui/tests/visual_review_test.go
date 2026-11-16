@@ -54,8 +54,8 @@ func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
 func TestHelpListsMenuUndoAndOneCommandsRow(t *testing.T) {
 	for _, sz := range keyLineSizes[:2] {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "1", "?"))
-		for _, want := range []string{"[space]  menu", "[u]      undo", "[: ctrl+k] commands", "[/]        search"} { // the column's words line up after the merged key
-			if !strings.Contains(view, want) {
+		for _, want := range []string{"space menu", "u undo", ": ctrl+k commands", "/ search"} {
+			if !helpLists(view, want) {
 				t.Errorf("%dx%d help lacks %q:\n%s", sz[0], sz[1], want, view)
 			}
 		}
@@ -65,27 +65,22 @@ func TestHelpListsMenuUndoAndOneCommandsRow(t *testing.T) {
 	}
 }
 
-// The Workspace menu's cursor is the one selection gutter, "▌ Leads", and every row's
-// label starts in the same column.
+// The Workspace menu's cursor is the one selection gutter, "▌ 1  Leads": key first, as the
+// help and the palette put it, and every row's key and label start in the same columns.
 func TestWorkspaceMenuCursorIsSpacedAndLabelsAlign(t *testing.T) {
 	for _, sz := range keyLineSizes {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", " "))
-		sel := lineWith(view, "▌ Leads")
-		if sel == "" {
-			t.Fatalf("%dx%d: no \"▌ Leads\" row:\n%s", sz[0], sz[1], view)
+		sel := lineWith(view, "▌ 1 ")
+		if sel == "" || !strings.Contains(sel, "Leads") {
+			t.Fatalf("%dx%d: no \"▌ 1  Leads\" row:\n%s", sz[0], sz[1], view)
 		}
-		want := colOf(sel, "Leads")
-		box := sel[:strings.Index(sel, "▌")] // the box's left edge, as the selected row starts
-		for _, label := range []string{"Drafts", "Applied", "Settings"} {
-			row := ""
-			for _, l := range strings.Split(view, "\n") {
-				if strings.HasPrefix(l, box) && strings.Contains(l, label) && colOf(l, label) < colOf(sel, "1  │") {
-					row = l
-					break
-				}
-			}
-			if got := colOf(row, label); got != want {
-				t.Errorf("%dx%d: %s at column %d, Leads at %d:\n%s\n%s", sz[0], sz[1], label, got, want, sel, row)
+		left, right := menuBox(strings.Split(view, "\n"))
+		inner := func(l string) string { return ansi.Cut(l, left, right+1) }
+		key, want := colOf(inner(sel), "1 "), colOf(inner(sel), "Leads")
+		for _, row := range [][2]string{{"2", "Drafts"}, {"3", "Applied"}, {"6", "Settings"}} {
+			line := inner(lineWith(view, row[0]+"      "+row[1]))
+			if colOf(line, row[0]+" ") != key || colOf(line, row[1]) != want {
+				t.Errorf("%dx%d: %s is not aligned with Leads:\n%s\n%s", sz[0], sz[1], row[1], sel, line)
 			}
 		}
 	}
@@ -180,10 +175,10 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 		label, key string
 		harness    bool
 	}{
-		{"next", []string{"3"}, "NEXT    wait to hear back", "m move", false},
-		{"lead next", []string{"1"}, "NEXT    add the JD", "enter open", false},
-		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due · no change in 9mo", "m move", false},
-		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP  due · no change in 9mo", "F draft follow-up", true},
+		{"next", []string{"3"}, "NEXT         wait to hear back", "m move", false},
+		{"lead next", []string{"1"}, "NEXT         add the JD", "enter open", false},
+		{"follow-up", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP    due · no change in 9mo", "l followed up", false},
+		{"follow-up with a Harness", []string{"3", "/Engineer", "enter", "j"}, "FOLLOW-UP    due · no change in 9mo", "F draft follow-up", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var opts []ui.Option
@@ -192,7 +187,11 @@ func TestNextAndFollowUpRowsAreFieldRows(t *testing.T) {
 			}
 			m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36, opts...)
 			view := chipped(driveModel(t, m, tc.keys...).View().Content)
+			// The narrow card puts the key on the line under the words.
 			row := lineWith(view, tc.label)
+			if !strings.Contains(row, tc.key) {
+				row = lineAfter(view, tc.label)
+			}
 			if row == "" || !strings.Contains(row, tc.key) {
 				t.Fatalf("no row %q … %q:\n%s", tc.label, tc.key, view)
 			}

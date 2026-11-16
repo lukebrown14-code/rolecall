@@ -12,6 +12,7 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
 )
 
 // Layout constants for the list view.
@@ -28,7 +29,7 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedEdge       = 1 // topBar detail levels: drop the space before the wordmark…
+	shedSparkLabel = 1 // topBar detail levels: drop the sparkline's "applied/wk" label…
 	shedCounts     = 2 // …then other screens' counts…
 	shedWordmark   = 3 // …then the word "rolecall"…
 	shedNames      = 4 // …then other screens' names, keeping their digits…
@@ -56,36 +57,6 @@ func (m model) viewHeight() int {
 
 func padRight(s string, w int) string { return s + strings.Repeat(" ", max(0, w-xansi.StringWidth(s))) }
 
-// joinColumns sets blocks side by side inside room: each w wide, or wider for a longer
-// line; failing that, each as wide as its widest line and a gutter. When neither fits it
-// stacks them. The last block needs no gap after it.
-func joinColumns(cols []string, w, room int) string {
-	fit := func(least int) ([]int, bool) {
-		widths := make([]int, len(cols))
-		total := 0
-		for i, c := range cols {
-			widths[i] = lipgloss.Width(c)
-			if i < len(cols)-1 {
-				widths[i] = max(least, widths[i]+gutter)
-			}
-			total += widths[i]
-		}
-		return widths, total <= room
-	}
-	widths, ok := fit(w)
-	if !ok {
-		widths, ok = fit(0)
-	}
-	if !ok {
-		return strings.Join(cols, "\n\n")
-	}
-	styled := make([]string, len(cols))
-	for i, c := range cols {
-		styled[i] = lipgloss.NewStyle().Width(widths[i]).Render(c)
-	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, styled...)
-}
-
 // ago renders a date relative to today: "today", "in 4d", "3d ago", "2w ago", "2mo ago",
 // and past about three months the month itself, "Jan 2025", which reads better than
 // "21mo ago".
@@ -106,16 +77,6 @@ func ago(date string, now time.Time) (string, int) {
 	return span(n) + " ago", days
 }
 
-// since is how long an Application has gone without a change, "9mo", for the follow-up
-// flag: always a span, since "quiet Feb 2026" would read as a date.
-func (m model) since(e *store.StatusEntry) string {
-	_, days, ok := daysFrom(e.At, m.now())
-	if !ok {
-		return ""
-	}
-	return span(max(-days, 0))
-}
-
 // futureFlag marks a Status date after today: almost always a data error, so it is
 // flagged rather than shown as a normal "in 8mo" relative date.
 const futureFlag = "⚠ future date"
@@ -131,23 +92,42 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 
 func (m model) View() tea.View {
 	p := m.pal()
+	plain := plainMode()
+	// ROLECALL_PLAIN strips each layer before a pop-up is set over the frame, so a word
+	// put in place of a glyph never shifts the pop-up's border.
+	strip := func(s string, box bool) string {
+		if plain {
+			return plainFrame(s, m.viewWidth(), box)
+		}
+		return s
+	}
 	var body string
 	switch box := m.overlayView(p); {
 	case m.tooSmall():
 		body = m.tooSmallView(p)
+	case box != "" && m.helpScreenOpen():
+		body = strip(box, false) // the full-screen help is the whole frame
 	case box != "":
-		body = m.overlayBody(p, m.screenView(m.dimmedPal()), box)
+		behind := m.screenView(m.dimmedPal())
+		if noColor() {
+			behind = appearance.StripBold(behind) // without the dimmed colours, weight sets the pop-up apart
+		}
+		body = m.overlayBody(p, strip(behind, false), strip(box, true))
 	default:
-		body = m.screenView(p)
+		body = strip(m.screenView(p), false)
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
-	if !plainMode() {
+	if !plain {
 		// Clicks and the wheel (mouse.go). ROLECALL_PLAIN leaves the mouse to the
 		// terminal, so its own selection and a screen reader's review cursor work.
 		v.MouseMode = tea.MouseModeCellMotion
+	} else if x, y, ok := selectionCell(body); ok {
+		// A screen reader follows the terminal cursor: it sits on the selection.
+		v.Cursor = tea.NewCursor(x, y)
 	}
 	// Paint the theme's background so its roles keep their contrast whatever the
-	// terminal's own colours. NO_COLOR drops colour but keeps bold and underline.
+	// terminal's own colours: as the terminal background (OSC 11) and on every cell, as
+	// a terminal may ignore OSC 11. NO_COLOR drops colour but keeps bold and underline.
 	switch {
 	case noColor(): // NO_COLOR wins over the inherit option
 		v.Content = stripColor(v.Content)
@@ -155,6 +135,7 @@ func (m model) View() tea.View {
 		v.Content = inheritANSI(v.Content)
 	default:
 		v.BackgroundColor, v.ForegroundColor = p.Bg, p.Fg
+		v.Content = appearance.PaintBackground(v.Content, p.Bg, m.viewWidth())
 	}
 	return v
 }
@@ -280,18 +261,26 @@ func (m model) viewHoldsStatus(status string) bool {
 	return false
 }
 
-// movedOutView is the empty view after a move: the Offer celebration in full, or a quiet
-// line naming where the Application went, and how to follow it.
+// movedOutView is the empty view after a move: where the Application is now and the one
+// key that goes there. The toast below already says what moved, so the centre does not
+// repeat it.
 func (m model) movedOutView(p pal) string {
-	line := p.Text(p.Fg).Bold(true).Render(m.toast)
+	screen, table := StatusLocation(m.movedTo)
+	where, hint := screen, p.Key().Render("← →")+p.Text(p.Dim).Render(" to follow it")
+	if m.viewHoldsStatus(m.movedTo) {
+		where += " › " + table
+	} else {
+		for i, d := range screenDefs {
+			if d.name == screen {
+				hint = p.Key().Render(string(rune('1'+i))) + p.Text(p.Dim).Render(" to go there")
+			}
+		}
+	}
+	colour := p.Fg
 	if m.movedTo == store.StatusOffer {
-		line = p.Text(p.Gold).Bold(true).Render(m.toast)
+		colour = p.Gold
 	}
-	hint := "press ← → to follow it"
-	if !m.viewHoldsStatus(m.movedTo) {
-		hint = "press 1-6 to find it"
-	}
-	return lipgloss.JoinVertical(lipgloss.Center, line, "", p.Text(p.Dim).Render(hint))
+	return p.Text(colour).Bold(true).Render("Now in "+where) + p.Text(p.Dim).Render(" · ") + hint
 }
 
 func (m model) screenCount(si int) int {
@@ -336,10 +325,12 @@ func (m model) tabs(p pal) (string, []int) {
 	// beside the Stats tab at wide sizes, until the bar is short of room.
 	// It sits outside the tab's own cell, a space either side, so it stays in the same
 	// column whether or not Stats is the active tab.
-	spark := ""
-	if line := sparkline(p, reporting.AppliedWeeks(m.apps, m.now(), activityWeeks)); strings.TrimSpace(line) != "" && !plainMode() {
+	spark, sparkLabel := "", ""
+	if weeks := reporting.AppliedWeeks(m.apps, m.now(), activityWeeks); anyApplied(weeks) && !plainMode() {
 		// No weeks with data draw no line; a screen reader would read it out cell by cell.
-		spark = " " + p.Text(p.Dim).Render(line) + " "
+		// Empty weeks are the faint baseline, so the line reads as a chart, not a glitch.
+		spark = " " + sparkline(p, weeks, 1, p.Dim)
+		sparkLabel = p.Text(p.Dim).Render(" applied/wk")
 	}
 	build := func(level, active int) (string, []int) {
 		// The brand mark leads the bar at wide sizes only, bold in the accent and one cell
@@ -364,8 +355,11 @@ func (m model) tabs(p pal) (string, []int) {
 				count = " " + m.screenCountLabel(si)
 			}
 			tail := ""
-			if wide && level < shedCounts && d.name == screenStats {
-				tail = spark
+			if wide && level < shedCounts && d.name == screenStats && spark != "" {
+				tail = spark + " "
+				if level < shedSparkLabel {
+					tail = spark + sparkLabel + " "
+				}
 			}
 			if si == active {
 				out += p.SelChip(digit+name+count) + tail
@@ -380,6 +374,9 @@ func (m model) tabs(p pal) (string, []int) {
 			sep := " "
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
+				if si+1 == active {
+					sep = " " // …but the active chip after it never touches it: "3 [4 Stats]"
+				}
 			}
 			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
 		}
@@ -623,7 +620,8 @@ func (m model) withSheet(p pal, list string) string {
 	return strings.Join([]string{fitLines(list, listH), rule, strings.Join(m.sheetLines(p, a, l.w, detailH), "\n")}, "\n")
 }
 
-// sheetLines is the detail sheet: a title line, the tabs, then the tab's content, h lines.
+// sheetLines is the detail sheet: a title line, the tabs, the next step, then the tab's
+// content, h lines.
 func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 	// The sheet keeps the list's columns: text from the inset to where the rows' Fit ends.
 	pad := strings.Repeat(" ", inset)
@@ -644,10 +642,12 @@ func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
 			content = append(content, p.Text(p.Fg).Render(l))
 		}
 		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
-		out = append(out, "")
+		out = append(out, "", "")
 	} else {
-		// The tab names sit one cell in from their brackets, so the brackets go one left.
-		out = append(out, pad[1:]+m.detailTabsRow(p, a, right-inset+1))
+		// The tab names sit one cell in from their brackets, so the brackets go one left. The
+		// next step takes the line under the tabs on every tab, as in the full-screen detail,
+		// so it is in view however little of the sheet shows; Overview leaves it out.
+		out = append(out, pad[1:]+m.detailTabsRow(p, a, right-inset+1), pad+m.nextLine(p, a, right-inset, false))
 		content = strings.Split(m.detailContent(p, a, w), "\n")
 		if m.detail.tab == tabDocs {
 			indent = strings.Repeat(" ", edge)
@@ -723,6 +723,18 @@ func (m model) listBody(p pal, rows []store.Application, w, h int) string {
 // together; only a group's rule has air above it.
 const rowLines = 2
 
+// rowHeight is a list row's height: rowLines, or one line when compact rows are on.
+func (m model) rowHeight() int {
+	if m.compactShown() {
+		return 1
+	}
+	return rowLines
+}
+
+// compactShown reports one-line rows: compact rows are on (z, compact_rows in
+// config.toml) and the terminal is wide, where one line has room for every column.
+func (m model) compactShown() bool { return m.compactRows && m.layout().wide() }
+
 // listBlocks is the list as blocks — dividers and two-line rows — and the cursor's block.
 // Heights are measured without rendering: a row is two lines and a divider one or two.
 // This is the one place a block's height is computed; renderBlock draws content and
@@ -746,7 +758,7 @@ func (m model) listBlocks(rows []store.Application) ([]block, int) {
 		if i == m.cursor {
 			cur = len(blocks)
 		}
-		blocks = append(blocks, block{height: rowLines, row: true, idx: i})
+		blocks = append(blocks, block{height: m.rowHeight(), row: true, idx: i})
 	}
 	return blocks, cur
 }
@@ -790,14 +802,17 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 			}
 		}
 	case tableDeadlines:
+		in := func(g deadlineGroup) func(store.Application) bool {
+			return func(a store.Application) bool { got, _ := m.deadlineGroupOf(a); return got == g }
+		}
 		for i, a := range rows {
-			if m.expired(a) {
-				div[i] = divider{label: groupExpired, n: deadlineEnd(rows, i, m.expired)}
+			if in(deadlinePast)(a) {
+				div[i] = divider{label: groupExpired, n: deadlineEnd(rows, i, in(deadlinePast))}
 				break
 			}
 		}
 		for i, a := range rows {
-			if a.Closes == "" {
+			if in(deadlineUnclear)(a) {
 				div[i] = divider{label: "Date unclear", n: len(rows) - i}
 				break
 			}
@@ -824,6 +839,16 @@ func (m model) dividers(rows []store.Application) map[int]divider {
 		d.rollup = m.rollup(d.label, rows[i:groupEnd(div, i, len(rows))])
 		div[i] = d
 	}
+	// The Leads header names the sort o switches, "◌ Leads · 23 · by deadline", so the
+	// order reads after the toast has gone.
+	if d, ok := div[0]; ok && m.views()[m.table] == tableLeads {
+		sortText := sortByDeadline
+		if m.leadsNewest {
+			sortText = sortNewestText
+		}
+		d.rollup = " · " + sortText + d.rollup
+		div[0] = d
+	}
 	return div
 }
 
@@ -847,7 +872,7 @@ func (m model) rollup(label string, group []store.Application) string {
 	}
 	due, ready := 0, 0
 	for _, a := range group {
-		if _, flag, _ := m.slotText(a); flag != "" {
+		if flag, _ := m.slotText(a); flag != "" {
 			due++
 		}
 		if a.Malformed == nil && a.Documents == store.DocsReady {
@@ -875,12 +900,13 @@ func deadlineEnd(rows []store.Application, i int, in func(store.Application) boo
 
 func tableOf(a store.Application) string { _, t := appLocation(a); return t }
 
-// expired is a Lead or Draft whose close date has passed.
+// expired is a Lead or Draft whose deadline has passed: its close date, or a Lead's ad
+// past max_posting_age_days (the row reads "past the age limit").
 func (m model) expired(a store.Application) bool {
 	if !beforeApplied(tableOf(a)) {
 		return false
 	}
-	t, ok := parseDay(a.Closes)
+	t, ok := deadline(a, m.rules)
 	return ok && t.Before(day(m.now()))
 }
 
@@ -971,10 +997,27 @@ func scrollWindow(blocks []block, cur, h int, folded bool) (start, end int) {
 	return start, end
 }
 
-// slotSet is the width of each right-hand column, gap included: the Follow-up due flag,
-// the last change's age, and Fit. Every row in a view uses the same set, so each column
-// starts at the same cell on every row and nothing wraps. A width of 0 hides the column.
-type slotSet struct{ stateW, flagW, fitW int }
+// slotSet is the width of each right-hand column, gap included: the Follow-up due flag and
+// Fit. Every row in a view uses the same set, so each column starts at the same cell on
+// every row and nothing wraps. A width of 0 hides the column. Compact rows also size
+// their title, company and track columns from it: each value's widest in the view.
+type slotSet struct {
+	flagW, fitW              int
+	titleW, companyW, trackW int
+}
+
+// fitSlotWidth is the Fit column's width: its longest word, so every Fit starts at the
+// same cell and a Strong row's word lines up under a Marginal one's.
+const fitSlotWidth = len(store.FitMarginal)
+
+// Compact rows: the most the company and track columns take, and the least room and
+// largest share the title keeps before them.
+const (
+	compactCompanyMax = 16
+	compactTrackMax   = 12
+	compactTitleMin   = 16
+	compactTitleShare = 45 // percent of the row's room
+)
 
 // slotsFor sizes each right-hand column to its widest value in rows, the whole view rather
 // than the rows in sight, so the columns hold still while scrolling. A column empty on
@@ -982,12 +1025,19 @@ type slotSet struct{ stateW, flagW, fitW int }
 // from the one before it; the first shown column is parted from the title by the title's
 // own one cell and columnGap-1 more, so the title keeps the same gap.
 func (m model) slotsFor(rows []store.Application) slotSet {
-	var flagW, stateW, fitW int
+	var s slotSet
+	var flagW, fitW int
 	for _, a := range rows {
-		state, flag, fit := m.slotText(a)
+		flag, fit := m.slotText(a)
 		flagW = max(flagW, xansi.StringWidth(flag))
-		stateW = max(stateW, xansi.StringWidth(state))
-		fitW = max(fitW, xansi.StringWidth(fit))
+		if fit != "" {
+			fitW = fitSlotWidth
+		}
+		if a.Malformed == nil {
+			s.titleW = max(s.titleW, xansi.StringWidth(titleLabel(a.Title)))
+			s.companyW = max(s.companyW, min(compactCompanyMax, xansi.StringWidth(a.CompanyLabel())))
+			s.trackW = max(s.trackW, min(compactTrackMax, xansi.StringWidth(a.Track)))
+		}
 	}
 	lead := columnGap - 1
 	col := func(widest int) int {
@@ -998,52 +1048,27 @@ func (m model) slotsFor(rows []store.Application) slotSet {
 		lead = columnGap
 		return w
 	}
-	var s slotSet
 	s.flagW = col(flagW)
-	s.stateW = col(stateW)
 	s.fitW = col(fitW)
 	return s
 }
 
-// stageText is how long ago the latest change was: "3d", "~Jan 2026" or "today". The
-// Status is not repeated: the row's glyph and its section already say it, so no Status
-// name is abbreviated to fit, and a same-day change reads "today" whatever the Status.
-func (m model) stageText(a store.Application) string {
-	e := lastChange(a)
-	if e == nil {
-		return ""
-	}
-	date, _ := ago(e.At, m.now())
-	date = strings.TrimSuffix(strings.TrimPrefix(date, "in "), " ago")
-	if e.Approx {
-		date = "~" + date
-	}
-	return date
-}
-
-// fitCell is a Fit in its column, labelled and unabbreviated as everywhere else: "fit
-// Good", or "fit —" when it has not been assessed.
-func fitCell(fit string) string {
-	if fit == "" {
-		return fitLabel + glyphNone
-	}
-	return fitLabel + fit
-}
-
-// slotText is an Application's right-hand column text: stage and date, follow-up flag
-// and Fit.
-func (m model) slotText(a store.Application) (state, flag, fit string) {
+// slotText is an Application's right-hand column text: the Follow-up due flag with how
+// long it has been quiet ("⚑ 6w"), and the Fit word alone ("Good"), blank until assessed.
+// The row has no age column: how long it has been in its Status is the preview's to say.
+func (m model) slotText(a store.Application) (flag, fit string) {
 	if a.Malformed != nil {
-		return "", "", ""
+		return "", ""
 	}
 	if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
-		flag = followUpFlag + " " + m.since(lastChange(a))
+		flag = followUpFlag + " " + m.followUpQuiet(a)
 	}
-	return m.stageText(a), flag, fitCell(a.Fit)
+	return flag, a.Fit
 }
 
 // row is one Application as two lines: title and right-hand columns, then company ·
-// track · dates. The selected row is a full-width bar; text on it is never dimmed.
+// track · dates; or as one line, in aligned columns, when compact rows are on. The
+// selected row is a full-width bar; text on it is never dimmed.
 func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []string {
 	line := lipgloss.NewStyle().Width(w).MaxWidth(w)
 	bar := "  "
@@ -1072,10 +1097,14 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		if fill {
 			title = st(p.Bad).Bold(true).Render("⚠ ") + st(p.Fg).Bold(true).Render(m.malformedTitle(a)) // the words clear 4.5:1 on the fill
 		}
+		reason := m.malformedReason(a)
+		if m.compactShown() {
+			return []string{line.Render(xansi.Truncate(bar+title+st(dimC).Render("  "+reason), w, "…"))}
+		}
 		return []string{line.Render(bar + title),
-			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(m.malformedReason(a), w-ellipsis-statusMarkWidth, "…")))} // the bar spans both lines, like any row
+			line.Render(bar + st(dimC).Render("  "+xansi.Truncate(reason, w-ellipsis-statusMarkWidth, "…")))} // the bar spans both lines, like any row
 	}
-	state, flag, fit := m.slotText(a)
+	flag, fit := m.slotText(a)
 	fitC, heatC := p.FitColor(a.Fit), p.Warn
 	if fitC == p.Dim {
 		fitC = dimC
@@ -1085,18 +1114,20 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		// words take the secondary colour; its Status glyph keeps the colour.
 		fitC, heatC = p.Sub, p.Sub
 	}
-	slot := func(width int, c color.Color, s string) string {
-		return st(c).Width(width).Align(lipgloss.Right).Render(s)
-	}
 	// The right-hand columns are the view's (slotsFor): a row without a value holds the
-	// column blank, so every column starts at the same cell on every row.
+	// column blank, so every column starts at the same cell on every row. The flag sits
+	// flush right in its column; the Fit word starts at its column's first cell.
 	buildRight := func() string {
-		heat := slot(show.flagW, heatC, flag)
+		heat := st(heatC).Width(show.flagW).Align(lipgloss.Right)
 		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due && followUpLate(past) {
-			heat = st(heatC).Bold(true).Width(show.flagW).Align(lipgloss.Right).Render(flag)
+			heat = heat.Bold(true)
 		}
-		return heat + slot(show.stateW, dimC, state) + slot(show.fitW, fitC, fit) +
-			st(p.Fg).Render(strings.Repeat(" ", rowPad))
+		out := heat.Render(flag)
+		if show.fitW > 0 {
+			out += st(p.Fg).Render(strings.Repeat(" ", show.fitW-fitSlotWidth)) +
+				st(fitC).Width(fitSlotWidth).Render(xansi.Truncate(fit, fitSlotWidth, ""))
+		}
+		return out + st(p.Fg).Render(strings.Repeat(" ", rowPad))
 	}
 	// The row carries no ready meter: the detail's DOCS line and a Draft's second line say
 	// how far its Documents are.
@@ -1109,9 +1140,20 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		rp = pal{p.OnSel()}
 	}
 	mark := st(rp.StatusColor(a.Status)).Render(p.StatusGlyph(a.Status)) + st(p.Fg).Render(" ")
-	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1), "…"))
+	room := max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1)
+	sep := st(dimC).Render(" · ")
+	if m.compactShown() {
+		left := bar + mark + m.compactColumns(a, show, room, st, titleC, dimC, sel, strings.Join(m.metaDates(rp, a, st, dimC), sep))
+		gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
+		lines := []string{line.Render(left + gap + right)}
+		if m.flash != "" && a.Folder == m.flash {
+			lines = p.FlashRow(lines, w)
+		}
+		return lines
+	}
+	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), room, "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
-	meta := strings.Join(m.meta(rp, a, st, dimC), st(dimC).Render(" · "))
+	meta := strings.Join(m.meta(rp, a, st, dimC), sep)
 	// The bar spans both lines, so the selected row reads as one block.
 	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
@@ -1120,8 +1162,50 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	return lines
 }
 
+// compactColumns is a compact row between its Status glyph and its right-hand columns, in
+// room cells: the title, company and track in columns as wide as the view's widest (each
+// capped), then the dates and badges, cut at the end. A column that would squeeze the
+// title below compactTitleMin is left out, track first.
+func (m model) compactColumns(a store.Application, show slotSet, room int, st func(color.Color) lipgloss.Style,
+	titleC, dimC color.Color, sel bool, dates string) string {
+	titleW := min(show.titleW, max(compactTitleMin, room*compactTitleShare/percent), room)
+	companyW, trackW := show.companyW, show.trackW
+	if titleW+columnGap+companyW > room {
+		companyW = 0
+	}
+	if titleW+columnGap+companyW+columnGap+trackW > room {
+		trackW = 0
+	}
+	cell := func(s string, n int) string {
+		if n == 0 {
+			return ""
+		}
+		return st(dimC).Render(strings.Repeat(" ", columnGap)) + st(dimC).Width(n).Render(xansi.Truncate(s, n, "…"))
+	}
+	out := st(titleC).Bold(sel).Width(titleW).Render(xansi.Truncate(titleLabel(a.Title), titleW, "…")) +
+		cell(a.CompanyLabel(), companyW) + cell(a.Track, trackW)
+	if rest := room - xansi.StringWidth(out) - columnGap; rest > 0 && dates != "" {
+		out += st(dimC).Render(strings.Repeat(" ", columnGap)) + xansi.Truncate(dates, rest, "…")
+	}
+	return out
+}
+
 // meta is a row's second line: company, track, and the dates that matter for its table.
 func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
+	dim := st(dimC)
+	var out []string
+	if strings.TrimSpace(a.CompanyLabel()) != "" {
+		out = append(out, dim.Render(a.CompanyLabel()))
+	}
+	out = append(out, dim.Render(a.Track))
+	return append(out, m.metaDates(p, a, st, dimC)...)
+}
+
+// metaDates is the part of a row's meta after company and track: the dates that matter
+// for its table, and on a Lead or Draft the ad's badges. Meaning never rests on colour: a
+// close date within a week is bold (and ▲ within two days), and a blocker badge leads
+// with ⚠.
+func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
 	dim := st(dimC)
 	// when renders a Status date, flagging one in the future as a data error.
 	when := func(e *store.StatusEntry, prefix string) string {
@@ -1131,18 +1215,12 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 		return dim.Render(prefix + m.agoEntry(e))
 	}
 	var out []string
-	if strings.TrimSpace(a.CompanyLabel()) != "" {
-		out = append(out, dim.Render(a.CompanyLabel()))
-	}
-	out = append(out, dim.Render(a.Track))
 	switch t := tableOf(a); t {
 	case tableLeads, tableDraft:
-		// No close date is a quiet dash, not the same words on every row.
+		// No close date shows nothing: the slot is optional, not a dash on every row.
 		if text, s := closeInfo(a.Closes, m.now()); s == closeNone && a.ClosesUnclear {
 			out = append(out, st(p.Warn).Render("closes: "+closesUnclearText))
-		} else if s == closeNone {
-			out = append(out, dim.Render(glyphNone))
-		} else {
+		} else if s != closeNone {
 			out = append(out, p.CloseStyle(s, st, dimC).Render(text))
 		}
 		// After the close date, which matters more: how old the ad is, and how near the
@@ -1161,10 +1239,18 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 			}
 			out = append(out, st(c).Render(label))
 		}
-		// Badges come last, so a narrow row drops them before anything else.
+		// Badges come last, so a narrow row drops them before anything else, and blockers
+		// lead them (adBadges). Amber and red stay for time: a blocker is ⚠ and bold in the
+		// text colour, a visa fit green, a note muted.
 		for _, b := range m.adBadges(a) {
-			c := map[badgeTone]color.Color{toneOK: p.Ok, toneWarn: p.Warn, toneBad: p.Bad}[b.tone]
-			out = append(out, st(c).Render(b.text))
+			switch b.tone {
+			case toneBlock:
+				out = append(out, st(p.Fg).Bold(true).Render(glyphWarn+" "+b.text))
+			case toneOK:
+				out = append(out, st(p.Ok).Render(b.text))
+			default:
+				out = append(out, dim.Render(b.text))
+			}
 		}
 	case tableDismissed:
 		if lastChange(a) != nil {
@@ -1214,31 +1300,112 @@ func entryAt(e *store.StatusEntry) string {
 	return e.At
 }
 
-// preview is the selected Application beside the list: status, documents, timeline,
-// and the start of fit.md, jd.md and notes.md.
+// preview is the selected Application beside the list, h lines: the card, then as much
+// of fit.md and jd.md as the room under it holds.
 func (m model) preview(p pal, a store.Application, w, h int) string {
-	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, false))
+	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, h, cardPreview))
 }
 
-// previewText is the preview's lines inside inner cells: the title, the row's second
-// line, then the fields. The detail card is the same text with the link under it, so
-// opening the detail leaves it in place.
-func (m model) previewText(p pal, a store.Application, inner int, link bool) string {
+// previewText is the card's lines inside inner cells, at most h: the title, Company ·
+// Track, then the fields. Beside the list (cardPreview) the room left fills with the
+// start of fit.md, then of jd.md; beside the detail tabs (cardDetail), which show those
+// whole, the link closes it instead. Opening the detail leaves the card's rows in place.
+func (m model) previewText(p pal, a store.Application, inner, h int, mode cardMode) string {
 	wrap := func(s string, c color.Color, maxLines int) string {
 		return p.Text(c).Render(strings.Join(clampLines(wrapWords(s, inner), maxLines, inner), "\n"))
 	}
-	var b strings.Builder
 	if a.Malformed != nil {
-		b.WriteString(p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
-			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor"))
-		return b.String()
+		return p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
+			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor")
 	}
-	b.WriteString(wrap(titleLabel(a.Title), p.Fg, titleLines) + "\n" + m.previewMeta(p, a, inner) + "\n\n")
-	b.WriteString(strings.Join(m.fieldBlock(p, a, inner), "\n"))
-	if link && a.URL != "" {
-		b.WriteString("\n\n" + p.Heading("Link") + "\n" + p.Text(p.Info).Render(xansi.Truncate(a.URL, inner, "…")))
+	lines := strings.Split(wrap(titleLabel(a.Title), p.Fg, titleLines), "\n")
+	lines = append(lines, m.previewMeta(p, a, inner), "")
+	for _, r := range m.fieldRows(p, a, inner, mode) {
+		lines = append(lines, strings.Split(r, "\n")...)
 	}
-	return b.String()
+	if mode == cardDetail && a.URL != "" {
+		// One inline row, as every other field: the link and the key that opens it.
+		key, action := "", ""
+		if _, ok := webLink(a); ok {
+			key, action = "w", descOpen
+		}
+		lines = append(lines, "", p.cardRow("LINK", p.Text(p.Info).Render(a.URL), key, action, inner))
+	}
+	if mode == cardPreview {
+		// The Fit's reasoning first, as it decides dismiss or draft; the JD takes what is left.
+		fit := m.excerpt(p, "FIT", m.docLines(a, fitFile), min(fitExcerptLines, h-len(lines)), inner)
+		lines = append(lines, fit...)
+		lines = append(lines, m.excerpt(p, docJD, m.docLines(a, jdFile), h-len(lines), inner)...)
+	}
+	return strings.Join(lines, "\n")
+}
+
+// fitExcerptLines is the most of the preview the FIT block takes, its blank line and
+// heading included, so the JD's opening still shows under a long fit.md.
+const fitExcerptLines = 10
+
+// excerpt is a document's opening under a block label, inside room lines counting the
+// blank line before it: as many lines as fit, then, when some do not, "↓ 5 more · enter
+// open". It is empty when the document has no text or room holds no line of it.
+func (m model) excerpt(p pal, label string, text []string, room, w int) []string {
+	var body []string
+	for _, l := range text {
+		if l == "" {
+			body = append(body, "")
+			continue
+		}
+		for _, wl := range wrapWords(l, w) {
+			body = append(body, p.Text(p.Fg).Render(wl))
+		}
+	}
+	avail := room - 2 //nolint:mnd // the blank line and the label
+	switch {
+	case len(body) == 0 || avail < 1:
+		return nil
+	case len(body) > avail && avail < 2: //nolint:mnd // one line of text and the cue
+		return nil
+	case len(body) > avail:
+		shown := body[:avail-1]
+		for len(shown) > 1 && shown[len(shown)-1] == "" {
+			shown = shown[:len(shown)-1] // the cue never follows a blank line
+		}
+		cue := p.MoreCue(false, len(body)-len(shown)) + p.Text(p.Dim).Render(" · ") + p.Key().Render("enter") + p.Text(p.Dim).Render(" open")
+		body = append(shown, cue)
+	}
+	return append([]string{"", p.blockLabel(label)}, body...)
+}
+
+// docLines is a document's text as plain lines for a short excerpt: headings, tables, the
+// fit.md verdict line (the card says the Fit) and Markdown's marks dropped, one blank line
+// between paragraphs. Missing files read as none.
+func (m model) docLines(a store.Application, name string) []string {
+	text := m.md.body(m.gen, 0, a.Folder+"\x00"+name+"\x00lines", func() string {
+		b, err := m.store.ReadDocument(a.Folder, name)
+		if err != nil {
+			return ""
+		}
+		var keep []string
+		for _, l := range strings.Split(string(b), "\n") {
+			l = strings.TrimSpace(l)
+			switch {
+			case l == "":
+				if len(keep) > 0 && keep[len(keep)-1] != "" {
+					keep = append(keep, "")
+				}
+			case strings.HasPrefix(l, "#"), strings.HasPrefix(l, "---"), strings.HasPrefix(l, "|"),
+				strings.HasPrefix(strings.TrimLeft(l, "*_"), "Verdict:"):
+			default:
+				if l = strings.TrimSpace(markdownMarks.Replace(l)); l != "" {
+					keep = append(keep, l)
+				}
+			}
+		}
+		return strings.TrimRight(strings.Join(keep, "\n"), "\n")
+	})
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n")
 }
 
 // clampLines keeps at most n of lines, cutting the last one kept with "…" when more
@@ -1252,16 +1419,17 @@ func clampLines(lines []string, n, w int) []string {
 	return out
 }
 
-// previewMeta is the line under the preview's title, the row's own second line: "Orbit
-// Labs · SWE · applied 6d ago". A Lead with no close date leaves off the row's dash.
+// previewMeta is the line under the card's title: "Orbit Labs · SWE". The row's dates,
+// close date and badges are left to the card's own labelled rows, so none shows twice.
 func (m model) previewMeta(p pal, a store.Application, w int) string {
 	var parts []string
-	for _, s := range m.meta(p, a, p.Text, p.Dim) {
-		if xansi.Strip(s) != glyphNone {
-			parts = append(parts, s)
-		}
+	if c := strings.TrimSpace(a.CompanyLabel()); c != "" {
+		parts = append(parts, c)
 	}
-	return xansi.Truncate(strings.Join(parts, p.Text(p.Dim).Render(" · ")), w, "…")
+	if a.Track != "" {
+		parts = append(parts, a.Track)
+	}
+	return p.Text(p.Dim).Render(xansi.Truncate(strings.Join(parts, " · "), w, "…"))
 }
 
 // fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":

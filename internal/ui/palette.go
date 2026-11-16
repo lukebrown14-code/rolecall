@@ -134,7 +134,13 @@ func (pm *paletteMode) View(m *model, p pal) string {
 				p.SelGutter(true)+p.SelText(true).Render(padRight(kv[0], helpKeyWidth-gutter)+kv[1])))
 			continue
 		}
-		lines = append(lines, "  "+p.Text(p.Fg).Bold(true).Render(padRight(kv[0], helpKeyWidth-gutter))+p.Text(p.Dim).Render(kv[1]))
+		// Keys drawn as the help and the key line draw them; a key that needs a Harness is
+		// dimmed with its words.
+		ks := p.Key()
+		if found[i].dim {
+			ks = p.Text(p.Dim)
+		}
+		lines = append(lines, "  "+ks.Render(padRight(kv[0], helpKeyWidth-gutter))+p.Text(p.Dim).Render(kv[1]))
 	}
 	if len(lines) == 0 {
 		lines = []string{p.Text(p.Dim).Render("No command matches \"" + pm.query + "\"")}

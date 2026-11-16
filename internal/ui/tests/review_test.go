@@ -157,14 +157,19 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	}
 }
 
-// r rereads workspace.json, so a track added while the program runs can be filtered on.
+// r rereads workspace.json, so a track added while the program runs can be filtered on
+// once it has rows (t passes over a Track with none).
 func TestRescanReloadsTracks(t *testing.T) {
 	h := newReviewHarness(t, entry("Lead", "01"), map[string]string{"workspace.json": `{"tracks":["SWE","Platform"]}`})
 	if err := os.WriteFile(filepath.Join(h.root, "workspace.json"), []byte(`{"tracks":["SWE","Platform","Data"]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	meta := "title: Role\ncompany: Company\ntrack: Data\nstatus_log:\n" + entry("Lead", "01")
+	if err := os.WriteFile(filepath.Join(h.folder, "meta.yml"), []byte(meta), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	h.tm.Type("r")
-	h.tm.Type("ttt")
+	h.tm.Type("t")
 	if view := h.rawFinish(); activeTrack(view) != "Data" {
 		t.Fatalf("new track not selectable after r:\n%s", view)
 	}

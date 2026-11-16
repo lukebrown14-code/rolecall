@@ -208,6 +208,28 @@ func (m model) effectiveText(s machineSetting) string {
 	return ""
 }
 
+// fallbackText is what an unset machine setting falls back to, as its undo names it, so
+// the toast matches the row: "$VISUAL (nvim)", "the default (14)", or "not set".
+func (m model) fallbackText(s machineSetting) string {
+	switch s.key {
+	case keyEditor:
+		if src := m.editorSource; src == config.SourceVisual || src == config.SourceEditor {
+			return src + " (" + ResolveEditor(m.editor) + ")"
+		}
+	case keyFollowUpDays:
+		return "the default (" + strconv.Itoa(m.followUpDays) + ")"
+	case keyDownloads:
+		if m.downloads != "" {
+			return "the default (" + m.downloads + ")"
+		}
+	case keyPlugin:
+		if m.plugin != "" {
+			return m.sources.Plugin + " (" + m.plugin + ")"
+		}
+	}
+	return "not set"
+}
+
 // typedValue is a typed setting as config.toml holds it.
 func typedValue(s machineSetting, text string) any {
 	switch {
@@ -253,6 +275,9 @@ func settingByKey(key string) machineSetting {
 	return machineSetting{}
 }
 
+// keyClearField empties the open inline field, as it empties a form's text field.
+const keyClearField = "ctrl+u"
+
 // editKey types into the open inline field: enter saves the value at once, esc drops it.
 // While a quit's "Discard changes?" is asked, y drops the edit and n or esc goes back to it.
 func (m model) editKey(k tea.KeyPressMsg) model {
@@ -296,7 +321,7 @@ func (m model) editKey(k tea.KeyPressMsg) model {
 			e.Buf = string(r[:len(r)-1])
 		}
 		e.Err, e.Selected, st.Edit = "", false, &e
-	case "ctrl+u":
+	case keyClearField:
 		e.Buf, e.Err, e.Selected, st.Edit = "", "", false, &e
 	case "left", "right", "end":
 		e.Selected, st.Edit = false, &e // the selection drops and the cursor stays at the end
@@ -340,16 +365,16 @@ func (m model) saveMachine(s machineSetting, text string) model {
 	}
 	// config.toml cannot unset a number, so an unset follow-up goes back to the default it had.
 	wasDays := m.followUpDays
+	shown := was
+	if shown == "" {
+		shown = m.fallbackText(s) // named before the save changes what is in effect
+	}
 	if m = m.patchMachine(s, typedValue(s, text)); m.err != nil {
 		return m
 	}
 	msg := fmt.Sprintf("Saved %s: %s", s.label, text)
 	if text == "" {
 		msg = "Cleared " + s.label + ": the default applies"
-	}
-	shown := was
-	if shown == "" {
-		shown = "not set"
 	}
 	return m.saved(msg, configFile, &settingsUndo{what: s.label + " back to " + shown, restore: func(m model) model {
 		old := typedValue(s, was)

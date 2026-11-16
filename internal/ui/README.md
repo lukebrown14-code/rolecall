@@ -19,7 +19,7 @@ The root model adapts those modules to the application:
 - `form.go`: renders forms and connects submission to application actions.
 - `styles.go`: application-specific composition using the theme palette.
 - `profile.go`, `stats.go`: screen handlers and rendering.
-- `view.go`, `layout.go`, `columns.go`, `help.go`: shared presentation.
+- `view.go`, `layout.go`, `columns.go`, `help.go`: shared presentation; `plain.go` reshapes the finished frame for `ROLECALL_PLAIN`.
 - `mode.go`, `overlay.go`, `palette.go`, `search.go`, `workspace_menu.go`: overlays and application input. `keymap.go` (row actions) and `help.go` (the registry) declare every key once for the key line, `?`, the palette and the `space` menu.
 - `empty.go`: empty states and the first-run welcome checklist.
 - `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and completion messages.

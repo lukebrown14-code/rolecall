@@ -61,3 +61,71 @@ func TestPasteAndBackspacePreserveGraphemesAndDiscardConfirmation(t *testing.T) 
 		t.Fatalf("confirmed discard = %v", got)
 	}
 }
+
+func press(f *forms.Form, keys ...tea.KeyPressMsg) {
+	for _, k := range keys {
+		f.Update(k)
+	}
+}
+
+var (
+	keyDown  = tea.KeyPressMsg{Code: tea.KeyDown}
+	keyUp    = tea.KeyPressMsg{Code: tea.KeyUp}
+	keyLeft  = tea.KeyPressMsg{Code: tea.KeyLeft}
+	keyRight = tea.KeyPressMsg{Code: tea.KeyRight}
+	keySpace = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	keyClear = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
+)
+
+// ↑↓ move focus over a Choice as over a text field, never changing it; ←→ and space change it.
+func TestArrowsMoveFocusOverAChoiceWithoutChangingIt(t *testing.T) {
+	track := forms.Field{Label: "Track", Value: "SWE", Choices: []forms.Choice{{Value: "SWE", Label: "SWE"}, {Value: "Platform", Label: "Platform"}}}
+	f := forms.New("Add", forms.Field{Label: "Title"}, track, forms.Field{Label: "Closes"})
+	press(f, keyDown, keyDown)
+	if f.Focus != 2 || f.Value("Track") != "SWE" {
+		t.Fatalf("↓↓ from Title: focus %d, Track %q", f.Focus, f.Value("Track"))
+	}
+	press(f, keyUp)
+	if f.Focus != 1 || f.Value("Track") != "SWE" {
+		t.Fatalf("↑ from Closes: focus %d, Track %q", f.Focus, f.Value("Track"))
+	}
+	press(f, keyRight)
+	if f.Value("Track") != "Platform" {
+		t.Fatalf("→ did not change the Choice: %q", f.Value("Track"))
+	}
+	press(f, keyLeft)
+	if f.Value("Track") != "SWE" {
+		t.Fatalf("← did not change the Choice back: %q", f.Value("Track"))
+	}
+	press(f, keySpace)
+	if f.Value("Track") != "Platform" || f.Focus != 1 {
+		t.Fatalf("space did not change the Choice: %q", f.Value("Track"))
+	}
+}
+
+// ctrl+u empties a text field; a selected opening value is replaced by typing and cleared
+// by backspace, and any other key keeps it and drops the selection.
+func TestSelectedValueIsReplacedAndCtrlUClears(t *testing.T) {
+	f := forms.New("Edit", forms.Field{Label: "Places", Value: "Australia"})
+	f.SelectValue()
+	press(f, tea.KeyPressMsg{Code: 'n', Text: "n"}, tea.KeyPressMsg{Code: 'z', Text: "z"})
+	if got := f.Value("Places"); got != "nz" {
+		t.Fatalf("typing over a selected value: %q", got)
+	}
+	f = forms.New("Edit", forms.Field{Label: "Places", Value: "Australia"})
+	f.SelectValue()
+	press(f, tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if got := f.Value("Places"); got != "" {
+		t.Fatalf("backspace on a selected value: %q", got)
+	}
+	f = forms.New("Edit", forms.Field{Label: "Places", Value: "Australia"})
+	f.SelectValue()
+	press(f, keyRight, tea.KeyPressMsg{Code: '!', Text: "!"})
+	if got := f.Value("Places"); got != "Australia!" {
+		t.Fatalf("→ should keep the value and type after it: %q", got)
+	}
+	press(f, keyClear)
+	if got := f.Value("Places"); got != "" {
+		t.Fatalf("ctrl+u left %q", got)
+	}
+}

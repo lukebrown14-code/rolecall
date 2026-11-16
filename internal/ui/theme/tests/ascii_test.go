@@ -43,9 +43,9 @@ func TestStatusGlyphsAndASCIIStandIns(t *testing.T) {
 // The frame-wide fold maps each glyph to the stand-in the design names.
 func TestASCIIFoldTable(t *testing.T) {
 	for glyph, want := range map[string]string{
-		"■": "#", "□": ":", "◌": "o", "⚑": "?", "⚠": "!", "↩": "<", "▌": ">", "▶": ">", "✕": "x",
-		"●": "*", "★": "$", "◆": "@", "▁": "_", "▃": ".", "▅": "-", "▆": "=", "█": "#", "✎": "=",
-		"✓": "+", "○": "_", "—": "-", "…": ">", "·": ".", "⠹": "%", "▲": "^", "Δ": "&",
+		"■": "#", "□": ":", "◌": "(", "⚑": "}", "⚠": "!", "↩": "{", "▌": ">", "▶": ">", "✕": `\`,
+		"●": "*", "★": "$", "◆": "@", "⊘": ";", "▁": "_", "▂": ".", "▃": ".", "▅": "-", "▆": "#", "█": "#",
+		"✎": "=", "✓": "+", "○": "_", "—": "-", "…": ".", "·": ".", "⠹": "%", "▲": "^", "Δ": "&",
 	} {
 		if got := theme.ASCIIFold(glyph, true); got != want {
 			t.Errorf("%q folds to %q, want %q", glyph, got, want)
@@ -124,5 +124,23 @@ func TestEveryDrawnGlyphHasAnASCIIFold(t *testing.T) {
 	}
 	for r, file := range missing {
 		t.Errorf("%q (U+%04X) in %s has no ASCII fold", r, r, filepath.Base(file))
+	}
+}
+
+// No legend stand-in is a letter, a digit, the search or help key, so in the Move
+// pop-up ("r  \ Rejected") and beside the key line a stand-in never reads as a key, and
+// no stand-in is an arrow's: "<" and ">" belong to ← → ‹ › and the gutter.
+func TestLegendStandInsAreNeverKeys(t *testing.T) {
+	keys := "/?<>"
+	for _, g := range theme.Legend() {
+		c := rune(g.ASCII[0])
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || strings.ContainsRune(keys, c) {
+			t.Errorf("%s stands in as %q, which reads as a key or an arrow", g.Meaning, g.ASCII)
+		}
+	}
+	for _, s := range []string{"cut…", "a · b"} {
+		if got := theme.ASCIIFold(s, true); strings.HasSuffix(got, ">") {
+			t.Errorf("%q folds to %q: cut text ends in an arrow", s, got)
+		}
 	}
 }

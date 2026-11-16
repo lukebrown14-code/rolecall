@@ -42,6 +42,9 @@ type Roles struct {
 	// dimmed is everything behind a pop-up, still at the text floor; dimmedOnFill is the
 	// active tab's text on the dimmed fill.
 	Dimmed, DimmedOnFill string
+	// Marginal is a Marginal fit: a soft violet of its own, apart from the urgency amber
+	// and red, so no Fit reads as a deadline.
+	Marginal string
 }
 
 // The two backgrounds; text on an accent fill reuses them.
@@ -58,7 +61,7 @@ type rolePair [2]string
 // backgrounds; text on an accent fill reuses them. Warn is orange rather than amber in
 // light mode, so it never reads as Offer's gold.
 var rolePalette = struct {
-	Bg, Panel, Text, Sub, Muted, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Danger,
+	Bg, Panel, Text, Sub, Muted, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Marginal, Warn, Danger,
 	Purple, Gold, Lead, Draft, Dimmed, DimmedOnFill rolePair
 }{
 	Bg:           rolePair{darkBg, lightBg},
@@ -70,9 +73,10 @@ var rolePalette = struct {
 	Rule:         rolePair{"#5A6878", "#6E7985"},
 	Accent:       rolePair{"#5EEAD4", "#0F766E"},
 	OnFill:       rolePair{darkBg, lightBg},
-	Sel:          rolePair{"#2F5560", "#DDF4FF"},
+	Sel:          rolePair{"#2F5560", "#D6F1EC"}, // light: a teal tint of the accent
 	Ok:           rolePair{"#3FB950", "#14702F"},
 	Info:         rolePair{"#58A6FF", "#074A9A"},
+	Marginal:     rolePair{"#B9A6E3", "#6F5A99"},
 	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
 	Purple:       rolePair{"#F778BA", "#7A4AD6"},
@@ -100,7 +104,7 @@ func (t Mode) Roles() Roles {
 	return Roles{
 		Bg: p.Bg[i], Panel: p.Panel[i], Text: p.Text[i], Sub: p.Sub[i], Muted: p.Muted[i],
 		Faint: p.Faint[i], Rule: p.Rule[i], Accent: p.Accent[i], OnFill: p.OnFill[i],
-		Sel: p.Sel[i], Ok: p.Ok[i], Info: p.Info[i], Warn: p.Warn[i], Danger: p.Danger[i],
+		Sel: p.Sel[i], Ok: p.Ok[i], Info: p.Info[i], Marginal: p.Marginal[i], Warn: p.Warn[i], Danger: p.Danger[i],
 		Purple: p.Purple[i], Gold: p.Gold[i], Lead: p.Lead[i], Draft: p.Draft[i],
 		Dimmed: p.Dimmed[i], DimmedOnFill: p.DimmedOnFill[i],
 	}
@@ -156,7 +160,7 @@ func ForBackground(dark bool) Mode {
 // apart where the frame-wide fold would merge them.
 type Palette struct {
 	Fg, Dim, Sub, Faint, Rule, Accent, OnFill, Sel, Ok, Info, Warn, Bad color.Color
-	Bg, Panel, Purple, Gold, Lead, Draft                                color.Color
+	Bg, Panel, Purple, Gold, Lead, Draft, Marginal                      color.Color
 	Ascii                                                               bool
 	// Inherit marks the terminal-colours palette: ANSI-16 roles and no painted fill.
 	Inherit bool
@@ -170,7 +174,7 @@ func (t Mode) Base() Palette {
 	return Palette{Fg: c(r.Text), Dim: c(r.Muted), Sub: c(r.Sub), Faint: c(r.Faint), Rule: c(r.Rule),
 		Accent: c(r.Accent), OnFill: c(r.OnFill), Sel: c(r.Sel), Ok: c(r.Ok), Info: c(r.Info), Warn: c(r.Warn),
 		Bad: c(r.Danger), Bg: c(r.Bg), Panel: c(r.Panel), Purple: c(r.Purple), Gold: c(r.Gold), Lead: c(r.Lead),
-		Draft: c(r.Draft)}
+		Draft: c(r.Draft), Marginal: c(r.Marginal)}
 }
 
 // dimmed draws everything behind a pop-up in one readable grey; rules keep their colour.
@@ -179,7 +183,7 @@ func (t Mode) Dimmed() Palette {
 	d := c(r.Dimmed)
 	return Palette{Fg: d, Dim: d, Sub: d, Faint: c(r.Faint), Rule: c(r.Rule), Accent: d, OnFill: c(r.DimmedOnFill),
 		Sel: c(r.Panel), Ok: d, Info: d, Warn: d, Bad: d, Bg: c(r.Bg), Panel: c(r.Panel), Purple: d, Gold: d,
-		Lead: d, Draft: d, Backdrop: true}
+		Lead: d, Draft: d, Marginal: d, Backdrop: true}
 }
 
 // MarkdownStyle is Glamour's style drawn with the Mode's Roles rather than Glamour's own
@@ -223,7 +227,8 @@ func ASCIIMode() bool {
 
 // PlainMode reports whether ROLECALL_PLAIN=1 asks for a plainer frame, for screen readers
 // and braille displays: no mouse capture, so the terminal's own selection and review
-// cursor work, and no decorative sparkline in the tab bar.
+// cursor work; no decorative sparkline in the tab bar; one pane, no rules, Status words
+// for lone Status glyphs, and the terminal cursor on the selection (internal/ui/plain.go).
 func PlainMode() bool { return os.Getenv("ROLECALL_PLAIN") == "1" }
 
 // utf8Capable reports whether the environment's locale can draw UTF-8. POSIX gives LC_ALL
@@ -272,6 +277,81 @@ func StripColor(s string) string {
 		}
 		return "\x1b[" + strings.Join(keep, ";") + "m"
 	})
+}
+
+// StripBold drops bold from a rendered frame and keeps everything else, colour included.
+// Behind a pop-up without colour it leaves the pop-up the only bold text on screen.
+func StripBold(s string) string {
+	return sgr.ReplaceAllStringFunc(s, func(seq string) string {
+		body := seq[2 : len(seq)-1]
+		if body == "" {
+			return seq
+		}
+		nums := strings.Split(body, ";")
+		var keep []string
+		for i := 0; i < len(nums); i++ {
+			switch nums[i] {
+			case "38", "48", "58": // an extended colour: keep it and its parameters whole
+				n := 2 // 5;n
+				if i+1 < len(nums) && nums[i+1] == "2" {
+					n = 4 // 2;r;g;b
+				}
+				end := min(len(nums), i+1+n)
+				keep = append(keep, nums[i:end]...)
+				i = end - 1
+			case "1":
+			default:
+				keep = append(keep, nums[i])
+			}
+		}
+		if len(keep) == 0 {
+			return ""
+		}
+		return "\x1b[" + strings.Join(keep, ";") + "m"
+	})
+}
+
+// PaintBackground paints bg behind every cell of a rendered frame w cells wide, with SGR
+// on each line rather than trusting the terminal to honour the OSC 11 background the
+// frame also asks for: a terminal that ignores OSC 11 would otherwise put the light
+// theme's dark text on its own dark background. Each line is padded to w, and bg is put
+// back after every sequence that resets the background, so an inner fill (the
+// selection, a pop-up) still shows and the page around it keeps bg.
+func PaintBackground(s string, bg color.Color, w int) string {
+	seq := bgSeq(bg)
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		line = sgr.ReplaceAllStringFunc(line, func(m string) string {
+			if resetsBackground(m[2 : len(m)-1]) {
+				return m + seq
+			}
+			return m
+		})
+		lines[i] = seq + line + strings.Repeat(" ", max(0, w-lipgloss.Width(line))) + "\x1b[m"
+	}
+	return strings.Join(lines, "\n")
+}
+
+// resetsBackground reports an SGR parameter list that leaves the default background: a
+// full reset or 49.
+func resetsBackground(body string) bool {
+	if body == "" {
+		return true
+	}
+	nums := strings.Split(body, ";")
+	for i := 0; i < len(nums); i++ {
+		switch nums[i] {
+		case "38", "48", "58":
+			if i+1 < len(nums) && nums[i+1] == "2" {
+				i += 4
+			} else {
+				i += 2
+			}
+		case "0", "49":
+			return true
+		}
+	}
+	return false
 }
 
 // ASCIIFold replaces glyphs with ASCII stand-ins when ROLECALL_ASCII is set or force
@@ -363,13 +443,15 @@ func (p Palette) SpinnerStyle() lipgloss.Style { return lipgloss.NewStyle().Fore
 // heading is a dim, bold, upper-case section label.
 func (p Palette) Heading(s string) string { return p.Text(p.Dim).Bold(true).Render(strings.ToUpper(s)) }
 
-// fitColor keeps amber and red for time: Fit runs green → blue → grey.
+// fitColor keeps amber and red for time: Fit runs green → blue → violet → grey.
 func (p Palette) FitColor(fit string) color.Color {
 	switch fit {
 	case store.FitStrong:
 		return p.Ok
 	case store.FitGood:
 		return p.Info
+	case store.FitMarginal:
+		return p.Marginal
 	}
 	return p.Dim
 }
@@ -449,24 +531,26 @@ func (p Palette) PanelFill(s string) string {
 
 // statusGlyphs are each Status's glyph and its ASCII stand-in. The open Statuses run a
 // cold-to-gold ramp; the closed ones are muted, never alarming.
+// The stand-ins are punctuation that is no key and no other mark: not the move keys
+// (Rejected's "x" sat beside the dismiss key x), not "/" search, not "<" the left arrow.
 var statusGlyphs = map[string][2]string{
-	store.StatusLead:         {"◌", "o"},
+	store.StatusLead:         {"◌", "("},
 	store.StatusDraft:        {"✎", "="},
 	store.StatusApplied:      {"●", "*"},
 	store.StatusInterviewing: {"◆", "@"},
 	store.StatusOffer:        {"★", "$"},
-	store.StatusRejected:     {"✕", "x"},
-	store.StatusWithdrawn:    {"↩", "<"},
-	store.StatusDismissed:    {"⊘", "/"},
+	store.StatusRejected:     {"✕", "\\"},
+	store.StatusWithdrawn:    {"↩", "{"},
+	store.StatusDismissed:    {"⊘", ";"},
 }
 
 // ClosedGroupGlyph is the glyph of the Closed group (Rejected, Withdrawn, Dismissed), or
 // its ASCII stand-in.
 func (p Palette) ClosedGroupGlyph() string {
 	if p.Ascii {
-		return "x"
+		return statusGlyphs[store.StatusRejected][1]
 	}
-	return "✕"
+	return statusGlyphs[store.StatusRejected][0]
 }
 
 // ClosedStatus reports a Status that ends an Application: drawn muted, not bold.

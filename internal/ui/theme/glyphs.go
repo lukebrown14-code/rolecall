@@ -10,11 +10,13 @@ import (
 // one meaning and its ASCII stand-in; the frame draws these constants, the `?` legend is
 // generated from Legend, and the ASCII fold is built from the same rows. One glyph has one
 // meaning, and no two meanings share a glyph or a stand-in, so ASCII mode and NO_COLOR
-// still tell every state apart.
+// still tell every state apart. A stand-in is never a letter, a digit, the search or
+// help key (/ ?) or an arrow's (< >): in the Move pop-up a Status's stand-in sits beside
+// a key letter, and must not read as one.
 const (
 	GlyphReady    = "✓" // a Document is ready (also a success toast and a complete Contact)
 	GlyphMissing  = "○" // a Document is missing
-	GlyphNone     = "—" // nothing here: no close date, Fit not assessed, a Document not needed
+	GlyphNone     = "—" // nothing here: a Document not needed
 	GlyphMeterOn  = "■" // one ready Document in the ready meter
 	GlyphMeterOff = "□" // one missing Document in the ready meter
 	GlyphFollowUp = "⚑" // Follow-up due
@@ -41,7 +43,6 @@ const (
 	GroupDocs     = "Docs"
 	GroupAgent    = "Agent"
 	GroupFlags    = "Flags"
-	GroupFit      = "Fit"
 	GroupForms    = "Forms"
 )
 
@@ -71,8 +72,7 @@ var markGlyphs = []Glyph{
 	{GlyphWriting, "%", GroupAgent, "agent writing"},
 	{GlyphWarn, "!", GroupFlags, "needs attention"},
 	{GlyphUrgent, "^", GroupFlags, "closes within 2 days"},
-	{GlyphFollowUp, "?", GroupFlags, "follow-up due"},
-	{GlyphNone, "-", GroupFit, "not assessed"},
+	{GlyphFollowUp, "}", GroupFlags, "follow-up due"},
 	{GlyphChanged, "&", GroupForms, "changed, not saved"},
 }
 
@@ -81,12 +81,14 @@ var markGlyphs = []Glyph{
 // never a legend stand-in where that would read as a meaning.
 var chromeGlyphs = []string{
 	"▌", ">", "▸", ">", "▶", ">", "▏", "|", "‹", "<", "›", ">",
-	GlyphSep, ".", GlyphEllipsis, ">", GlyphError, "X", "✗", "X", "×", "x",
+	// the ellipsis folds to "." rather than ">", so cut text never reads as an arrow
+	GlyphSep, ".", GlyphEllipsis, ".", GlyphError, "X", "✗", "X", "×", "x",
 	"↑", "^", "↓", "v", "←", "<", "→", ">",
 	// the wordmark's mark, distinct from every Status stand-in and from a data block
 	"▞", "R",
-	// the Stats sparkline's eight steps fold onto five: _ . - = #
-	"▁", "_", "▂", "_", "▃", ".", "▄", ".", "▅", "-", "▆", "=", "▇", "=", "█", "#",
+	// the sparkline's baseline is "_"; its seven bars fold onto . - #, apart from it and
+	// from Draft's "="
+	"▁", "_", "▂", ".", "▃", ".", "▄", "-", "▅", "-", "▆", "#", "▇", "#", "█", "#",
 	"░", ".", "▕", "|", "“", `"`, "”", `"`, "≤", "<", "–", "-",
 	"─", "-", "│", "|", "┬", "+", "┴", "+", "╭", "+", "╮", "+", "╰", "+", "╯", "+",
 	// the box rules Glamour draws around a Markdown table

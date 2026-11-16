@@ -210,6 +210,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 func (h *addHarness) fillAdd(title, company, url, closes string) {
 	h.tm.Type("a")
 	h.wait("URL")
+	h.tm.Type("up") // the form opens on Title without a Plugin; the URL is above it
 	h.tm.Type(url)
 	h.advance()
 	h.tm.Type(title)
@@ -387,4 +388,17 @@ func TestAddLongTitleSavesAndCreateErrorKeepsForm(t *testing.T) {
 	}
 	h.fillAdd("Site Reliability Engineer", "Acme", "", "")
 	h.wait("Add a Lead", "Site Reliability Engineer", "permission denied")
+}
+
+// Without a Plugin the Add form opens on Title, so a title typed at once lands there; a
+// URL field that is not a web address says so when it is left.
+func TestAddOpensOnTitleAndChecksTheURL(t *testing.T) {
+	d := newDriver(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
+	d.Type("a")
+	d.Type("My first")
+	requireAll(t, d.plain(), "▌   Title* My first")
+	d.Type("up")
+	d.Type("abc")
+	d.Type("down")
+	requireAll(t, d.plain(), "✘ URL must start with https://")
 }

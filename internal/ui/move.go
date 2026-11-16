@@ -40,6 +40,10 @@ type undoMove struct {
 	folder, status, target   string
 	sent                     bool
 	filterReason, filterNote string
+	// followUp marks a recorded follow-up (l), not a move: the undo puts back followedUp,
+	// the followed_up day it replaced ("" removes the key).
+	followUp   bool
+	followedUp string
 }
 
 // requestMove moves immediately, except that a non-Ready Application going to Applied
@@ -145,10 +149,14 @@ func moveName(a store.Application) string {
 
 // effectiveLog is the Status log the rows, timeline and ages read: undone moves taken out
 // (reporting.EffectiveLog), as Stats reads it, so a fat-fingered move and its undo leave no
-// phantom stop and do not reset the age in Status. It falls back to the whole log if the
-// two ever disagree on the current Status.
+// phantom stop and do not reset the age in Status. An undone first move of a Lead empties
+// it: the Lead reads as never moved, as it did before. Otherwise it falls back to the
+// whole log if the two ever disagree on the current Status.
 func effectiveLog(a store.Application) []store.StatusEntry {
 	log := reporting.EffectiveLog(a.StatusLog)
+	if len(log) == 0 && a.Status == store.StatusLead {
+		return nil
+	}
 	if len(log) == 0 || log[len(log)-1].Status != a.Status {
 		return a.StatusLog
 	}
@@ -161,6 +169,9 @@ func lastChange(a store.Application) *store.StatusEntry {
 	log := effectiveLog(a)
 	if len(log) == len(a.StatusLog) {
 		return a.LastChange
+	}
+	if len(log) == 0 {
+		return nil
 	}
 	e := log[len(log)-1]
 	return &e
@@ -197,6 +208,9 @@ func (m *model) undoLast() tea.Cmd {
 	a, ok := m.application(last.folder)
 	if !ok {
 		return nil
+	}
+	if last.followUp {
+		return m.undoFollowUp(a, last.followedUp)
 	}
 	// Read the file itself: the rows can lag behind another writer.
 	if now, err := m.store.Rescan(a.Folder); err == nil && now != nil && now.Status != last.target {

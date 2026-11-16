@@ -71,7 +71,9 @@ func (m model) trackHelpKeys() []helpKey {
 	keys := []helpKey{help(groupAction, "a", "add")}
 	switch {
 	case m.onTrack():
-		keys = append(keys, help(groupAction, "r", "rename"), help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
+		// enter renames, as it edits every other row: r stays rescan, as it is everywhere.
+		keys = append([]helpKey{help(groupAction, "enter", "rename").at(prioCore)}, keys...)
+		keys = append(keys, help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
 	case m.onAddTrack():
 		keys = []helpKey{help(groupAction, "enter", "add a Track").at(prioCore)}
 	default:
@@ -88,8 +90,8 @@ func (m model) settingsRowsFocused() bool {
 	return m.settings != nil && !m.settings.Header
 }
 
-// tracksKey handles a, J, K, x and enter on the Tracking rows. handled is false for any
-// other key.
+// tracksKey handles a, J, K, x and enter (add, or rename a Track) on the Tracking rows.
+// handled is false for any other key.
 func (m model) tracksKey(k tea.KeyPressMsg) (next model, handled bool) {
 	st := m.settings
 	if !m.settingsRowsFocused() || st.Group != settings.GroupTracking {

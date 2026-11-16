@@ -99,11 +99,14 @@ func TestBodyCacheKeepsABodyAcrossWidths(t *testing.T) {
 		t.Fatal("opening the Fit tab did not render it")
 	}
 
-	// Back to the list (the preview renders at width 0), then into the same tab again.
+	// Back to the list (the preview renders at width 0), then into the detail again, which
+	// opens on the Fit tab it was left on.
 	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	_ = m.View()
 	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = pressModel(t, m, tea.KeyPressMsg{Code: tea.KeyRight})
+	if m.detail == nil || m.detail.tab != tabFit {
+		t.Fatalf("the detail did not reopen on the Fit tab")
+	}
 	_ = m.View()
 	if got := renders(); got != first {
 		t.Fatalf("a list -> detail -> list round trip re-rendered the Document: %d renders, want %d", got, first)

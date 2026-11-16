@@ -21,6 +21,8 @@ type Config struct {
 	ASCII        bool   `toml:"ascii"`
 	// InheritTerminal draws with the terminal's own ANSI-16 colours and paints no background.
 	InheritTerminal bool `toml:"inherit_terminal"`
+	// CompactRows draws list rows on one line at wide sizes; z toggles it in the TUI.
+	CompactRows bool `toml:"compact_rows"`
 
 	// EditorSource names where the effective Editor came from: one of the Source*
 	// constants. Editor itself stays the configured value (empty when unset), so the
@@ -148,7 +150,7 @@ func keyKind(key string) string {
 	switch key {
 	case "follow_up_days":
 		return "a whole number of days, like 14"
-	case "ascii", "inherit_terminal":
+	case "ascii", "inherit_terminal", "compact_rows":
 		return "true or false"
 	}
 	return "a quoted string"

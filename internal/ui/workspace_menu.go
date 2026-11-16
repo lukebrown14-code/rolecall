@@ -3,6 +3,8 @@ package ui
 import (
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
@@ -25,16 +27,22 @@ const (
 	menuHintRun  = "run"
 )
 
-// menuItem is one row of the Workspace menu: a label and the direct key that does the
-// same thing.
+// menuKeyWidth is the menu's key column, as wide as the palette's, so the labels line up
+// after it.
+const menuKeyWidth = helpKeyWidth - gutter
+
+// menuItem is one row of the Workspace menu: the direct key that does the same thing,
+// and the label, the registry's name for that key here.
 //
 // runs reports whether the key runs this item's command on the current screen. A letter
 // means different commands on different screens (a adds a Track in Settings › Tracking,
 // r renames one), so an item is matched to its command, never to its letter alone. A
 // screen digit has no runs: every screen accepts it.
 type menuItem struct {
-	label, key string
+	key, label string
 	runs       func(model) bool
+	// row is true for the This row group, drawn under its own heading.
+	row bool
 }
 
 // addsApplication reports whether a adds an Application here: an Application list, or
@@ -67,22 +75,52 @@ func registered(key, desc string) func(model) bool {
 	}
 }
 
-// menuActions are the commands the menu offers after the screens, with the menu's own
-// wording for each, sentence case. An item joins the menu only where its key runs that
-// command, so the menu cannot offer a key that does nothing there, or something else.
+// menuActions are the commands the menu offers after the screens. An item joins the menu
+// only where its key runs that command, so the menu cannot offer a key that does nothing
+// there, or something else; its label is the registry's name for the key.
 var menuActions = []menuItem{
-	{"Add Application", "a", addsApplication},
-	{"Search", "/", searchesApplications},
-	{"Switch view", "s", switchesView},
-	{"Track filter", "t", model.trackFilterApplies},
-	{"Rescan", "r", registered("r", "rescan")},
-	{"Command palette", ":", registered(":", "commands")},
-	{"Help", "?", registered("?", "help")},
+	{key: "a", runs: addsApplication},
+	{key: "/", runs: searchesApplications},
+	{key: "s", runs: switchesView},
+	{key: "t", runs: model.trackFilterApplies},
+	{key: "r", runs: registered("r", "rescan")},
+	{key: ":", runs: registered(":", "commands")},
+	{key: "?", runs: registered("?", "help")},
 }
 
-// workspaceMenu is the menu `space` opens: the screens and the commands that cut across
-// them, each with its direct key. Running an item sends that key, as the command
-// palette does, so the item behaves exactly as the key.
+// menuRowGroup heads the menu's row actions.
+const menuRowGroup = "This row"
+
+// rowMenuItems is the This row group: the row's main actions (open, move, dismiss, undo,
+// edit, notes) from the one action table, in the order the help's Act column lists them.
+func (m model) rowMenuItems(taken map[string]bool) []menuItem {
+	if !m.hasTables() || !onRow(m) {
+		return nil
+	}
+	var out []menuItem
+	for _, k := range section(m.actionKeys(), groupAction) {
+		key := k.Help().Key
+		if k.prio < prioMain || taken[key] || k.press == "" {
+			continue
+		}
+		taken[key] = true
+		out = append(out, menuItem{key: key, label: sentence(k.Help().Desc), row: true})
+	}
+	return out
+}
+
+// sentence is a key's description as a menu item: its first letter upper case.
+func sentence(desc string) string {
+	if desc == "" {
+		return ""
+	}
+	r, n := utf8.DecodeRuneInString(desc)
+	return string(unicode.ToUpper(r)) + desc[n:]
+}
+
+// workspaceMenu is the menu `space` opens: the screens, the commands that cut across
+// them and the row's own actions, each with its direct key. Running an item sends that
+// key, as the command palette does, so the item behaves exactly as the key.
 type workspaceMenu struct {
 	items []menuItem
 	sel   int
@@ -91,15 +129,24 @@ type workspaceMenu struct {
 // openMenu builds the menu for the current screen.
 func (m model) openMenu() *workspaceMenu {
 	items := make([]menuItem, 0, len(screenDefs)+len(menuActions))
+	taken := map[string]bool{}
 	for i, d := range screenDefs {
 		items = append(items, menuItem{label: d.name, key: strconv.Itoa(i + 1)})
 	}
+	names := map[string]string{}
+	for _, k := range m.screenKeys() {
+		if _, ok := names[k.Help().Key]; !ok {
+			names[k.Help().Key] = k.Help().Desc
+		}
+	}
 	for _, it := range menuActions {
-		if it.runs(m) {
+		if it.runs(m) && names[it.key] != "" {
+			it.label = sentence(names[it.key])
+			taken[it.key] = true
 			items = append(items, it)
 		}
 	}
-	return &workspaceMenu{items: items}
+	return &workspaceMenu{items: append(items, m.rowMenuItems(taken)...)}
 }
 
 func (wm *workspaceMenu) Keys() [][2]string {
@@ -135,29 +182,27 @@ func (wm *workspaceMenu) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return wm, nil
 }
 
-// anchored: the menu sits top-left under the tab bar, not centred.
-func (wm *workspaceMenu) anchored() bool { return true }
-
-// View is the pop-up template: the title in the top border, the keys in the bottom one,
-// two cells of padding either side, and the one selection gutter as the cursor.
+// View is the pop-up template, centred like every pop-up: the title in the top border,
+// the keys in the bottom one, two cells of padding either side, and the one selection
+// gutter as the cursor. Each item is key first, in a fixed key column, as the help and
+// the palette draw them; the row actions sit under their own heading.
 func (wm *workspaceMenu) View(m *model, p pal) string {
 	cw := popWidth(menuWidth, m.viewWidth()) - popInset
-	lines := make([]string, len(wm.items))
+	room := max(0, cw-menuLead-menuKeyWidth)
+	var lines []string
 	for i, it := range wm.items {
-		// The gutter before the selected label, two spaces before the rest, so every label
-		// starts in the same column and every key in the column before the padding.
-		room := max(0, cw-menuLead-1-xansi.StringWidth(it.key))
-		label := padRight(xansi.Truncate(it.label, room, "…"), room)
+		if it.row && (i == 0 || !wm.items[i-1].row) {
+			lines = append(lines, "", strings.Repeat(" ", menuLead)+p.Heading(menuRowGroup))
+		}
+		key := padRight(it.key, menuKeyWidth)
+		label := xansi.Truncate(it.label, room, "…")
 		if i == wm.sel {
-			lines[i] = p.SelLine(true, cw, p.SelGutter(true)+p.SelText(true).Render(label+" ")+
-				p.Key().Background(p.Sel).Render(it.key))
+			lines = append(lines, p.SelLine(true, cw, p.SelGutter(true)+p.Key().Background(p.Sel).Render(key)+
+				p.SelText(true).Render(label)))
 			continue
 		}
-		lines[i] = strings.Repeat(" ", menuLead) + p.Text(p.Fg).Render(label) + " " + p.Key().Render(it.key)
+		lines = append(lines, strings.Repeat(" ", menuLead)+p.Key().Render(key)+p.Text(p.Fg).Render(label))
 	}
 	return popup(p, menuTitle, false, menuWidth, m.viewWidth(), strings.Join(lines, "\n"),
 		p.Keys([][2]string{{"enter", menuHintRun}, {"esc", hintClose}}))
 }
-
-// anchoredMode is a mode whose box sits top-left under the tab bar.
-type anchoredMode interface{ anchored() bool }
