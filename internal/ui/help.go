@@ -306,8 +306,21 @@ func fitKeys(p pal, keys []helpKey, w int) (left, right string) {
 
 // keyLine is the bottom line: the current context's keys, or an open pop-up's own keys,
 // fitted by priority.
+//
+// A screen's line shows only its core and pinned keys (enter, m, a, /, esc, ?, …); the
+// rest live in the `?` pop-up. A pop-up keeps all its keys: it has no other help.
 func (m model) keyLine(p pal, w int) string {
-	left, right := fitKeys(p, m.helpKeys(), w-gutter)
+	keys := m.helpKeys()
+	if m.overlay == nil {
+		core := keys[:0:0]
+		for _, k := range keys {
+			if k.prio >= prioCore {
+				core = append(core, k)
+			}
+		}
+		keys = core
+	}
+	left, right := fitKeys(p, keys, w-gutter)
 	return " " + spread(left, right, w-gutter)
 }
 
