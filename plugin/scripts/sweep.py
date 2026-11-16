@@ -40,18 +40,16 @@ Seek and LinkedIn return 403 and cannot be fetched by anything here.
 import argparse
 import json
 import re
-import ssl
 import sys
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import meta as meta_store  # noqa: E402
 import adfacts  # noqa: E402
+import httpfetch  # noqa: E402
 import rules as search_rules  # noqa: E402
 from signals import FAVOURABLE, blocker_hits, blockers_for  # noqa: E402
 from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
@@ -217,21 +215,14 @@ def classify_access(status, body=""):
 
 def get(url, timeout=25):
     """Fetch a URL; raises SourceError so a dead source is never mistaken for an empty one."""
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    ctx = ssl.create_default_context()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
-            return r.read().decode(r.headers.get_content_charset() or "utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        try:
-            body = e.read(4096).decode("utf-8", "replace")
-        except OSError:
-            body = ""
-        access = classify_access(e.code, body)
+        return httpfetch.fetch(url, timeout=timeout, user_agent=UA)
+    except httpfetch.FetchError as e:
+        if e.status is None:
+            raise SourceError(str(e)) from e
+        access = classify_access(e.status, e.body)
         label = "" if access == "error" else f" [{access}]"
-        raise SourceError(f"{url} -- {e}{label}", access) from e
-    except (urllib.error.URLError, TimeoutError, ssl.SSLError, OSError) as e:
-        raise SourceError(f"{url} -- {e}") from e
+        raise SourceError(f"{e}{label}", access) from e
 
 
 def get_quiet(url, timeout=20):

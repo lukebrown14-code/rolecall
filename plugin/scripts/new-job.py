@@ -18,8 +18,6 @@ import argparse
 import json
 import re
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from html import unescape
 from html.parser import HTMLParser
@@ -28,6 +26,7 @@ from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import adfacts  # noqa: E402
+import httpfetch  # noqa: E402
 import meta as meta_store  # noqa: E402
 from signals import blockers_for, scan  # noqa: E402
 from workspace import add_data_argument, data_from_argv, load, workspace_from_cli  # noqa: E402
@@ -252,15 +251,11 @@ def fetch_page(url):
             "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
         )
 
-    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            html = response.read().decode(
-                response.headers.get_content_charset() or "utf-8", "replace"
-            )
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as error:
+        html = httpfetch.fetch(url, user_agent="Mozilla/5.0")
+    except httpfetch.FetchError as error:
         warn(
-            f"Could not fetch {url} -- {error}",
+            f"Could not fetch {error}",
             "Copy the job description from your browser and run:",
             "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
         )

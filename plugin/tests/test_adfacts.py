@@ -197,11 +197,11 @@ def test_the_later_of_two_duplicate_leads_is_the_one_dismissed(tmp_path):
      ("", 403, None)],
 )
 def test_listing_state_reads_the_ad_page(body, error, want):
-    import urllib.error
+    from httpfetch import FetchError
 
     def fetch(url):
         if error:
-            raise urllib.error.HTTPError(url, error, "x", {}, None)
+            raise FetchError(f"{url} -- HTTP Error {error}", status=error)
         return body
 
     assert rules.listing_state("https://x.test/1", fetch) == want
