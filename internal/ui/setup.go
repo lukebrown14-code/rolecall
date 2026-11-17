@@ -16,10 +16,12 @@ const (
 	fieldPhone    = "Phone"
 	fieldLocation = "Location"
 	fieldLinkedIn = "LinkedIn"
+	fieldGitHub   = "GitHub"
+	fieldWork     = "Work rights"
 )
 
 // setupContactFields are the fields the form asks for, in order.
-var setupContactFields = []string{fieldName, fieldEmail, fieldPhone, fieldLocation, fieldLinkedIn}
+var setupContactFields = []string{fieldName, fieldEmail, fieldPhone, fieldLocation, fieldLinkedIn, fieldGitHub, fieldWork}
 
 // WithFirstRunSetup opens the Contact form at startup when the Profile has no Name or
 // Email. The app passes it; tests that do not exercise setup leave it out.
@@ -33,16 +35,22 @@ func WithFirstRunSetup() Option {
 	}
 }
 
-// contactIntro says, above the fields, why the Contact is asked for and how to come back
-// to it, so a first form nobody asked for explains itself.
-const contactIntro = "rolecall puts these on every Resume and Cover letter. You can change them any time: 5 Profile, then c."
+// contactIntro says, above the fields, why the Contact is asked for. The first-run form
+// also says how to come back to it; from the Profile screen the Owner is already there.
+// Only Name and Email are required, so the rest needs no "optional" beside each field,
+// which at 80 columns wrapped onto a line of its own.
+const (
+	contactIntro      = "rolecall puts these on every Resume and Cover letter. Name and Email are required; the rest is optional."
+	contactIntroFirst = contactIntro + " You can change them any time: 5 Profile, then c."
+)
 
 // newContactForm is the Contact form. Its placeholders say what goes in a field, in
 // words no one would mistake for a value, never a plausible person's details.
-func newContactForm(title string, contact map[string]string) *form {
+func newContactForm(title string, contact map[string]string, intro string) *form {
 	placeholders := map[string]string{
 		fieldName: "your full name", fieldEmail: "your email address", fieldPhone: "your phone number",
-		fieldLocation: "your city", fieldLinkedIn: "your LinkedIn profile link",
+		fieldLocation: "your city", fieldLinkedIn: "your LinkedIn link", fieldGitHub: "your GitHub link",
+		fieldWork: "where you can work, e.g. Citizen",
 	}
 	var fields []formField
 	for _, name := range setupContactFields {
@@ -58,27 +66,25 @@ func newContactForm(title string, contact map[string]string) *form {
 				}
 				return nil
 			}
-		default:
-			f.Note = "optional"
 		}
 		fields = append(fields, f)
 	}
 	f := newFormOf(title, fields...)
-	f.Intro = contactIntro
+	f.Intro = intro
 	return f
 }
 
 // contactPopup is the first-run Contact form: esc skips it until the next launch.
 func contactPopup(contact map[string]string) mode {
-	p := contactPopupTitled("Welcome to rolecall · first, your Contact", contact).(*formPopup)
+	p := contactPopupTitled("Welcome to rolecall · first, your Contact", contact, contactIntroFirst).(*formPopup)
 	p.form.Cancel = "skip"
 	return p
 }
 
 // contactPopupTitled is the Contact form under title. Saving writes only the Contact table
 // of profile/master-profile.md.
-func contactPopupTitled(title string, contact map[string]string) mode {
-	return &formPopup{form: newContactForm(title, contact), width: popSmall, save: func(m *model, f *form) (mode, error) {
+func contactPopupTitled(title string, contact map[string]string, intro string) mode {
+	return &formPopup{form: newContactForm(title, contact, intro), width: popSmall, save: func(m *model, f *form) (mode, error) {
 		values := map[string]string{}
 		for _, name := range setupContactFields {
 			values[name] = f.Value(name)

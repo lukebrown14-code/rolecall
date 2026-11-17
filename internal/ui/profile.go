@@ -508,7 +508,7 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.profile != nil {
 			contact = m.profile.profile.Contact
 		}
-		m.overlay = contactPopupTitled("Your Contact", contact)
+		m.overlay = contactPopupTitled("Your Contact", contact, contactIntro)
 		return m, nil
 	}
 	if !m.profileLoaded() {

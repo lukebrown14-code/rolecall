@@ -117,3 +117,41 @@ func TestProfileCOpensTheContactForm(t *testing.T) {
 	requireAll(t, masterProfile(t, root), "| Name | Alex Quinn |", "| Email | alex@example.test |")
 	requireAll(t, d.plain(), "Saved Contact", "NAME", "Alex Quinn")
 }
+
+// The Contact form asks for GitHub and Work rights too, saves them to the Contact table,
+// and at 80 columns no "optional" wraps onto a line of its own under LinkedIn.
+func TestContactFormAsksForGitHubAndWorkRightsAt80Columns(t *testing.T) {
+	root := freshWorkspace(t)
+	d := newDriver(t, root, setupNow, 80, 30, ui.WithFirstRunSetup())
+	view := d.plain()
+	requireAll(t, view, "GitHub", "Work rights", "the rest", "is optional", "Profile, then c.")
+	for _, line := range strings.Split(view, "\n") {
+		if strings.Contains(line, "│  optional") {
+			t.Fatalf("optional wrapped onto its own line:\n%s", view)
+		}
+	}
+	d.Type("Alex Quinn")
+	d.Type("enter")
+	d.Type("alex@example.test")
+	for range 4 { // Phone, Location, LinkedIn, GitHub
+		d.Type("enter")
+	}
+	d.Type("github.com/alexquinn")
+	d.Type("enter")
+	d.Type("Citizen")
+	d.Type("ctrl+s")
+	requireAll(t, masterProfile(t, root), "| GitHub | github.com/alexquinn |", "| Work rights | Citizen |")
+}
+
+// Opened from the Profile screen, the form does not tell the Owner to go to the Profile.
+func TestContactFormFromProfileDoesNotSendYouToProfile(t *testing.T) {
+	root := freshWorkspace(t)
+	d := newDriver(t, root, setupNow, 100, 30)
+	d.Type("5")
+	d.Type("c")
+	view := d.plain()
+	requireAll(t, view, "Your Contact", "Name and Email are required")
+	if strings.Contains(view, "5 Profile, then c") {
+		t.Fatalf("form opened from Profile points back at Profile:\n%s", view)
+	}
+}
