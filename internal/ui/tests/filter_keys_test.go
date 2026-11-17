@@ -70,7 +70,7 @@ func TestHelpSectionsChipsAndWording(t *testing.T) {
 		}
 	}
 	// Keys are bare, as the key line and the palette draw them: brackets mean "active".
-	for _, want := range []string{"s change view", "o sort newest", "t track filter", "/ search", ": ctrl+k commands", "m move"} {
+	for _, want := range []string{"s change view", "o sort newest", "t track filter", "/ search", ": commands", "m move"} {
 		if !helpLists(v, want) {
 			t.Errorf("help lacks %q:\n%s", want, v)
 		}

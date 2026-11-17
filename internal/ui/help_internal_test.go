@@ -36,9 +36,9 @@ func TestAISkillsNameEveryPluginSkill(t *testing.T) {
 	}
 }
 
-// One name per key: a key the help, the space menu and the palette all offer has the
-// same words in each (the menu's in sentence case).
-func TestHelpMenuAndPaletteNameAKeyAlike(t *testing.T) {
+// One name per key: a key the help and the command finder both offer has the same words in
+// each.
+func TestHelpAndPaletteNameAKeyAlike(t *testing.T) {
 	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}} {
 		m := fixtureModel(t)
 		m.width, m.height = 120, 40
@@ -54,11 +54,6 @@ func TestHelpMenuAndPaletteNameAKeyAlike(t *testing.T) {
 		for _, k := range m.openPalette().items {
 			if want, ok := names[k.Help().Key]; ok && k.Help().Desc != want {
 				t.Errorf("%v: palette names %q %q, help %q", keys, k.Help().Key, k.Help().Desc, want)
-			}
-		}
-		for _, it := range m.openMenu().items {
-			if want, ok := names[it.key]; ok && !strings.EqualFold(it.label, want) {
-				t.Errorf("%v: menu names %q %q, help %q", keys, it.key, it.label, want)
 			}
 		}
 	}

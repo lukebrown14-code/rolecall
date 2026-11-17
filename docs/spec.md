@@ -130,7 +130,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 |---|---|---|
 | `1`–`6` | global | switch screen: Leads, Drafts, Applied, Stats, Profile, Settings |
 | `←` `→` | screen | previous / next view; in the detail view, previous / next tab; in Settings, previous / next group |
-| `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, palette, menu and an empty view all say `s change view`) |
+| `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, the command finder and an empty view all say `s change view`) |
 | `Tab` / `Shift-Tab` | screen | next / previous pane on Profile, the only screen where it is listed; elsewhere an unlisted alias of `→` / `←` (views, detail tabs, Settings groups) |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom. In the detail view: scroll (`pgup` `pgdn` page) |
 | `J` / `K` | detail view | next / previous row's detail, on the same tab (help and palette only, not the key line). In Settings › Tracking they reorder Tracks |
@@ -151,17 +151,16 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `r` | global | rescan the Workspace, on every screen (Settings › Tracking renames a Track with `Enter`, so `r` keeps this one meaning) |
 | `,` | global | open Settings (screen 6); `Esc` returns |
 | `h` | global, while no Harness is set | connect a Harness: Settings › This machine on the Harness row (every screen but Settings, with or without Applications). The no-Harness error offers it |
-| `space` | global | Workspace menu: the screens, then Add, Search, Change view, Track filter, Rescan, Commands and Help, then a **This row** group (Open, Move, Dismiss, Undo, Edit, Notes where they apply); each key first, named as the help names it. An item's key runs it, `space` and `q` close |
-| `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs. `Esc`, `?` and `q` close it; any other key closes it and runs on the screen beneath |
-| `:` / `Ctrl-K` | global | command palette: type to filter this context's actions (and one `<Screen> screen` entry per screen), `Enter` runs one |
+| `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs and row words, in at most two pages (the AI skills with no key share one line). `Esc`, `?` and `q` close it; any other key closes it and runs on the screen beneath |
+| `space` / `:` / `Ctrl-K` | global | the one command finder (there is no separate menu): type to filter this context's actions, row actions included, and one `<Screen> screen` entry per other screen; `Enter` runs one. Descriptions are lower case as in `?` (`move`, `rescan`); a screen entry keeps its screen's capital (`Drafts screen`). `space` is the key shown on the tab bar and key line; `Ctrl-K` is an unlisted alias. While it is open every printable key, a digit or `space` too, types into the query; `Esc` closes it |
 | `q` / `Ctrl-C` | global | quit. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `F`, `b`: see [v0.2](#v02-harness-and-extras).
 - The key line shows only the keys valid for the current row (e.g. `d` hidden when nothing is built), and
   is lean: the core keys (`enter`, `m`, `a`, `/`), `x dismiss` on a Lead or Draft, `u undo` while a move
-  can be undone, then `esc` and `? help`; every other key is in `?`, the palette and the menu. Key
+  can be undone, then `esc` and `? help`; every other key is in `?` and the command finder. Key
   names are lower case everywhere (`enter`, `esc`), drawn bare in the accent colour on the key line, in
-  `?`, the palette and the menu (brackets mean "active" only), and each key has one name on all four.
+  `?` and the command finder (brackets mean "active" only), and each key has one name on all three.
 - A known row key that does not apply on this row says why in a note instead of doing nothing (`o: sorts
   the Leads view only`, `d: no PDFs built for this Application yet`, `F: only on a Follow-up due
   Application`); an unknown key stays silent. The detail view gives the same notes, from the same
@@ -173,7 +172,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
   dimmed and marked `(needs a Harness)`; pressing one gives `✘ No Harness set · …   h connect a Harness`.
 - **One keymap:** each screen, focus and pop-up declares its keys with a priority (`internal/ui/help.go`). The key line,
   the `?` help and the command palette all read it, so a key is declared once. While a pop-up is open the key
-  line shows the pop-up's keys. The `space` menu offers a key only where the registry lists it for the
+  line shows the pop-up's keys. The command finder offers a key only where the registry lists it for the
   screen it was opened from.
 - **Mouse:** click a screen tab, a view or a row; the wheel scrolls whatever `↑↓` moves; click the search
   chip's `×` to clear it. `ROLECALL_PLAIN=1` turns mouse capture off.
@@ -411,7 +410,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   detail card add a meter, `■■□□ 2/4 ready` (GLOSSARY avoids "built").
 - **Size classes (`internal/ui/layout.go`):** wide ≥ 100 columns, medium 72–99, narrow < 72; short
   ≤ 20 rows; below 56×14 a resize notice. Wide has the preview beside the list, the card beside
-  the detail, the wordmark, the sparkline and `space menu  ? help` in the tab bar. Medium has
+  the detail, the wordmark, the sparkline and `space commands  ? help` in the tab bar. Medium has
   no preview, opens the detail full-screen and keeps Profile's and Settings' side lists.
   Narrow has one pane everywhere and the detail full-screen; `ROLECALL_PLAIN` draws the
   narrow class's single pane at every width. At any width the Track filter
@@ -421,7 +420,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   minimum and a maximum. Content starts at column 3 (markers and the selection bar at
   column 1) and the last column stays clear.
 - **Layout, top to bottom (one fixed frame):** tab bar (screens; at wide sizes the
-  wordmark, the Applied-per-week sparkline beside the Stats tab and `space menu  ? help` on the
+  wordmark, the Applied-per-week sparkline beside the Stats tab and `space commands  ? help` on the
   right) · a rule (dropped when short) · context row (`VIEW s [Leads 4] Dismissed 2 │ TRACK t
   [All 4] SWE 3  Platform 1`, left-anchored, the same grammar on Stats: `STATS │ TRACK t …`; on
   the right the search chip and scope) · top rule · body (with a preview pane when wide) ·
@@ -558,7 +557,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   one under another only on the narrowest; full-screen, where that saves a page, they run on
   down three columns like a newspaper's. Too narrow for three glyph cells a line, each legend
   row packs its items. A page under 10 lines drops its blank spacers and padding rows, and a
-  spacer goes rather than a section moving to the next page. The `space` menu is centred like every pop-up, key first. The Move
+  spacer goes rather than a section moving to the next page. The command finder is centred like every pop-up, key first. The Move
   pop-up always moves the Application it shows, even if a live refresh moved the cursor.
 - **Overflow:** one cue everywhere — `↓ 3 more` / `↑ 3 more` at the text column — on lists,
   Stats, Profile, Settings, readers and pop-ups. Stats taller than the body scrolls with

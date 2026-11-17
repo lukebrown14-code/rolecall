@@ -48,20 +48,21 @@ func TestDetailHelpNamesPaging(t *testing.T) {
 	}
 }
 
-// The menu's shown keys fire from inside it, and space closes it.
-func TestMenuAcceleratorsFire(t *testing.T) {
-	if v := view(t, " ", "3"); !strings.Contains(v, "[3 Applied") || strings.Contains(v, "Menu") {
-		t.Fatalf("3 in the menu did not go to Applied:\n%s", v)
+// space opens the command finder, esc closes it, and typing filters it (a digit is text there,
+// not a screen key); the old Menu is gone.
+func TestSpaceFinderFiltersAndCloses(t *testing.T) {
+	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ : ") {
+		t.Fatalf("esc did not close the finder:\n%s", v)
 	}
-	if v := view(t, " ", " "); strings.Contains(v, "Menu") {
-		t.Fatalf("space did not close the menu:\n%s", v)
+	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ : 3") || strings.Contains(v, "[3 Applied") {
+		t.Fatalf("a digit in the finder should filter, not switch screens:\n%s", v)
 	}
-	if v := view(t, " "); !strings.Contains(v, "Rescan") || !strings.Contains(v, "Change view") || strings.Contains(v, "status filter") {
-		t.Fatalf("menu wording:\n%s", v)
+	if v := view(t, " "); !strings.Contains(v, "rescan") || !strings.Contains(v, "change view") || strings.Contains(v, "Rescan") || strings.Contains(v, "Menu") {
+		t.Fatalf("finder wording:\n%s", v)
 	}
 }
 
-// The palette reaches every screen, as the menu does.
+// The palette reaches every screen, as the old Menu did.
 func TestPaletteSwitchesScreens(t *testing.T) {
 	v := view(t, ":", "drafts")
 	if !strings.Contains(v, "Drafts screen") {

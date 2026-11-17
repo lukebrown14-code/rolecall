@@ -13,10 +13,10 @@ import (
 
 // Fixes from the visual review of the design overhaul (#166).
 
-// The key line ends with "? help" and "space menu" on every screen where space opens the
-// Workspace menu, and keeps both at every size, dropping lower-priority keys first. Wide,
-// the tab bar carries "space menu  ? help" and the key line ends at help.
-func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
+// The key line ends with "? help" and "space commands" on every screen where space opens the
+// Workspace commands, and keeps both at every size, dropping lower-priority keys first. Wide,
+// the tab bar carries "space commands  ? help" and the key line ends at help.
+func TestKeyLineEndsWithHelpAndSpaceCommands(t *testing.T) {
 	screens := map[string][]string{
 		"leads":    {"1"},
 		"applied":  {"3"},
@@ -31,11 +31,11 @@ func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
 				view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], keys...))
 				line := keyLineOf(view)
 				// Wide, space and ? sit on the tab bar too, so the key line ends at help.
-				want := "? help  space menu"
+				want := "? help  space commands"
 				if sz[0] >= 100 {
 					want = "? help"
-					if bar := strings.SplitN(view, "\n", 2)[0]; !strings.HasSuffix(strings.TrimRight(bar, " "), "space menu  ? help") {
-						t.Errorf("tab bar does not end with space menu  ? help: %q", bar)
+					if bar := strings.SplitN(view, "\n", 2)[0]; !strings.HasSuffix(strings.TrimRight(bar, " "), "space commands  ? help") {
+						t.Errorf("tab bar does not end with space commands  ? help: %q", bar)
 					}
 				}
 				if !strings.HasSuffix(strings.TrimRight(line, " "), want) {
@@ -49,39 +49,19 @@ func TestKeyLineEndsWithHelpAndSpaceMenu(t *testing.T) {
 	}
 }
 
-// Help lists every key: space opens the menu, u undoes the last move even before there is
-// one, and the two keys of the command palette share one row.
-func TestHelpListsMenuUndoAndOneCommandsRow(t *testing.T) {
+// Help lists every key: u undoes the last move even before there is one, and the keys
+// of the command finder share one row.
+func TestHelpListsUndoAndOneCommandsRow(t *testing.T) {
 	for _, sz := range keyLineSizes[:2] {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "1", "?"))
-		for _, want := range []string{"space menu", "u undo", ": ctrl+k commands", "/ search"} {
+		for _, want := range []string{"u undo", ": commands", "/ search"} {
 			if !helpLists(view, want) {
 				t.Errorf("%dx%d help lacks %q:\n%s", sz[0], sz[1], want, view)
 			}
 		}
-		if n := strings.Count(view, "commands"); n != 1 {
+		// The tab bar (wide) also names the key, so count below it.
+		if n := strings.Count(strings.SplitN(view, "\n", 2)[1], "commands"); n != 1 {
 			t.Errorf("%dx%d help lists commands %d times:\n%s", sz[0], sz[1], n, view)
-		}
-	}
-}
-
-// The Workspace menu's cursor is the one selection gutter, "▌ 1  Leads": key first, as the
-// help and the palette put it, and every row's key and label start in the same columns.
-func TestWorkspaceMenuCursorIsSpacedAndLabelsAlign(t *testing.T) {
-	for _, sz := range keyLineSizes {
-		view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], "3", " "))
-		sel := lineWith(view, "▌ 1 ")
-		if sel == "" || !strings.Contains(sel, "Leads") {
-			t.Fatalf("%dx%d: no \"▌ 1  Leads\" row:\n%s", sz[0], sz[1], view)
-		}
-		left, right := menuBox(strings.Split(view, "\n"))
-		inner := func(l string) string { return ansi.Cut(l, left, right+1) }
-		key, want := colOf(inner(sel), "1 "), colOf(inner(sel), "Leads")
-		for _, row := range [][2]string{{"2", "Drafts"}, {"3", "Applied"}, {"6", "Settings"}} {
-			line := inner(lineWith(view, row[0]+"      "+row[1]))
-			if colOf(line, row[0]+" ") != key || colOf(line, row[1]) != want {
-				t.Errorf("%dx%d: %s is not aligned with Leads:\n%s\n%s", sz[0], sz[1], row[1], sel, line)
-			}
 		}
 	}
 }

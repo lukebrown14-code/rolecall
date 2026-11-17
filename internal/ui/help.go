@@ -17,8 +17,8 @@ import (
 // narrow key line). The key line, the `?` pop-up and the `:` command palette all read
 // the same list from helpKeys, so a key is declared once and shows up everywhere.
 //
-// r is always rescan; F drafts a Follow-up on a Follow-up due row. space opens the
-// Workspace menu. g and G are go-to-top and bottom; M is not bound. The Leads sort is o
+// r is always rescan; F drafts a Follow-up on a Follow-up due row. space, : and ctrl+k open
+// the one command finder. g and G are go-to-top and bottom; M is not bound. The Leads sort is o
 // and s cycles the view.
 //
 // To add an action: append help(group, key, description) to the list for its context —
@@ -184,7 +184,10 @@ func (m model) contextKeys() []helpKey {
 	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"))
 }
 
-// descTrackFilter is t's one name, in the help, the palette and the space menu.
+// descCommands is the command finder's one name: space, : and ctrl+k all open it.
+const descCommands = "commands"
+
+// descTrackFilter is t's one name, in the help and the palette.
 const descTrackFilter = "track filter"
 
 // trackFilterApplies reports whether t and T cycle the track filter here: the tables
@@ -217,14 +220,14 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		// the welcome has gone.
 		keys = append(keys, help(groupAction, "h", descConnectHarness).at(prioHelpOnly))
 	}
-	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupFilter, ":", "commands").at(prioMinor), help(groupFilter, "ctrl+k", "commands"),
-		help(groupGlobal, "?", "help").at(prioPinned))
-	// The tab bar shows the menu key where it has room, so the key line leaves it to the help.
-	menu := help(groupGlobal, "space", "menu").at(prioPinned)
+	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, "?", "help").at(prioPinned))
+	// One command finder: space and : (ctrl+k is an unlisted alias). The tab bar shows space where it has room, so the key
+	// line leaves it to the help.
+	finder := help(groupGlobal, "space", descCommands).at(prioPinned)
 	if m.barKeys(m.pal()) != "" {
-		menu = menu.at(prioHelpOnly)
+		finder = finder.at(prioHelpOnly)
 	}
-	keys = append(keys, menu)
+	keys = append(keys, finder, help(groupGlobal, ":", descCommands).at(prioHelpOnly))
 	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {
@@ -634,12 +637,18 @@ func (m model) skillsBlock(p pal, inner int) helpBlock {
 	default:
 		note = dim.Render("f p F hand the Application to your Harness; run the others in it")
 	}
-	rows := make([][2]string, len(aiSkills))
-	for i, s := range aiSkills {
-		rows[i] = [2]string{ks.Render(padRight(s.key, skillKeyWidth)) + p.Text(p.Fg).Render(s.name), s.does}
+	var rows [][2]string
+	var others []string
+	for _, s := range aiSkills {
+		if s.key == "" {
+			others = append(others, s.name) // run in the Harness: one line, not a row each
+			continue
+		}
+		rows = append(rows, [2]string{ks.Render(padRight(s.key, skillKeyWidth)) + p.Text(p.Fg).Render(s.name), s.does})
 	}
 	out := helpBlock{heading(p, "AI skills"), {text: note}}
-	return append(out, labelled(p, rows, inner, inner)...)
+	out = append(out, labelled(p, rows, inner, inner)...)
+	return append(out, helpLine{text: dim.Render("in the Harness: ") + p.Text(p.Fg).Render(strings.Join(others, " · "))})
 }
 
 // rowWordCap is the widest row word that sets the label column: the Fit values,
@@ -997,16 +1006,15 @@ type helpRow struct {
 }
 
 // mergeAliases is the pop-up's rows: keys that do the same thing (: and ctrl+k open the
-// command palette) share one row, ": ctrl+k  commands", at the first one's place.
+// command finder) share one row, "space : ctrl+k  commands", at the first one's place.
 func mergeAliases(keys []helpKey) []helpRow {
 	var rows []helpRow
 	at := map[string]int{}
 	for _, k := range keys {
 		h := k.Help()
 		if i, ok := at[h.Desc]; ok {
-			// The shorter key leads, ": ctrl+k", whichever the section ranked first.
-			if len(h.Key) < len(rows[i].key) {
-				rows[i].key = h.Key + " " + rows[i].key
+			if h.Key == spaceKey {
+				rows[i].key = h.Key + " " + rows[i].key // the Owner's first key leads
 			} else {
 				rows[i].key += " " + h.Key
 			}

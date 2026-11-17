@@ -421,12 +421,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = nil
 			return m, m.editAt(pe)
 		}
-		if k.String() == " " || k.String() == spaceKey {
-			m.overlay = m.openMenu()
-			return m, nil
-		}
-		if k.String() == ":" || k.String() == "ctrl+k" {
-			// The command palette lists what the keys underneath it would do.
+		if k.String() == " " || k.String() == spaceKey || k.String() == ":" || k.String() == "ctrl+k" {
+			// One command finder: space, : and ctrl+k all open the palette, which lists
+			// what the keys underneath it would do.
 			m.overlay = m.openPalette()
 			return m, nil
 		}

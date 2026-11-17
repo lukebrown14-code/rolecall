@@ -406,13 +406,13 @@ func (m model) topBar(p pal) string {
 	return xansi.Truncate(out, w-rightMargin, "")
 }
 
-// barKeys is the tab bar's right end, "space menu  ? help", at wide sizes: the two keys
+// barKeys is the tab bar's right end, "space commands  ? help", at wide sizes: the two keys
 // that work everywhere. An open Settings field takes space as text, so then it is empty.
 func (m model) barKeys(p pal) string {
 	if !m.layout().wide() || m.fieldOpen() {
 		return ""
 	}
-	return p.KeyRow([][2]string{{spaceKey, "menu"}, {"?", "help"}})
+	return p.KeyRow([][2]string{{spaceKey, descCommands}, {"?", "help"}})
 }
 
 // trackApplies reports whether the track filter changes the current screen: the
