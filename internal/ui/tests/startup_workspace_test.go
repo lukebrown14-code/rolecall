@@ -14,7 +14,7 @@ func TestInvalidWorkspaceFileStillStarts(t *testing.T) {
 			h := newSettingsHarness(t, 120, bad, func(string) {})
 			requireAll(t, squash(h.tm.plain()), "invalid Workspace settings", "6 then e to fix it")
 			h.tm.Type("6")
-			requireAll(t, h.tm.plain(), filepath.Join(h.root, "workspace.json"), "Press e to fix it")
+			requireUnwrapped(t, h.tm.plain(), filepath.Join(h.root, "workspace.json"), "Press e to fix it")
 		})
 	}
 }
@@ -45,9 +45,7 @@ func TestInvalidWorkspaceFilePathWraps(t *testing.T) {
 	h := newSettingsHarness(t, 60, `{"tracks": [`, func(string) {})
 	h.tm.Type("6")
 	path := filepath.Join(h.root, "workspace.json")
-	if got := strings.ReplaceAll(strings.ReplaceAll(h.tm.plain(), "\n", ""), " ", ""); !strings.Contains(got, strings.ReplaceAll(path, " ", "")) {
-		t.Fatalf("full path %s not on screen:\n%s", path, h.tm.plain())
-	}
+	requireUnwrapped(t, h.tm.plain(), path)
 }
 
 func firstLine(s string) string { l, _, _ := strings.Cut(s, "\n"); return l }
