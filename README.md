@@ -6,12 +6,6 @@ assess fit, and prepare documents through the rolecall Plugin.
 
 ## Install
 
-### Homebrew (macOS and Linux)
-
-```sh
-brew install lukebrown14-code/homebrew-tap/rolecall
-```
-
 ### Install script (macOS and Linux, no Go needed)
 
 ```sh
@@ -42,8 +36,7 @@ Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 
 This installs only the executable. To use the Harness Plugin, clone the repository and set
 `plugin` in `config.toml` (see [Get started](#get-started) for where it lives) to the clone's
-`plugin` folder. The Homebrew package
-and the install script include the Plugin automatically.
+`plugin` folder. The install script includes the Plugin automatically.
 
 ## Get started
 

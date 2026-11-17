@@ -39,28 +39,3 @@ release:
   github:
     owner: lukebrown14-code
     name: rolecall
-
-# Formula generation (`brews:`) was removed from GoReleaser in v2.16, so release.yml
-# pins GoReleaser v2.9.0. Moving to `homebrew_casks` or a hand-written formula in the
-# tap would lift the pin; until then keep this block and the pin together.
-brews:
-  - name: rolecall
-    repository:
-      owner: lukebrown14-code
-      name: homebrew-tap
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    directory: Formula
-    homepage: "https://github.com/lukebrown14-code/rolecall"
-    description: "A terminal job tracker with a bundled AI harness Plugin"
-    license: MIT
-    ids:
-      - rolecall
-    # build.py shells out to pandoc, typst and pdffonts (poppler); python3 runs the scripts.
-    dependencies:
-      - name: python3
-      - name: pandoc
-      - name: typst
-      - name: poppler
-    install: |
-      bin.install "rolecall"
-      libexec.install "plugin"

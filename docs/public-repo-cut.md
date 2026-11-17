@@ -63,8 +63,7 @@ do not add those terms to repository files.
 - [ ] Verify its visibility is **Private** after the rename. Do not change its visibility or
   delete its history.
 - [ ] Confirm the `rolecall` repository name is now available under `lukebrown14-code`. v1 stays
-  under personal ownership: no organization transfer, and the Go module path and Homebrew tap
-  (`lukebrown14-code/homebrew-tap`) are unchanged.
+  under personal ownership: no organization transfer, and the Go module path is unchanged.
 
 ## 6. Create a fresh public repository with one squashed commit
 
