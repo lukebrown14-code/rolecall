@@ -82,7 +82,7 @@ func (m model) confirmBox(p pal, cm *confirmMode) string {
 func (m model) overwriteBox(p pal, dm *downloadMode) string {
 	d := dm.state
 	body := p.Text(p.Fg).Bold(true).Render(d.clash()) + p.Text(p.Sub).Render(" is already in "+displayPath(m.downloads)+".") + "\n" +
-		p.Text(p.Dim).Render(fmt.Sprintf("File %d of %d", d.next+1, len(d.app.PDFs)))
+		p.Text(p.Dim).Render(fmt.Sprintf("File %d of %d", d.next+1, len(d.pdfs)))
 	return popup(p, "File exists", true, popSmall, m.viewWidth(), body,
 		p.Keys(dm.Keys()))
 }

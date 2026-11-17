@@ -110,8 +110,8 @@ in rolecall for the complete help for the current screen.
 | `n` | Open the Application's notes |
 | `f` / `p` | Ask the Harness to assess fit or prepare documents |
 | `F` | Ask the Harness to draft a follow-up for a Follow-up due Application |
-| `b` | Build PDFs for the selected Application |
-| `d` | Copy the Application's PDFs to your Downloads folder |
+| `b` | Build PDFs for the selected Application, or the selected CV on the Profile screen |
+| `d` | Copy the Application's or CV's PDFs to your Downloads folder |
 | `w` / `c` | Open the job ad's link in your browser / copy it to the clipboard |
 | `/` | Filter the current view by title or company |
 | `t` | Change the Track filter |
@@ -130,6 +130,14 @@ Plugin's skills and set the `harness` command in your local `config.toml` to ena
 
 - [Set up Claude Code](docs/harnesses/claude-code.md)
 - [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
+
+## Your CV
+
+A CV is a resume for no particular job, kept in your Workspace as `cv/general.md` (add others,
+such as `cv/master.md`, beside it). Ask your Harness to write one from your Profile, then open
+the Profile screen (`5`): each CV is listed under **CVs**, where `b` builds it and `d` copies the
+PDF to your Downloads folder. Its headline is the `General` row of your Profile's Headlines
+table. From a shell: `python3 <plugin>/scripts/build.py --cv general`.
 
 ## Make your documents yours
 

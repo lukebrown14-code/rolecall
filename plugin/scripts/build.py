@@ -2,6 +2,7 @@
 """Build an Application's resume and cover letter to PDF.
 
     python3 plugin/scripts/build.py <job_dir> --data <workspace>
+    python3 plugin/scripts/build.py --cv general --data <workspace> [--headline TEXT]
 
 Pipeline per document: Markdown --pandoc--> Typst markup --> injected into the
 template --typst--> PDF. Output names carry the Owner's name from the Profile,
@@ -13,6 +14,12 @@ from ``jd.md`` and the document sources from ``resume.md`` and
 ``cover-letter.md``. This script writes ``out/`` and, only when the current
 Status is Lead and PDFs were produced, appends ``Draft``. It never writes
 ``TRACKER.md``, ``sent/`` or legacy meta keys.
+
+``--cv NAME`` builds a CV instead: a general resume with no Application,
+written at ``cv/<NAME>.md`` and built to ``cv/out/<NAME>/``. Its headline is
+the Profile's ``General`` headline unless ``--headline`` names one. It runs
+every gate that needs no JD (Contact, facts, Key Skills, the PDF text check)
+and writes no ``meta.yml`` or Status.
 """
 
 import argparse
@@ -218,7 +225,7 @@ def key_skills(md_text):
     return [k.strip() for k in m.group(1).replace("\n", " ").split(",") if k.strip()], m.end()
 
 
-def check_key_skills(text, profile):
+def check_key_skills(text, profile, name="resume.md"):
     """The Key Skills block is 8-12 keywords and every one must be evidenced.
 
     It is the most ATS-visible part of the resume and so the easiest place to
@@ -228,7 +235,7 @@ def check_key_skills(text, profile):
     found = key_skills(text)
     if found is None:
         sys.exit(
-            "\n  resume.md has no '## Key Skills' block. AU resumes need one under the"
+            f"\n  {name} has no '## Key Skills' block. AU resumes need one under the"
             " summary (8-12 keywords in the ad's wording)."
         )
     kws, end = found
@@ -650,6 +657,110 @@ def ats_check(pdf, md_name, contact):
     return f"ok, {len(text.split()):,} words, {pages} page(s)", pages
 
 
+def report_pdf(pdf, md_name, contact, letter=False):
+    """Run the PDF text check and print it with the page-count notes."""
+    result = ats_check(pdf, md_name, contact)
+    if not result:
+        return
+    message, pages = result
+    print(f"        ATS: {message}")
+    # AU convention: the resume runs to two pages, three only for
+    # senior/technical roles. The cover letter is always one page.
+    if letter:
+        if pages > 1:
+            print(f"        OVERFLOW: {pages} pages, the cover letter must be one.")
+        return
+    limit = 3
+    if pages > limit:
+        print(f"        OVERFLOW: {pages} pages, limit is {limit}.")
+    elif pages < 2:
+        print(
+            f"        UNDERFULL: {pages} page. The AU norm is two —"
+            " a one-page CV reads as junior."
+        )
+
+
+# --- CVs -------------------------------------------------------------------------
+
+# The headline row a CV uses in the Profile's Headlines table.
+CV_HEADLINE_ROW = "General"
+CV_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def cv_source(name):
+    """The CV Markdown for ``--cv NAME``: ``cv/NAME.md``. ``cv/NAME.md`` and
+    ``NAME.md`` are accepted too. Exits naming the problem."""
+    stem = re.sub(r"\.md$", "", re.sub(r"^cv/", "", name.strip()))
+    if not CV_NAME.fullmatch(stem):
+        sys.exit(f"rolecall: --cv {name!r} -- name a CV in cv/, such as --cv general")
+    path = Path(DATA) / "cv" / f"{stem}.md"
+    if not path.is_file():
+        sys.exit(f"rolecall: no CV at {path}. Write cv/{stem}.md first.")
+    return path
+
+
+def cv_headline(profile, headline):
+    """The headline a CV is built with: ``headline`` when given, else the
+    Profile's General headline. Exits when there is neither."""
+    if headline is not None:
+        if not headline.strip():
+            sys.exit("rolecall: --headline is empty")
+        return headline.strip()
+    for track, approved in _headline_rows(profile):
+        if track == CV_HEADLINE_ROW:
+            return approved
+    sys.exit(
+        f"\n  headline: profile/master-profile.md has no {CV_HEADLINE_ROW} row in its"
+        f" ## Headlines table.\n  Add `| {CV_HEADLINE_ROW} | <headline> |` or pass --headline."
+    )
+
+
+def cv_pdf_name(owner, stem):
+    """``<Owner> Resume.pdf`` for cv/general.md, else ``<Owner> Resume <Name>.pdf``."""
+    if stem.lower() == "general":
+        return f"{owner} Resume.pdf"
+    return f"{owner} Resume {titlecase(stem)}.pdf"
+
+
+def build_cv(name, headline, profile, contact):
+    """Build one CV to cv/out/<name>/, replacing what that folder held.
+
+    Gates first, as for an Application: a failure leaves the folder untouched.
+    """
+    source = cv_source(name)
+    md_name = f"cv/{source.name}"
+    text = source.read_text()
+    if not text.strip():
+        sys.exit(f"\nNothing built. {md_name} is empty.")
+    subs = {
+        "NAME": contact.name,
+        "CONTACT": contact.contact_line(),
+        "CONTACT2": contact.work_rights,
+        "DATELINE": date.today().strftime("%d %B %Y"),
+        "HEADLINE": cv_headline(profile.master, headline),
+    }
+    print(f"  {md_name}")
+    check_key_skills(text, profile.master, md_name)
+    check_facts(md_name, text, "resume", profile.master, profile.projects)
+
+    out = source.parent / "out" / source.stem
+    out.parent.mkdir(exist_ok=True)
+    staging = Path(tempfile.mkdtemp(dir=out.parent, prefix=".build-"))
+    try:
+        pdf = build(text, md_name, "resume.typ", staging / cv_pdf_name(contact.name, source.stem), subs)
+        print(f"  built {pdf.name}")
+        report_pdf(pdf, md_name, contact)
+        # One PDF per CV: an older one (a renamed Owner) is replaced, not kept.
+        out.mkdir(exist_ok=True)
+        for old in out.glob("*.pdf"):
+            if old.name != pdf.name:
+                old.unlink()
+        pdf.replace(out / pdf.name)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    print(f"\nDone. {out / pdf.name}")
+
+
 def fit_verdict(job_dir):
     """The verdict line out of fit.md, for callers that summarise an Application."""
     f = Path(job_dir) / "fit.md"
@@ -711,9 +822,19 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("job_dir")
+    parser.add_argument("job_dir", nargs="?", help="the Application folder to build")
+    parser.add_argument(
+        "--cv", metavar="NAME", help="build the CV cv/NAME.md instead of an Application"
+    )
+    parser.add_argument(
+        "--headline", help="with --cv: the headline (default: the Profile's General headline)"
+    )
     add_data_argument(parser)
     args = parser.parse_args(argv)
+    if bool(args.cv) == bool(args.job_dir):
+        parser.error("give an Application folder or --cv NAME, not both")
+    if args.headline is not None and not args.cv:
+        parser.error("--headline applies only with --cv")
 
     need("pandoc")
     need("typst")
@@ -733,6 +854,10 @@ def main(argv=None):
             + ", ".join(missing)
             + " in its ## Contact table.\n  Add the field(s) and build again."
         )
+
+    if args.cv:
+        build_cv(args.cv, args.headline, profile, contact)
+        return
 
     try:
         d = meta_module.resolve_folder(DATA, args.job_dir)
@@ -795,23 +920,7 @@ def main(argv=None):
         for md_name, template, pdf_name in jobs:
             pdf = build(documents[md_name], md_name, template, staging / pdf_name, dict(subs))
             print(f"  built {pdf.name}")
-            result = ats_check(pdf, md_name, contact)
-            if result:
-                message, pages = result
-                print(f"        ATS: {message}")
-                # AU convention: the resume runs to two pages, three only for
-                # senior/technical roles. The cover letter is always one page.
-                if md_name == "resume.md":
-                    limit = 3
-                    if pages > limit:
-                        print(f"        OVERFLOW: {pages} pages, limit is {limit}.")
-                    elif pages < 2:
-                        print(
-                            f"        UNDERFULL: {pages} page. The AU norm is two —"
-                            " a one-page CV reads as junior."
-                        )
-                elif pages > 1:
-                    print(f"        OVERFLOW: {pages} pages, the cover letter must be one.")
+            report_pdf(pdf, md_name, contact, letter=md_name == "cover-letter.md")
             built.append(pdf)
 
         out = d / "out"

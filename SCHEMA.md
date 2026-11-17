@@ -26,7 +26,9 @@ defined in `GLOSSARY.md`.
 │  ├─ phrasing-bank.md
 │  ├─ projects.md
 │  └─ writing-preferences.md
-├─ cv/                         # the Owner's general CV (optional)
+├─ cv/                         # CVs: general resumes for no Application (see below)
+│  ├─ general.md
+│  └─ out/<name>/              # built CV PDFs
 └─ jobs/
    ├─ roles.json               # optional role catalogue (see below)
    ├─ sweep-candidates.md      # raw Sweep output; not an Application (see below)
@@ -410,6 +412,22 @@ its access problem: `403`, `login wall` or `cloudflare`), what each Search rule 
 role coverage, a `## To assess` list (one
 `### <title> — <company>` block per candidate), a `## Blocked` list, and a
 `## Not reachable by this script` note.
+
+## `cv/` (CVs)
+
+A CV is a resume written from the Profile for no Application: the Owner's everyday,
+untailored resume, or a long master version. Each `cv/<name>.md` is one, in the same
+Markdown as an Application's `resume.md`. Nothing else in `cv/` is a CV, so the resume or
+export `create-profile` imported stays there untouched.
+
+- `build.py --cv <name>` builds `cv/<name>.md` into `cv/out/<name>/`, replacing the PDF that
+  folder held: `<Owner> Resume.pdf` for `general`, `<Owner> Resume <Name>.pdf` for any other.
+  It runs every gate that needs no JD (Contact, Key Skills, facts, the PDF text check) and
+  writes no `meta.yml` and no Status.
+- The headline is the Profile's `General` row in its `## Headlines` table, unless
+  `--headline` names one. With neither, the build fails and says which to add.
+- The Profile screen lists each CV, `general` first: `b` builds it, `d` copies its PDF to the
+  downloads folder, `e` opens the Markdown. A CV edited after its last build is marked ⚠.
 
 ## `templates/` (optional document Template overrides)
 

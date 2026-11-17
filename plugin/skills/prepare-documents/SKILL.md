@@ -67,7 +67,7 @@ The templates depend on this structure; deviate and the layout breaks silently.
 ## Professional Summary                       <- level 2 = ruled section heading
 ## Key Skills                                 <- 8–12 keywords, in the ad's own wording
 ## Professional Experience
-### Job Title — Employer | Dates              <- level 3; the ` | ` puts the dates flush right
+### Job Title — Employer | Dates              <- level 3; the dates print after the title, same line
 #### Optional context sub-line                <- level 4 = italic grey
 - Bullet
 ## Skills
@@ -139,6 +139,21 @@ Fix the document and build again until it prints `built …`. The hard gates are
 
 Page count is a **warning**, not a failure: the AU norm is two pages (three for senior roles), and
 a one-page resume reads as junior. Fix it with content, not by shrinking the template.
+
+### A CV (no Application)
+
+When the Owner asks for a general or master resume rather than one for an Application, write
+`cv/<name>.md` (`cv/general.md` for the everyday one) in the same Markdown as `resume.md`,
+from the Profile alone, then build it:
+
+```sh
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/build.py" --cv general --data <workspace>
+```
+
+The headline comes from the Profile's `General` row in `## Headlines`; if there is none, ask
+the Owner for one and pass `--headline "<headline>"`, or add the row once they approve it.
+The same gates apply, minus the ad's: there is no JD, letter or Status. The PDF lands in
+`cv/out/<name>/`, and the Owner downloads it from the app's Profile screen with `d`.
 
 ## 9. Writer rules
 

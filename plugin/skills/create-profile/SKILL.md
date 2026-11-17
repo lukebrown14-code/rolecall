@@ -11,8 +11,9 @@ drafting and questions happen in the Owner's Harness; rolecall does not send Pro
 service.
 
 The file contract is [`SCHEMA.md`](../../../SCHEMA.md). Profile files live in the Workspace's
-`profile/` directory, not in the rolecall repository. Keep source documents there too; never
-copy the Owner's personal data into this repository.
+`profile/` directory, not in the rolecall repository. Source documents (an imported resume or
+export) go in the Workspace's `cv/` folder; never copy the Owner's personal data into this
+repository.
 
 ## 1. Choose how to start
 
