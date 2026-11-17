@@ -28,15 +28,14 @@ type Setup struct {
 // Where the documentation lives on the public repository, for hints a person may read
 // from a terminal where the README is not at hand.
 const (
-	docsBase            = "https://github.com/lukebrown14-code/rolecall"
-	HarnessDocsURL      = docsBase + "/blob/main/docs/harnesses/claude-code.md"
-	OtherHarnessDocsURL = docsBase + "/blob/main/docs/harnesses/other-harnesses.md"
-	TemplateDocsURL     = docsBase + "#make-your-documents-yours"
-	WithoutHarnessURL   = docsBase + "#use-rolecall-without-a-harness"
+	docsBase          = "https://github.com/lukebrown14-code/rolecall"
+	HarnessDocsURL    = docsBase + "/blob/main/docs/harnesses.md"
+	TemplateDocsURL   = docsBase + "#make-your-documents-yours"
+	WithoutHarnessURL = docsBase + "#use-rolecall-without-a-harness"
 )
 
-// harnessDocs names the Harness setup guides, for the hints that follow a missing Harness.
-const harnessDocs = HarnessDocsURL + " (Claude Code) or " + OtherHarnessDocsURL
+// harnessDocs names the Harness setup guide, for the hints that follow a missing Harness.
+const harnessDocs = HarnessDocsURL
 
 // harnessExample is a working harness value the hint can show.
 const harnessExample = `harness = "claude \"/{skill} {dir}\""`

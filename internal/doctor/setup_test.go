@@ -59,7 +59,7 @@ func TestCheckSetupWithoutPluginWarnsOnceAndNamesConfigPath(t *testing.T) {
 	if len(report.Warnings) != 2 {
 		t.Errorf("want the Plugin and Harness warnings only, got:\n%s", joined)
 	}
-	for _, want := range []string{"Set plugin in " + cfg, "set it in " + cfg, harnessExample, "docs/harnesses/claude-code.md"} {
+	for _, want := range []string{"Set plugin in " + cfg, "set it in " + cfg, harnessExample, "docs/harnesses.md"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("warnings missing %q:\n%s", want, joined)
 		}

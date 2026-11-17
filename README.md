@@ -128,8 +128,9 @@ return.
 ## Screens and keys
 
 The number keys switch screens. `←` and `→` (or `s`) move between a screen's views, such as Leads
-and Dismissed; `j`/`k` move through rows. Press `space` for a menu of screens and commands, or `?`
-in rolecall for the complete help for the current screen.
+and Dismissed; `j`/`k` move through rows. Press `space` for the command palette, a filterable list of
+this screen's actions and every other screen (`:` and `Ctrl-K` open the same one), or `?` in
+rolecall for the complete help for the current screen.
 
 | Key | Action |
 | --- | --- |
@@ -142,8 +143,10 @@ in rolecall for the complete help for the current screen.
 | `a` | Add an Application |
 | `v` / `Enter` | Open the selected Application's details |
 | `m` | Move the selected Application to another Status |
-| `u` | Undo the last move |
+| `u` | Undo the last move or recorded follow-up |
 | `x` | Dismiss a Lead or Draft |
+| `*` | Mark or unmark the row, so `x` and `m` act on every marked row (`Esc` clears the marks) |
+| `l` | Record that you followed up today, on an Applied or Interviewing Application |
 | `e` | Edit a row, or open the current document in your editor |
 | `n` | Open the Application's notes |
 | `f` / `p` | Ask the Harness to assess fit or prepare documents |
@@ -152,10 +155,13 @@ in rolecall for the complete help for the current screen.
 | `d` | Copy the Application's or CV's PDFs to your Downloads folder |
 | `w` / `c` | Open the job ad's link in your browser / copy it to the clipboard |
 | `/` | Filter the current view by title or company |
-| `t` | Change the Track filter |
+| `t` / `T` | Next / previous Track filter |
 | `o` | Sort Leads by close date or newest first |
+| `z` | Compact rows: one line per row at wide sizes (saved as `compact_rows`) |
 | `r` | Rescan the Workspace |
-| `:` | Command palette |
+| `h` | Connect a Harness, while none is set |
+| `J` / `K` | In the detail view, the next / previous Application on the same tab |
+| `space` / `:` | Command palette |
 | `?` | Show screen and key help |
 | `q` | Quit |
 
@@ -166,8 +172,7 @@ opencode). rolecall installs the Plugin with the command; configure your Harness
 Plugin's skills and set the `harness` command in your local `config.toml` to enable the `f`,
 `p` and `F` handoffs.
 
-- [Set up Claude Code](docs/harnesses/claude-code.md)
-- [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
+See [Connect a Harness](docs/harnesses.md) for Claude Code, Codex, Gemini CLI and opencode.
 
 ## Use rolecall without a Harness
 
