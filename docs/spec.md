@@ -11,7 +11,8 @@ each other directly: files are the only link.
 - **Status of this doc:** v0.1 and v0.2 were agreed in grilling sessions on 2026-11-11 and v1.0 on
   2026-11-12. Written as the current behaviour of the app: v0.1 to v0.6 are built (0.6.0 is the latest
   release), the v1.0 readiness work of 2026-11-17 is merged but not yet released, and what v1.0 still
-  needs is tracked under the `v1` label on GitHub.
+  needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
+  the per-version acceptance lists are in [`history.md`](history.md).
 
 ## Roadmap
 
@@ -26,14 +27,6 @@ each other directly: files are the only link.
 | **v0.6** | documents and checks | Template overrides and ATS-safe templates, the ATS check (dates, headings, Key Skills order, characters, hyphens, fonts), CVs built from the Profile screen, drift and URL checks on unsent drafts, `rolecall move`, capture that follows aggregators to the employer's ad |
 | **v1.0 readiness** (merged after 0.6.0) | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
-
-## Non-goals for v0.1
-
-- Any AI action, harness detection or harness command in the TUI. It must feel fully usable with no harness installed.
-- Colour, theming or visual polish (v0.1.1).
-- Hosting, multiple users, email intake, phone access.
-- Fetching JDs from URLs, building PDFs, stats (all v0.2).
-- Being usable by anyone but the Owner (v1.0).
 
 ## Repositories
 
@@ -60,13 +53,13 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 - **Dev loop:** register `rolecall/plugin` as a local-path marketplace in Claude Code, so skill
   edits take effect without reinstalling. Other harnesses read `plugin/skills/` by path.
 
-## TUI (v0.1)
+## TUI
 
 ### Stack
 
 Go · Bubble Tea · Bubbles (viewport, help, key) · Lip Gloss (layout, colour and layered
-pop-ups from v0.1.1) · Glamour (Markdown in the detail view) · fsnotify · a TOML reader for
-config. v0.1 used Huh for the forms and move popup; v0.1.1 draws them itself (see below). Use the latest stable major versions at setup.
+pop-ups) · Glamour (Markdown in the detail view) · fsnotify · a TOML reader for
+config. The forms and the move popup are drawn by rolecall itself (see **v0.1.1 look**), and the stack uses the latest stable major versions (Bubble Tea v2).
 
 ### Config
 
@@ -79,8 +72,8 @@ workspace = "~/job-search"
 editor = ""            # empty = $VISUAL, then $EDITOR, then vi
 follow_up_days = 14
 downloads = "~/Downloads"
-harness = ""           # v0.2: Handoff command template, e.g. 'claude "/{skill} {dir}"'
-plugin = ""            # v0.2: path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
+harness = ""           # Handoff command template, e.g. 'claude "/rolecall:{skill} {dir}"'
+plugin = ""            # path to rolecall/plugin; falls back to $ROLECALL_PLUGIN
 inherit_terminal = false  # use the terminal's ANSI-16 colours, no painted background; NO_COLOR still wins
 ascii = false          # ASCII glyphs; ROLECALL_ASCII=1 forces them on, a non-UTF-8 locale or TERM=linux turns them on
 compact_rows = false   # one-line list rows at wide sizes; z toggles it and saves it here
@@ -103,9 +96,9 @@ dismissed too. Only a newer `schema` stops it.
 | `1` | Leads | **Leads** │ **Dismissed** | Lead │ Dismissed |
 | `2` | Drafts | — | Draft |
 | `3` | Applied | **All** │ **Applied** │ **Interviewing** │ **Offer** │ **Closed** | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
-| `4` | Stats (v0.2) | — | — |
-| `5` | Profile (v1.0) | — | — |
-| `6` | Settings (v1.0) | groups, `←` `→` | — |
+| `4` | Stats | — | — |
+| `5` | Profile | — | — |
+| `6` | Settings | groups, `←` `→` | — |
 
 Each view shows a count in its chip on the context row (`VIEW s [Leads 4] Dismissed 2`). The active screen and table stay put across
 refreshes, and the cursor stays on the same Application (matched by folder) when rows shift.
@@ -165,7 +158,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `space` / `:` / `Ctrl-K` | global | the one command finder (there is no separate menu): type to filter this context's actions, row actions included, and one `<Screen> screen` entry per other screen; `Enter` runs one. Descriptions are lower case as in `?` (`move`, `rescan`); a screen entry keeps its screen's capital (`Drafts screen`). `space` is the key shown on the tab bar and key line; `Ctrl-K` is an unlisted alias. While it is open every printable key, a digit or `space` too, types into the query; `Esc` closes it |
 | `q` / `Ctrl-C` | global | quit; but `q` in the detail view goes back to the list like `Esc` (a stray `q` while reading must not close the program), and a pop-up's `q` closes it. `Ctrl-C` quits from anywhere. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
 
-- **v0.2 adds** `4` (Stats), `f`, `p`, `F`, `b`: see [v0.2](#v02-harness-and-extras).
+- `4` (Stats), `f`, `p`, `F` and `b` are described under [Harness, Build, Fetch and Stats](#harness-build-fetch-and-stats).
 - The key line shows only the keys valid for the current row (e.g. `d` hidden when nothing is built), and
   is lean: the core keys (`enter`, `m`, `a`, `/`), `x dismiss` on a Lead or Draft, `u undo` while a move
   can be undone, then `esc` and `? help`; every other key is in `?` and the command finder. Key
@@ -314,7 +307,7 @@ either end.
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
 | Docs | list, under **Documents**: JD, Resume, Cover letter (`✓` ready or `○` missing) and Gaps (`ready · not counted`: the DOCS meter leaves it out); under **PDFs · out/** each PDF, or `○ PDF  not built yet` while `out/` is empty, so the tab lists every Document the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
 
-`Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
+`Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the Harness keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
 
 ### Next step, contacts and exports
@@ -345,12 +338,14 @@ file of the same name exists, a `⚠ File exists` pop-up asks: `y` overwrite, `a
 every later clash), `n` skip, `Esc` stop. Then the Downloads folder is revealed (`open -R` on
 macOS). Feedback line: `Saved 2 PDFs → ~/Downloads`.
 
-### `$EDITOR` and the v0.2 seam
+### External programs
 
-Every external program runs through one helper, `ui.runExternal(cmd)`: Bubble Tea
-`tea.ExecProcess` suspends the TUI, runs the command, resumes, then rescans the affected
-folder. v0.1 uses it for `$EDITOR` and the system viewer. v0.2 adds a second, captured mode
-on the same helper (see v0.2). Nothing else in the TUI should launch processes.
+Every external program is started through the `process` package (ADR-0003), the only place
+that launches processes. In the UI, `runExternal` runs a command in interactive mode
+(`process.Exec`, Bubble Tea's `tea.ExecProcess`: suspend the TUI, run, resume) and then rescans
+the affected folder; it serves `$EDITOR`, the system viewer and Handoffs. A second, captured mode
+(`process.RunCaptured`) runs in the background and reports a message when done; see
+[Harness, Build, Fetch and Stats](#harness-build-fetch-and-stats).
 
 ### Live refresh
 
@@ -363,13 +358,6 @@ on the same helper (see v0.2). Nothing else in the TUI should launch processes.
 
 The store package is the only code that writes. It follows SCHEMA → Format rules: re-read,
 patch, write atomically. It refuses to touch malformed files and shows the error.
-
-### Styling policy for v0.1
-
-Layout only. Use terminal default colours, plus bold for headers and reverse video for the
-selected row. Keep shared colour roles in `internal/ui/theme/` and UI-specific styles in
-`internal/ui/styles.go` as neutral
-styles, so v0.1.1 changes look by editing that file alone.
 
 ### v0.1.1 look (built)
 
@@ -624,49 +612,16 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   tab` and `↑↓` over its actions. Below 56×14 a centred notice — `⚠ rolecall
   needs 56×14`, then `now 48×12 · resize to continue · q quit` — replaces the layout.
 
-## Plugin (v0.1)
-
-### Port: sort while moving
-
-| Today | Goes to | Change |
-|---|---|---|
-| `src/templates/resume.typ`, `cover-letter.typ` | `plugin/templates/` | paths |
-| `src/templates/brand.typ` | `plugin/templates/` (default brand) | none. It becomes a workspace override at v1.0 |
-| `src/templates/fonts/` (OFL) | `plugin/templates/fonts/` | none |
-| `src/templates/style.md` | `plugin/styles/au.md` | remove the Owner's name and personal facts. Those move to `writing-preferences.md` |
-| `docs/writing-rules.md` | `plugin/writing-rules.md` | rewrite the pipeline, tracker and command sections for the schema |
-| `src/scripts/build.py`, `new-job.py`, `sweep.py`, `sync-github.py` | `plugin/scripts/` | see below |
-| `.agents/skills/{capture-job,find-jobs,assess-fit,prepare-documents}` | `plugin/skills/` | see below |
-| `docs/writing-preferences.md` | data repo `profile/writing-preferences.md` | none |
-| `profile/*`, `cv/` | stay in the data repo | none |
-
-Other skills in `.agents/skills/` are dev tooling. Each repo keeps what it needs.
-
-### Tone layering
-
-`prepare-documents` reads, in order, with later files winning:
-`plugin/writing-rules.md` → `plugin/styles/au.md` → `<workspace>/profile/writing-preferences.md`.
-Output must match today's documents. Check by rebuilding two existing Applications and diffing the Markdown.
-
-### Script changes
-
-| Script | Change |
-|---|---|
-| `build.py` | **Stop** writing `TRACKER.md` rows and adding empty legacy keys. **Add**: append `Draft` when the current Status is `Lead` and PDFs were built. Read `resume_only` as now. Keep the gates. Remove the `sent/` snapshot (the TUI owns it). Takes the workspace path from `--data` or `ROLECALL_WORKSPACE` |
-| `new-job.py` | Writes `meta.yml` (SCHEMA) + front-matter-free `jd.md` instead of jd front matter + tracker row |
-| `sweep.py` | Dedupe and skip by reading every `meta.yml` `url` (including Dismissed) instead of `SHORTLIST.md` / `DISMISSED.md` |
-| `migrate.py` | new, one-time. See Migration |
-
-### Skill changes
+## Plugin skills
 
 | Skill | Writes |
 |---|---|
 | `capture-job` | new folder: `meta.yml` (`title`, `company`, `track`, `url`, `closes` if stated, first `Lead` entry) + `jd.md` |
 | `create-profile` | creates or updates the Owner's Profile from a resume or guided questions, then gets Owner approval |
-| `find-jobs` | runs `sweep.py`, triages, creates a Lead folder per role worth a look (as capture-job, `jd.md` may be a stub with the URL) |
+| `find-jobs` | runs `sweep.py`, triages, creates a Lead folder per role worth a look (as capture-job; when the ad text cannot be read, `jd.md` is a short stub with the URL and the triage reason, never invented text) |
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
-| `draft-follow-up` | `follow-up.md` (a message for the Owner to send; the TUI never sends it) |
+| `draft-follow-up` | `follow-up.md` (a message for the Owner to send; the TUI never sends it). It says when the Owner last followed up and tells them to press `l` once sent; recording it is the Owner's action, so the skill never writes `followed_up` |
 | `import-applications` | new folders from a CSV export through `import_csv.py` (approximate `status_log`, `notes.md` from the notes column); dry run first, Owner confirms the column and status mapping |
 | `interview-prep` | `prep.md` (likely questions, a STAR story from the Profile per gap, questions to ask; nothing the Profile cannot evidence) |
 | `answer-questions` | `answers.md` (answers to pasted application-form questions from `jd.md` and the Profile) |
@@ -674,24 +629,7 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 All skills: never append to `status_log` unless the Owner explicitly asks. Never touch
 `notes.md`, `sent/`, or the profile fact table.
 
-## Migration (one-time, `migrate.py`)
-
-Runs against the dashboard-era workspace, with `--dry-run` printing every change first.
-
-| Source | Becomes |
-|---|---|
-| Each existing job folder + its `TRACKER.md` row | `meta.yml` gains `schema`, `title`, `company`, `track`, `url` (from jd front matter / tracker), `fit` (mapped below). The jd front matter is removed |
-| Tracker Status → `status_log` | `Draft` → `Draft`, `Screening`/`Interview` → `Interviewing`, others same. If the log only holds a single bulk-stamped entry, prepend `Applied` with `at` = the `applied` key, or else the tracker Date, plus `approx: true` |
-| `SHORTLIST.md` rows at `New` | new Lead folders: `meta.yml` + stub `jd.md` holding the URL and the triage reason |
-| `DISMISSED.md` rows | new folders, `status_log`: `Dismissed` (`approx: true`, the row date) |
-| Shortlist rows at `Passed` / other | dropped |
-| `TRACKER.md`, `SHORTLIST.md`, `DISMISSED.md`, `INBOX.md`, `sweep-candidates.md` | moved to `jobs/_archive/` (ignored by readers) |
-
-**Fit mapping:** text starting `Strong` → `Strong`. `Worth applying` / `Good` → `Good`.
-`Marginal` → `Marginal`. `Weak` / `Poor` / `Don't` → `Poor`. Anything else is listed for the
-Owner to set by hand.
-
-## Testing and acceptance
+## Testing
 
 **Automated**
 - Go `store`: parse and patch round-trips against `fixtures/workspace/` (unknown keys and comments preserved byte for byte; malformed files refused; atomic write).
@@ -699,43 +637,26 @@ Owner to set by hand.
   Undo and Dismiss → restore, plus a few whole-program `teatest` smoke tests; rendering
   goldens are ANSI-stripped except one palette golden.
 - Python: `build.py` tests on the same fixtures (Lead → Draft append, no tracker writes, gates unchanged). `ruff` clean.
-- CI runs both.
+- CI runs both; see `CONTRIBUTING.md` for the checks.
 
-**v0.1 is done when the Owner can, with no harness running:**
-1. Launch `rolecall` on the migrated workspace and see every current Application on the right screen and table.
-2. Add a Lead, paste its JD, edit it, and see it sorted by close date.
-3. Move it Lead → Draft → Applied (and see `sent/` created) → Interviewing → Rejected, then undo once.
-4. Dismiss a Lead, find it in Dismissed, and restore it to its earlier Status.
-5. Download a Ready Application's PDFs and see them in Finder.
-6. Watch a row update live while an agent (in another terminal) writes `fit:` or builds PDFs.
-7. Filter by track and by text.
-8. Run `capture-job` and `prepare-documents` from the plugin and get output matching today's quality.
+## Harness, Build, Fetch and Stats
 
-## Later versions (scope only)
-
-### v0.1.1: styling
-Built: see **v0.1.1 look** above. Dark and light themes, following the terminal. Still to do: VHS demo GIF.
-
-### v0.2: harness and extras
-
-Agreed in full (no longer scope only). Four items; the open polish issues (#29–33) are a
-separate track.
-
-#### Config and the process seam
+### Config and the process seam
 
 - `harness`: one command template for every Handoff. `{skill}` is the Plugin skill name,
   `{dir}` the absolute Application folder, shell-quoted. Runs through `/bin/sh -c`, like the editor.
 - `plugin`: path to `rolecall/plugin`, else `$ROLECALL_PLUGIN`. No auto-detection.
-- `runExternal` gains a mode:
-  - **interactive** (v0.1 behaviour): suspend, run, resume, rescan. Used by `$EDITOR`, the viewer, Handoffs.
+- `runExternal` runs in one of two modes:
+  - **interactive**: suspend, run, resume, rescan. Used by `$EDITOR`, the viewer, Handoffs.
   - **captured**: run in the background without suspending, keep stdout/stderr, report a
     message when done, then rescan the folder. Used by `b` and URL fetch. One at a time;
     other keys keep working.
-- Unset `harness` hides `f`/`p`/`F` everywhere (help bar, NEXT, the DOCS row); pressing one shows
-  `No Harness set · 6 Settings › This machine › Harness`. Unset `plugin` does the same for `b` and
-  fetch (Add still works by hand).
+- Unset `harness` leaves `f`/`p`/`F` in `?` and the palette, dimmed and marked `(needs a
+  Harness)`, off the key line; pressing one shows `No Harness set · …   h connect a Harness`
+  (`h` opens Settings › This machine on the Harness row). Unset `plugin` hides `b` and fetch
+  (Add still works by hand); pressing `b` says what is missing.
 
-#### Handoff: `f`, `p` and `F`
+### Handoff: `f`, `p` and `F`
 
 | Key | Skill | Applications | From |
 |---|---|---|---|
@@ -747,7 +668,7 @@ Interactive mode: the Owner talks to the agent in their terminal (ADR-0003). On 
 folder is rescanned. A non-zero exit shows `Harness exited with status N` in the feedback
 line. No pop-up, no retry.
 
-#### Build: `b`
+### Build: `b`
 
 - Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode. It needs only
   the Plugin, not a Harness: a `resume.md` written by hand builds the same way.
@@ -757,7 +678,7 @@ line. No pop-up, no retry.
 - A build of a Lead appends `Draft` (SCHEMA). The view stays on the current screen and says
   `Built 2 PDFs · moved to Draft`. This is not the Owner's move, so `u` does not undo it.
 
-#### URL fetch in Add
+### URL fetch in Add
 
 - URL becomes the **first** field of the Add form.
 - `Enter` on a URL: duplicate check first (as on save). If new, run
@@ -766,9 +687,9 @@ line. No pop-up, no retry.
   and clearance signals show as a `⚠` line under the URL. They are not stored.
 - On save after a successful fetch: `jd.md` gets the fetched text and `$EDITOR` is skipped.
 - On failure (login wall, text under 200 characters, no Python): one line saying why. The form
-  goes on by hand, and save opens `$EDITOR` as in v0.1.
+  goes on by hand, and save opens `$EDITOR`.
 
-#### Stats screen (`4`)
+### Stats screen (`4`)
 
 Answers "how is my search going?". No tables: `Tab` and row keys do nothing (`a` still adds). The `t` track
 filter applies. Top to bottom:
@@ -826,22 +747,8 @@ This holds on the Application screens too.
 With no Applications, Stats says `No Applications yet · a to add a Lead`. The fixtures fit
 80×24 without scrolling.
 
-#### v0.2 is done when the Owner can
+## Reading (detail tabs)
 
-1. Press `f` on a Lead, talk to the agent, and see Fit appear on return.
-2. Press `p` on a Draft, and on return see Docs go to Written or Ready.
-3. Press `b` on a Written Lead and see `Built 2 PDFs · moved to Draft` without leaving the
-   Leads screen. Then see a failed gate's message in a pop-up.
-4. Paste a Greenhouse or Ashby URL into Add, see the fields fill, save, and find `jd.md` filled.
-   Paste a Seek URL and get the paste-by-hand path.
-5. Open Stats, check the funnel and response rate against the fixtures, and filter by track.
-6. Do all of v0.1's acceptance list with `harness` and `plugin` unset.
-
-**Automated:** config parsing for the new keys; captured-mode runner fake in `ui` tests (`b`
-success/failure, fetch success/failure); Stats numbers as pure functions over the fixtures
-(funnel, Response rate exclusion window, week bucketing across a Monday boundary).
-
-### v0.3: reading
 The detail view opens on JD and shows these tabs in order:
 
 | Tab | Source | Visibility |
@@ -870,20 +777,10 @@ For a Resume only Application without letter text, the card and Docs show
 `not needed · Resume only` for the cover letter, and no Letter tab appears.
 Reader scroll/edit hints match JD; help explains Enter in Docs.
 
-Acceptance:
-
-1. A Draft with all three written documents shows JD · Fit · Resume · Letter · Gaps · Notes · Docs; Resume scrolls and `e` edits it.
-2. A Lead without documents shows JD · Fit · Notes · Docs.
-3. A resume written through `p` adds its tab on return without moving the current tab.
-4. Enter on `resume.md` in Docs opens Resume; a missing document reads `missing`.
-5. Resume only Applications show no Letter tab and show `not needed · Resume only` in the card and Docs.
-6. Tabs fit at 80 columns and readers work with `harness` and `plugin` unset.
-7. `scripts/check-go.sh` and `go test -race -count=3 ./internal/ui` pass.
-
 These are readers; preview continues to mean the side pane beside the tables.
 Documents state rules, Build and the Plugin are unchanged.
 
-### v1.0: public
+## v1.0: public
 | Area | Features |
 |---|---|
 | Onboarding | `rolecall init [DIR]` creates the Workspace and runs `git init` with no prompts; the app's first-run form asks for the Contact (spelling and paper size are fixed at AU and A4 for v1) · `rolecall doctor` (typst, pandoc, Python, fonts, harness) · plugin install guide per harness |
@@ -895,7 +792,7 @@ Documents state rules, Build and the Plugin are unchanged.
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
 | Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
-#### What v1.0 still needs (agreed 2026-11-12)
+### What v1.0 still needs (agreed 2026-11-12)
 
 Agreed in the v1.0 grilling session of 2026-11-12. Every item below is ticketed, and the
 public-repo cut (#82) is blocked by all of them.
@@ -927,9 +824,9 @@ opening stays but is best-effort, with no CI.
 | 13 | Showcase workspace | One fictional Owner, about 10 Applications across every Status, with built PDFs. `fixtures/workspace` stays test-only |
 | 14 | Demo GIF | Recorded with VHS from the showcase workspace |
 
-#### Profile screen (v1.0)
+### Profile screen
 
-Read-only in v1.0; editing inside rolecall comes in 1.x. Spelling and paper size are not
+Read-only; editing inside rolecall comes in 1.x. Spelling and paper size are not
 settings in v1 (AU and A4 are fixed; style packs move to 1.x), and writing preferences stay
 prose, so the 1.x edit form covers the Contact only.
 
@@ -965,7 +862,7 @@ prose, so the 1.x edit form covers the Contact only.
   not watched.
 - The Contact table is a file contract: see `SCHEMA.md`.
 
-#### Settings screen (v1.0)
+### Settings screen
 
 Laid out like Profile. Parent spec: #58; the read-only first slice was #66, and the editing slices
 below are built.
@@ -1049,13 +946,3 @@ below are built.
   `search_area` and gates (`SCHEMA.md` → `workspace.json`). Renaming a Track asks first
   (`1 Application changes its Track…` / `N Applications change their Track…`) and `u` does not
   undo it.
-
-## Open questions
-
-- **Bubble Tea v2:** confirm it's stable at setup. If not, use v1 and plan the upgrade.
-- **Leads from `find-jobs` with no JD text:** keep stub `jd.md` files, or have the skill fetch and fill them? Default is stub plus URL. Revisit after a week of use.
-- **Clearing a Follow-up due without a Status change:** decided (design review 2026-11-16, C16):
-  `l` writes `followed_up: YYYY-MM-DD` to `meta.yml` and the flag measures from the later of the
-  last change and `followed_up`. The Python reader reads it too (`meta.py follow-up` reckons Follow-up
-  due the same way). The draft-follow-up skill does not write it: recording a follow-up is the
-  Owner's action, so the skill says when they last followed up and tells them to press `l` once sent.
