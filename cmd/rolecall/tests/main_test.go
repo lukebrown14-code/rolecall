@@ -413,7 +413,7 @@ func TestCLIDoctorCollapsesPermissionsAndWarnsOnViFallback(t *testing.T) {
 	if strings.Contains(text, "OK: Editor") || !strings.Contains(text, "WARNING: Editor") || !strings.Contains(text, "vi fallback") {
 		t.Errorf("Editor fallback not a warning:\n%s", text)
 	}
-	if strings.Contains(text, "README") || !strings.Contains(text, "https://github.com/lukebrown14-code/rolecall/blob/main/docs/harnesses/") {
+	if strings.Contains(text, "README") || !strings.Contains(text, "https://github.com/lukebrown14-code/rolecall/blob/main/docs/harnesses.md") {
 		t.Errorf("README pointers remain:\n%s", text)
 	}
 }

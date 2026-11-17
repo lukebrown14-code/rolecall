@@ -106,7 +106,7 @@ func TestInitOutputListsNextStepsAndShowsHarnessNoteOnlyWithAHarness(t *testing.
 	if next < 0 || private < 0 || next > private {
 		t.Fatalf("Next steps do not come before the privacy note:\n%s", got)
 	}
-	for _, want := range []string{"Connect a Harness", "docs/harnesses/claude-code.md", "In your Harness, run the create-profile skill"} {
+	for _, want := range []string{"Connect a Harness", "docs/harnesses.md", "In your Harness, run the create-profile skill"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing %q:\n%s", want, got)
 		}

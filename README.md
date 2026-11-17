@@ -166,8 +166,7 @@ opencode). rolecall installs the Plugin with the command; configure your Harness
 Plugin's skills and set the `harness` command in your local `config.toml` to enable the `f`,
 `p` and `F` handoffs.
 
-- [Set up Claude Code](docs/harnesses/claude-code.md)
-- [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
+See [Connect a Harness](docs/harnesses.md) for Claude Code, Codex, Gemini CLI and opencode.
 
 ## Use rolecall without a Harness
 
