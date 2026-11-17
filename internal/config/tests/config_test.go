@@ -135,7 +135,9 @@ func TestLoadFindsInstalledPluginWhenUnset(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(c.Plugin)
+		// Delimited so the parent can pick the value out of the test binary's other
+		// output (coverage and PASS lines under -cover).
+		fmt.Println("PLUGIN=" + c.Plugin)
 		return
 	}
 
@@ -179,7 +181,12 @@ func TestLoadFindsInstalledPluginWhenUnset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("installed config loader failed: %s (%v)", output, err)
 	}
-	got := strings.TrimSuffix(string(output), "\nPASS\n")
+	got := ""
+	for _, line := range strings.Split(string(output), "\n") {
+		if value, ok := strings.CutPrefix(line, "PLUGIN="); ok {
+			got = value
+		}
+	}
 	if got != resolvedPlugin {
 		t.Fatalf("installed plugin = %q, want %q", got, resolvedPlugin)
 	}

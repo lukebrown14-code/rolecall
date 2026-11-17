@@ -77,3 +77,24 @@ func InitGit(root string) error {
 	}
 	return nil
 }
+
+// DetectWSL reports whether the given WSL_DISTRO_NAME value or /proc/version text
+// belongs to Windows Subsystem for Linux.
+func DetectWSL(distroName, procVersion string) bool {
+	return distroName != "" || strings.Contains(strings.ToLower(procVersion), "microsoft")
+}
+
+// IsWSL reports whether rolecall is running under Windows Subsystem for Linux.
+func IsWSL() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	version, _ := os.ReadFile("/proc/version")
+	return DetectWSL(os.Getenv("WSL_DISTRO_NAME"), string(version))
+}
+
+// OnPath reports whether a program is installed.
+func OnPath(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
