@@ -461,6 +461,20 @@ def test_letter_checks_fail():
 # --- CLI seam: fixtures copy, fake toolchain -----------------------------------
 
 
+FAKE_PDF_TEXT = (
+    "Alex Quinn\nalex.quinn" + "@example.test\nPROFESSIONAL SUMMARY\n"
+    "Backend developer who ships Python services.\nKEY SKILLS\n"
+    "Python \u00b7 Docker \u00b7 SQL \u00b7 Git \u00b7 REST \u00b7 CI/CD \u00b7 Testing \u00b7"
+    "\nLinux\nPROFESSIONAL EXPERIENCE\n"
+    "Developer \u2014 Acme Ongoing\n"
+)
+FAKE_PDFFONTS = (
+    "name                                 type              encoding         emb sub uni\n"
+    "------------------------------------ ----------------- ---------------- --- --- ---\n"
+    "ABCDEF+HankenGrotesk-Regular         CID TrueType      Identity-H       yes yes yes\n"
+)
+
+
 def fake_tools(tmp_path):
     """Fake pandoc/typst/pdftotext so the CLI runs without the real toolchain."""
     bin_dir = tmp_path / "bin"
@@ -472,10 +486,13 @@ def fake_tools(tmp_path):
         'cat "$source" >> "$ROLECALL_TEST_SOURCE_CAPTURE"\n'
         'printf "pdf" > "$last"\n'
     )
+    # What the real tools print for CHECK_RESUME: the Contact, each heading on its own
+    # line, the role with its dates, and every font embedded.
     (bin_dir / "pdftotext").write_text(
-        "#!/bin/sh\nprintf 'Alex Quinn\\n" + "alex.quinn" + "@example.test\\n\\f'\n"
+        "#!/bin/sh\nprintf '" + FAKE_PDF_TEXT.replace("\n", "\\n") + "\\f'\n"
     )
-    for name in ("pandoc", "typst", "pdftotext"):
+    (bin_dir / "pdffonts").write_text("#!/bin/sh\nprintf '" + FAKE_PDFFONTS.replace("\n", "\\n") + "'\n")
+    for name in ("pandoc", "typst", "pdftotext", "pdffonts"):
         (bin_dir / name).chmod(0o755)
     return bin_dir
 
@@ -876,3 +893,111 @@ def test_build_warns_only_for_blocked_sites_and_for_no_network(capsys):
         _fetcher({"https://a.test": 0, "https://b.test": 0}),
     )
     assert "no URL could be reached" in capsys.readouterr().out
+
+
+
+# --- ATS check (#215) --------------------------------------------------------------
+
+ATS_RESUME = (
+    "# Alex Quinn\n\n## Professional Summary\n\nText.\n\n## Key Skills\n\nPython, Infrastructure as Code, Go\n\n"
+    "## Professional Experience\n\n### Developer — Acme | Mar 2021 – Present\n\n- Built it.\n\n"
+    "### Senior Platform Reliability Engineer — Very Long Employer Name | 2018 -- 2021\n\n"
+    "## Education\n\n### Bachelor of IT — QUT\n"
+)
+ATS_TEXT = (
+    "Alex Quinn\nPROFESSIONAL SUMMARY\nText.\nKEY SKILLS\nPython · Infrastructure as\nCode · Go\n"
+    "PROFESSIONAL EXPERIENCE\n"
+    "Developer — Acme Mar 2021 – Present\n• Built it.\n"
+    "Senior Platform Reliability Engineer — Very Long\nEmployer Name 2018 – 2021\n"
+    "EDUCATION\nBachelor of IT — QUT\n"
+)
+FONTS_OK = (
+    "name                                 type              encoding         emb sub uni object ID\n"
+    "------------------------------------ ----------------- ---------------- --- --- --- ---------\n"
+    "SLHUIZ+HankenGrotesk-Bold            CID TrueType      Identity-H       yes yes yes     71  0\n"
+)
+
+
+def test_ats_problems_passes_clean_text():
+    assert build.ats_problems(ATS_RESUME, ATS_TEXT, ATS_TEXT, FONTS_OK) == []
+
+
+def test_ats_dates_off_the_role_line_fail():
+    text = ATS_TEXT.replace("Developer — Acme Mar 2021 – Present", "Developer — Acme\nMar 2021 – Present")
+
+    assert build.ats_problems(ATS_RESUME, text, text, FONTS_OK) == [
+        "the dates of 'Developer — Acme' are not on its line in the PDF text"
+    ]
+
+
+def test_ats_role_missing_from_the_text_fails():
+    text = ATS_TEXT.replace("Developer — Acme", "Developer\nAcme")
+
+    problems = build.ats_problems(ATS_RESUME, text, text, FONTS_OK)
+
+    assert problems == ["the role 'Developer — Acme' is not in the PDF text as one line"]
+
+
+def test_ats_non_standard_or_unreadable_headings_fail():
+    md = ATS_RESUME.replace("## Education", "## My Journey")
+    text = ATS_TEXT.replace("KEY SKILLS", "K E Y  S K I L L S").replace("EDUCATION", "MY JOURNEY")
+
+    problems = build.ats_problems(md, text, text, FONTS_OK)
+
+    assert len(problems) == 2
+    assert "section heading 'Key Skills' does not come out of the PDF as one line" in problems
+    assert problems[1].startswith("section heading 'My Journey' is not one an ATS recognises")
+
+
+def test_ats_key_skills_out_of_order_fail():
+    text = ATS_TEXT.replace("Python · Infrastructure as\nCode · Go", "Python\nGo\nInfrastructure as Code")
+
+    assert build.ats_problems(ATS_RESUME, text, text, FONTS_OK) == [
+        "Key Skills come out of the PDF out of order, from 'Go' on"
+    ]
+
+
+def test_ats_merged_letters_fail():
+    text = ATS_TEXT.replace("Built it.", "Built the ﬁnance ﬂow.")
+
+    assert build.ats_problems(ATS_RESUME, text, text, FONTS_OK) == [
+        "merged-letter or unreadable characters in the PDF text: 'ﬁnance', 'ﬂow.'"
+    ]
+
+
+def test_ats_word_split_at_a_hyphen_fails():
+    layout = ATS_TEXT + "• Owned the full-\n  platform deployment and the end-to-end tests.\n"
+
+    assert build.ats_problems(ATS_RESUME, ATS_TEXT, layout, FONTS_OK) == [
+        "full-platform is split across two lines at its hyphen"
+    ]
+
+
+def test_ats_unembedded_font_fails():
+    fonts = FONTS_OK + (
+        "Helvetica                            Type 1            Custom           no  no  no       12  0\n"
+    )
+
+    assert build.ats_problems(ATS_RESUME, ATS_TEXT, ATS_TEXT, fonts) == [
+        "font not embedded: Helvetica"
+    ]
+
+
+def test_ats_letter_skips_the_resume_only_checks():
+    text = "Dear Sam,\nA letter with no headings.\n"
+
+    assert build.ats_problems("Dear Sam,\n\n## Odd heading\n", text, text, FONTS_OK, letter=True) == []
+
+
+def test_cli_ats_failure_publishes_no_pdf(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+    (folder / "resume.md").write_text(
+        CHECK_RESUME.replace("## Professional Summary", "## About Me")
+    )
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode != 0
+    assert "resume.md fails the ATS check" in result.stderr
+    assert "section heading 'About Me' is not one an ATS recognises" in result.stderr
+    assert not (folder / "out").exists()

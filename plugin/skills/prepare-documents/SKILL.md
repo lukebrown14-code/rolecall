@@ -74,6 +74,8 @@ The templates depend on this structure; deviate and the layout breaks silently.
 **Group** — comma, separated, list
 ```
 
+- **Keep the `##` headings standard.** An ATS files text under the headings it knows, so the
+  build refuses a heading such as "About Me" or "My Journey".
 - **Reorder bullets, drop what does not serve this ad, reword from the phrasing bank.** Do not
   invent to fill a heading.
 - **The Key Skills block is the most ATS-visible part of the resume.** 8–12 keywords taken from the
@@ -136,6 +138,12 @@ Fix the document and build again until it prints `built …`. The hard gates are
   placeholder, or a term the Profile lists as *not available*.
 - **Cover-letter structure** — a `Dear` line or a subject line, the company named, the closing note
   exactly once, and no banned phrase.
+- **ATS check** — the built PDF is read back as text, as an ATS reads it. Each role's dates must
+  be on the role's own line, the Key Skills must come out in order, every `##` heading must be a
+  standard one (Professional Summary,
+  Key Skills, Professional Experience, Skills, Education, Projects, Certifications…), and the
+  text must hold no merged-letter characters, no word split at a hyphen and no unembedded font.
+  A non-standard heading is yours to rename; the rest come from the Template.
 
 Page count is a **warning**, not a failure: the AU norm is two pages (three for senior roles), and
 a one-page resume reads as junior. Fix it with content, not by shrinking the template.

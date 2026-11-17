@@ -186,3 +186,43 @@ def test_bold_lines_and_sign_off_keep_their_line_breaks(built):
     assert "Languages: Python, SQL" in built[0]
     assert "Platforms: Docker, Linux" in built[0]
     assert built[1][-2:] == ["Kind regards,", "Alex Quinn"]
+
+
+def test_a_template_with_flush_right_dates_fails_the_build(tmp_path):
+    """The old role line (a grid, dates flush right) reads its dates in a side column,
+    so a Workspace override that still has it is refused, not built."""
+    workspace = tmp_path / "workspace"
+    shutil.copytree(FIXTURE, workspace)
+    (workspace / "profile" / "master-profile.md").write_text(PROFILE)
+    folder = workspace / "jobs" / "SWE" / "acme-developer"
+    folder.mkdir()
+    (folder / "meta.yml").write_text(
+        "schema: 1\ntitle: Developer\ncompany: Acme\ntrack: SWE\nresume_only: true\n"
+        "status_log:\n  - {status: Lead, at: 2026-09-24T01:00:00Z}\n"
+    )
+    (folder / "jd.md").write_text("Acme needs " + ", ".join(SKILLS) + ".\n")
+    (folder / "resume.md").write_text(RESUME)
+    template = (ROOT / "plugin" / "templates" / "resume.typ").read_text()
+    start = template.index("#show heading.where(level: 3): it => {")
+    end = template.index("// Sub-line under a role")
+    (workspace / "templates").mkdir()
+    (workspace / "templates" / "resume.typ").write_text(
+        template[:start]
+        + """#show heading.where(level: 3): it => {
+  let parts = to-plain(it.body).split(" | ")
+  grid(columns: (1fr, auto), parts.at(0), if parts.len() > 1 { parts.at(1) } else { "" })
+}
+
+"""
+        + template[end:]
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), str(folder), "--data", str(workspace)],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0, result.stdout
+    assert "the dates of 'Developer — Acme' are not on its line in the PDF text" in result.stderr
+    assert not (folder / "out").exists()
