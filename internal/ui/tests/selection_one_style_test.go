@@ -77,18 +77,11 @@ func TestSelectionMarkIsAGreaterThanInASCIIAndSurvivesNoColor(t *testing.T) {
 	}
 }
 
-// A pane without focus keeps the mark but drops the fill.
-func TestUnfocusedListRowKeepsTheMarkWithoutTheFill(t *testing.T) {
+// A focused list row carries the fill; opening the detail replaces the list outright.
+func TestFocusedListRowIsFilled(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), heldNow, 80, 24)
 	focused := markedRows(driveModel(t, m, "1").View().Content, "▌")
 	if len(focused) != 1 || !strings.Contains(focused[0], selectionBg) {
 		t.Fatalf("a focused list row is filled: %q", focused)
-	}
-	sheet := markedLines(driveModel(t, m, "1", "enter").View().Content, "▌")
-	if len(sheet) == 0 {
-		t.Fatal("the list lost its selection mark under the sheet")
-	}
-	if strings.Contains(sheet[0], selectionBg) {
-		t.Fatalf("an unfocused row kept the fill: %q", sheet[0])
 	}
 }

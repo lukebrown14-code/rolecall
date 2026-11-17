@@ -15,7 +15,8 @@ import (
 //
 // A frame is, top to bottom: the tab bar, a rule (dropped when short), the
 // context lines, a rule, the body, a rule and the status row. Width falls into one of
-// three size classes; height is short or not.
+// three size classes; height is short or not. The detail view has two layouts: beside the
+// list when wide, full-screen otherwise.
 
 // sizeClass names a width budget. The zero value is the narrow class: below mediumWidth
 // there is one pane everywhere and the tab bar shows only the active screen's name.
@@ -23,7 +24,7 @@ type sizeClass int
 
 const (
 	// classMedium is mediumWidth up to wideWidth: Profile and Settings keep their side
-	// lists; the list has no preview and the detail view's card folds into a strip.
+	// lists; the list has no preview and the detail view is full-screen.
 	classMedium sizeClass = iota + 1
 	// classWide is wideWidth and up: the preview beside the list, the card beside the
 	// detail view, and the wordmark, sparkline and menu keys in the tab bar.
@@ -42,25 +43,16 @@ const (
 	ruleLines     = 2 // the rules above and below the body
 )
 
-// detailMode is how an Application's detail is reached at a size.
+// detailMode is how an Application's detail is reached at a size: two layouts, side by
+// side when wide and full-screen at every other size.
 type detailMode int
 
 const (
 	// detailPane shows the detail beside the list (wide).
 	detailPane detailMode = iota + 1
-	// detailFull opens the detail as its own full-screen view on enter (narrow, and
-	// medium when the height cannot hold a sheet).
+	// detailFull opens the detail as its own full-screen view on enter (80 columns and
+	// below, and the medium widths up to the wide breakpoint).
 	detailFull
-	// detailSheet opens the detail as a bottom sheet under the list's top part (medium).
-	detailSheet
-)
-
-// The bottom sheet: the least lines the list keeps above it and the least the detail
-// needs; below that total the detail opens full-screen instead.
-const (
-	sheetListMin   = 5
-	sheetDetailMin = 8
-	sheetRule      = 1 // the rule between the list and the sheet
 )
 
 const (
@@ -113,7 +105,6 @@ func sizeLayout(w, h int) layout {
 		l.listW = w - l.detailW - 1
 	case w >= mediumWidth:
 		l.class = classMedium
-		l.detail = detailSheet
 	}
 	if w < mediumWidth {
 		l.filterLines = filtersCollapsed
@@ -121,22 +112,6 @@ func sizeLayout(w, h int) layout {
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
 	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
-}
-
-// sheetHeights splits a body of the given context lines into the list part and the
-// detail sheet under it, and reports whether a sheet fits at all. Whether it fits is
-// decided with the plain one-line status area, so a toast cannot flip an open detail
-// between sheet and full-screen; the split itself uses the actual status lines.
-func (l layout) sheetHeights(ctx int) (list, detail int, ok bool) {
-	if l.detail != detailSheet {
-		return 0, 0, false
-	}
-	plain := l
-	plain.status = statusAreaFeedback // a table screen's footer: the breadcrumb, then the keys
-	ok = plain.bodyHeight(ctx) >= sheetListMin+sheetRule+sheetDetailMin
-	body := l.bodyHeight(ctx)
-	list = min(max(body*2/5, sheetListMin), max(1, body-sheetRule-sheetDetailMin)) //nolint:mnd // two fifths for the list
-	return list, max(1, body-sheetRule-list), ok
 }
 
 func (l layout) wide() bool { return l.class == classWide }
@@ -170,7 +145,7 @@ const (
 
 // contextLines is how many context lines the current screen draws under the tab bar.
 func (m model) contextLines() int {
-	if m.detail != nil && !m.sheetShown() {
+	if m.detail != nil {
 		return m.detailContextLines()
 	}
 	if m.hasTables() {
@@ -183,24 +158,8 @@ func (m model) contextLines() int {
 // the footer, over the key line.
 const tableContext = 1
 
-// sheetShown reports whether the open detail is a bottom sheet under the list.
-func (m model) sheetShown() bool {
-	if m.detail == nil || !m.hasTables() {
-		return false
-	}
-	_, _, ok := plainLayout(sizeLayout(m.viewWidth(), m.viewHeight())).sheetHeights(tableContext)
-	return ok
-}
-
-// listHeight is the lines the list gets: the whole body, or the top part above a sheet.
-func (m model) listHeight() int {
-	l := m.layout()
-	if m.sheetShown() {
-		list, _, _ := l.sheetHeights(tableContext)
-		return list
-	}
-	return l.bodyHeight(tableContext)
-}
+// listHeight is the lines the list gets: the whole body.
+func (m model) listHeight() int { return m.layout().bodyHeight(tableContext) }
 
 // frame stacks one screen: tab bar, rule, context lines, rule, body, rule, status row.
 // split is the column of the body's vertical divider, 0 for none; the rules meet it

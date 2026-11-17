@@ -257,25 +257,25 @@ Header: one line, `‹ esc  Title · Company` (as the list reads) with `applied 
 that spans years gives every stop its year.
 Tabs (`←` `→`, or `tab` / `shift+tab`): **JD** · **Fit** · **Notes** · **Docs** (Fit beside JD: they
 are read together), the active one bracketed (`[JD]`).
-How the detail opens depends on the size class:
+The detail has two layouts, not three, and one section order in both: header, tabs, then the
+sections, which drop out as room runs out. The header, the tabs and the body share one text
+column at every size.
 
-- **Wide:** the tabs take the list's place and the preview's card (Status, next step, facts,
-  documents, timeline, notes, then the link as one `LINK  https://…  w open` row) stays where
-  the preview was, on the right at its width, so the divider does not move.
-- **Medium:** the detail opens as a bottom sheet under the top of the list, when the height
-  holds at least 5 list lines and 8 detail lines; otherwise full-screen, as narrow. The
-  sheet's title carries the Status chip and the line under its tabs the next step, on every tab.
-- **Narrow:** full-screen, with the card folded into a two-line strip under the header: the
-  timeline as a track (`◌ Lead 24 Sep ─ ● Applied 25 Sep ─ ◆ Interviewing ─ ★ Offer`), then
-  documents · Fit · close date · Track, each shedding detail to fit rather than wrapping (the
-  Track, the close date, then the documents fold into their meter, so the Fit stays). The line
-  under the tabs is the next step, on every tab.
+- **Wide** (100 columns and up): the tabs take the list's place and the preview's card (Status,
+  next step, facts, documents, timeline, notes, then the link as one `LINK  https://…  w open`
+  row) stays where the preview was, on the right at its width, so the divider does not move.
+- **Everything narrower** (80x24, 60x16 and every width below 100): full-screen. Enter replaces
+  the list; there is no list-over-detail split. The card folds into a two-line strip under the
+  header: the timeline as a track (`◌ Lead 24 Sep ─ ● Applied 25 Sep ─ ◆ Interviewing ─ ★
+  Offer`), then documents · Fit · close date · Track, each shedding detail to fit rather than
+  wrapping (the Track, the close date, then the documents fold into their meter, so the Fit
+  stays). The line under the tabs is the next step, on every tab.
 
-Where the card is not shown (the sheet and full-screen), an **Overview** tab comes first and
-holds the card's rows, less what the frame already says: the next step (under the tabs), the
-Status (the sheet's chip; it keeps the age and Fit line) and, full-screen, the Status, Fit and
-documents (the strip). The next step thus sits in one place per size class: under the Status
-line in the card, under the tabs without it.
+Where the card is not shown (every full-screen size) an **Overview** tab comes first and holds the
+card's rows, less what the frame already says: the next step (under the tabs) and the Status,
+Fit and documents (the strip). The next step thus sits in one place per layout: under the
+Status line in the card, under the tabs without it. Overview exists at every size where the card
+does not, so the tab list never differs between 60 and 99 columns.
 
 The detail opens on the tab last chosen in the session where the Application has it (Fit
 stays Fit from one Lead to the next), otherwise on its first tab. `J` / `K` show the next /
@@ -412,7 +412,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
 - **Size classes (`internal/ui/layout.go`):** wide ≥ 100 columns, medium 72–99, narrow < 72; short
   ≤ 20 rows; below 56×14 a resize notice. Wide has the preview beside the list, the card beside
   the detail, the wordmark, the sparkline and `space menu  ? help` in the tab bar. Medium has
-  no preview, opens the detail as a bottom sheet and keeps Profile's and Settings' side lists.
+  no preview, opens the detail full-screen and keeps Profile's and Settings' side lists.
   Narrow has one pane everywhere and the detail full-screen; `ROLECALL_PLAIN` draws the
   narrow class's single pane at every width. At any width the Track filter
   collapses to its active option (`t [All 4]▸`) when the context row is short of room. Short
@@ -490,7 +490,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   Applied`, or `s` when the next view holds it).
 - **Rows:** two lines (title + right-hand columns, then company · track · dates), always
   dense: rows in a section sit together, and only a section's header has a blank line above
-  it (none in a bottom sheet, which cannot spare it). A blank Company is left out rather than
+  it. A blank Company is left out rather than
   leaving a separator hanging; an empty title reads `(untitled)`. Right-hand columns are
   the Follow-up due flag and Fit, two cells apart. The flag, on Applied and Interviewing
   rows only, says how long the row has been quiet (`⚑ 6w`, years past two years: `⚑ 7y`),
@@ -889,7 +889,7 @@ prose, so the 1.x edit form covers the Contact only.
   not on each Contact field.
 - **Focus:** the context row names both panes and brackets the focused one (`[SECTIONS]
   CONTENT`), and the focused pane's rule takes the accent. While the content has focus the
-  list's selected row keeps its `▌` mark but loses its fill, as the list does under a sheet.
+  list's selected row keeps its `▌` mark but loses its fill.
 - **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
   found`, then the welcome's instruction (`Set up your Profile: fill in your Contact, then …`,
   naming the Harness only when one is set) and `c fill in your Contact · r read it again`;

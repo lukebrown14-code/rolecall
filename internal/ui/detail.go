@@ -29,7 +29,7 @@ const (
 	tabFit    detailTab = "Fit"
 	tabNotes  detailTab = "Notes"
 	tabDocs   detailTab = "Docs"
-	// tabOverview holds the same rows as the card, for the sheet and full views that have no card.
+	// tabOverview holds the same rows as the card, for the full-screen view, which has no card.
 	tabOverview detailTab = "Overview"
 )
 
@@ -48,8 +48,7 @@ func visibleDetailTabs(a store.Application) []detailTab {
 	return append(tabs, tabNotes, tabDocs)
 }
 
-// detailTabs is the tabs the open detail shows. Where the card is folded away (the sheet and
-// the narrow full view) an Overview tab, first, holds the card's rows.
+// detailTabs is the tabs the open detail shows. Where the card is folded away (the full-screen view) an Overview tab, first, holds the card's rows.
 func (m model) detailTabs(a store.Application) []detailTab {
 	tabs := visibleDetailTabs(a)
 	if !m.cardShown() {
@@ -216,7 +215,6 @@ func (m model) closeDetail() model {
 // Detail view sizing.
 const (
 	minBodyHeight = 3
-	sheetChrome   = 4  // the sheet's title, tabs and next step rows and the scroll cue
 	paneChrome    = 3  // the pane's lines around the tab content: tabs row, gap … scroll cue
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
@@ -252,19 +250,11 @@ func (m model) paneWidth() int {
 
 // bodyHeight is the lines of tab content shown at once.
 func (m model) bodyHeight() int {
-	if m.sheetShown() {
-		_, detail, _ := m.layout().sheetHeights(tableContext)
-		return max(minBodyHeight, detail-sheetChrome)
-	}
 	return max(minBodyHeight, m.layout().bodyHeight(m.detailContextLines())-paneChrome)
 }
 
 // bodyWidth is the wrap width of tab content: capped for comfortable reading.
 func (m model) bodyWidth() int {
-	if m.sheetShown() {
-		// The sheet's text runs from the inset to where the list rows' Fit ends.
-		return max(minWrapWidth, min(maxReadWidth, m.viewWidth()-inset-rowPad-rightMargin))
-	}
 	return max(minWrapWidth, min(maxReadWidth, m.paneWidth()-paneMargin))
 }
 

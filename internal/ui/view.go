@@ -142,7 +142,7 @@ func (m model) View() tea.View {
 
 // screenView is the open detail view, or the current screen.
 func (m model) screenView(p pal) string {
-	if m.detail != nil && !m.sheetShown() {
+	if m.detail != nil {
 		return m.detailView(p)
 	}
 	return m.listView(p)
@@ -200,10 +200,6 @@ func (m model) listView(p pal) string {
 	focus := focusNone
 	if divider > 0 {
 		focus = focusLeft
-	}
-	if m.sheetShown() {
-		body = m.withSheet(p, body)
-		focus = focusNone
 	}
 	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.breadcrumbLine(p)+"\n"+keys)
 }
@@ -607,69 +603,6 @@ func (m model) breadcrumbLeft(p pal, room int) string {
 // abbrevTrack is how many letters of a Track name a narrow breadcrumb keeps.
 const abbrevTrack = 3
 
-// withSheet stacks the detail sheet under the list part: a rule in the accent, then the
-// detail, together exactly the body's height.
-func (m model) withSheet(p pal, list string) string {
-	a, ok := m.application(m.detail.folder)
-	if !ok {
-		return list
-	}
-	l := m.layout()
-	listH, detailH, _ := l.sheetHeights(tableContext)
-	rule := p.PaneRule(true).Render(strings.Repeat("─", l.w))
-	return strings.Join([]string{fitLines(list, listH), rule, strings.Join(m.sheetLines(p, a, l.w, detailH), "\n")}, "\n")
-}
-
-// sheetLines is the detail sheet: a title line, the tabs, the next step, then the tab's
-// content, h lines.
-func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
-	// The sheet keeps the list's columns: text from the inset to where the rows' Fit ends.
-	pad := strings.Repeat(" ", inset)
-	right := w - rightMargin - rowPad
-	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.CompanyLabel()))
-	if a.Malformed != nil {
-		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
-	} else {
-		title = spread(xansi.Truncate(title, max(0, right-gutter-xansi.StringWidth(a.Status)-markWidth), "…"), p.StatusChip(a.Status), right)
-	}
-	out := []string{title}
-	var content []string
-	// Text sits at the inset; the Docs rows bring their own indent, so their selection bar
-	// sits at the edge, as a list's does.
-	indent := pad
-	if a.Malformed != nil {
-		for _, l := range wrapWords(m.malformedReason(a), right-inset) {
-			content = append(content, p.Text(p.Fg).Render(l))
-		}
-		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
-		out = append(out, "", "")
-	} else {
-		// The tab names sit one cell in from their brackets, so the brackets go one left. The
-		// next step takes the line under the tabs on every tab, as in the full-screen detail,
-		// so it is in view however little of the sheet shows; Overview leaves it out.
-		out = append(out, pad[1:]+m.detailTabsRow(p, a, right-inset+1), pad+m.nextLine(p, a, right-inset, false))
-		content = strings.Split(m.detailContent(p, a, w), "\n")
-		if m.detail.tab == tabDocs {
-			indent = strings.Repeat(" ", edge)
-		}
-	}
-	for i, line := range content {
-		if plain := xansi.Strip(line); indent != pad && plain != "" && !strings.HasPrefix(plain, " ") && !strings.HasPrefix(plain, "▌") {
-			content[i] = pad + line // a Docs group heading, at the text column
-			continue
-		}
-		content[i] = indent + line
-	}
-	from := 0
-	for i, line := range content {
-		if strings.Contains(xansi.Strip(line), "▌") {
-			from = i - (h-len(out))/bothSides
-		}
-	}
-	out = append(out, p.ClipLines(content, from, max(0, h-len(out)), pad)...)
-	return append(out[:min(len(out), h)], make([]string, max(0, h-len(out)))...)
-}
-
 // markWidth is the cells a Status chip takes beyond its name: the glyph and its space.
 const markWidth = 2
 
@@ -741,11 +674,10 @@ func (m model) compactShown() bool { return m.compactRows && m.layout().wide() }
 // scroll pads it.
 func (m model) listBlocks(rows []store.Application) ([]block, int) {
 	dividers := m.dividers(rows)
-	sheet := m.sheetShown()
 	dividerHeight := func(i int) int {
 		n := 1
-		if i > 0 && !sheet {
-			n++ // the air above a section, which the few lines above a sheet cannot spare
+		if i > 0 {
+			n++ // the air above a section
 		}
 		return n
 	}
@@ -914,8 +846,7 @@ func (m model) expired(a store.Application) bool {
 // when rows are really hidden, and count rows, not dividers. Only the visible blocks are
 // rendered.
 func scroll(p pal, m model, rows []store.Application, show slotSet, w int, blocks []block, cur, h int) string {
-	folded := m.sheetShown()
-	start, end := scrollWindow(blocks, cur, h, folded)
+	start, end := scrollWindow(blocks, cur, h)
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -928,7 +859,7 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 	// The cues sit at the rows' text column, past the selection bar.
 	const cueIndent = "  "
 	var out []string
-	if start > 0 && !folded {
+	if start > 0 {
 		out = append(out, cueIndent+p.MoreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
@@ -947,9 +878,6 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 		out = append(out, "")
 	}
 	var cues []string
-	if n := count(blocks[:start]); n > 0 && folded {
-		cues = append(cues, p.MoreCue(true, n))
-	}
 	if end < len(blocks) {
 		cues = append(cues, p.MoreCue(false, count(blocks[end:])))
 	}
@@ -963,21 +891,17 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 }
 
 // scrollWindow is the blocks shown in h lines with block cur in view: [start, end). A
-// "↑ n more" line takes the first line when start is past the top. folded (the list part
-// above a detail sheet, where every line counts) puts both cues on the one last line.
-func scrollWindow(blocks []block, cur, h int, folded bool) (start, end int) {
+// "↑ n more" line takes the first line when start is past the top.
+func scrollWindow(blocks []block, cur, h int) (start, end int) {
 	fit := func(start int) int {
 		avail := h
 		if start > 0 {
-			avail-- // the ↑ cue's line; folded, the line both cues share
+			avail-- // the ↑ cue's line
 		}
 		used, end := 0, start
 		for end < len(blocks) && used+blocks[end].height <= avail {
 			used += blocks[end].height
 			end++
-		}
-		if folded && start > 0 {
-			return end // the ↓ cue shares the line already kept
 		}
 		for end < len(blocks) && used+1 > avail && end > start {
 			end--
@@ -1076,8 +1000,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	if m.expired(a) {
 		titleC = p.Dim
 	}
-	// The list loses the fill, not the mark, while a sheet over it holds the focus.
-	fill := sel && !m.sheetShown()
+	fill := sel
 	st := func(c color.Color) lipgloss.Style {
 		s := lipgloss.NewStyle().Foreground(c)
 		if fill {
