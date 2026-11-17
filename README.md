@@ -8,12 +8,6 @@ assess fit, and prepare documents through the rolecall Plugin.
 
 macOS and Linux are supported. On Windows, use WSL.
 
-### Homebrew (macOS and Linux)
-
-```sh
-brew install lukebrown14-code/homebrew-tap/rolecall
-```
-
 ### Install script (macOS and Linux, no Go needed)
 
 ```sh

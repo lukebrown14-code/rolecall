@@ -8,7 +8,6 @@ The Harness is your coding assistant. It reads the Plugin's skills, and rolecall
 | Installed with | Plugin folder |
 |---|---|
 | Install script | `~/.local/share/rolecall/plugin` (or `$ROLECALL_PREFIX/share/rolecall/plugin`) |
-| Homebrew | `$(brew --prefix rolecall)/libexec/plugin` |
 | `go install` | the `plugin` folder of a clone of this repository |
 
 `rolecall doctor` prints the path it found on the `Plugin path` line.
@@ -31,8 +30,7 @@ claude plugin marketplace add ~/.local/share/rolecall/plugin
 claude plugin install rolecall@rolecall
 ```
 
-For Homebrew, use `"$(brew --prefix rolecall)/libexec/plugin"` as the folder. Restart Claude
-Code if it was open.
+Restart Claude Code if it was open.
 
 If `install` says the Plugin is not found in marketplace `rolecall`, an older marketplace of
 that name points elsewhere. Run `claude plugin marketplace remove rolecall` and add the folder
