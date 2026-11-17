@@ -8,8 +8,10 @@ each other directly: files are the only link.
 - **Decisions:** ADR-0001 (personal local TUI replaces the dashboard), ADR-0002 (Status lives
   in each folder), ADR-0003 (files are the only harness contract).
 - **Data contract:** [`SCHEMA.md`](../SCHEMA.md). **Terms:** [`GLOSSARY.md`](../GLOSSARY.md).
-- **Status of this doc:** v0.1 agreed in the grilling session of 2026-11-11; v0.2 agreed in a
-  second session the same day. Covers v0.1 and v0.2 in full; later versions are listed as scope only.
+- **Status of this doc:** v0.1 and v0.2 were agreed in grilling sessions on 2026-11-11 and v1.0 on
+  2026-11-12. Written as the current behaviour of the app: v0.1 to v0.6 are built (0.6.0 is the latest
+  release), the v1.0 readiness work of 2026-11-17 is merged but not yet released, and what v1.0 still
+  needs is tracked under the `v1` label on GitHub.
 
 ## Roadmap
 
@@ -20,6 +22,9 @@ each other directly: files are the only link.
 | **v0.2** | harness + extras | `f`/`p` keys that hand off to the harness, URL fetch in Add, Stats screen (`4`), `b` build key |
 | **v0.3** | reading | Markdown reader tabs for Resume, Letter and Gaps |
 | **v0.4** | search rules and Sources | `search_rules` and the Source registry in `workspace.json`, Settings → Rules and Sources, posting age on Leads, Filtered view, `rules.py` dry run, coverage report (ADR-0007) |
+| **v0.5** | follow-up and review polish | Follow-up due, `l` to record a follow-up, `F` and the `draft-follow-up` skill, lean rows, fit words, full-screen help |
+| **v0.6** | documents and checks | Template overrides and ATS-safe templates, the ATS check (dates, headings, Key Skills order, characters, hyphens, fonts), CVs built from the Profile screen, drift and URL checks on unsent drafts, `rolecall move`, capture that follows aggregators to the employer's ad |
+| **v1.0 readiness** (merged after 0.6.0) | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills |
 | **v1.0** | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Non-goals for v0.1
@@ -83,7 +88,7 @@ compact_rows = false   # one-line list rows at wide sizes; z toggles it and save
 
 Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90), `ascii` and `inherit_terminal` in place, keeping comments and other lines; `workspace` is never written. Environment switches with no config key: `ROLECALL_THEME`, `ROLECALL_ASCII`, `ROLECALL_PLAIN` and `NO_COLOR` (see **v0.1.1 look**).
 
-If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
+If there is no workspace, rolecall exits with a one-line message naming the config path. There is no wizard: `rolecall init` creates the Workspace without asking anything (see [v1.0](#v10-public)).
 An invalid `workspace.json` (bad JSON, a wrong-shaped key, or a `tracks` list that breaks the Track
 name rules) does not stop startup: the app opens with no Track filter and the footer says
 `workspace.json: invalid Workspace settings · 6 then e to fix it` (`e` on a table screen edits the
