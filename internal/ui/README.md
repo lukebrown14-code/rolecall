@@ -12,22 +12,21 @@ and rendering. Its subpackages do not import it.
 | `tests/` | Behaviour and rendering tests through the UI's public interface, with rendering goldens in `testdata/`. |
 | `../reporting/` | Pure funnel, response, weekly, and track calculations, independent of terminal UI. |
 
-The root model adapts those modules to the application:
+The root model adapts those modules to the application. Files are grouped by name, not
+listed here one by one (`ls internal/ui` is the inventory):
 
-- `model.go`, `refresh.go`, `mapping.go`, `next.go`: application state, updates, refresh, and navigation.
-- `settings*.go`: Settings rendering and action adapters. `settings.State` owns the loaded values and navigation; the model handles popups, external editing, save completion, and undo callbacks.
-- `form.go`: renders forms and connects submission to application actions.
-- `styles.go`: application-specific composition using the theme palette.
-- `profile.go`, `stats.go`: screen handlers and rendering.
-- `view.go`, `layout.go`, `columns.go`, `help.go`: shared presentation; `plain.go` reshapes the finished frame for `ROLECALL_PLAIN`.
-- `mode.go`, `overlay.go`, `palette.go`, `search.go`, `workspace_menu.go`: overlays and application input. `keymap.go` (row actions) and `help.go` (the registry) declare every key once for the key line, `?`, the palette and the `space` menu.
-- `empty.go`: empty states and the first-run welcome checklist.
-- `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and completion messages.
-- `writing.go`: transient writing indicators driven by `watch.Changed` messages.
+- `model.go`, `refresh.go`, `mapping.go`: state, updates and the one `reload` helper.
+- `keymap.go` (row actions) and `help.go` (the registry): every key is declared once and read
+  by the key line, `?` and the command palette (`palette.go`).
+- `view.go`, `layout.go`, `columns.go`, `styles.go`: shared presentation; `plain.go` reshapes
+  the finished frame for `ROLECALL_PLAIN`.
+- `settings*.go`, `profile.go`, `stats.go`, `detail.go`, `form.go`: screens and their forms.
+- `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and their
+  completion messages; every process start goes through `internal/process`.
 
 Tests for extracted modules live in their own `tests/` directories. The watcher's
-`internal/debounce/` package lets watcher tests control timing without exposing debounce
-to other application packages.
+`internal/ui/watch/internal/debounce/` package lets watcher tests control timing without
+exposing debounce to other application packages.
 
 Run all UI checks with `go test ./internal/ui/...`, report tests with
 `go test ./internal/reporting/...`, and the full suite with `go test ./...`.

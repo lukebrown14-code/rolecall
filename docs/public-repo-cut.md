@@ -95,11 +95,13 @@ git push -u origin main
 - [ ] In the new repository's **Settings → Secrets and variables → Actions**, create the
   repository secret `ROLECALL_PERSONAL_DATA_TERMS`. Set its value to the Owner-specific terms,
   one per line. Keep this value out of commits, issues, and logs.
-- [ ] Confirm the workflow's required secret check runs for pushes to `main`; it fails if the
-  secret is missing and scans with the configured terms. Generic scanning also runs on pushes
-  and pull requests.
+- [ ] Confirm the workflow's Owner-terms step runs for pushes to `main` of the public repository
+  and scans with the configured terms. If the secret is unset it prints a notice and passes
+  without scanning, so check that the run's log shows no `Owner-terms guard skipped` notice.
+  Generic scanning also runs on pushes and pull requests.
 - [ ] Protect `main`: require pull requests before merging, require the status checks `CI / go`
-  and `CI / python` to pass, and prevent force pushes and branch deletion.
+  and `CI / python` to pass, and prevent force pushes and branch deletion. Also require
+  `CI / macos` once it has run green on the public repository.
 - [ ] Add repository topics that describe the project, such as `job-search`, `terminal`, and
   `privacy`.
 - [ ] Confirm a push to `main` runs CI successfully with the Owner-terms secret configured.

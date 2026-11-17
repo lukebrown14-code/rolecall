@@ -14,6 +14,8 @@ what you have tried. Small fixes can go straight to a pull request.
 Install Go (the version is declared in `go.mod`) and Python 3, then run:
 
 ```sh
+python3 scripts/check-personal-data.py .      # personal-data scan of tracked files
+scripts/test-pre-commit.sh                    # the pre-commit hook's own tests
 scripts/check-go.sh              # gofmt, architecture rules, go vet, golangci-lint if installed
 go test -race ./...
 go test -race -count=3 ./internal/ui/...      # the UI tests run three times to catch flakiness
@@ -21,7 +23,9 @@ ruff check plugin                # Python plugin lint (needs: python3 -m pip ins
 python3 -m pytest plugin/tests
 ```
 
-CI runs all of these on every push and pull request. A change is ready when they pass locally.
+CI runs all of these on every push and pull request, plus a macOS job (`scripts/check-go.sh`
+and `go test ./...`) and `govulncheck` on the dependencies. A change is ready when the checks
+pass locally.
 
 ### Enable the pre-commit hook
 
@@ -71,7 +75,7 @@ Merge to `main`, then tag it. There is no release branch.
 
 ```sh
 git switch main && git pull
-git tag v0.4.0 && git push origin v0.4.0
+git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
 The tag runs `.github/workflows/release.yml`: GoReleaser builds macOS and Linux archives
@@ -88,12 +92,8 @@ that your contribution is released under the same licence.
 
 ## Source layout
 
-`cmd/rolecall/` contains the command-line entry point. Application packages live under
-`internal/`: `config`, `doctor`, `process`, `reporting`, `store`, and `ui`. Go prevents
-other repositories from importing these packages. `plugin/` contains the Harness plugin,
-`fixtures/` holds shared fictional Workspaces, and `scripts/` contains development checks.
-
-See [the UI guide](internal/ui/README.md) for screen and presentation responsibilities.
-Public-interface tests live in each package's `tests/` directory. Tests of private model
-state remain beside their implementation. Use recursive package paths (`./internal/ui/...`)
-to include both the implementation packages and their tests.
+`cmd/rolecall/` is the command-line entry point; application packages live under `internal/`
+(`config`, `doctor`, `process`, `reporting`, `store`, `ui`); `plugin/` is the Harness plugin,
+`fixtures/` holds shared fictional Workspaces and `scripts/` the development checks. The UI
+packages are described in [the UI guide](internal/ui/README.md), and where tests live in
+[CODING_STANDARDS.md](CODING_STANDARDS.md).
