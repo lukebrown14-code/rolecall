@@ -160,7 +160,7 @@ func TestStatsFunnelExplainsEachRung(t *testing.T) {
 		"0 this week · max 1/wk",
 		"Applied  Counted  Responses  Rate",
 		"Unknown               6        6          2   33%",
-		"SWE                   5        0          0     —",
+		"SWE                   5        0          0",
 		"No Applications sent: Platform",
 	} {
 		if !strings.Contains(strings.Join(strings.Fields(view), " "), strings.Join(strings.Fields(want), " ")) {

@@ -129,15 +129,14 @@ func (p pal) GroupHeader(label, status string, n int, rollup string, w int) stri
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 
-// fitNone is a Fit not yet assessed in the plain-text table columns (ApplicationColumns);
-// the frame leaves a row's Fit blank and the card says "fit not assessed".
-const fitNone = glyphNone
+// A Fit not yet assessed is blank in the table columns and the frame's rows; the card
+// says "fit not assessed".
 
 // fitWords is an assessed Fit as the card writes it: "fit Good" (cardFit words an unassessed one).
 func (p pal) fitWords(fit string) string {
 	value := fit
 	if value == "" {
-		value = fitNone
+		value = fitUnassessed
 	}
 	return p.Text(p.Dim).Render(fitLabel) + p.Text(p.FitColor(fit)).Render(value)
 }

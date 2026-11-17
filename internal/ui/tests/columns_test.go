@@ -13,7 +13,7 @@ import (
 func TestApplicationColumns(t *testing.T) {
 	a := store.Application{Title: "Engineer", Company: "Acme", Track: "tech", Status: "Applied", Documents: "Ready", AppliedDate: &store.StatusEntry{At: "2026-01-01", Approx: true}, LastChange: &store.StatusEntry{At: "2026-01-01"}}
 	got := ui.ApplicationColumns(a, "Applied", time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), 14)
-	for _, want := range []string{"~2026-01-01", "✓", "⚑", "—"} {
+	for _, want := range []string{"~2026-01-01", "✓", "⚑"} {
 		if !strings.Contains(strings.Join(got, " "), want) {
 			t.Fatalf("missing %s: %v", want, got)
 		}
@@ -42,12 +42,12 @@ func TestColumnsAcrossTables(t *testing.T) {
 		t.Run(table, func(t *testing.T) {
 			a := store.Application{Title: "Role", Company: "Firm", Track: "tech", Status: table, Closes: "2026-01-01", Documents: "Written", AppliedDate: &store.StatusEntry{At: "2026-01-01", Approx: true}, LastChange: &store.StatusEntry{At: "2026-01-01", Approx: true}}
 			got := strings.Join(ui.ApplicationColumns(a, table, now, 14), "|")
-			want := "Role|Firm|tech|~2026-01-01|—|○|"
+			want := "Role|Firm|tech|~2026-01-01||○|"
 			switch table {
 			case "Leads":
-				want = "Role|Firm|tech|past|—"
+				want = "Role|Firm|tech|past|"
 			case "Drafts":
-				want = "Role|Firm|tech|past|—|○"
+				want = "Role|Firm|tech|past||○"
 			case "Dismissed":
 				want = "Role|Firm|tech|~2026-01-01"
 			case "Applied", "Interviewing":
