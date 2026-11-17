@@ -166,6 +166,9 @@ func (m model) feedbackMsg(p pal) (string, string) {
 	switch {
 	case m.err != nil:
 		msg = m.errorText(m.err)
+		if m.screen == settingsScreen {
+			msg = strings.Replace(msg, fixHint, "e to fix it", 1)
+		}
 		icon, c, hint = errorMark, p.Bad, "esc hide"
 		if _, ok := parseError(m.err); ok {
 			hint = "e fix in editor · esc hide"

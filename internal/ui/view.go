@@ -354,6 +354,12 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
+			// A Settings problem keeps a ⚠ on the tab at every width, so it outlives the
+			// feedback line it was first shown on.
+			warn := ""
+			if d.name == screenSettings && m.settingsBroken() {
+				warn = glyphWarn
+			}
 			tail := ""
 			if wide && level < shedCounts && d.name == screenStats && spark != "" {
 				tail = spark + " "
@@ -362,7 +368,11 @@ func (m model) tabs(p pal) (string, []int) {
 				}
 			}
 			if si == active {
-				out += p.SelChip(digit+name+count) + tail
+				chip := digit + name + count
+				if warn != "" {
+					chip += " " + warn
+				}
+				out += p.SelChip(chip) + tail
 				continue
 			}
 			if level >= shedCounts {
@@ -378,7 +388,11 @@ func (m model) tabs(p pal) (string, []int) {
 					sep = " " // …but the active chip after it never touches it: "3 [4 Stats]"
 				}
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
+			if warn != "" {
+				warn = p.Text(p.Warn).Render(" " + warn)
+				sep = " "
+			}
+			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + warn + sep + tail
 		}
 		return out, starts
 	}

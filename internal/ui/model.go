@@ -49,6 +49,7 @@ type model struct {
 	statsTop              int              // the first Stats line shown when the report is taller than the body
 	stats                 *statsCache      // the Stats report for the current interaction; see statsReport
 	configHome            string           // where config.toml lives; empty means machine settings cannot be saved
+	wsInvalid             bool             // workspace.json cannot be used: the Settings tab keeps a ⚠ until it is fixed
 	configErr             error            // config.toml's last load error (*config.FileError when it does not parse)
 	configWarnings        []config.Warning // what the last config.toml load worked around (config.Config.Warnings)
 	ascii                 bool             // ascii in config.toml; ROLECALL_ASCII=1 also forces it
@@ -121,7 +122,8 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 			// An invalid workspace.json does not stop startup: the app opens with no Track
 			// filter, and Settings shows the path and the parse error with e to fix it.
 			// Only a schema this build cannot use still stops it.
-			m.tracks, m.err, e = nil, fmt.Errorf("%w · 6 Settings shows why, e to fix it", e), nil
+			m.tracks, m.err, e = nil, fmt.Errorf("%w · %s", e, fixHint), nil
+			m.wsInvalid = true
 		}
 	}
 	if e != nil {
@@ -598,6 +600,7 @@ func (m *model) loadRules() {
 func (m *model) rescanAll() {
 	folder := m.cursorFolder()
 	tracks, err := m.store.Tracks()
+	m.wsInvalid = err != nil && (invalidWorkspaceFile(m.store) || badTrackList(err))
 	if err != nil {
 		m.err = err
 		return

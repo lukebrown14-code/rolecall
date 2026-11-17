@@ -43,6 +43,14 @@ func (m model) configBroken() bool {
 	return errors.As(m.configErr, &fe)
 }
 
+// fixHint is how a Settings problem is fixed from any screen: e on a table screen edits
+// the row under the cursor, so the key that opens the file is on the Settings screen.
+// On Settings itself the feedback line drops the "press 6 then".
+const fixHint = "6 then e to fix it"
+
+// settingsBroken reports a workspace.json or config.toml that cannot be used as written.
+func (m model) settingsBroken() bool { return m.wsInvalid || m.configBroken() }
+
 // configFeedback is the feedback-line form of config.toml's problem: short enough to read
 // at 100 columns, with where to go to fix it. nil when config.toml is fine.
 func (m model) configFeedback() error {
@@ -53,7 +61,7 @@ func (m model) configFeedback() error {
 		if w := fe.Where(); w != "" {
 			where = " " + w
 		}
-		return fmt.Errorf("%s%s: %s · 6 Settings, e to fix it", configFile, where, fe.Reason)
+		return fmt.Errorf("%s%s: %s · %s", configFile, where, fe.Reason, fixHint)
 	case m.configErr != nil:
 		return m.configErr
 	case len(m.configWarnings) > 0:
