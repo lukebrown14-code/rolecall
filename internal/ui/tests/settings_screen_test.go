@@ -74,6 +74,23 @@ func requireAll(t *testing.T, view string, wants ...string) {
 	}
 }
 
+// unwrapped drops line breaks, spaces and the │ margin glyph, so text the screen wrapped
+// (a long path, say) compares equal to the text before it wrapped.
+func unwrapped(s string) string {
+	return strings.Join(strings.Fields(strings.ReplaceAll(s, "│", " ")), "")
+}
+
+// requireUnwrapped is requireAll for text that may wrap: it compares both sides unwrapped.
+func requireUnwrapped(t *testing.T, view string, wants ...string) {
+	t.Helper()
+	got := unwrapped(view)
+	for _, want := range wants {
+		if !strings.Contains(got, unwrapped(want)) {
+			t.Fatalf("missing %q (ignoring wraps):\n%s", want, view)
+		}
+	}
+}
+
 func TestSettingsOpensOnSixAfterProfile(t *testing.T) {
 	for _, from := range []string{"1", "4", "5"} {
 		view := chipped(runKeys(t, fixtureCopy(t, nil), 120, from, "6"))
@@ -151,7 +168,8 @@ func TestSettingsInvalidWorkspaceShowsPathAndErrorAndWritesNothing(t *testing.T)
 	h.tm.Type("1")
 	h.tm.Type("6")
 	v := h.tm.plain()
-	requireAll(t, v, filepath.Join(h.root, "workspace.json"), "unexpected end of JSON input", "e", "edit")
+	requireUnwrapped(t, v, filepath.Join(h.root, "workspace.json"), "unexpected end of JSON input")
+	requireAll(t, v, "e", "edit")
 	h.tm.Type("]")
 	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
 		t.Fatalf("settings are shown for an invalid file:\n%s", h.tm.plain())
@@ -175,7 +193,7 @@ func TestSettingsNewerSchemaIsReportedAndWritesNothing(t *testing.T) {
 	writeWorkspaceFile(t, h.root, newer)
 	h.tm.Type("1")
 	h.tm.Type("6")
-	requireAll(t, h.tm.plain(), "schema 2", filepath.Join(h.root, "workspace.json"), "newer rolecall")
+	requireUnwrapped(t, h.tm.plain(), "schema 2", filepath.Join(h.root, "workspace.json"), "newer rolecall")
 	h.tm.Type("]")
 	if strings.Contains(h.tm.plain(), "Cover letter maximum") {
 		t.Fatalf("settings shown for a newer-schema file:\n%s", h.tm.plain())
