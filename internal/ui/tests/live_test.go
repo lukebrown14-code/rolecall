@@ -85,7 +85,7 @@ func rowBlock(view, title string) string {
 // finalView quits and returns the last rendered screen without styling.
 func (h *liveHarness) finalView() string {
 	h.t.Helper()
-	h.tm.Type("q")
+	h.tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}) // q goes back from a detail, ctrl+c quits from anywhere
 	return chipped(h.tm.FinalModel(h.t, teatest.WithFinalTimeout(5*time.Second)).View().Content)
 }
 

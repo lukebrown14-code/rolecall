@@ -2,7 +2,6 @@ package ui
 
 import (
 	"errors"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -34,7 +33,7 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 		c := a.Contacts[0]
 		v.contact, v.contactRole, v.contactReach = c.Name, c.Role, c.Reach()
 	}
-	m.overlay = &formMode{form: newForm(&v, tracks, true), editOf: &a}
+	m.overlay = &formMode{form: newForm(&v, tracks, true, m.now), editOf: &a}
 	return nil
 }
 
@@ -53,19 +52,6 @@ const (
 	fieldContactRole  = "Role"
 	fieldContactReach = "Email / URL"
 )
-
-var nextStepPattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$`)
-
-// validNextStepAt takes the Closes rules (a real YYYY-MM-DD) and an optional THH:MM.
-func validNextStepAt(s string) error {
-	if s == "" || store.ValidNextStepAt(s) {
-		return nil
-	}
-	if nextStepPattern.MatchString(s) {
-		return errors.New("Next step isn't a real date or time (YYYY-MM-DD or YYYY-MM-DDTHH:MM)")
-	}
-	return errors.New("Next step must be YYYY-MM-DD or YYYY-MM-DDTHH:MM")
-}
 
 // validReach accepts an email address or a web link; blank is left to editProblem.
 func validReach(s string) error {

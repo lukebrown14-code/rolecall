@@ -192,13 +192,13 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	h.tm.Type("2026-13-45")
 	h.enter()
 	// The shape is right, so the error says the date is not real rather than repeating it.
-	h.wait("Closes isn't a real date (YYYY-MM-DD)")
+	h.wait("Closes isn't a real date")
 	for range len("2026-13-45") {
 		h.tm.Type("backspace")
 	}
-	h.tm.Type("1 March")
+	h.tm.Type("someday")
 	h.enter()
-	h.wait("Closes must be YYYY-MM-DD")
+	h.wait("Closes: use YYYY-MM-DD")
 	h.esc()
 	h.quit()
 	if !sameSnapshot(before, h.snapshot()) {

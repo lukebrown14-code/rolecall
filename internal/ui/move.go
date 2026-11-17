@@ -44,6 +44,8 @@ type undoMove struct {
 	// the followed_up day it replaced ("" removes the key).
 	followUp   bool
 	followedUp string
+	// batch is a bulk move (bulk.go): one u puts back every move in it.
+	batch []undoMove
 }
 
 // requestMove moves immediately, except that a non-Ready Application going to Applied
@@ -57,7 +59,7 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 	cmd := m.move(a, status, false)
 	if (status == store.StatusRejected || status == store.StatusWithdrawn) && m.err == nil && len(m.undo) > before {
 		// The move happened; asking why it ended is optional, and esc skips it.
-		return m.closeReasonPopup(a, status), cmd
+		return m.closeReasonPopup([]store.Application{a}, status), cmd
 	}
 	return nil, cmd
 }
@@ -211,6 +213,9 @@ func (m *model) undoLast() tea.Cmd {
 		return nil
 	}
 	last := m.undo[len(m.undo)-1]
+	if last.batch != nil {
+		return m.undoBatch(last.batch)
+	}
 	a, ok := m.application(last.folder)
 	if !ok {
 		return nil

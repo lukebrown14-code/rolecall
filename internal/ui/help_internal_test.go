@@ -36,9 +36,9 @@ func TestAISkillsNameEveryPluginSkill(t *testing.T) {
 	}
 }
 
-// One name per key: a key the help, the space menu and the palette all offer has the
-// same words in each (the menu's in sentence case).
-func TestHelpMenuAndPaletteNameAKeyAlike(t *testing.T) {
+// One name per key: a key the help and the command finder both offer has the same words in
+// each.
+func TestHelpAndPaletteNameAKeyAlike(t *testing.T) {
 	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"4"}, {"5"}, {"6"}} {
 		m := fixtureModel(t)
 		m.width, m.height = 120, 40
@@ -54,11 +54,6 @@ func TestHelpMenuAndPaletteNameAKeyAlike(t *testing.T) {
 		for _, k := range m.openPalette().items {
 			if want, ok := names[k.Help().Key]; ok && k.Help().Desc != want {
 				t.Errorf("%v: palette names %q %q, help %q", keys, k.Help().Key, k.Help().Desc, want)
-			}
-		}
-		for _, it := range m.openMenu().items {
-			if want, ok := names[it.key]; ok && !strings.EqualFold(it.label, want) {
-				t.Errorf("%v: menu names %q %q, help %q", keys, it.key, it.label, want)
 			}
 		}
 	}
@@ -122,11 +117,12 @@ func TestHelpPagesNeverEndOnAHeading(t *testing.T) {
 	}
 }
 
-// The help fits in a page or two at common sizes (three at 80x24 and below, now the Plugin
-// ships ten skills), and in six on the smallest terminal rolecall runs in: below wide it is a screen of its own rather than a pop-up between
-// the frame's rules.
+// The help fits in a page or two at common sizes, 80x24 included (the skills with no key
+// share one line, so the ten Plugin skills cost three rows), and in six on the smallest
+// terminal rolecall runs in: below wide it is a screen of its own rather than a pop-up
+// between the frame's rules.
 func TestHelpPageCounts(t *testing.T) {
-	for _, tc := range []struct{ w, h, most int }{{166, 44, 2}, {120, 36, 2}, {90, 30, 2}, {80, 24, 3}, {72, 24, 3}, {56, 14, 6}} {
+	for _, tc := range []struct{ w, h, most int }{{166, 44, 2}, {120, 36, 2}, {90, 30, 2}, {80, 24, 2}, {72, 24, 2}, {56, 14, 6}} {
 		for _, keys := range helpContexts {
 			if _, hm := helpAt(t, tc.w, tc.h, keys); hm.pages > tc.most {
 				t.Errorf("%dx%d keys %q: help is %d pages, want at most %d", tc.w, tc.h, keys, hm.pages, tc.most)

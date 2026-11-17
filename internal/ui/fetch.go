@@ -60,7 +60,7 @@ func (fm *formMode) startFetch(m *model) (mode, tea.Cmd) {
 		return fm, nil
 	}
 	if len(matches) > 0 {
-		return &duplicateMode{existing: matches[0], fields: createFields(readAddValues(fm.form))}, nil
+		return &duplicateMode{existing: matches[0], fields: createFields(readAddValues(fm.form, m.now()))}, nil
 	}
 	fm.form.Fetching, fm.form.FetchErr = true, ""
 	m.capturedRun = true

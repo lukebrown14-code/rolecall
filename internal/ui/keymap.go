@@ -84,6 +84,16 @@ func usable(m model) bool {
 	return !ok || a.Malformed == nil
 }
 
+// searchJumps reports an empty view under a search that has matches on another view or
+// screen: where enter goes to them.
+func searchJumps(m model) bool {
+	if m.detail != nil || !m.hasTables() || m.text == "" || onRow(m) {
+		return false
+	}
+	_, j := m.searchElsewhere()
+	return j.ok
+}
+
 // leadOrDraft reports whether the current row is still the Owner's to send.
 func leadOrDraft(m model) bool {
 	a, ok := m.current()
@@ -133,6 +143,24 @@ var listActions = []listAction{
 		},
 	},
 	{
+		// A search that matches nothing here but something elsewhere: enter, which has no row to
+		// open, goes to where the matches are.
+		keys: []string{"enter"}, keyLabel: "enter",
+		desc: func(m model) string {
+			_, j := m.searchElsewhere()
+			return "go to " + j.words
+		},
+		group: groupAction, prio: fixed(prioCore),
+		listed:  searchJumps,
+		enabled: searchJumps,
+		run: func(m *model, _ string) tea.Cmd {
+			if _, j := m.searchElsewhere(); j.ok {
+				m.jumpToSearch(j)
+			}
+			return nil
+		},
+	},
+	{
 		keys: []string{"e"}, keyLabel: "e",
 		desc: func(m model) string {
 			if a, ok := m.current(); ok && a.Malformed != nil {
@@ -162,6 +190,11 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return onRow(m) && usable(m) },
 		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
+			if marked := m.markedHere(); len(marked) > 0 {
+				// Marked rows move together: the pop-up names the count, then asks once.
+				m.overlay = &moveMode{app: marked[0], options: bulkOptions(marked), bulk: marked}
+				return nil
+			}
 			a, ok := m.current()
 			if ok && a.Malformed != nil {
 				// Refused at the key, as x is: the pop-up would offer Statuses for an
@@ -192,8 +225,8 @@ var listActions = []listAction{
 		group: groupAction, prio: fixed(prioLean),
 		// Not in the detail view, where a reader's stray x would close what they are
 		// reading: there it points to m, as on a row it does not apply to.
-		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
-		enabled: func(m model) bool { return m.detail == nil && leadOrDraft(m) },
+		listed:  func(m model) bool { return m.detail == nil && ((usable(m) && leadOrDraft(m)) || m.markCount() > 0) },
+		enabled: func(m model) bool { return m.detail == nil && (leadOrDraft(m) || m.markCount() > 0) },
 		why: onRowWhy(func(m model) string {
 			if m.detail != nil && leadOrDraft(m) {
 				return "x: dismisses from the list only · m to move"
@@ -201,9 +234,30 @@ var listActions = []listAction{
 			return "x: only Leads and Drafts can be dismissed · m to move"
 		}),
 		run: func(m *model, _ string) tea.Cmd {
+			if m.markCount() > 0 {
+				m.overlay = m.bulkAction(store.StatusDismissed)
+				return nil
+			}
 			if a, ok := m.current(); ok && a.Unsent() {
 				return m.move(a, store.StatusDismissed, false)
 			}
+			return nil
+		},
+	},
+	{
+		// Marks several rows for one x or m. * is free on every list; space, v and tab are not.
+		keys: []string{keyMark}, keyLabel: keyMark,
+		desc: func(m model) string {
+			if a, ok := m.current(); ok && m.isMarked(a.Folder) {
+				return "unmark row"
+			}
+			return "mark row"
+		},
+		group: groupAction, prio: fixed(prioMain),
+		listed:  func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		enabled: func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		run: func(m *model, _ string) tea.Cmd {
+			m.toggleMark()
 			return nil
 		},
 	},

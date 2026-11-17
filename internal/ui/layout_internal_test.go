@@ -16,8 +16,8 @@ func TestSizeLayoutBreakpoints(t *testing.T) {
 		{59, 0, detailFull, 1},
 		{60, 0, detailFull, 1},
 		{71, 0, detailFull, 1},
-		{72, classMedium, detailSheet, 2},
-		{99, classMedium, detailSheet, 2},
+		{72, classMedium, detailFull, 2},
+		{99, classMedium, detailFull, 2},
 		{100, classWide, detailPane, 2},
 		{109, classWide, detailPane, 2},
 		{110, classWide, detailPane, 2},
@@ -42,33 +42,6 @@ func TestSizeLayoutBreakpoints(t *testing.T) {
 			} else if l.listW != c.w || l.detailW != 0 {
 				t.Errorf("%dx%d: single pane has list %d detail %d", c.w, h, l.listW, l.detailW)
 			}
-		}
-	}
-}
-
-// A bottom sheet needs the list's top part and about 8 detail lines; shorter, the detail
-// opens full-screen. Wide and narrow never use a sheet.
-func TestSheetHeights(t *testing.T) {
-	cases := []struct {
-		w, h   int
-		ok     bool
-		listH  int
-		detail int
-	}{
-		{80, 24, true, 7, 10},
-		{80, 20, true, 6, 8},
-		{80, 19, false, 0, 0},
-		{80, 16, false, 0, 0},
-		{60, 36, false, 0, 0},
-		{120, 36, false, 0, 0},
-	}
-	for _, c := range cases {
-		list, detail, ok := sizeLayout(c.w, c.h).sheetHeights(tableContext)
-		if ok != c.ok {
-			t.Errorf("%dx%d: sheet = %v; want %v", c.w, c.h, ok, c.ok)
-		}
-		if ok && (list != c.listH || detail != c.detail) {
-			t.Errorf("%dx%d: list %d detail %d; want %d/%d", c.w, c.h, list, detail, c.listH, c.detail)
 		}
 	}
 }

@@ -200,7 +200,6 @@ type cardMode int
 const (
 	cardPreview cardMode = iota // beside the list, with the start of fit.md and jd.md below
 	cardDetail                  // beside the detail tabs, with the link below
-	cardSheet                   // the bottom sheet's Overview: the title chip says the Status and the line under the tabs the next step
 	cardFull                    // the narrow detail's Overview: the strip says the Status, Documents and Fit, the line under the tabs the next step
 )
 
@@ -231,9 +230,6 @@ func (p pal) cardFit(fit string) string {
 // overviewRows is the Overview tab's rows: the card's, less what the frame around them
 // already says.
 func (m model) overviewRows(p pal, a store.Application, w int) []string {
-	if m.sheetShown() {
-		return m.fieldRows(p, a, w, cardSheet)
-	}
 	return m.fieldRows(p, a, w, cardFull)
 }
 
@@ -264,8 +260,6 @@ func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []str
 		if line := m.nextLine(p, a, w, true); line != "" {
 			head = append(head, line)
 		}
-	case cardSheet:
-		head = m.statusLine(p, a, w, false)
 	}
 	section(head...)
 	section(m.factRows(p, a, w, keep)...)

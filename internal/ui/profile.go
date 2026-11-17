@@ -731,7 +731,7 @@ func (m model) profileSectionList(p pal, h int) string {
 	st := m.profile
 	listW := m.profileListWidth()
 	// The list loses the fill, not the mark, while the content pane holds the focus, as
-	// the list does under a sheet.
+	// the list does while the detail holds the focus.
 	filled := st.focus != profileContent
 	rows := make([]string, 0, st.entries()+1)
 	for i, section := range st.profile.Sections {

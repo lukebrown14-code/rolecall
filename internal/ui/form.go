@@ -105,6 +105,11 @@ func (m model) formValue(p pal, f *form, fld *formField, focused bool, avail int
 	if fld.Note != "" {
 		aside = p.Text(p.Dim).Render("  " + fld.Note)
 	}
+	if fld.Echo != nil {
+		if echo := fld.Echo(fld.Value); echo != "" {
+			aside = p.Text(p.Info).Render("  " + echo)
+		}
+	}
 	switch {
 	case fld.Choices != nil:
 		arrow := p.Dim

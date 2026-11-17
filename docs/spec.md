@@ -133,7 +133,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 |---|---|---|
 | `1`–`6` | global | switch screen: Leads, Drafts, Applied, Stats, Profile, Settings |
 | `←` `→` | screen | previous / next view; in the detail view, previous / next tab; in Settings, previous / next group |
-| `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, palette, menu and an empty view all say `s change view`) |
+| `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, the command finder and an empty view all say `s change view`) |
 | `Tab` / `Shift-Tab` | screen | next / previous pane on Profile, the only screen where it is listed; elsewhere an unlisted alias of `→` / `←` (views, detail tabs, Settings groups) |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom. In the detail view: scroll (`pgup` `pgdn` page) |
 | `J` / `K` | detail view | next / previous row's detail, on the same tab (help and palette only, not the key line). In Settings › Tracking they reorder Tracks |
@@ -144,6 +144,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `m` | row | Move popup. On a malformed row it shows the parse error instead, as `x` does |
 | `u` | global | undo the last move or recorded follow-up made in this session (on the key line while there is one, after the toast has cleared; with none it says `Nothing to undo`). In Settings: put back the last Settings change |
 | `x` | row (Lead, Draft) | Dismiss. Same as Move → Dismissed. On the key line on a Lead or Draft row; elsewhere it says `x: only Leads and Drafts can be dismissed · m to move` |
+| `*` | row (table) | mark / unmark the row under the cursor (`◉` in its gutter, ASCII `]`; the breadcrumb counts them, `◉ 3 marked`). With rows marked, `x` dismisses and `m` moves all of them: `x` skips any marked row that is not a Lead or Draft, `m` offers every Status some marked row is not already at. Either asks once, naming the count and who is left out (`Dismiss 3 Applications?`, `y` confirms; moving to Applied also says how many lack Ready Documents, and one `y` covers them all). The toast counts them (`Dismissed · 3 Applications`) and one `u` puts every one back (`Undone · 3 Applications moved back`). `Esc` clears the marks first, then a search. Marks belong to the view they were made in: another screen or view drops them. `*` was free; `space`, `v`, `tab` and `s` are taken |
 | `l` | row (Applied, Interviewing) | record that you followed up today (`followed_up` in `meta.yml`), without a Status change: the `⚑` clears and returns `follow_up_days` later. `u` takes it back. Elsewhere it says `l: only on Applied and Interviewing Applications` |
 | `d` | row with PDFs | Download |
 | `w` / `c` | row with a `url` (table, detail) | open the job ad's link in the browser / copy it to the clipboard |
@@ -151,20 +152,20 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `o` | Leads view | sort by deadline, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `z` | tables, wide sizes | compact rows: one line per row (title, company and track in aligned columns, then the dates) ↔ two-line rows. Saved to `config.toml` as `compact_rows`. `z` is free on every list and is vim's view-adjusting prefix |
 | `/` | table | text filter on Title + Company. `Esc` clears it on any screen (on Stats and Profile it says `Cleared search "/fe"`) |
+| `enter` | table with no rows, a search on | when the search has no match here but has matches on another view or screen (`No match for "orbit" in Leads · 1 in Applied`), jump to the first of them, keeping the search (`enter go to Applied`) |
 | `r` | global | rescan the Workspace, on every screen (Settings › Tracking renames a Track with `Enter`, so `r` keeps this one meaning) |
 | `,` | global | open Settings (screen 6); `Esc` returns |
 | `h` | global, while no Harness is set | connect a Harness: Settings › This machine on the Harness row (every screen but Settings, with or without Applications). The no-Harness error offers it |
-| `space` | global | Workspace menu: the screens, then Add, Search, Change view, Track filter, Rescan, Commands and Help, then a **This row** group (Open, Move, Dismiss, Undo, Edit, Notes where they apply); each key first, named as the help names it. An item's key runs it, `space` and `q` close |
-| `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs. `Esc`, `?` and `q` close it; any other key closes it and runs on the screen beneath |
-| `:` / `Ctrl-K` | global | command palette: type to filter this context's actions (and one `<Screen> screen` entry per screen), `Enter` runs one |
-| `q` / `Ctrl-C` | global | quit. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
+| `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs and row words, in at most two pages (the AI skills with no key share one line). `Esc`, `?` and `q` close it; any other key closes it and runs on the screen beneath |
+| `space` / `:` / `Ctrl-K` | global | the one command finder (there is no separate menu): type to filter this context's actions, row actions included, and one `<Screen> screen` entry per other screen; `Enter` runs one. Descriptions are lower case as in `?` (`move`, `rescan`); a screen entry keeps its screen's capital (`Drafts screen`). `space` is the key shown on the tab bar and key line; `Ctrl-K` is an unlisted alias. While it is open every printable key, a digit or `space` too, types into the query; `Esc` closes it |
+| `q` / `Ctrl-C` | global | quit; but `q` in the detail view goes back to the list like `Esc` (a stray `q` while reading must not close the program), and a pop-up's `q` closes it. `Ctrl-C` quits from anywhere. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `F`, `b`: see [v0.2](#v02-harness-and-extras).
 - The key line shows only the keys valid for the current row (e.g. `d` hidden when nothing is built), and
   is lean: the core keys (`enter`, `m`, `a`, `/`), `x dismiss` on a Lead or Draft, `u undo` while a move
-  can be undone, then `esc` and `? help`; every other key is in `?`, the palette and the menu. Key
+  can be undone, then `esc` and `? help`; every other key is in `?` and the command finder. Key
   names are lower case everywhere (`enter`, `esc`), drawn bare in the accent colour on the key line, in
-  `?`, the palette and the menu (brackets mean "active" only), and each key has one name on all four.
+  `?` and the command finder (brackets mean "active" only), and each key has one name on all three.
 - A known row key that does not apply on this row says why in a note instead of doing nothing (`o: sorts
   the Leads view only`, `d: no PDFs built for this Application yet`, `F: only on a Follow-up due
   Application`); an unknown key stays silent. The detail view gives the same notes, from the same
@@ -176,7 +177,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
   dimmed and marked `(needs a Harness)`; pressing one gives `✘ No Harness set · …   h connect a Harness`.
 - **One keymap:** each screen, focus and pop-up declares its keys with a priority (`internal/ui/help.go`). The key line,
   the `?` help and the command palette all read it, so a key is declared once. While a pop-up is open the key
-  line shows the pop-up's keys. The `space` menu offers a key only where the registry lists it for the
+  line shows the pop-up's keys. The command finder offers a key only where the registry lists it for the
   screen it was opened from.
 - **Mouse:** click a screen tab, a view or a row; the wheel scrolls whatever `↑↓` moves; click the search
   chip's `×` to clear it. `ROLECALL_PLAIN=1` turns mouse capture off.
@@ -227,7 +228,7 @@ does not repeat it.
 ### Add form (`a`)
 
 Form fields: URL · **Title*** · **Company*** · **Track** (choice from `workspace.json`) ·
-Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). The form opens on Title; with a Plugin
+Closes (`YYYY-MM-DD`, `today`, `tomorrow`, `+7d` / `+2w`, or day-first `30 Nov` / `30/11`; a date with no year is its next occurrence, today counting; the parsed date is echoed beside the field, `→ Mon 30 Nov 2026`, and saved as `YYYY-MM-DD`) · Fit (choice, blank allowed). The form opens on Title; with a Plugin
 set it opens on the URL instead, where `Enter` fetches the ad. The URL is optional, and a
 value that is not a web address is refused when the field is left (`✘ URL must start with
 https://`); Edit never refuses a saved URL it did not change. Track needs no `*`: it is a choice and
@@ -276,25 +277,25 @@ Header: one line, `‹ esc  Title · Company` (as the list reads) with `applied 
 that spans years gives every stop its year.
 Tabs (`←` `→`, or `tab` / `shift+tab`): **JD** · **Fit** · **Notes** · **Docs** (Fit beside JD: they
 are read together), the active one bracketed (`[JD]`).
-How the detail opens depends on the size class:
+The detail has two layouts, not three, and one section order in both: header, tabs, then the
+sections, which drop out as room runs out. The header, the tabs and the body share one text
+column at every size.
 
-- **Wide:** the tabs take the list's place and the preview's card (Status, next step, facts,
-  documents, timeline, notes, then the link as one `LINK  https://…  w open` row) stays where
-  the preview was, on the right at its width, so the divider does not move.
-- **Medium:** the detail opens as a bottom sheet under the top of the list, when the height
-  holds at least 5 list lines and 8 detail lines; otherwise full-screen, as narrow. The
-  sheet's title carries the Status chip and the line under its tabs the next step, on every tab.
-- **Narrow:** full-screen, with the card folded into a two-line strip under the header: the
-  timeline as a track (`◌ Lead 24 Sep ─ ● Applied 25 Sep ─ ◆ Interviewing ─ ★ Offer`), then
-  documents · Fit · close date · Track, each shedding detail to fit rather than wrapping (the
-  Track, the close date, then the documents fold into their meter, so the Fit stays). The line
-  under the tabs is the next step, on every tab.
+- **Wide** (100 columns and up): the tabs take the list's place and the preview's card (Status,
+  next step, facts, documents, timeline, notes, then the link as one `LINK  https://…  w open`
+  row) stays where the preview was, on the right at its width, so the divider does not move.
+- **Everything narrower** (80x24, 60x16 and every width below 100): full-screen. Enter replaces
+  the list; there is no list-over-detail split. The card folds into a two-line strip under the
+  header: the timeline as a track (`◌ Lead 24 Sep ─ ● Applied 25 Sep ─ ◆ Interviewing ─ ★
+  Offer`), then documents · Fit · close date · Track, each shedding detail to fit rather than
+  wrapping (the Track, the close date, then the documents fold into their meter, so the Fit
+  stays). The line under the tabs is the next step, on every tab.
 
-Where the card is not shown (the sheet and full-screen), an **Overview** tab comes first and
-holds the card's rows, less what the frame already says: the next step (under the tabs), the
-Status (the sheet's chip; it keeps the age and Fit line) and, full-screen, the Status, Fit and
-documents (the strip). The next step thus sits in one place per size class: under the Status
-line in the card, under the tabs without it.
+Where the card is not shown (every full-screen size) an **Overview** tab comes first and holds the
+card's rows, less what the frame already says: the next step (under the tabs) and the Status,
+Fit and documents (the strip). The next step thus sits in one place per layout: under the
+Status line in the card, under the tabs without it. Overview exists at every size where the card
+does not, so the tab list never differs between 60 and 99 columns.
 
 The detail opens on the tab last chosen in the session where the Application has it (Fit
 stays Fit from one Lead to the next), otherwise on its first tab. `J` / `K` show the next /
@@ -308,7 +309,7 @@ either end.
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
 | Docs | list, under **Documents**: JD, Resume, Cover letter (`✓` ready or `○` missing) and Gaps (`ready · not counted`: the DOCS meter leaves it out); under **PDFs · out/** each PDF, or `○ PDF  not built yet` while `out/` is empty, so the tab lists every Document the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
 
-`Esc` goes back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
+`Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
 
 ### Next step, contacts and exports
@@ -443,7 +444,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   colour and bold, the others dim. When two panes share the
   frame, the focused pane's part of the top rule is the accent.
 - **Other colours:** Fit Strong green · Good blue · Marginal yellow (its own role, apart
-  from the urgency amber) · Poor grey. Close dates by urgency: `closes in 6d` amber and
+  from the urgency amber) · Poor grey. Close dates by urgency: `closes in 6d (soon)` amber (the word `(soon)` carries the urgency without colour) and
   bold within 7 days, `closes in 2d ▲` red and bold within 2 (and today), `expired 3 Sep` struck through and muted once past — in rows, the preview and the
   detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. Documents are named JD · Resume ·
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
@@ -451,8 +452,8 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   detail card add a meter, `■■□□ 2/4 ready` (GLOSSARY avoids "built").
 - **Size classes (`internal/ui/layout.go`):** wide ≥ 100 columns, medium 72–99, narrow < 72; short
   ≤ 20 rows; below 56×14 a resize notice. Wide has the preview beside the list, the card beside
-  the detail, the wordmark, the sparkline and `space menu  ? help` in the tab bar. Medium has
-  no preview, opens the detail as a bottom sheet and keeps Profile's and Settings' side lists.
+  the detail, the wordmark, the sparkline and `space commands  ? help` in the tab bar. Medium has
+  no preview, opens the detail full-screen and keeps Profile's and Settings' side lists.
   Narrow has one pane everywhere and the detail full-screen; `ROLECALL_PLAIN` draws the
   narrow class's single pane at every width. At any width the Track filter
   collapses to its active option (`t [All 4]▸`) when the context row is short of room. Short
@@ -461,7 +462,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   minimum and a maximum. Content starts at column 3 (markers and the selection bar at
   column 1) and the last column stays clear.
 - **Layout, top to bottom (one fixed frame):** tab bar (screens; at wide sizes the
-  wordmark, the Applied-per-week sparkline beside the Stats tab and `space menu  ? help` on the
+  wordmark, the Applied-per-week sparkline beside the Stats tab and `space commands  ? help` on the
   right) · a rule (dropped when short) · context row (`VIEW s [Leads 4] Dismissed 2 │ TRACK t
   [All 4] SWE 3  Platform 1`, left-anchored, the same grammar on Stats: `STATS │ TRACK t …`; on
   the right the search chip and scope) · top rule · body (with a preview pane when wide) ·
@@ -470,12 +471,14 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   line or the search input (actions left, navigation pinned right).
 - **Tab bar:** every tab has the same padding, active or not, so nothing shifts between
   screens; the active tab is filled and bracketed (`[1 Leads 4]`), so it reads without
-  colour. The wordmark (`▞ rolecall`) leads it at wide sizes only. As it narrows it drops
-  other screens' counts (and the sparkline with them), the word "rolecall", then other
-  screens' names (their digits stay), then the mark; the active screen keeps its name and
-  count, and a space always parts its chip from the digit before it (`1 2 3 [4 Stats] 5 6`).
-  It sheds to the level every screen's bar fits at, so switching screens never sheds
-  or restores a count. The sparkline is the same series Stats draws, over 8 weeks, drawn muted
+  colour. The wordmark (`▞ rolecall`) leads it at wide sizes only. One rule sheds it by width, in
+  this order: other screens' counts (and the sparkline with them), the word "rolecall", the gap
+  between tabs (two cells to one), then other screens' names (their digits stay), then the
+  mark. The active screen keeps its name and count, and a space always parts its chip from the
+  tab before it. So every screen is still named from 60 columns (`1 Leads 2 Drafts [3 Applied 9] 4
+  Stats 5 Profile 6 Settings`); only the 56-59 column sizes fall back to digits
+  (`1 2 3 [4 Stats] 5 6`). It sheds to the level every screen's bar fits at, so switching
+  screens never sheds or restores a count or a name. The sparkline is the same series Stats draws, over 8 weeks, drawn muted
   on a faint baseline, so an empty week shows as `▁` rather than a gap, and labelled
   `applied/wk` while the bar has room (the label goes before the counts); it is hidden when
   no week has an Applied and under `ROLECALL_PLAIN`. Below 72 columns Settings, which then
@@ -493,7 +496,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   empty view; `Stats › All tracks`, `Profile › Contact`, `Settings › Search`), then the key
   line. Every position reads `N of M` (rows, tabs, Profile and Settings, `page 1 of 7` in
   help); only the documents meter keeps `2/4 ready`.
-- **Feedback:** on the breadcrumb line's right; where it cannot sit whole beside it, it takes the whole line. Its keys are never cut (a success drops `esc hide` first). Every
+- **Feedback:** on the breadcrumb line's right; where it cannot sit whole beside it, it takes the whole line. The breadcrumb keeps the one form it has without a message (it never drops to a shorter variant while a message shows). Its keys are never cut (a success drops `esc hide` first). Every
   move, dismiss, save and Settings change says what happened, the Status first, then the
   title and company (`✓ Moved to Applied · Software Engineer (Orbit Labs)   u undo`,
   `✓ Dismissed · …`, `✓ Undone · back to Lead · …`, `✓ Saved Editor: nano · config.toml`), and
@@ -533,7 +536,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   Applied`, or `s` when the next view holds it).
 - **Rows:** two lines (title + right-hand columns, then company · track · dates), always
   dense: rows in a section sit together, and only a section's header has a blank line above
-  it (none in a bottom sheet, which cannot spare it). A blank Company is left out rather than
+  it. A blank Company is left out rather than
   leaving a separator hanging; an empty title reads `(untitled)`. Right-hand columns are
   the Follow-up due flag and Fit, two cells apart. The flag, on Applied and Interviewing
   rows only, says how long the row has been quiet (`⚑ 6w`, years past two years: `⚑ 7y`),
@@ -601,7 +604,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   one under another only on the narrowest; full-screen, where that saves a page, they run on
   down three columns like a newspaper's. Too narrow for three glyph cells a line, each legend
   row packs its items. A page under 10 lines drops its blank spacers and padding rows, and a
-  spacer goes rather than a section moving to the next page. The `space` menu is centred like every pop-up, key first. The Move
+  spacer goes rather than a section moving to the next page. The command finder is centred like every pop-up, key first. The Move
   pop-up always moves the Application it shows, even if a live refresh moved the cursor.
 - **Overflow:** one cue everywhere — `↓ 3 more` / `↑ 3 more` at the text column — on lists,
   Stats, Profile, Settings, readers and pop-ups. Stats taller than the body scrolls with
@@ -940,7 +943,7 @@ prose, so the 1.x edit form covers the Contact only.
   not on each Contact field.
 - **Focus:** the context row names both panes and brackets the focused one (`[SECTIONS]
   CONTENT`), and the focused pane's rule takes the accent. While the content has focus the
-  list's selected row keeps its `▌` mark but loses its fill, as the list does under a sheet.
+  list's selected row keeps its `▌` mark but loses its fill.
 - **No Harness:** a Profile with only a Contact lists each expected section (`Headlines`,
   `Experience`, `Key Skills keyword pool`, `Summary`, `Facts that are NOT available`) with how to
   fill it by hand: under the Contact when the file lacks the headings, or on each section's own

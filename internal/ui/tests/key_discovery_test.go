@@ -59,7 +59,7 @@ func TestFullScreenHelpPagesAndCloses(t *testing.T) {
 	m := driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 72, 24), "1", "?")
 	m.View() // the help counts its pages as it is drawn, as the program draws after each key
 	m = driveModel(t, m, "down")
-	if v := chipped(m.View().Content); !strings.Contains(v, "page 2 of 3") || !strings.Contains(v, "GLYPHS") {
+	if v := chipped(m.View().Content); !strings.Contains(v, "page 2 of 2") || !strings.Contains(v, "GLYPHS") {
 		t.Errorf("↓ did not turn to the second page:\n%s", v)
 	}
 	if v := chipped(driveModel(t, m, "esc").View().Content); strings.Contains(v, "Keys · Leads") || !strings.Contains(v, "Drafts") {
@@ -115,24 +115,5 @@ func TestConnectHarnessOutlivesTheWelcome(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40, ui.WithHarness("x {skill} {dir}"))
 	if help := helpText(driveModel(t, m, "3", "?").View().Content); strings.Contains(help, "connect a Harness") {
 		t.Fatalf("help offers h with a Harness set: %q", help)
-	}
-}
-
-// The space menu is centred like the other pop-ups, and lists the row's own actions under
-// This row, named as the help names them.
-func TestSpaceMenuIsCentredAndReachesRowActions(t *testing.T) {
-	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "1", " "))
-	top := lineWith(view, "╭─ Menu")
-	left := colOf(top, "╭")
-	if right := 120 - colOf(top, "╮") - 1; left-right > 1 || right-left > 1 {
-		t.Fatalf("menu is not centred (%d left, %d right):\n%s", left, right, view)
-	}
-	for _, want := range []string{"THIS ROW", "enter  Open", "m      Move", "x      Dismiss", "e      Edit", "n      Notes"} {
-		if !strings.Contains(view, want) {
-			t.Errorf("menu lacks %q:\n%s", want, view)
-		}
-	}
-	if applied := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", " ")); strings.Contains(applied, "Dismiss") {
-		t.Errorf("menu offers Dismiss on an Applied row:\n%s", applied)
 	}
 }

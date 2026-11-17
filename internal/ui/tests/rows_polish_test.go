@@ -22,7 +22,7 @@ func fernCloses(date string) func(string) {
 // within a week, ▲ within two days, "expired 3 Sep" once past.
 func TestCloseDateUrgency(t *testing.T) {
 	for _, tc := range []struct{ closes, want string }{
-		{"2026-10-07", "closes in 6d"},
+		{"2026-10-07", "closes in 6d (soon)"},
 		{"2026-10-03", "closes in 2d ▲"},
 		{"2026-10-01", "closes today ▲"},
 		{"2026-09-03", "expired 3 Sep"},

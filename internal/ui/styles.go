@@ -80,6 +80,7 @@ const (
 	glyphMissing  = appearance.GlyphMissing
 	glyphNone     = appearance.GlyphNone
 	glyphUrgent   = appearance.GlyphUrgent
+	glyphMarked   = appearance.GlyphMarked
 	glyphFollowUp = appearance.GlyphFollowUp
 	glyphMeterOn  = appearance.GlyphMeterOn
 	glyphMeterOff = appearance.GlyphMeterOff

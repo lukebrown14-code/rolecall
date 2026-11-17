@@ -12,7 +12,7 @@ import (
 // paletteChrome is the pop-up's borders and padding around its list.
 const paletteChrome = 4
 
-// paletteMode is the command palette (`:` or ctrl+k): every action the keymap registry
+// paletteMode is the command finder (space, `:` or ctrl+k): every action the keymap registry
 // offers where it was opened, filtered as the Owner types. Enter runs the action by
 // sending its key, so an action behaves exactly as if its key were pressed.
 type paletteMode struct {
@@ -21,13 +21,17 @@ type paletteMode struct {
 	items []helpKey
 }
 
+// opensFinder reports whether a key press is one of the command finder's own keys, which
+// the finder does not list.
+func opensFinder(press string) bool { return press == ":" || press == "ctrl+k" || press == spaceKey }
+
 // openPalette lists the runnable keys of the current context and the global ones, then
 // one entry per other screen: the registry's "1-6 screen" names a range, which the palette
 // cannot send, so each screen gets its own "Stats screen  4".
 func (m model) openPalette() *paletteMode {
 	var items []helpKey
 	for _, k := range m.screenKeys() {
-		if k.press != "" && k.press != ":" {
+		if k.press != "" && !opensFinder(k.press) {
 			items = append(items, k)
 		}
 	}

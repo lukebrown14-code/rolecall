@@ -1,6 +1,8 @@
 package ui_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -43,8 +45,8 @@ func TestFormCtrlSShowsEveryMissingFieldUnderIt(t *testing.T) {
 func TestFormChecksAFieldsFormatOnLeavingIt(t *testing.T) {
 	// From Title (where the form opens without a Plugin), Company, Track, then Closes: a bad
 	// date is flagged as soon as tab leaves it.
-	v := addForm(t, "tab", "tab", "tab", "31/12/2026", "tab")
-	requireAll(t, v, "✘ Closes must be YYYY-MM-DD")
+	v := addForm(t, "tab", "tab", "tab", "someday", "tab")
+	requireAll(t, v, "✘ Closes: use YYYY-MM-DD,")
 	// Passing an empty required field is fine: only saving asks for it.
 	if strings.Contains(v, "Title is required") {
 		t.Fatalf("leaving an empty required field flagged it:\n%s", v)
@@ -146,5 +148,31 @@ func TestSettingsPopupTypingReplacesTheValue(t *testing.T) {
 	h.tm.Type("ctrl+s")
 	if f := h.file(); !strings.Contains(f, `"nano"`) || strings.Contains(f, "Australia") {
 		t.Fatalf("typing did not replace the value:\n%s", f)
+	}
+}
+
+// The Closes field takes tomorrow, +7d and 30 Nov, echoes the parsed date as it is typed, and
+// saves YYYY-MM-DD.
+func TestClosesAcceptsRelativeAndDayFirstDatesAndEchoesThem(t *testing.T) {
+	for _, tc := range []struct{ typed, echo, saved string }{
+		{"tomorrow", "→ Fri 2 Oct 2026", "2026-10-02"},
+		{"+7d", "→ Thu 8 Oct 2026", "2026-10-08"},
+		{"30 Nov", "→ Mon 30 Nov 2026", "2026-11-30"},
+		{"2026-12-01", "→ Tue 1 Dec 2026", "2026-12-01"},
+	} {
+		v := addForm(t, "tab", "tab", "tab", tc.typed)
+		requireAll(t, v, tc.echo)
+		root := fixtureCopy(t, nil)
+		m := driveStart(t, root, fixtureClock, 120, 36)
+		m = driveModel(t, m, "a", "Echo Engineer", "tab", "Echo Co", "tab", "tab", tc.typed, "ctrl+s")
+		_ = m
+		matches, _ := filepath.Glob(filepath.Join(root, "jobs", "*", "*echo*", "meta.yml"))
+		if len(matches) != 1 {
+			t.Fatalf("%q: no new Lead folder (%v)", tc.typed, matches)
+		}
+		b, _ := os.ReadFile(matches[0])
+		if !strings.Contains(string(b), `closes: "`+tc.saved+`"`) {
+			t.Errorf("%q saved as:\n%s\nwant closes: %s", tc.typed, b, tc.saved)
+		}
 	}
 }

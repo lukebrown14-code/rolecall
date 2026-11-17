@@ -28,20 +28,20 @@ func TestBreadcrumbShowsAStatusFilterNamedLikeItsScreen(t *testing.T) {
 	}
 }
 
-// The Menu clears only its own cells and a margin around them: the frame behind stays in
+// The finder clears only its own cells and a margin around them: the frame behind stays in
 // view beside it, in whole words, and the pane divider is never cut.
-func TestMenuClearsOnlyItsFootprint(t *testing.T) {
+func TestPaletteClearsOnlyItsFootprint(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", " "))
-	right := -1 // the Menu's right border column
+	right := -1 // the palette's right border column
 	for _, l := range strings.Split(view, "\n") {
-		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ Menu") {
+		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ : ") {
 			right = ansi.StringWidth(l[:i])
 		}
 	}
 	if right < 0 {
-		t.Fatalf("no Menu:\n%s", view)
+		t.Fatalf("no palette:\n%s", view)
 	}
-	divider := colOf(lineWith(view, "┬"), "┬") // the pane divider's column; the centred Menu may cover it
+	divider := colOf(lineWith(view, "┬"), "┬") // the pane divider's column; the centred palette may cover it
 	beside := 0
 	for _, l := range strings.Split(view, "\n") {
 		if trim := strings.TrimSpace(l); !strings.HasPrefix(trim, "│") && !strings.HasPrefix(trim, "╭") && !strings.HasPrefix(trim, "╰") {
@@ -49,17 +49,17 @@ func TestMenuClearsOnlyItsFootprint(t *testing.T) {
 		}
 		rest := ansi.Cut(l, right+1, ansi.StringWidth(l))
 		if !strings.HasPrefix(rest, " ") {
-			t.Errorf("no margin beside the Menu border: %q", l)
+			t.Errorf("no margin beside the palette border: %q", l)
 		}
 		if strings.Trim(rest, " │") != "" {
 			beside++
 		}
 		if divider > right && !strings.Contains(rest, "│") {
-			t.Errorf("the pane divider is cut beside the Menu: %q", l)
+			t.Errorf("the pane divider is cut beside the palette: %q", l)
 		}
 	}
 	if beside == 0 {
-		t.Errorf("the Menu blanks the whole rows behind it:\n%s", view)
+		t.Errorf("the palette blanks the whole rows behind it:\n%s", view)
 	}
 }
 

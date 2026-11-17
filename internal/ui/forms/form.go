@@ -43,6 +43,7 @@ type Field struct {
 	Note        string   // a short aside after the value, e.g. "optional" or "min 150"
 	Unit        string   // after a typed value: "days", "words"
 	Validate    func(string) error
+	Echo        func(string) string // the value as understood, shown beside it while it parses; nil for none
 	Err         string
 }
 

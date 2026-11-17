@@ -108,17 +108,18 @@ func TestProfileEmptyStatesSayHowToFixThem(t *testing.T) {
 	}
 }
 
-// The medium bottom sheet lines up with the list: its text at the list's text column, and
-// its list part shows the selected row's section with one cue line, no blank above it.
-func TestBottomSheetSharesTheListsColumns(t *testing.T) {
-	lines := plainAt(t, 80, 24, "3", "j", "enter")
-	view := strings.Join(lines, "\n")
-	for _, want := range []string{"   Engineer #1 · Example", "  [Overview]", "   FOLLOW-UP  "} {
-		if !strings.Contains(view, want) {
-			t.Fatalf("sheet lacks %q at the text column:\n%s", want, view)
+// At 80x24 the detail is full screen, and its header, tabs and body share one text column.
+func TestFullScreenDetailSharesOneIndent(t *testing.T) {
+	for _, size := range [][2]int{{80, 24}, {60, 16}, {90, 30}} {
+		lines := plainAt(t, size[0], size[1], "3", "j", "enter")
+		view := strings.Join(lines, "\n")
+		for _, want := range []string{"   ‹ esc  Engineer #1 · Example", "  [Overview]", "   FOLLOW-UP  "} {
+			if size[1] < 20 && want == "   FOLLOW-UP  " {
+				continue // too short to reach the body
+			}
+			if !strings.Contains(view, want) {
+				t.Fatalf("%dx%d: detail lacks %q at the text column:\n%s", size[0], size[1], want, view)
+			}
 		}
-	}
-	if strings.Contains(view, "↑ 1 more\n") || strings.Count(view, "more") > 2 {
-		t.Fatalf("sheet's list part spends lines on cues:\n%s", view)
 	}
 }

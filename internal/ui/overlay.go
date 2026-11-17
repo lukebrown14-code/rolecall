@@ -22,19 +22,27 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 	a := mv.app
 	cw := popSmall - popInset
 	var b strings.Builder
-	b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(titleLabel(a.Title), cw, "…")) + "\n")
-	b.WriteString(p.Text(p.Dim).Render(xansi.Truncate(a.Company, cw-statusColumn-gutter, "…")+" · now ") + p.StatusChip(a.Status) + "\n\n")
 	likely := likelyCount[a.Status]
+	if mv.bulk != nil {
+		// Several marked rows: how many and from where; every option is a likely one.
+		title, now := bulkSubject(mv.bulk)
+		b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(title, cw, "…")) + "\n")
+		b.WriteString(p.Text(p.Dim).Render(xansi.Truncate("now "+now, cw, "…")) + "\n\n")
+		likely = len(mv.options)
+	} else {
+		b.WriteString(p.Text(p.Fg).Bold(true).Render(xansi.Truncate(titleLabel(a.Title), cw, "…")) + "\n")
+		b.WriteString(p.Text(p.Dim).Render(xansi.Truncate(a.Company, cw-statusColumn-gutter, "…")+" · now ") + p.StatusChip(a.Status) + "\n\n")
+	}
 	for i, s := range mv.options {
 		if i == likely {
 			b.WriteString(p.Text(p.Dim).Render(otherStatuses+" ") + p.Text(p.Rule).Render(strings.Repeat("─", cw-len(otherStatuses)-1)) + "\n")
 		}
 		hint := ""
-		if s == store.StatusApplied && a.Documents != store.DocsReady {
+		if s == store.StatusApplied && mv.bulk == nil && a.Documents != store.DocsReady {
 			// Allowed, but not silently: the move asks first (requestMove).
 			hint = "⚠ not Ready, asks first"
 		}
-		if a.Status == store.StatusDismissed && i == 0 {
+		if a.Status == store.StatusDismissed && i == 0 && mv.bulk == nil {
 			hint = "restore"
 		}
 		nameC := p.Fg
@@ -54,6 +62,38 @@ func (m model) moveBox(p pal, mv *moveMode) string {
 	}
 	return popup(p, "Move", false, popSmall, m.viewWidth(), strings.TrimSuffix(b.String(), "\n"),
 		p.Keys(mv.Keys()))
+}
+
+// bulkBox asks before a bulk move: how many, to where, which are left out and which go to
+// Applied without Ready Documents.
+func (m model) bulkBox(p pal, bm *bulkMode) string {
+	cw := popSmall - popInset
+	verb := "Move " + applications(len(bm.apps)) + " to " + bm.status + "?"
+	if bm.status == store.StatusDismissed {
+		verb = "Dismiss " + applications(len(bm.apps)) + "?"
+	}
+	var lines []string
+	lines = append(lines, p.Text(p.Fg).Bold(true).Render(xansi.Truncate(verb, cw, "…")), "")
+	const listed = 5
+	for i, a := range bm.apps {
+		if i == listed {
+			lines = append(lines, p.Text(p.Dim).Render(fmt.Sprintf("+%d more", len(bm.apps)-listed)))
+			break
+		}
+		lines = append(lines, p.StatusMark(a.Status)+" "+p.Text(p.Sub).Render(xansi.Truncate(moveName(a), cw-statusMarkWidth, "…")))
+	}
+	if bm.skipped > 0 {
+		lines = append(lines, "", p.Text(p.Dim).Render(fmt.Sprintf("%d marked left out: already there, malformed, or not a Lead or Draft.", bm.skipped)))
+	}
+	if bm.notRdy > 0 {
+		lines = append(lines, "", p.Text(p.Warn).Render(fmt.Sprintf("⚠ %d without Ready Documents.", bm.notRdy)))
+	}
+	lines = append(lines, "", p.Text(p.Dim).Render("u undoes them all at once."))
+	title := "Move"
+	if bm.status == store.StatusDismissed {
+		title = "Dismiss"
+	}
+	return popup(p, title, bm.notRdy > 0, popSmall, m.viewWidth(), strings.Join(lines, "\n"), p.Keys(bm.Keys()))
 }
 
 func (m model) confirmBox(p pal, cm *confirmMode) string {

@@ -48,20 +48,21 @@ func TestDetailHelpNamesPaging(t *testing.T) {
 	}
 }
 
-// The menu's shown keys fire from inside it, and space closes it.
-func TestMenuAcceleratorsFire(t *testing.T) {
-	if v := view(t, " ", "3"); !strings.Contains(v, "[3 Applied") || strings.Contains(v, "Menu") {
-		t.Fatalf("3 in the menu did not go to Applied:\n%s", v)
+// space opens the command finder, esc closes it, and typing filters it (a digit is text there,
+// not a screen key); the old Menu is gone.
+func TestSpaceFinderFiltersAndCloses(t *testing.T) {
+	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ : ") {
+		t.Fatalf("esc did not close the finder:\n%s", v)
 	}
-	if v := view(t, " ", " "); strings.Contains(v, "Menu") {
-		t.Fatalf("space did not close the menu:\n%s", v)
+	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ : 3") || strings.Contains(v, "[3 Applied") {
+		t.Fatalf("a digit in the finder should filter, not switch screens:\n%s", v)
 	}
-	if v := view(t, " "); !strings.Contains(v, "Rescan") || !strings.Contains(v, "Change view") || strings.Contains(v, "status filter") {
-		t.Fatalf("menu wording:\n%s", v)
+	if v := view(t, " "); !strings.Contains(v, "rescan") || !strings.Contains(v, "change view") || strings.Contains(v, "Rescan") || strings.Contains(v, "Menu") {
+		t.Fatalf("finder wording:\n%s", v)
 	}
 }
 
-// The palette reaches every screen, as the menu does.
+// The palette reaches every screen, as the old Menu did.
 func TestPaletteSwitchesScreens(t *testing.T) {
 	v := view(t, ":", "drafts")
 	if !strings.Contains(v, "Drafts screen") {
@@ -125,8 +126,24 @@ func TestSearchAlwaysShowsHowToClearIt(t *testing.T) {
 // A search with no match here says where the matches are.
 func TestEmptySearchPointsElsewhere(t *testing.T) {
 	v := view(t, "/orbit", "enter")
-	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Applied`) || !strings.Contains(v, "3 go to Applied") {
+	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Applied`) || !strings.Contains(v, "enter go to Applied") {
 		t.Fatalf("empty search does not say where:\n%s", v)
+	}
+}
+
+// enter on a view the search emptied jumps to the screen that has the matches.
+func TestEnterJumpsToWhereTheSearchMatches(t *testing.T) {
+	v := view(t, "/orbit", "enter", "enter")
+	if !strings.Contains(v, "[3 Applied") || !strings.Contains(v, "▌") || !strings.Contains(v, "/orbit") {
+		t.Fatalf("enter did not jump to Applied with the search kept:\n%s", v)
+	}
+	// Another view of this screen holds the match (Dismissed), so enter goes there.
+	v = view(t, "/docs-dismissed", "enter")
+	if !strings.Contains(v, "1 in Dismissed") || !strings.Contains(v, "enter go to Dismissed") {
+		t.Fatalf("empty search does not offer the Dismissed view:\n%s", v)
+	}
+	if v = view(t, "/docs-dismissed", "enter", "enter"); strings.Contains(v, "No match") || !strings.Contains(v, "docs-dismissed") {
+		t.Fatalf("enter did not go to the Dismissed view:\n%s", v)
 	}
 }
 
@@ -202,5 +219,27 @@ func TestCtrlCInTheAddFormAsks(t *testing.T) {
 	}
 	if v := plain(next); !strings.Contains(v, "Discard") {
 		t.Fatalf("no Discard? question:\n%s", v)
+	}
+}
+
+// q in the detail view goes back to the list, as esc does; on the list it quits.
+func TestQInTheDetailGoesBackNotOut(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "3", "enter")
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd != nil {
+		if _, quit := cmd().(tea.QuitMsg); quit {
+			t.Fatal("q in the detail quit the program")
+		}
+	}
+	if v := plain(next); strings.Contains(v, "‹ esc") || !strings.Contains(v, "row 1 of 9") {
+		t.Fatalf("q did not go back to the list:\n%s", v)
+	}
+	_, cmd = next.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd == nil {
+		t.Fatal("q on the list did not quit")
+	}
+	if _, quit := cmd().(tea.QuitMsg); !quit {
+		t.Fatal("q on the list did not quit")
 	}
 }

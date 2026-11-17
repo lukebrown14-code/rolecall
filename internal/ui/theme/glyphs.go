@@ -22,6 +22,7 @@ const (
 	GlyphFollowUp = "⚑" // Follow-up due
 	GlyphWarn     = "⚠" // needs attention
 	GlyphUrgent   = "▲" // closes within two days
+	GlyphMarked   = "◉" // a row marked for a bulk action
 	GlyphApprox   = "~" // an approximate date
 	GlyphWriting  = "⠹" // an agent is writing a Document (one frame of the spinner)
 	GlyphChanged  = "Δ" // a form field changed and not yet saved
@@ -73,6 +74,7 @@ var markGlyphs = []Glyph{
 	{GlyphWarn, "!", GroupFlags, "needs attention"},
 	{GlyphUrgent, "^", GroupFlags, "closes within 2 days"},
 	{GlyphFollowUp, "}", GroupFlags, "follow-up due"},
+	{GlyphMarked, "]", GroupFlags, "marked for x or m"},
 	{GlyphChanged, "&", GroupForms, "changed, not saved"},
 }
 

@@ -159,3 +159,20 @@ func TestOfferMoveHiddenByFilterKeepsTheNote(t *testing.T) {
 		t.Fatalf("offer toast lost its filter note or undo:\n%s", plain)
 	}
 }
+
+// A message on the footer never changes the breadcrumb's form: with room both show whole,
+// otherwise the message takes the line alone (it does not shorten the breadcrumb to
+// "Applied › All · All · 1 of 9" and back).
+func TestFeedbackNeverShortensTheBreadcrumb(t *testing.T) {
+	for _, w := range []int{120, 100, 80, 70, 60} {
+		bare := breadcrumbLine(runKeysSized(t, fixtureCopy(t, nil), w, 24, "3"))
+		withNote := chipped(runKeysSized(t, fixtureCopy(t, nil), w, 24, "3", "x")) // a note toast
+		line := breadcrumbLine(withNote)
+		if line == "" {
+			continue // the message took the line alone
+		}
+		if !strings.Contains(line, strings.TrimSpace(bare)) {
+			t.Errorf("%d columns: breadcrumb with a message is %q, without it %q", w, strings.TrimSpace(line), strings.TrimSpace(bare))
+		}
+	}
+}

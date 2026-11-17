@@ -32,8 +32,9 @@ const (
 	shedSparkLabel = 1 // topBar detail levels: drop the sparkline's "applied/wk" label…
 	shedCounts     = 2 // …then other screens' counts…
 	shedWordmark   = 3 // …then the word "rolecall"…
-	shedNames      = 4 // …then other screens' names, keeping their digits…
-	shedMark       = 5 // …then the wordmark's mark
+	shedGap        = 4 // …then the gap between tabs narrows to one cell…
+	shedNames      = 5 // …then other screens' names, keeping their digits…
+	shedMark       = 6 // …then the wordmark's mark
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -142,7 +143,7 @@ func (m model) View() tea.View {
 
 // screenView is the open detail view, or the current screen.
 func (m model) screenView(p pal) string {
-	if m.detail != nil && !m.sheetShown() {
+	if m.detail != nil {
 		return m.detailView(p)
 	}
 	return m.listView(p)
@@ -200,10 +201,6 @@ func (m model) listView(p pal) string {
 	focus := focusNone
 	if divider > 0 {
 		focus = focusLeft
-	}
-	if m.sheetShown() {
-		body = m.withSheet(p, body)
-		focus = focusNone
 	}
 	return m.frame(p, []string{m.viewRow(p)}, body, divider, focus, m.breadcrumbLine(p)+"\n"+keys)
 }
@@ -314,7 +311,9 @@ func (m model) screenCountLabel(si int) string {
 // tab starts at, so a click reads the same geometry the bar is drawn with. The active
 // tab is bracketed where the others have spaces: marked without colour, and the same
 // width, so nothing shifts. The detail level is the one every screen's bar fits at, so
-// switching screens never sheds or restores a count.
+// switching screens never sheds or restores a count or a name. One rule sheds by width:
+// other screens' counts, the word "rolecall", the gap between tabs (two cells to one), then
+// other screens' names, which keeps every screen named from 60 columns.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	if r := m.barKeys(p); r != "" {
@@ -382,17 +381,27 @@ func (m model) tabs(p pal) (string, []int) {
 				name = ""
 			}
 			sep := " "
+			if level >= shedGap {
+				sep = "" // one cell between tabs: the leading space alone
+				if si+1 == active {
+					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Applied 9]"
+				}
+			}
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
 				if si+1 == active {
 					sep = " " // …but the active chip after it never touches it: "3 [4 Stats]"
 				}
 			}
+			lead := " "
+			if level >= shedGap && si == 0 {
+				lead = "" // the first tab starts at the edge, where the active chip's bracket does
+			}
 			if warn != "" {
 				warn = p.Text(p.Warn).Render(" " + warn)
 				sep = " "
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + warn + sep + tail
+			out += lead + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + warn + sep + tail
 		}
 		return out, starts
 	}
@@ -424,13 +433,13 @@ func (m model) topBar(p pal) string {
 	return xansi.Truncate(out, w-rightMargin, "")
 }
 
-// barKeys is the tab bar's right end, "space menu  ? help", at wide sizes: the two keys
+// barKeys is the tab bar's right end, "space commands  ? help", at wide sizes: the two keys
 // that work everywhere. An open Settings field takes space as text, so then it is empty.
 func (m model) barKeys(p pal) string {
 	if !m.layout().wide() || m.fieldOpen() {
 		return ""
 	}
-	return p.KeyRow([][2]string{{spaceKey, "menu"}, {"?", "help"}})
+	return p.KeyRow([][2]string{{spaceKey, descCommands}, {"?", "help"}})
 }
 
 // trackApplies reports whether the track filter changes the current screen: the
@@ -479,7 +488,10 @@ func (m model) breadcrumbLine(p pal) string {
 	right := ""
 	if m.feedbackVisible() {
 		msg, keys, short := m.feedbackParts(p)
-		beside := w - rightMargin - gutter - inset - breadcrumbMin
+		// The breadcrumb keeps the one form it has with no message on show: the message
+		// sits beside it when both fit whole, and otherwise takes the line alone. The
+		// breadcrumb never switches to a shorter variant while a message shows.
+		beside := w - rightMargin - gutter - xansi.StringWidth(m.breadcrumbLeft(p, w-rightMargin))
 		if r, ok := feedbackRight(msg, keys, short, beside, false); ok {
 			right = r
 		} else {
@@ -513,7 +525,7 @@ const keyGap = "  "
 // spaceKey is the space bar as the key line names it.
 const spaceKey = "space"
 
-// breadcrumbMin is the cells a toast leaves the breadcrumb: its screen and position.
+// breadcrumbMin is the least room a breadcrumb gets before its stub is left out.
 const breadcrumbMin = 16
 
 // joinNonEmpty joins the parts that have text.
@@ -575,6 +587,9 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 		parts = append([]string{v}, parts...)
 	}
 	out := name + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+	if n := m.markCount(); n > 0 {
+		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("%s %d marked", glyphMarked, n))
+	}
 	if !noFocus && m.detail != nil {
 		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Accent).Bold(true).Render("detail")
 	}
@@ -620,69 +635,6 @@ func (m model) breadcrumbLeft(p pal, room int) string {
 
 // abbrevTrack is how many letters of a Track name a narrow breadcrumb keeps.
 const abbrevTrack = 3
-
-// withSheet stacks the detail sheet under the list part: a rule in the accent, then the
-// detail, together exactly the body's height.
-func (m model) withSheet(p pal, list string) string {
-	a, ok := m.application(m.detail.folder)
-	if !ok {
-		return list
-	}
-	l := m.layout()
-	listH, detailH, _ := l.sheetHeights(tableContext)
-	rule := p.PaneRule(true).Render(strings.Repeat("─", l.w))
-	return strings.Join([]string{fitLines(list, listH), rule, strings.Join(m.sheetLines(p, a, l.w, detailH), "\n")}, "\n")
-}
-
-// sheetLines is the detail sheet: a title line, the tabs, the next step, then the tab's
-// content, h lines.
-func (m model) sheetLines(p pal, a store.Application, w, h int) []string {
-	// The sheet keeps the list's columns: text from the inset to where the rows' Fit ends.
-	pad := strings.Repeat(" ", inset)
-	right := w - rightMargin - rowPad
-	title := pad + p.Text(p.Fg).Bold(true).Render(appName(a.Title)) + p.Text(p.Dim).Render(companySuffix(a.CompanyLabel()))
-	if a.Malformed != nil {
-		title = pad + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
-	} else {
-		title = spread(xansi.Truncate(title, max(0, right-gutter-xansi.StringWidth(a.Status)-markWidth), "…"), p.StatusChip(a.Status), right)
-	}
-	out := []string{title}
-	var content []string
-	// Text sits at the inset; the Docs rows bring their own indent, so their selection bar
-	// sits at the edge, as a list's does.
-	indent := pad
-	if a.Malformed != nil {
-		for _, l := range wrapWords(m.malformedReason(a), right-inset) {
-			content = append(content, p.Text(p.Fg).Render(l))
-		}
-		content = append(content, "", p.Key().Render("e")+p.Text(p.Dim).Render(" fix in editor"))
-		out = append(out, "", "")
-	} else {
-		// The tab names sit one cell in from their brackets, so the brackets go one left. The
-		// next step takes the line under the tabs on every tab, as in the full-screen detail,
-		// so it is in view however little of the sheet shows; Overview leaves it out.
-		out = append(out, pad[1:]+m.detailTabsRow(p, a, right-inset+1), pad+m.nextLine(p, a, right-inset, false))
-		content = strings.Split(m.detailContent(p, a, w), "\n")
-		if m.detail.tab == tabDocs {
-			indent = strings.Repeat(" ", edge)
-		}
-	}
-	for i, line := range content {
-		if plain := xansi.Strip(line); indent != pad && plain != "" && !strings.HasPrefix(plain, " ") && !strings.HasPrefix(plain, "▌") {
-			content[i] = pad + line // a Docs group heading, at the text column
-			continue
-		}
-		content[i] = indent + line
-	}
-	from := 0
-	for i, line := range content {
-		if strings.Contains(xansi.Strip(line), "▌") {
-			from = i - (h-len(out))/bothSides
-		}
-	}
-	out = append(out, p.ClipLines(content, from, max(0, h-len(out)), pad)...)
-	return append(out[:min(len(out), h)], make([]string, max(0, h-len(out)))...)
-}
 
 // markWidth is the cells a Status chip takes beyond its name: the glyph and its space.
 const markWidth = 2
@@ -755,11 +707,10 @@ func (m model) compactShown() bool { return m.compactRows && m.layout().wide() }
 // scroll pads it.
 func (m model) listBlocks(rows []store.Application) ([]block, int) {
 	dividers := m.dividers(rows)
-	sheet := m.sheetShown()
 	dividerHeight := func(i int) int {
 		n := 1
-		if i > 0 && !sheet {
-			n++ // the air above a section, which the few lines above a sheet cannot spare
+		if i > 0 {
+			n++ // the air above a section
 		}
 		return n
 	}
@@ -928,8 +879,7 @@ func (m model) expired(a store.Application) bool {
 // when rows are really hidden, and count rows, not dividers. Only the visible blocks are
 // rendered.
 func scroll(p pal, m model, rows []store.Application, show slotSet, w int, blocks []block, cur, h int) string {
-	folded := m.sheetShown()
-	start, end := scrollWindow(blocks, cur, h, folded)
+	start, end := scrollWindow(blocks, cur, h)
 	count := func(bs []block) int {
 		n := 0
 		for _, b := range bs {
@@ -942,7 +892,7 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 	// The cues sit at the rows' text column, past the selection bar.
 	const cueIndent = "  "
 	var out []string
-	if start > 0 && !folded {
+	if start > 0 {
 		out = append(out, cueIndent+p.MoreCue(true, count(blocks[:start])))
 	}
 	for _, b := range blocks[start:end] {
@@ -961,9 +911,6 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 		out = append(out, "")
 	}
 	var cues []string
-	if n := count(blocks[:start]); n > 0 && folded {
-		cues = append(cues, p.MoreCue(true, n))
-	}
 	if end < len(blocks) {
 		cues = append(cues, p.MoreCue(false, count(blocks[end:])))
 	}
@@ -977,21 +924,17 @@ func scroll(p pal, m model, rows []store.Application, show slotSet, w int, block
 }
 
 // scrollWindow is the blocks shown in h lines with block cur in view: [start, end). A
-// "↑ n more" line takes the first line when start is past the top. folded (the list part
-// above a detail sheet, where every line counts) puts both cues on the one last line.
-func scrollWindow(blocks []block, cur, h int, folded bool) (start, end int) {
+// "↑ n more" line takes the first line when start is past the top.
+func scrollWindow(blocks []block, cur, h int) (start, end int) {
 	fit := func(start int) int {
 		avail := h
 		if start > 0 {
-			avail-- // the ↑ cue's line; folded, the line both cues share
+			avail-- // the ↑ cue's line
 		}
 		used, end := 0, start
 		for end < len(blocks) && used+blocks[end].height <= avail {
 			used += blocks[end].height
 			end++
-		}
-		if folded && start > 0 {
-			return end // the ↓ cue shares the line already kept
 		}
 		for end < len(blocks) && used+1 > avail && end > start {
 			end--
@@ -1090,8 +1033,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	if m.expired(a) {
 		titleC = p.Dim
 	}
-	// The list loses the fill, not the mark, while a sheet over it holds the focus.
-	fill := sel && !m.sheetShown()
+	fill := sel
 	st := func(c color.Color) lipgloss.Style {
 		s := lipgloss.NewStyle().Foreground(c)
 		if fill {
@@ -1105,6 +1047,17 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		}
 		bar = p.SelGutter(fill)
 		titleC, dimC = p.Fg, p.Sub
+	}
+	bar2 := bar // the second line carries the selection bar only: the mark sits on the first
+	if m.isMarked(a.Folder) {
+		// A marked row shows ◉ in the gutter, so it reads without colour: where the ▌ would
+		// be, or beside it on the cursor row, which keeps its ▌.
+		mark := st(p.Fg).Bold(true).Render(glyphMarked)
+		if sel {
+			bar = xansi.Cut(bar, 0, 1) + mark
+		} else {
+			bar = mark + st(p.Fg).Render(" ")
+		}
 	}
 	if a.Malformed != nil {
 		title := st(p.Bad).Bold(true).Render("⚠ ") + st(p.Bad).Bold(true).Render(m.malformedTitle(a))
@@ -1169,7 +1122,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(rp, a, st, dimC), sep)
 	// The bar spans both lines, so the selected row reads as one block.
-	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar2+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
 		lines = p.FlashRow(lines, w)
 	}

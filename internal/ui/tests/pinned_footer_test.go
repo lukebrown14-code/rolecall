@@ -75,30 +75,23 @@ func TestBreadcrumbShortensWhenNarrow(t *testing.T) {
 	}
 }
 
-// At 80x24 Enter shows the list and the detail together; esc returns with the cursor kept.
-func TestMediumEnterOpensABottomSheet(t *testing.T) {
+// At 80x24 Enter opens the detail full screen, with no list rows under it; esc returns with
+// the cursor kept.
+func TestEnterOpensFullScreenAt80x24(t *testing.T) {
 	lines := plainAt(t, 80, 24, "3", "j", "enter")
 	view := strings.Join(lines, "\n")
 	if len(lines) != 24 || !strings.Contains(lines[23], "? help") {
-		t.Fatalf("sheet changed the frame height:\n%s", view)
+		t.Fatalf("detail changed the frame height:\n%s", view)
 	}
-	if !strings.Contains(view, "2 of 9") || !strings.Contains(view, "▌") {
-		t.Fatalf("sheet lost the selected row:\n%s", view)
+	if strings.Contains(view, "VIEW s") || strings.Contains(view, "▌") || !strings.Contains(view, "‹ esc") {
+		t.Fatalf("detail should replace the list at 80x24:\n%s", view)
 	}
 	if !strings.Contains(view, "[Overview]") {
-		t.Fatalf("sheet shows no detail tabs:\n%s", view)
+		t.Fatalf("detail shows no tabs:\n%s", view)
 	}
 	back := strings.Join(plainAt(t, 80, 24, "3", "j", "enter", "esc"), "\n")
 	if strings.Contains(back, "[Docs]") || !strings.Contains(back, "2 of 9") {
 		t.Fatalf("esc did not return to the list with the cursor kept:\n%s", back)
-	}
-}
-
-// With too little height for about 8 detail lines, Enter opens the detail full-screen.
-func TestShortMediumEnterOpensFullScreen(t *testing.T) {
-	view := strings.Join(plainAt(t, 80, 16, "3", "enter"), "\n")
-	if strings.Contains(view, "VIEW s") || !strings.Contains(view, "‹ esc") {
-		t.Fatalf("detail should replace the list at 80x16:\n%s", view)
 	}
 }
 

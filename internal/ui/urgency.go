@@ -13,8 +13,9 @@ import (
 
 // Dates: relative while recent, a month and year once older than monthYearAfter days.
 const (
-	monthYearAfter = 90 // "~21mo ago" reads as "Jan 2025" past about three months
-	urgentDays     = 2  // "closes in 2d ▲" turns danger at or below this
+	monthYearAfter = 90       // "~21mo ago" reads as "Jan 2025" past about three months
+	soonMark       = "(soon)" // the word that marks a close date within soonDays, beside the amber
+	urgentDays     = 2        // "closes in 2d ▲" turns danger at or below this
 	urgentMark     = glyphUrgent
 )
 
@@ -168,12 +169,12 @@ type closeState int
 const (
 	closeNone   closeState = iota // no close date
 	closeLater                    // more than soonDays away
-	closeSoon                     // within soonDays: amber
+	closeSoon                     // within soonDays: amber, with the word (soon)
 	closeUrgent                   // within urgentDays: danger, with ▲
 	closePast                     // passed: struck through and muted
 )
 
-// closeInfo is a close date in words, with its urgency: "closes in 6d", "closes in 2d ▲",
+// closeInfo is a close date in words, with its urgency: "closes in 6d (soon)", "closes in 2d ▲",
 // "closes today ▲", "expired 3 Sep": the ad's close date, worded apart from a closed
 // (Rejected or Withdrawn) Application.
 func closeInfo(closes string, now time.Time) (string, closeState) {
@@ -194,7 +195,7 @@ func closeInfo(closes string, now time.Time) (string, closeState) {
 	case days <= urgentDays:
 		return "closes " + r + " " + urgentMark, closeUrgent
 	case days <= soonDays:
-		return "closes " + r, closeSoon
+		return "closes " + r + " " + soonMark, closeSoon
 	}
 	return "closes " + r, closeLater
 }
@@ -202,7 +203,8 @@ func closeInfo(closes string, now time.Time) (string, closeState) {
 // closeStyle draws a close date by its urgency, starting from st (the row's own style,
 // so a selected row keeps its fill) and base, the colour of an unhurried date. Weight
 // carries the urgency as well as colour, so it reads under NO_COLOR and on the selection
-// bar: a date within a week is bold, one within two days bold with ▲.
+// bar: a date within a week is bold and says (soon), one within two days bold with ▲. The
+// words and the glyph carry the urgency alone, so it survives NO_COLOR and colour blindness.
 func (p pal) CloseStyle(s closeState, st func(color.Color) lipgloss.Style, base color.Color) lipgloss.Style {
 	switch s {
 	case closeUrgent:
