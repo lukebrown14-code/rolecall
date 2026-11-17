@@ -80,8 +80,8 @@ go run ./cmd/rolecall --dir ./fixtures/workspace
 
 ## Track what is next, and use it elsewhere
 
-`e` on an Application also takes a **next step** (a date, `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`, and
-what it is) and its first **contact** (name, role, email or link). The next step shows on
+`e` on an Application also takes a next step (a date, `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`, and
+what it is) and its first contact (name, role, email or link). The next step shows on
 Interviewing and Offer rows, on the detail Overview and in Stats → Now. Moving an Application to
 Rejected or Withdrawn asks why it ended (optional; `esc` skips), and Stats shows where Applications
 dropped off.
@@ -121,7 +121,7 @@ The `editor` setting opens files. If it is unset, rolecall uses `$VISUAL`, then 
 editor = "code --wait"
 ```
 
-Press `,` in the TUI to open Settings and see which Editor is in effect. Select **This machine**
+Press `,` in the TUI to open Settings and see which Editor is in effect. Select This machine
 and press `e` to edit `config.toml`; rolecall reloads it when your editor exits. Press `Esc` to
 return.
 
@@ -178,20 +178,20 @@ See [Connect a Harness](docs/harnesses.md) for Claude Code, Codex, Gemini CLI an
 
 A Harness is optional. Without one, rolecall is a tracker you fill in yourself:
 
-- **Track your own list.** Press `a` to add a Lead: Title and Company are required, the URL is
+- Press `a` to add a Lead: Title and Company are required, the URL is
   optional, and the first Lead asks for a Track, a kind of role such as Nursing or Marketing.
   Pick an Editor first (`6`, then This machine, then `e` on the Editor row) so pasting the job
   ad into `jd.md` works; otherwise add a URL. Move an Application along with `m`.
-- **Deadlines.** On Drafts (`2`), `→` switches to Deadlines: every Lead and Draft with a closing
+- On Drafts (`2`), `→` switches to Deadlines: every Lead and Draft with a closing
   date still to come, soonest first.
-- **Follow-up due.** A sent Application with no news for the follow-up period (Settings, 14
-  days by default) shows `⚑`. Press `l` once you have followed up and the mark clears.
-- **Stats.** `4` shows your funnel, Response rate and applications per week from the moves you
+- A sent Application with no news for the follow-up period (Settings, 14 days by default) is
+  Follow-up due and shows `⚑`. Press `l` once you have followed up and the mark clears.
+- Stats (`4`) shows your funnel, Response rate and applications per week from the moves you
   make, with nothing else to set up.
-- **Write your Profile by hand.** `rolecall init` starts `profile/master-profile.md` with its
-  Contact table and one heading per section, each with a one-line how-to under it. Press `5`,
-  then `c` for your Contact and `e` to write the rest in your Editor.
-- **Build PDFs from a hand-written resume.** Install the Plugin and set `plugin` in
+- To write your Profile by hand, start from `profile/master-profile.md`: `rolecall init` creates
+  it with its Contact table and one heading per section, each with a one-line how-to under it.
+  Press `5`, then `c` for your Contact and `e` to write the rest in your Editor.
+- To build PDFs from a hand-written resume, install the Plugin and set `plugin` in
   `config.toml` (with `typst`, `pandoc` and `python3` on your PATH; `rolecall doctor` checks
   them). Write `resume.md` and `cover-letter.md` in the Application's folder, select it
   and press `b` to build the PDFs; `d` copies them to your Downloads folder. Documents are
@@ -201,7 +201,7 @@ A Harness is optional. Without one, rolecall is a tracker you fill in yourself:
 
 A CV is a resume for no particular job, kept in your Workspace as `cv/general.md` (add others,
 such as `cv/master.md`, beside it). Ask your Harness to write one from your Profile, then open
-the Profile screen (`5`): each CV is listed under **CVs**, where `b` builds it and `d` copies the
+the Profile screen (`5`): each CV is listed under CVs, where `b` builds it and `d` copies the
 PDF to your Downloads folder. Its headline is the `General` row of your Profile's Headlines
 table. From a shell: `python3 <plugin>/scripts/build.py --cv general`.
 

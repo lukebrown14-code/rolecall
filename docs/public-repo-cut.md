@@ -26,7 +26,7 @@ throughout.
 
 ## 3. Run the personal-data scanner with Owner terms
 
-The scanner examines **tracked text files** in the repository. Put one Owner-specific term per
+The scanner examines tracked text files in the repository. Put one Owner-specific term per
 line in the gitignored `.rolecall-personal-data-terms` file at the repository root. Include the
 Owner's name and known identifying terms such as former employers, locations, and visa terms;
 do not add those terms to repository files.
@@ -41,8 +41,8 @@ do not add those terms to repository files.
 
   The scanner reads the default terms file automatically. To store the terms file elsewhere,
   set `ROLECALL_PERSONAL_DATA_TERMS_FILE=/absolute/path/to/terms` for this command. Alternatively,
-  provide newline-separated terms with `ROLECALL_PERSONAL_DATA_TERMS`; the environment value is
-  additive to terms in the file. The command must exit zero with no findings. If it reports a
+  provide newline-separated terms with `ROLECALL_PERSONAL_DATA_TERMS`; the scanner adds these to
+  the terms in the file. The command must exit zero with no findings. If it reports a
   finding, fix the source and rerun; do not add Owner terms to the allowlist.
 - [ ] Run the scanner again after any cleanup and confirm the final tracked tree passes.
 

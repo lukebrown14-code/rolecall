@@ -25,6 +25,6 @@ Judgement calls for review. Mechanical rules live in `scripts/check-go.sh` and C
   touches one file. Regenerate with `go test ./internal/ui/tests -update` only when the change is
   intended; review the diff.
 
-Public API tests live in each package’s `tests/` folder, with their `testdata/` fixtures.
+Public API tests live in each package's `tests/` folder, with their `testdata/` fixtures.
 Tests that need private implementation details stay beside the source. Run `go test ./...`
 for the full suite, or `go test ./internal/ui/...` for all UI packages and their tests.

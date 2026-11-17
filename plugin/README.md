@@ -9,7 +9,7 @@ questions about the other skills and the app, from `skills/*/SKILL.md` and
 
 ## Registering the local marketplace (Claude Code)
 
-Register this directory as a **local-path marketplace**, not an installed
+Register this directory as a local-path marketplace instead of installing it as a
 package. Skill and script edits then take effect the next time the skill runs,
 with no reinstall step:
 
@@ -96,7 +96,7 @@ is `login_wall`, `blocked`, `not_found`, `timeout`, `bad_url`, `non_html`, `unre
 
 `plugin/scripts/migrate.py` converts an older Workspace (job folders with `jd.md`
 front matter plus `TRACKER.md`, `SHORTLIST.md` and `DISMISSED.md`) to SCHEMA v1.
-It is a **one-time** step: after it runs, the TUI and the plugin skills own the
+It is a one-time step: after it runs, the TUI and the plugin skills own the
 Workspace. Run it with the TUI closed.
 
 Always print the plan first. `--dry-run` writes nothing:
@@ -122,11 +122,11 @@ and left unset for the Owner to set by hand.
 `build.py` turns an Application's `resume.md` and `cover-letter.md` into the
 PDFs in `out/`. It needs:
 
-- `pandoc` — Markdown to Typst markup.
-- `typst` — Typst to PDF. The templates and the eight Hanken Grotesk fonts
+- `pandoc`: Markdown to Typst markup.
+- `typst`: Typst to PDF. The templates and the eight Hanken Grotesk fonts
   (plus their OFL licence) are shipped in `plugin/templates/`; nothing needs
   installing for fonts.
-- `pdftotext` (poppler), optional — used for the ATS/contact check when present.
+- `pdftotext` (poppler, optional): used for the ATS/contact check when present.
 
 On macOS: `brew install pandoc typst poppler`. The build gates every document
 before it compiles either one, and publishes PDFs into `out/` only when every
@@ -149,11 +149,11 @@ The style rules the letter gate reads are in `plugin/styles/au.md`.
 
 Every document is written by layering three files, in this order:
 
-1. `plugin/writing-rules.md` — the general rules, shipped with the plugin.
-2. `plugin/styles/au.md` — the Australian style guide, also shipped here.
-3. `<workspace>/profile/writing-preferences.md` — the Owner's own preferences and facts.
+1. `plugin/writing-rules.md`: the general rules, shipped with the plugin.
+2. `plugin/styles/au.md`: the Australian style guide, also shipped here.
+3. `<workspace>/profile/writing-preferences.md`: the Owner's own preferences and facts.
 
-**Later files win**: the style guide overrides the general rules, and the Owner's preferences
+Later files win: the style guide overrides the general rules, and the Owner's preferences
 override both in tone and convention. The facts-only rule in `plugin/writing-rules.md` is
 absolute and none of the three may override it.
 

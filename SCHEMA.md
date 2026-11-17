@@ -5,10 +5,10 @@ The contract between every writer of a rolecall workspace: the TUI (Go), the plu
 writer disagrees with this file, the writer is wrong. Both codebases test against the shared
 fixtures in `fixtures/`.
 
-Schema version: **1**. A missing `schema` in `workspace.json` or `meta.yml` means 1 for
+Schema version: 1. A missing `schema` in `workspace.json` or `meta.yml` means 1 for
 pre-schema files. Readers refuse a newer schema and tell the Owner to upgrade rolecall;
-they must not interpret files written for a format they do not know. `meta.yml` is shown
-as a warning row with the upgrade detail. Terms (Application, Status, Lead, Fit…) are
+they must not interpret files written for a format they do not know. A `meta.yml` with a
+newer schema is shown as a warning row with the upgrade detail. Terms (Application, Status, Lead, Fit…) are
 defined in `GLOSSARY.md`.
 
 ## Workspace layout
@@ -37,7 +37,7 @@ defined in `GLOSSARY.md`.
       └─ <slug>/               # one folder per Application
 ```
 
-- A folder is an Application **if and only if** it contains `meta.yml`.
+- A folder is an Application if and only if it contains `meta.yml`.
 - Any other file directly under `jobs/` that this schema does not name (stray files,
   `TRACKER.md` remnants) is ignored. `roles.json` and `sweep-candidates.md` are named and
   documented below.
@@ -52,7 +52,7 @@ defined in `GLOSSARY.md`.
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
 `[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
 date. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
-`-3`, and so on. The name is an identifier only. Never parse meaning out of it.
+`-3`, and so on. The name is only an identifier; never parse meaning out of it.
 
 ## Application folder
 
@@ -148,14 +148,16 @@ status_log:
 | `next_step` | flow map `{at, what}` | — | what the Owner does next and when. `at` is `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM` (local time, no zone) and required; `what` is text, quoted when it holds a comma, brace or `#`. One line, as a `status_log` entry is. Empty or missing = none. A map without a valid `at` makes the file malformed. Shown on Interviewing and Offer rows, in Stats → Now and on the detail Overview; `rolecall now` and `rolecall export` read it |
 | `contacts` | list of flow maps | — | the people to write to, one `  - {name, role, email, url}` line each, indented two spaces below `contacts:` (as `status_log` is). Each needs a `name`, an `email` or a `url`; `role` is optional; other inner keys are ignored. `contacts: []` or no key = none. The first is who a follow-up addresses. The old single `contact` still reads, as the one Contact, until the Owner saves a list |
 | `close_reason` | string | — | why a Rejected or Withdrawn Application ended. Suggested values: `no-response` · `after-screen` · `after-interview` · `salary` · `role-closed` · `other`; free text is allowed. Set from the Move pop-up when the move is to Rejected or Withdrawn (optional, skippable). Shown only while the Status is Rejected or Withdrawn; the TUI removes it when the Application leaves them (an undo included). Stats shows where Applications dropped off by it |
+| `status_log` | list | ✅ | append-only history (below). The current Status is the last entry |
 
-**Pay.** Readers estimate an annual AUD figure as pay × the unit's multiplier (hour 1976, day
+Readers estimate an annual AUD pay figure as pay × the unit's multiplier (hour 1976, day
 230, week 52, month 12, year 1) × the currency's AUD rate (built in: AUD 1, USD 1.55, GBP 1.95,
 EUR 1.65, NZD 0.92, CAD 1.12, SGD 1.15; `workspace.json` `pay_fx` overrides or adds codes, each a
 3-letter capital code with a rate above 0). No `currency` reads as AUD; an unknown one has no
-estimate. The mislabel flag is set even without an estimate. A figure is flagged as mislabelled, never changed: an hourly
-`pay_min` of 300 or more looks like a day rate, a daily one of 5000 or more like an annual
-figure, and an annual `pay_max` under 1000 like an hourly or daily rate.
+estimate. A figure that looks wrong for its unit is flagged as mislabelled, never changed: an
+hourly `pay_min` of 300 or more looks like a day rate, a daily one of 5000 or more like an
+annual figure, and an annual `pay_max` under 1000 like an hourly or daily rate. The flag is
+set even when there is no estimate.
 
 **Likely duplicate.** Two Applications are likely the same role when their titles match after
 normalising (lower case, a trailing `(…)` dropped, punctuation to spaces, the words `level`,
@@ -165,7 +167,6 @@ texts match (sha256 of the text lower-cased with whitespace collapsed, for texts
 characters or more). `meta.py create` and `new-job.py` refuse a likely duplicate unless given
 `--allow-duplicate`; the TUI's Add asks before saving one; `rules.py check` dismisses the later
 of two duplicate Leads; the Sweep skips a role whose employer and title are already saved.
-| `status_log` | list | ✅ | append-only history (below). The current Status is the **last** entry |
 
 A **Filtered** Application is one whose Status is `Dismissed` and that has a `filter_reason`.
 The TUI lists it under Leads → Filtered with its reason. Restoring it (`m`, back to the
@@ -173,14 +174,14 @@ earlier Status) also writes `filter_overruled: true` and removes `filter_reason`
 `filter_note`. An invalid `posted`, `applicants`, `filter_reason` or `filter_overruled` makes the
 file malformed, as an invalid `closes` does.
 
-**Unknown keys must be preserved** by every writer, byte for byte. Legacy keys from the
-dashboard era (`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`,
-`outcome_date`, `rejection_reason`) fall under this rule, except that the TUI drops `contact`
-when the Owner saves a `contacts` list (its value is read into the list first). No writer adds them any more. The
-legacy `followup` is unrelated to `followed_up` and is never read.
+Every writer must preserve unknown keys, byte for byte. Legacy keys from the dashboard era
+(`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`, `outcome_date`,
+`rejection_reason`) fall under this rule, except that the TUI drops `contact` when the Owner
+saves a `contacts` list (its value is read into the list first). No writer adds them any
+more. The legacy `followup` is unrelated to `followed_up` and is never read.
 
-**Adding these keys is additive and the schema stays 1.** A file without `next_step`,
-`contacts` and `close_reason` reads exactly as before. An older rolecall cannot read a file
+`next_step`, `contacts` and `close_reason` are additive keys, and the schema stays 1. A file
+without them reads exactly as before. An older rolecall cannot read a file
 that has `next_step` or `contacts` (its reader does not know a flow-map value) and shows it as
 malformed, so upgrade rolecall before using them. The schema version guard is unchanged.
 
@@ -193,15 +194,15 @@ Each entry is a flow map on one line:
   - {status: <Status>, at: <date or timestamp>, approx: true}   # migration only
 ```
 
-- **Status values:** `Lead` · `Draft` · `Applied` · `Interviewing` · `Offer` · `Rejected` ·
+- Status values: `Lead` · `Draft` · `Applied` · `Interviewing` · `Offer` · `Rejected` ·
   `Withdrawn` · `Dismissed`. Case-sensitive.
-- **Append only.** Entries are never edited or removed. Undo appends the earlier Status again.
+- The log is append only: entries are never edited or removed. Undo appends the earlier Status again.
 - An entry is never appended if it repeats the current Status.
 - An exact repeat (same Status and `at`) is never written: a write that replaces the whole
   log (migration) keeps only the last copy, and `rolecall doctor` names any repeat already
   in a file.
 - An empty log (`status_log: []` or no entries) is read as `Lead`.
-- **Applied date** = `at` of the **first** `Applied` entry. It's never stored separately.
+- **Applied date** = `at` of the first `Applied` entry. It is never stored separately.
 - **Last change** = `at` of the last entry. Follow-up due is measured from it, or from
   `followed_up` when that day is later.
 - `approx: true` marks a date rebuilt by migration. Readers show it with a `~` prefix.
@@ -210,12 +211,12 @@ Each entry is a flow map on one line:
 
 | Writer | May write | Must not |
 |---|---|---|
-| **TUI** | creates folders. Writes any key through Add / Edit (`next_step` and the first of `contacts` included), `followed_up` through `l`, and `close_reason` from the Move pop-up. Appends any Status | touch docs, `fit.md`, `out/` |
-| **`rolecall now`**, **`rolecall export`** | nothing in the Workspace. Read-only. `export` writes only where the Owner's `--out` names | any file under the Workspace |
-| **`rolecall move`** | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
-| **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
-| **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
+| TUI | creates folders. Writes any key through Add / Edit (`next_step` and the first of `contacts` included), `followed_up` through `l`, and `close_reason` from the Move pop-up. Appends any Status | touch docs, `fit.md`, `out/` |
+| `rolecall now`, `rolecall export` | nothing in the Workspace. Read-only. `export` writes only where the Owner's `--out` names | any file under the Workspace |
+| `rolecall move` | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
+| Agent (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
+| `rules.py check --apply` | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
+| `build.py` | `out/`. Appends `Draft` only when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 
 ### Format rules (both languages)
 
@@ -226,7 +227,7 @@ patch it without reformatting.
 2. Scalars may be plain or double-quoted. Inline `# comments` on scalar lines are allowed and kept.
 3. `status_log:` is followed by entries indented two spaces, each `- {…}` on its own line. `contacts:` is written the same way, above `status_log:`.
 4. UTF-8, LF line endings, trailing newline.
-5. **Writers patch, they don't rewrite.** Re-read the file right before writing, change only the
+5. Writers patch the file and never rewrite it whole. Re-read the file right before writing, change only the
    lines for the keys being set (append missing keys at the end, before `status_log`), and
    write atomically (temp file in the same folder, then rename).
 6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
@@ -234,8 +235,9 @@ patch it without reformatting.
 
 ## Profile
 
-`profile/` belongs to the Owner and the agent. The TUI reads it for the Profile screen and writes
-only the Contact table below, from its first-run form; it never touches the rest. The Profile files are free Markdown, apart from the Contact table below.
+`profile/` belongs to the Owner and the agent. Its files are free Markdown, apart from the
+Contact table below. The TUI reads them for the Profile screen and writes only the Contact
+table, from its first-run form; it never touches the rest.
 
 ### Contact table
 
@@ -256,14 +258,14 @@ The Contact is the `## Contact` section of `profile/master-profile.md`: a two-co
 | Work rights | Full working rights in Australia *(subclass never printed)* |
 ```
 
-- **Required:** `Name` and `Email`. A Profile missing either fails the build, and the Profile
+- Required: `Name` and `Email`. A Profile missing either fails the build, and the Profile
   screen marks Contact with ○ (missing) and says why.
-- **Known fields:** `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
+- Known fields: `Phone`, `Location`, `LinkedIn`, `GitHub`, `Work rights`. Other fields are
   kept and shown, and the build ignores them.
-- **Header and divider rows** (`Field`, and rows of only `:`, `-` and spaces) are skipped.
-- **Cell values:** a trailing italic note `*(…)*` is a note to the human and is dropped.
+- Header and divider rows (`Field`, and rows of only `:`, `-` and spaces) are skipped.
+- Cell values: a trailing italic note `*(…)*` is a note to the human and is dropped.
   `**bold**`, `*italic*` and `` `code` `` wrappers are removed. Whitespace is trimmed.
-- **Missing section or file:** no fields, so both required fields are missing.
+- Missing section or file: no fields, so both required fields are missing.
 
 ## `workspace.json` (read by the TUI, which writes `tracks`, `search_area`, `search_rules`, `sources` and the gates)
 
@@ -271,19 +273,24 @@ The TUI reads `schema` and `tracks` (array of strings, display order) and shows 
 `search_rules`, `sources`, the gates (`letterWordCap`, `letterWordMin`, `keySkillsMin`,
 `keySkillsMax`) and the number of `blockers` on the Settings screen. `sources` (below), when
 present, wholly replaces the plugin's shipped source plan. `blockers` is a list of signal
-names. It writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
+names. `sources`, `blockers` and the gates are used by the plugin.
+
+The TUI writes `tracks` (add, reorder, remove, rename), `search_area` (the Search area
 pop-up), each `search_rules` field (the Rules section), `sources` entries (Sources: add,
-enable, disable) and the four gates (edited on the Documents group; cap above 0 and the minimum, Key Skills minimum at
-most the maximum): every other key keeps its value and its place, the file is indented with 2 spaces, the
-write is atomic, and an invalid file is never overwritten. Missing file or key = no track
-filter and the plugin's defaults.
-Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write: it
-rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
-`meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`. Folders
-never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does not undo it. An invalid file is shown, with its parse error, on the Settings
-screen. `sources`, `blockers` and the gates are used by the plugin. Missing schema means 1;
-a newer schema stops startup with an instruction to upgrade rolecall. Missing file or `tracks`
-key means no track filter and the plugin's defaults.
+enable, disable) and the four gates (edited on the Documents group; cap above 0 and the
+minimum, Key Skills minimum at most the maximum). Every other key keeps its value and its
+place, the file is indented with 2 spaces, the write is atomic, and an invalid file is never
+overwritten.
+
+Renaming a Track (`r` on the Settings screen, after a confirm) is the one Workspace-wide write:
+it rewrites `track` in every readable `meta.yml` under `jobs/` (including `_archive`, using the
+`meta.yml` write rules), then `tracks`, then the role `track` values in `jobs/roles.json`.
+Folders never move, malformed `meta.yml` files are skipped and named afterwards, and `u` does
+not undo it.
+
+An invalid file is shown, with its parse error, on the Settings screen. Missing schema means 1;
+a newer schema stops startup with an instruction to upgrade rolecall. A missing file, or a
+missing key such as `tracks`, means no track filter and the plugin's defaults.
 
 `sources` has two forms. The older one is an object mapping a Platform name to its
 targets. The **Source registry** is a list with one entry per Source, of every kind the
@@ -320,8 +327,8 @@ target. `sweep.py --test-source <name>` checks one entry and prints its access s
 The catalogue's `additional_sources` and `manual_search_sources` (below) still work when
 `sources` is absent. Prefer the registry.
 
-`search_rules` (read by the Sweep, `meta.py create`, `rules.py` and the TUI) is the rules
-that rule a role out, so none lives in prose:
+`search_rules` (read by the Sweep, `meta.py create`, `rules.py` and the TUI) holds the rules
+that rule a role out, so none of them lives in prose:
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -340,6 +347,12 @@ that rule a role out, so none lives in prose:
 }
 ```
 
+`search_area` (below) sets where a role must be, and `blockers` sets what rules a role out on
+its ad text (citizenship, clearance, permanent residency); neither is repeated in
+`search_rules`. The age is read from `posted`, else from `posted_label`. A Source's own `rules`
+win over these for that Source. A value of the wrong shape stops the Sweep and `rules.py` with
+the key named, and the Settings screen refuses it.
+
 `visa` (read by the TUI and assess-fit) is the Owner's work-rights position:
 
 | Field | Type | Meaning |
@@ -348,12 +361,6 @@ that rule a role out, so none lives in prose:
 | `max_contract_months` | int ≥ 1 | the longest term the Owner's visa allows. A Lead with `term_months` is badged "contract fits visa cap" or "12-mo contract > 6-mo visa cap" |
 
 `pay_fx` is an object of currency code → AUD rate for the pay estimate (above).
-
-Where a role must be is `search_area` (below), and what rules a role out on its ad text
-(citizenship, clearance, permanent residency) is `blockers`. Neither is repeated here. The
-age is read from `posted`, else from `posted_label`. A Source's own `rules` win over these
-for that Source. A value of the wrong shape stops the Sweep and `rules.py` with the key
-named, and the Settings screen refuses it.
 
 `search_area` (read by the Sweep and `find-jobs`) is where roles must be:
 
@@ -379,13 +386,13 @@ screen edits its keys in place and keeps comments. Two keys change how the TUI d
   colours become ANSI-16 indices, all readable text (muted included) takes the terminal's
   default foreground and bright black is kept for rules, no background is painted anywhere,
   and the selection is the gutter mark plus reverse video. A missing key means `false`,
-  so an existing file draws exactly as before. `NO_COLOR` wins over it; it combines with
-  `ascii` (glyph set) and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings
+  so an existing file draws exactly as before. `NO_COLOR` wins over it. It combines with
+  `ascii` (glyph set), and `ROLECALL_THEME` is ignored while it is on. Saving it in Settings
   takes effect at once.
 
 ## `jobs/roles.json` (optional role catalogue)
 
-Read by the Sweep (`sweep.py`) and the `find-jobs` skill. It is **not** an Application and
+Read by the Sweep (`sweep.py`) and the `find-jobs` skill. It is not an Application, and
 the TUI ignores it. Absent means the Sweep falls back to its built-in title keywords;
 invalid data stops the Sweep with the reason.
 
@@ -423,12 +430,11 @@ Each role:
 ## `jobs/sweep-candidates.md` (Sweep output)
 
 Written, and overwritten, by `sweep.py` on each Sweep. It is a report for the Owner and
-the `find-jobs` skill, **not** an Application: the TUI ignores it and no reader parses it
+the `find-jobs` skill and is not an Application: the TUI ignores it and no reader parses it
 as data. It holds a summary line with the scan time, source health (a FAILED source names
 its access problem: `403`, `login wall` or `cloudflare`), what each Search rule filtered out,
-role coverage, a `## To assess` list (one
-`### <title> — <company>` block per candidate), a `## Blocked` list, and a
-`## Not reachable by this script` note.
+role coverage, a `## To assess` list (one `### <title> — <company>` block per candidate), a
+`## Blocked` list, and a `## Not reachable by this script` note.
 
 ## `cv/` (CVs)
 
@@ -469,11 +475,10 @@ the Plugin default for the rest, and names the overrides it used.
 
 `fixtures/workspace/` holds a fictional workspace that covers: every Status; Ready, Written and
 no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malformed
-`meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py` tests
-both load it. Any change to this
-file updates the fixtures in the same commit.
+`meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py`
+tests both load it. Any change to this file updates the fixtures in the same commit.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed
 tables, jd front matter, legacy keys, bulk-stamped logs and an unmappable Fit. It is used by
-`plugin/tests/test_migrate.py` and `internal/store/tests/migrate_integration_test.go`. It is input to the
-one-time migration only and is not scanned by the store.
+`plugin/tests/test_migrate.py` and `internal/store/tests/migrate_integration_test.go`. It is
+input to the one-time migration only, and the store does not scan it.
