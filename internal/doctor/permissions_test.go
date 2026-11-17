@@ -100,3 +100,22 @@ func TestCheckReportsAllClearForPrivateWorkspace(t *testing.T) {
 		t.Fatalf("private Workspace warnings = %v, want none", warnings)
 	}
 }
+
+// A copied Workspace trips every file: one summary line carries the one command, and the
+// other warnings keep their place.
+func TestCollapsePermissionsFoldsPerPathWarnings(t *testing.T) {
+	in := []string{
+		"/w/a (file): permissions 0644; fix with chmod 600 /w/a",
+		"/w/b (file): permissions 0644; fix with chmod 600 /w/b",
+		"/w/c (directory): permissions 0755; fix with chmod 700 /w/c",
+		"git remote origin is public",
+	}
+	got := CollapsePermissions(in, "/w")
+	if len(got) != 2 || !strings.Contains(got[0], "3 files and folders") || !strings.Contains(got[0], "chmod -R go-rwx /w") || got[1] != in[3] {
+		t.Fatalf("collapsed = %q", got)
+	}
+	// One path keeps its own, more precise line.
+	if one := CollapsePermissions(in[:1], "/w"); len(one) != 1 || one[0] != in[0] {
+		t.Fatalf("single warning changed: %q", one)
+	}
+}

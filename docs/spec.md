@@ -85,8 +85,10 @@ Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 An invalid `workspace.json` (bad JSON, a wrong-shaped key, or a `tracks` list that breaks the Track
 name rules) does not stop startup: the app opens with no Track filter and the footer says
-`workspace.json: invalid Workspace settings · 6 Settings shows why, e to fix it`. Only a newer
-`schema` stops it.
+`workspace.json: invalid Workspace settings · 6 then e to fix it` (`e` on a table screen edits the
+row, so the hint names the screen first; on Settings it reads `e to fix it`). While `workspace.json`
+or `config.toml` cannot be used, the Settings tab keeps a `⚠` at every width, after the banner is
+dismissed too. Only a newer `schema` stops it.
 
 ### Screens
 
@@ -221,7 +223,7 @@ set it opens on the URL instead, where `Enter` fetches the ad. The URL is option
 value that is not a web address is refused when the field is left (`✘ URL must start with
 https://`); Edit never refuses a saved URL it did not change. Track needs no `*`: it is a choice and
 always holds a track. With no Tracks yet (a fresh `rolecall init` Workspace), Track is a
-required text field instead (`Track*`, placeholder `SWE`), and saving adds that Track to
+required text field instead (`Track*`, a dim placeholder `e.g. Nursing, Marketing` that is an example, not a value), and saving adds that Track to
 `workspace.json` before the Lead's folder is made. `Enter` checks the field and moves on; on the last field it checks them
 all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
 which enter does. `↑` `↓`, `tab` and `shift+tab` move between fields on every field; a choice
@@ -242,7 +244,10 @@ On save:
    Detail, `s` saves anyway, `esc` goes back to the form with every value kept.
 2. Create `jobs/<track>/<slug>/` (SCHEMA → Folder name), write `meta.yml` (`schema: 1`, the
    fields, `status_log` with one `Lead` entry), and an empty `jd.md`.
-3. Open `jd.md` in `$EDITOR` so the description can be pasted. On return, select the new row.
+3. Open `jd.md` in the Editor so the description can be pasted. On return, select the new row.
+   With no Editor chosen (config, `$VISUAL`, `$EDITOR`) nothing opens, since the `vi` fallback
+   traps a first-time user: the new row is selected and the toast reads `Paste the JD: pick an
+   Editor (6 › This machine) or add a URL` (without the last clause when a URL was given).
    If the save fails, the form stays open with its values and the error under the field.
 
 ### Edit form (`e` in a table)
@@ -468,8 +473,11 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   honestly see of a Harness working in another terminal; a Handoff run hands the terminal
   over, so nothing is drawn during it.
 - **First run:** while the Profile's Contact lacks Name or Email the app opens on the Contact
-  form, titled `Welcome to rolecall · first, your Contact`, with one line on why (`rolecall puts
-  these on every Resume and Cover letter. You can change them any time: 5 Profile, then c.`)
+  form, titled `Welcome to rolecall · first, your Contact`, with a line on why (`rolecall puts
+  these on every Resume and Cover letter. Name and Email are required; the rest is optional.
+  You can change them any time: 5 Profile, then c.`; opened from the Profile screen, the last
+  sentence is left out). It asks for Name, Email, Phone, Location, LinkedIn, GitHub and Work
+  rights (SCHEMA's Contact fields), with no per-field `optional`, which wrapped at 80 columns
   and `esc skip` in its border; esc skips it until the next launch. Its placeholders say what
   goes in a field (`your full name`, `your email address`), never a plausible person's details.
   A Workspace with no Applications shows a centred welcome instead of
@@ -695,7 +703,8 @@ line. No pop-up, no retry.
 
 #### Build: `b`
 
-- Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode.
+- Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode. It needs only
+  the Plugin, not a Harness: a `resume.md` written by hand builds the same way.
 - Shown only on Lead or Draft whose Documents state is Written or Ready (rebuilds Ready).
 - Spinner in the feedback line, then `Built 2 PDFs`. If the build fails (e.g. a gate), a pop-up shows
   `build.py`'s output.
@@ -859,7 +868,7 @@ opening stays but is best-effort, with no CI.
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
 | 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
 | 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
-| 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
+| 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). It writes a starter `profile/master-profile.md` (the Contact table, then each expected `##` heading with a one-line how-to as a comment, so a Profile can be written by hand without a Harness). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
 | 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
 | 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
 | 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |
@@ -890,6 +899,12 @@ prose, so the 1.x edit form covers the Contact only.
 - **Focus:** the context row names both panes and brackets the focused one (`[SECTIONS]
   CONTENT`), and the focused pane's rule takes the accent. While the content has focus the
   list's selected row keeps its `▌` mark but loses its fill, as the list does under a sheet.
+- **No Harness:** a Profile with only a Contact lists each expected section (`Headlines`,
+  `Experience`, `Key Skills keyword pool`, `Summary`, `Facts that are NOT available`) with how to
+  fill it by hand: under the Contact when the file lacks the headings, or on each section's own
+  page when `rolecall init`'s starter file has them (its `<!-- -->` how-to comment is a hint,
+  not content, so a section holding only it counts as empty). A Contact with no fields shows `No
+  Contact details yet · c to fill them in`, never an empty Field│Value table.
 - **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
   found`, then the welcome's instruction (`Set up your Profile: fill in your Contact, then …`,
   naming the Harness only when one is set) and `c fill in your Contact · r read it again`;

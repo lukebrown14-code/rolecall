@@ -107,7 +107,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 	track := formField{Label: fieldTrack, Value: v.track, Choices: trackChoices}
 	if len(tracks) == 0 {
 		// No Track to choose yet: the first one is typed here and saved with the Lead.
-		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "SWE", Note: "your first Track",
+		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "e.g. Nursing, Marketing", Note: "your first Track",
 			Validate: validFirstTrack}
 	}
 	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD", Validate: validCloses}
@@ -134,7 +134,7 @@ func createFields(v addValues) store.CreateFields {
 }
 
 // afterCreate shows the new Lead. Without fetched text it opens jd.md for pasting the
-// description; with it, the fetched ad is written straight to jd.md and no editor is
+// description, when an Editor is chosen; with it, the fetched ad is written straight to jd.md and no editor is
 // opened. The folder exists by now, so a failure here goes to the feedback line.
 func (m *model) afterCreate(folder string, fields store.CreateFields, jd string) tea.Cmd {
 	if !m.reload("") {
@@ -149,9 +149,22 @@ func (m *model) afterCreate(folder string, fields store.CreateFields, jd string)
 		m.selectFolder(folder)
 		return nil
 	}
+	if !editorChosen(*m) {
+		// Without a chosen Editor jd.md would open in vi, which a first-time user cannot
+		// leave; say how to paste the description instead.
+		m.selectFolder(folder)
+		m.toast = noEditorJDHint
+		if fields.URL != "" {
+			m.toast = strings.TrimSuffix(noEditorJDHint, " or add a URL")
+		}
+		return nil
+	}
 	m.selectAfter = folder
 	return m.editFile(folder, "jd.md")
 }
+
+// noEditorJDHint is the toast that replaces opening jd.md when no Editor is chosen.
+const noEditorJDHint = "Paste the JD: pick an Editor (6 › This machine) or add a URL"
 
 // submitAdd creates the Lead from the Add form, or keeps the form open with the error
 // under its focused field: nothing typed is lost to a failed save.

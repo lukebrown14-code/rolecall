@@ -16,11 +16,27 @@ type Setup struct {
 	Plugin    string
 	Harness   string
 	Editor    string // configured editor; empty falls back to $VISUAL, $EDITOR, vi
+	// EditorIsFallback is true when no Editor is chosen anywhere (config, $VISUAL, $EDITOR)
+	// and rolecall would open vi.
+	EditorIsFallback bool
 	// ConfigPath is the resolved config.toml the hints name; empty names the default.
 	ConfigPath string
 	// GOOS picks the install hints; empty means this machine's.
 	GOOS string
 }
+
+// Where the documentation lives on the public repository, for hints a person may read
+// from a terminal where the README is not at hand.
+const (
+	docsBase            = "https://github.com/lukebrown14-code/rolecall"
+	HarnessDocsURL      = docsBase + "/blob/main/docs/harnesses/claude-code.md"
+	OtherHarnessDocsURL = docsBase + "/blob/main/docs/harnesses/other-harnesses.md"
+	TemplateDocsURL     = docsBase + "#make-your-documents-yours"
+	WithoutHarnessURL   = docsBase + "#use-rolecall-without-a-harness"
+)
+
+// harnessDocs names the Harness setup guides, for the hints that follow a missing Harness.
+const harnessDocs = HarnessDocsURL + " (Claude Code) or " + OtherHarnessDocsURL
 
 // harnessExample is a working harness value the hint can show.
 const harnessExample = `harness = "claude \"/{skill} {dir}\""`
@@ -66,6 +82,8 @@ type CheckResult struct {
 	Found  bool
 	Detail string
 	Hint   string
+	// Note is a problem with a dependency that was found: it is shown as a warning, not OK.
+	Note string
 }
 
 // SetupReport contains dependency results and the effective document Template.
@@ -151,12 +169,12 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 	harness := strings.Fields(setup.Harness)
 	if len(harness) == 0 {
 		report.Checks = append(report.Checks, CheckResult{Name: harnessCheckLabel,
-			Hint: "the Harness is the AI coding agent that runs the Plugin's skills; set it in " + configPath + ", e.g. " + harnessExample + " (README › Connect your Harness)"})
+			Hint: "the Harness is the AI coding agent that runs the Plugin's skills; set it in " + configPath + ", e.g. " + harnessExample + "; see " + harnessDocs})
 	} else {
 		command := strings.Trim(harness[0], "\"'")
 		path, err := lookup(command)
 		if err != nil || path == "" {
-			report.Checks = append(report.Checks, CheckResult{Name: harnessCheckLabel, Detail: command, Hint: "Install the Harness or put its command on PATH (README › Connect your Harness)"})
+			report.Checks = append(report.Checks, CheckResult{Name: harnessCheckLabel, Detail: command, Hint: "Install the Harness or put its command on PATH; see " + harnessDocs})
 		} else {
 			report.Checks = append(report.Checks, CheckResult{Name: harnessCheckLabel, Found: true, Detail: path})
 		}
@@ -165,6 +183,10 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 	editor := config.CommandName(config.ResolveEditor(setup.Editor))
 	if path, err := lookup(editor); err != nil || path == "" {
 		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Detail: editor, Hint: "Install the Editor or set editor in " + configPath})
+	} else if setup.EditorIsFallback {
+		// vi is on the machine but is the editor a first-time user cannot leave: not an OK.
+		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Found: true, Detail: path,
+			Note: "only the vi fallback is set; pick an Editor in rolecall (6 › This machine) or set editor in " + configPath})
 	} else {
 		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Found: true, Detail: path})
 	}
@@ -177,6 +199,9 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 	}
 	report.Ignored = ignored
 	for _, check := range report.Checks {
+		if check.Found && check.Note != "" {
+			report.Warnings = append(report.Warnings, fmt.Sprintf("%s (%s); %s", check.Name, check.Detail, check.Note))
+		}
 		if !check.Found {
 			detail := check.Name
 			if check.Detail != "" {

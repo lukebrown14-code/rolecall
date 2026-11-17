@@ -43,10 +43,17 @@ func InitializeWorkspace(root string, contact map[string]string, tracks []string
 	if len(files) > 0 {
 		fs = files[0]
 	}
-	return initializeWorkspace(root, fs, contact, tracks, search)
+	return initializeWorkspace(root, fs, contact, tracks, search, false)
 }
 
-func initializeWorkspace(root string, files FileSystem, contact map[string]string, tracks []string, search SearchArea) error {
+// InitializeStarterWorkspace is what `rolecall init` runs: a new Workspace whose
+// master-profile.md already has every expected section under its heading, each with a
+// one-line how-to, so a Profile can be written by hand without a Harness.
+func InitializeStarterWorkspace(root string) error {
+	return initializeWorkspace(root, nil, nil, nil, SearchArea{}, true)
+}
+
+func initializeWorkspace(root string, files FileSystem, contact map[string]string, tracks []string, search SearchArea, skeleton bool) error {
 	if err := ValidateWorkspacePath(root); err != nil {
 		return err
 	}
@@ -76,9 +83,13 @@ func initializeWorkspace(root string, files FileSystem, contact map[string]strin
 	if err != nil {
 		return err
 	}
+	profile := contactMarkdown(contact)
+	if skeleton {
+		profile = ProfileSkeleton(contact)
+	}
 	starter := map[string]string{
 		"workspace.json":                 string(b) + "\n",
-		"profile/master-profile.md":      contactMarkdown(contact),
+		"profile/master-profile.md":      profile,
 		"profile/phrasing-bank.md":       "",
 		"profile/projects.md":            "",
 		"profile/writing-preferences.md": "",
