@@ -126,8 +126,24 @@ func TestSearchAlwaysShowsHowToClearIt(t *testing.T) {
 // A search with no match here says where the matches are.
 func TestEmptySearchPointsElsewhere(t *testing.T) {
 	v := view(t, "/orbit", "enter")
-	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Applied`) || !strings.Contains(v, "3 go to Applied") {
+	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Applied`) || !strings.Contains(v, "enter go to Applied") {
 		t.Fatalf("empty search does not say where:\n%s", v)
+	}
+}
+
+// enter on a view the search emptied jumps to the screen that has the matches.
+func TestEnterJumpsToWhereTheSearchMatches(t *testing.T) {
+	v := view(t, "/orbit", "enter", "enter")
+	if !strings.Contains(v, "[3 Applied") || !strings.Contains(v, "▌") || !strings.Contains(v, "/orbit") {
+		t.Fatalf("enter did not jump to Applied with the search kept:\n%s", v)
+	}
+	// Another view of this screen holds the match (Dismissed), so enter goes there.
+	v = view(t, "/docs-dismissed", "enter")
+	if !strings.Contains(v, "1 in Dismissed") || !strings.Contains(v, "enter go to Dismissed") {
+		t.Fatalf("empty search does not offer the Dismissed view:\n%s", v)
+	}
+	if v = view(t, "/docs-dismissed", "enter", "enter"); strings.Contains(v, "No match") || !strings.Contains(v, "docs-dismissed") {
+		t.Fatalf("enter did not go to the Dismissed view:\n%s", v)
 	}
 }
 

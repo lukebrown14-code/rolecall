@@ -84,6 +84,16 @@ func usable(m model) bool {
 	return !ok || a.Malformed == nil
 }
 
+// searchJumps reports an empty view under a search that has matches on another view or
+// screen: where enter goes to them.
+func searchJumps(m model) bool {
+	if m.detail != nil || !m.hasTables() || m.text == "" || onRow(m) {
+		return false
+	}
+	_, j := m.searchElsewhere()
+	return j.ok
+}
+
 // leadOrDraft reports whether the current row is still the Owner's to send.
 func leadOrDraft(m model) bool {
 	a, ok := m.current()
@@ -128,6 +138,24 @@ var listActions = []listAction{
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.selected(); ok {
 				m.openDetail(a.Folder)
+			}
+			return nil
+		},
+	},
+	{
+		// A search that matches nothing here but something elsewhere: enter, which has no row to
+		// open, goes to where the matches are.
+		keys: []string{"enter"}, keyLabel: "enter",
+		desc: func(m model) string {
+			_, j := m.searchElsewhere()
+			return "go to " + j.words
+		},
+		group: groupAction, prio: fixed(prioCore),
+		listed:  searchJumps,
+		enabled: searchJumps,
+		run: func(m *model, _ string) tea.Cmd {
+			if _, j := m.searchElsewhere(); j.ok {
+				m.jumpToSearch(j)
 			}
 			return nil
 		},

@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
@@ -40,17 +39,25 @@ func (m model) withChip(p pal, right string) string {
 	return chip + "   " + right
 }
 
+// searchJump is where enter goes when the search has no match here but has one elsewhere:
+// the first screen and view that holds matches, and the words that name it.
+type searchJump struct {
+	screen, table int
+	words         string
+	ok            bool
+}
+
 // searchElsewhere is where else the text filter has matches when this view has none:
-// "1 in Applied" for another screen, "2 in Dismissed" for another view of this
-// one, with the key that goes to the first of them. Empty when nothing else matches.
-func (m model) searchElsewhere() (where []string, key, words string) {
+// "1 in Applied" for another screen, "2 in Dismissed" for another view of this one, and the
+// first of them as the place enter jumps to. Empty when nothing else matches.
+func (m model) searchElsewhere() (where []string, jump searchJump) {
 	here := m.views()[m.table]
 	for i, d := range screenDefs {
 		if !d.hasTables {
 			continue
 		}
-		n := 0
-		for _, v := range d.tables {
+		n, first := 0, -1
+		for ti, v := range d.tables {
 			switch {
 			case v == allView:
 				continue // All is the sum of the others
@@ -59,23 +66,34 @@ func (m model) searchElsewhere() (where []string, key, words string) {
 			case i == m.screen:
 				if c := m.count(i, v); c > 0 {
 					where = append(where, fmt.Sprintf("%d in %s", c, v))
-					// s goes to the next view only, so it is offered only for that one.
-					if next := d.tables[(m.table+1)%len(d.tables)]; key == "" && v == next {
-						key, words = "s", v
+					if !jump.ok {
+						jump = searchJump{screen: i, table: ti, words: v, ok: true}
 					}
 				}
 				continue
 			}
-			n += m.count(i, v)
+			if c := m.count(i, v); c > 0 {
+				n += c
+				if first < 0 {
+					first = ti
+				}
+			}
 		}
 		if i != m.screen && n > 0 {
 			where = append(where, fmt.Sprintf("%d in %s", n, d.name))
-			if key == "" {
-				key, words = strconv.Itoa(i+1), d.name
+			if !jump.ok {
+				jump = searchJump{screen: i, table: first, words: d.name, ok: true}
 			}
 		}
 	}
-	return where, key, words
+	return where, jump
+}
+
+// jumpToSearch goes to where the search has matches: enter on a view the search emptied.
+func (m *model) jumpToSearch(j searchJump) {
+	m.screen, m.table, m.cursor = j.screen, j.table, 0
+	m.detail = nil
+	m.back = nil
 }
 
 // clearSearch is esc on a screen without rows of its own (Stats, Profile): it clears the
