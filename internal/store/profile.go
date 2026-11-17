@@ -30,6 +30,7 @@ type Profile struct {
 	Missing  []string          // required fields with no value, in Name, Email order
 	Sections []ProfileSection  // `##` sections in file order
 	Files    []ProfileFile     // other Profile files, in profileFileNames order
+	CVs      []CV              // the CVs in cv/, general first (CVs)
 }
 
 // profileFileNames are the other files the Harness reads, in the order the screen lists
@@ -71,7 +72,11 @@ func (s *Store) Profile() (Profile, error) {
 	if err != nil {
 		return Profile{}, err
 	}
-	return Profile{Exists: exists, Contact: contact, Missing: missingContact(contact), Sections: sections, Files: files}, nil
+	cvs, err := s.CVs()
+	if err != nil {
+		return Profile{}, err
+	}
+	return Profile{Exists: exists, Contact: contact, Missing: missingContact(contact), Sections: sections, Files: files, CVs: cvs}, nil
 }
 
 // profileFiles reads the other Profile files, skipping the ones that do not exist: a

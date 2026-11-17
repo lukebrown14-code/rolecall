@@ -719,3 +719,128 @@ def test_keep_line_breaks_between_consecutive_bold_lines():
 )
 def test_keep_line_breaks_leaves_other_text_alone(text):
     assert build.keep_line_breaks(text) == text
+
+
+# --- build --cv (#216) -------------------------------------------------------------
+
+
+def cv_workspace(tmp_path, general_row=True):
+    workspace, _folder = cli_workspace(tmp_path)
+    profile = workspace / "profile" / "master-profile.md"
+    if general_row:
+        profile.write_text(
+            profile.read_text().replace(
+                "| SWE | Full Stack Software Engineer |",
+                "| SWE | Full Stack Software Engineer |\n| General | Software Engineer |",
+            )
+        )
+    (workspace / "cv").mkdir()
+    (workspace / "cv" / "general.md").write_text(CHECK_RESUME)
+    (workspace / "cv" / "master.md").write_text(CHECK_RESUME)
+    return workspace
+
+
+def run_cv(tmp_path, workspace, *args):
+    bin_dir = fake_tools(tmp_path)
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}:{env['PATH']}"
+    env["ROLECALL_TEST_BRAND_CAPTURE"] = str(tmp_path / "captured-brand.typ")
+    env["ROLECALL_TEST_SOURCE_CAPTURE"] = str(tmp_path / "captured-sources.typ")
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--data", str(workspace), *args],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def test_cv_general_builds_with_the_general_headline(tmp_path):
+    workspace = cv_workspace(tmp_path)
+
+    result = run_cv(tmp_path, workspace, "--cv", "general")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    out = workspace / "cv" / "out" / "general"
+    assert [p.name for p in out.iterdir()] == ["Alex Quinn Resume.pdf"]
+    source = (tmp_path / "captured-sources.typ").read_text()
+    assert 'headline: "Software Engineer"' in source
+    assert "key skills:" in result.stdout and "facts: ok" in result.stdout
+
+
+@pytest.mark.parametrize("name", ["master", "cv/master.md", "master.md"])
+def test_cv_other_names_build_beside_general_with_an_explicit_headline(tmp_path, name):
+    workspace = cv_workspace(tmp_path, general_row=False)
+
+    result = run_cv(tmp_path, workspace, "--cv", name, "--headline", "Principal Engineer")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    out = workspace / "cv" / "out" / "master"
+    assert [p.name for p in out.iterdir()] == ["Alex Quinn Resume Master.pdf"]
+    assert 'headline: "Principal Engineer"' in (tmp_path / "captured-sources.typ").read_text()
+
+
+def test_cv_replaces_the_pdf_an_earlier_build_left(tmp_path):
+    workspace = cv_workspace(tmp_path)
+    out = workspace / "cv" / "out" / "general"
+    out.mkdir(parents=True)
+    (out / "Old Name Resume.pdf").write_text("old")
+
+    result = run_cv(tmp_path, workspace, "--cv", "general")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert [p.name for p in out.iterdir()] == ["Alex Quinn Resume.pdf"]
+
+
+def test_cv_without_a_general_headline_or_headline_flag_fails(tmp_path):
+    workspace = cv_workspace(tmp_path, general_row=False)
+
+    result = run_cv(tmp_path, workspace, "--cv", "general")
+
+    assert result.returncode != 0
+    assert "no General row in its ## Headlines table" in result.stderr
+    assert not (workspace / "cv" / "out").exists()
+
+
+def test_cv_gate_failure_leaves_no_pdf(tmp_path):
+    workspace = cv_workspace(tmp_path)
+    (workspace / "cv" / "general.md").write_text("# Alex Quinn\n\nNo skills block.\n")
+
+    result = run_cv(tmp_path, workspace, "--cv", "general")
+
+    assert result.returncode != 0
+    assert "cv/general.md has no '## Key Skills' block" in result.stderr
+    assert not (workspace / "cv" / "out").exists()
+
+
+@pytest.mark.parametrize(
+    "args,error",
+    [
+        (["--cv", "missing"], "no CV at"),
+        (["--cv", "../secret"], "name a CV in cv/"),
+        (["--cv", "general", "jobs/SWE/acme-developer"], "not both"),
+        (["--headline", "X", "jobs/SWE/acme-developer"], "--headline applies only with --cv"),
+        ([], "give an Application folder or --cv NAME"),
+    ],
+)
+def test_cv_refuses_bad_arguments(tmp_path, args, error):
+    workspace = cv_workspace(tmp_path)
+
+    result = run_cv(tmp_path, workspace, *args)
+
+    assert result.returncode != 0
+    assert error in result.stderr
+
+
+def test_cv_build_writes_no_application_files(tmp_path):
+    workspace = cv_workspace(tmp_path)
+    before = sorted(str(p.relative_to(workspace)) for p in workspace.rglob("*"))
+
+    result = run_cv(tmp_path, workspace, "--cv", "general")
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    after = sorted(str(p.relative_to(workspace)) for p in workspace.rglob("*"))
+    assert sorted(set(after) - set(before)) == [
+        "cv/out",
+        "cv/out/general",
+        "cv/out/general/Alex Quinn Resume.pdf",
+    ]

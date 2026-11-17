@@ -25,15 +25,16 @@ func buildable(a store.Application) bool {
 	return a.Documents == store.DocsWritten || a.Documents == store.DocsReady
 }
 
-// buildState is the build in flight. Only one runs at a time.
+// buildState is the build in flight. Only one runs at a time. cv names a CV build
+// (cv/<cv>.md); an Application build leaves it empty.
 type buildState struct {
-	folder, title, status string
+	folder, title, status, cv string
 }
 
 // buildFinished is a captured build's outcome, delivered to the model.
 type buildFinished struct {
-	folder, output string
-	err            error
+	folder, output, cv string
+	err                error
 }
 
 // buildFailure is a failed build's output, shown in a pop-up until esc.
@@ -58,16 +59,64 @@ func (m *model) startBuild() tea.Cmd {
 	if !buildable(a) {
 		return nil
 	}
-	if m.capturedRun {
-		m.toast, m.toastHint = "Build already running", ""
-		if m.building == nil {
-			m.toast = "A fetch is already running"
-		}
+	if m.refuseBusy() {
 		return nil
 	}
 	m.capturedRun = true
 	m.building = &buildState{folder: a.Folder, title: appName(a.Title), status: a.Status}
 	return tea.Batch(m.build(a), m.spinner.Tick)
+}
+
+// refuseBusy reports a captured run already in flight, saying which kind; only one
+// build or fetch runs at a time.
+func (m *model) refuseBusy() bool {
+	if !m.capturedRun {
+		return false
+	}
+	m.toast, m.toastHint = "Build already running", ""
+	if m.building == nil {
+		m.toast = "A fetch is already running"
+	}
+	return true
+}
+
+// startCVBuild builds the selected CV on the Profile screen, with the same guards as an
+// Application build: the Plugin must be set and only one build runs at a time.
+func (m *model) startCVBuild(cv store.CV) tea.Cmd {
+	if m.plugin == "" {
+		m.err = errors.New(unsetMachineSetting(labelPlugin))
+		return nil
+	}
+	if m.refuseBusy() {
+		return nil
+	}
+	m.capturedRun = true
+	m.building = &buildState{folder: m.store.Root(), title: cv.FileName(), cv: cv.Name}
+	args := []string{filepath.Join(m.plugin, "scripts", "build.py"), "--cv", cv.Name, dataFlag, m.store.Root()}
+	return tea.Batch(m.runCaptured("python3", args, func(r CapturedResult) tea.Msg {
+		return buildFinished{folder: m.store.Root(), cv: cv.Name, output: combinedOutput(r), err: r.Err}
+	}), m.spinner.Tick)
+}
+
+// finishCVBuild rereads the Profile so the CV shows its new PDF, and reports the build:
+// the PDF's name on success, the build's own output in a pop-up on failure.
+func (m model) finishCVBuild(done buildFinished) (tea.Model, tea.Cmd) {
+	build := m.building
+	m.building = nil
+	m = m.loadProfile()
+	if done.err != nil {
+		m.overlay = &buildFailMode{failure: &buildFailure{title: buildTitle(build), output: done.output}}
+		return m, nil
+	}
+	m.toast, m.toastHint = "Built "+done.cv+" CV", ""
+	if m.profile != nil {
+		for _, cv := range m.profile.profile.CVs {
+			if cv.Name == done.cv && cv.PDF != "" {
+				m.toast, m.toastHint = "Built "+cv.PDF, "d download"
+			}
+		}
+	}
+	return m, nil
 }
 
 // build runs the Plugin's build.py on the Application in captured mode.
@@ -94,6 +143,9 @@ func combinedOutput(r CapturedResult) string {
 // on success, a pop-up with the build's own output on failure. A Lead the build
 // moved to Draft says so; that move is never the Owner's, so it is not undoable.
 func (m model) finishBuild(done buildFinished) (tea.Model, tea.Cmd) {
+	if done.cv != "" {
+		return m.finishCVBuild(done)
+	}
 	build := m.building
 	m.building = nil
 	// Rescan through the one reload helper. A failed scan is reported through m.err, but

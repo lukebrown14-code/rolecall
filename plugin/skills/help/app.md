@@ -20,7 +20,8 @@ Tracks, the Search area, Search rules and Sources are set in Settings. The Profi
 <workspace>/
 ├─ workspace.json                 # Tracks, Search area, Search rules, Sources
 ├─ profile/master-profile.md      # the Profile; its ## Contact table is on every document
-├─ cv/                            # the Owner's general resume, for create-profile
+├─ cv/                            # CVs (general.md …) and the resume create-profile imported
+│  └─ out/<name>/*.pdf            # built CVs; b builds and d downloads them on the Profile screen
 └─ jobs/<track>/<folder>/         # one folder per Application
    ├─ meta.yml                    # title, company, track, fit, posted, status_log
    ├─ jd.md · resume.md · cover-letter.md · notes.md

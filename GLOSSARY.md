@@ -118,7 +118,11 @@ _Avoid_: score, match
 
 **Resume**:
 The resume tailored for one Application, written from the Profile. It is one of the Application's documents, beside the cover letter.
-The Owner may call their general, untailored resume a CV.
+The Owner's general, untailored resume is a CV, not a Resume.
+
+**CV**:
+A resume written from the Profile for no Application: the Owner's everyday one (`cv/general.md`) or another kept in `cv/`, such as a long master version. It is built and downloaded from the Profile screen, has no Status and is never one of an Application's documents.
+_Avoid_: general resume, master resume (as names for the file)
 
 **Document**:
 One of an Application's JD, Resume, Cover letter, Gaps and PDF, always called by that name. A document is ready (its file has text; the PDF once the build has made every PDF the Application needs) or missing; an empty file is missing. Its file name (resume.md) shows only where it is opened, muted.

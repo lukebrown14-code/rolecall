@@ -61,13 +61,20 @@ type profileState struct {
 // sectionCount is the selectable sections, before the divider.
 func (st profileState) sectionCount() int { return len(st.profile.Sections) }
 
-// entries is the whole selection: the sections, then the other files below the divider.
-func (st profileState) entries() int { return st.sectionCount() + len(st.profile.Files) }
+// entries is the whole selection: the sections, then the other files below the divider,
+// then the CVs below theirs.
+func (st profileState) entries() int {
+	return st.sectionCount() + len(st.profile.Files) + len(st.profile.CVs)
+}
 
-// entryName is the selected entry's name: a section heading or another file's name.
+// entryName is the selected entry's name: a section heading, another file's name or a
+// CV's file name.
 func (st profileState) entryName() string {
 	if file, ok := st.file(); ok {
 		return file.Name
+	}
+	if cv, ok := st.cv(); ok {
+		return cv.FileName()
 	}
 	if st.selected >= 0 && st.selected < len(st.profile.Sections) {
 		return st.profile.Sections[st.selected].Heading
@@ -94,21 +101,37 @@ func (st profileState) file() (store.ProfileFile, bool) {
 	return st.profile.Files[i], true
 }
 
+// cv returns the selected CV; false when a section or another file is selected.
+func (st profileState) cv() (store.CV, bool) {
+	i := st.selected - st.sectionCount() - len(st.profile.Files)
+	if i < 0 || i >= len(st.profile.CVs) {
+		return store.CV{}, false
+	}
+	return st.profile.CVs[i], true
+}
+
 // path is the file the current selection reads.
 func (st profileState) path() string {
 	if file, ok := st.file(); ok {
 		return file.Path
 	}
+	if cv, ok := st.cv(); ok {
+		return cv.Path
+	}
 	return profilePath
 }
 
-// row is the list row the selection sits on. The divider takes one row between the
-// sections and the files, and is never selected itself.
+// row is the list row the selection sits on. A divider takes one row before the files
+// and one before the CVs, and is never selected itself.
 func (st profileState) row() int {
+	row := st.selected
 	if len(st.profile.Files) > 0 && st.selected >= st.sectionCount() {
-		return st.selected + 1
+		row++
 	}
-	return st.selected
+	if len(st.profile.CVs) > 0 && st.selected >= st.sectionCount()+len(st.profile.Files) {
+		row++
+	}
+	return row
 }
 
 // profileLoaded reports whether there is a Profile to show: a loaded master-profile.md.
@@ -162,6 +185,13 @@ func (st profileState) selectedIndex(p store.Profile) int {
 		for i, other := range p.Files {
 			if other.Name == file.Name {
 				return len(p.Sections) + i
+			}
+		}
+	}
+	if cv, ok := st.cv(); ok {
+		for i, other := range p.CVs {
+			if other.Name == cv.Name {
+				return len(p.Sections) + len(p.Files) + i
 			}
 		}
 	}
@@ -225,8 +255,11 @@ func (m model) profileMarkdown(st profileState) string {
 	key := "profile\x00" + st.entryName() + "\x00" + st.path()
 	return m.md.body(m.gen, m.profileContentWidth(m.viewWidth()), key, func() string {
 		var body string
+		cv, isCV := st.cv()
 		if file, ok := st.file(); ok {
 			body = file.Body
+		} else if isCV {
+			body = cv.Body
 		} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
 			body = st.profile.Sections[st.selected].Body
 		}
@@ -237,8 +270,14 @@ func (m model) profileMarkdown(st profileState) string {
 		label := "SECTION"
 		if _, ok := st.file(); ok {
 			label = "FILE"
+		} else if isCV {
+			label = "CV"
 		}
-		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit file", width), ""}
+		lines := []string{p.fieldRow(label, p.Text(p.Fg).Render(shortHeading(st.entryName())), "e", "edit file", width)}
+		if isCV {
+			lines = append(lines, m.cvPDFRow(p, cv, width))
+		}
+		lines = append(lines, "")
 		if warning != "" {
 			lines = append(lines, wrapWords(warning, width)...)
 		}
@@ -268,6 +307,34 @@ func (m model) profileMarkdown(st profileState) string {
 		}
 		return strings.Join(lines, "\n")
 	})
+}
+
+// cvPDFRow is a CV's PDF as a field row: its name and the key that downloads it, or how
+// to build it when there is none yet or the Markdown has changed since.
+func (m model) cvPDFRow(p pal, cv store.CV, width int) string {
+	build := ""
+	if m.plugin != "" {
+		build = "b"
+	}
+	switch {
+	case cv.PDF == "":
+		return p.fieldRow("PDF", p.Text(p.Dim).Render("not built yet"), build, "build", width)
+	case cv.Stale:
+		return p.fieldRow("PDF", p.Text(p.Warn).Render(glyphWarn+" "+cv.PDF+" is older than "+cv.FileName()), build, "rebuild", width)
+	}
+	return p.fieldRow("PDF", p.Text(p.Fg).Render(cv.PDF), "d", "download", width)
+}
+
+// cvSuffix is a CV's mark in the list: ✓ built and current, ⚠ built before the last
+// edit, ○ not built.
+func cvSuffix(p pal, cv store.CV) (string, color.Color) {
+	switch {
+	case cv.PDF == "":
+		return glyphMissing, p.Dim
+	case cv.Stale:
+		return glyphWarn, p.Warn
+	}
+	return glyphReady, p.Ok
 }
 
 // fieldTable draws a section that is only a two-column Markdown table, like Contact, as
@@ -394,6 +461,15 @@ func (m model) profileHelpKeys() []helpKey {
 			// Which pane j k act on matters as much as j k, so tab reaches the key line.
 			keys = append(keys, help(groupNav, "tab", "focus").at(prioCore))
 		}
+		if cv, ok := m.profile.cv(); ok {
+			// A CV is built and downloaded here, as an Application is from its row.
+			if m.plugin != "" {
+				keys = append(keys, help(groupAction, "b", "build").at(prioCore))
+			}
+			if cv.PDF != "" {
+				keys = append(keys, help(groupAction, "d", "download").at(prioCore))
+			}
+		}
 	}
 	// c is first while the Contact still needs filling in; once it is complete it stays
 	// one key away for a change.
@@ -439,6 +515,18 @@ func (m model) profileKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil // nothing to select, scroll or edit
 	}
 	listShown := m.profileListShown(m.viewWidth())
+	if cv, ok := m.profile.cv(); ok {
+		switch k.String() {
+		case "b":
+			return m, m.startCVBuild(cv)
+		case "d":
+			if cv.PDF == "" {
+				m.toast, m.toastHint = "No PDF yet", "b build"
+				return m, nil
+			}
+			return m, m.downloadCV(cv)
+		}
+	}
 	switch k.String() {
 	case "e":
 		// The screen never writes profile/ (only the first-run form writes Contact): the Owner's editor does, and the reload
@@ -585,18 +673,34 @@ func (m model) profileSectionList(p pal, h int) string {
 	}
 	if len(st.profile.Files) > 0 {
 		// The other files are files, not sections: a labelled rule, then their names in italic.
-		label := p.Text(p.Dim).Render(otherFiles + " ")
-		rows = append(rows, strings.Repeat(" ", inset)+label+
-			p.Text(p.Rule).Render(strings.Repeat("─", max(0, listW-inset-gutter-xansi.StringWidth(otherFiles)-1))))
+		rows = append(rows, m.profileListRule(p, listW, otherFiles))
 	}
 	for i, file := range st.profile.Files {
 		rows = append(rows, profileListRow(p, listW, file.Name, "", p.Dim, st.sectionCount()+i == st.selected, filled, true))
 	}
+	if len(st.profile.CVs) > 0 {
+		rows = append(rows, m.profileListRule(p, listW, cvsLabel))
+	}
+	first := st.sectionCount() + len(st.profile.Files)
+	for i, cv := range st.profile.CVs {
+		suffix, colour := cvSuffix(p, cv)
+		rows = append(rows, profileListRow(p, listW, cv.FileName(), suffix, colour, first+i == st.selected, filled, true))
+	}
 	return strings.Join(p.ClipLines(rows, st.row()-h/bothSides, h, strings.Repeat(" ", inset)), "\n")
 }
 
-// otherFiles labels the rule between the sections and the other Profile files.
-const otherFiles = "files"
+// otherFiles labels the rule between the sections and the other Profile files, and
+// cvsLabel the rule before the CVs.
+const (
+	otherFiles = "files"
+	cvsLabel   = "CVs"
+)
+
+// profileListRule is a labelled rule across the list column, never selected.
+func (m model) profileListRule(p pal, listW int, label string) string {
+	return strings.Repeat(" ", inset) + p.Text(p.Dim).Render(label+" ") +
+		p.Text(p.Rule).Render(strings.Repeat("─", max(0, listW-inset-gutter-xansi.StringWidth(label)-1)))
+}
 
 // shortHeadings are the list names of the template's long headings; the content pane and
 // the narrow context row keep the heading as written.
