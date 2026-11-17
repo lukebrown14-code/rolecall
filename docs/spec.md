@@ -402,7 +402,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   colour and bold, the others dim. When two panes share the
   frame, the focused pane's part of the top rule is the accent.
 - **Other colours:** Fit Strong green · Good blue · Marginal yellow (its own role, apart
-  from the urgency amber) · Poor grey. Close dates by urgency: `closes in 6d` amber and
+  from the urgency amber) · Poor grey. Close dates by urgency: `closes in 6d (soon)` amber (the word `(soon)` carries the urgency without colour) and
   bold within 7 days, `closes in 2d ▲` red and bold within 2 (and today), `expired 3 Sep` struck through and muted once past — in rows, the preview and the
   detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. Documents are named JD · Resume ·
   Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
