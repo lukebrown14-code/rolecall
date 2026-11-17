@@ -168,7 +168,7 @@ func runDoctor(dir string) error {
 		if len(warnings) == 0 {
 			fmt.Println("Workspace permissions are private.")
 		} else {
-			for _, warning := range warnings {
+			for _, warning := range doctor.CollapsePermissions(warnings, c.Workspace) {
 				fmt.Printf("WARNING: %s\n", warning)
 			}
 		}
@@ -179,8 +179,12 @@ func runDoctor(dir string) error {
 		workspaceErr = checkWorkspaceFile(s)
 	}
 
-	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor, ConfigPath: config.Path(home)}, nil)
+	report := doctor.CheckSetup(doctor.Setup{Workspace: c.Workspace, Plugin: c.Plugin, Harness: c.Harness, Editor: c.Editor, EditorIsFallback: c.EditorSource == config.SourceDefault, ConfigPath: config.Path(home)}, nil)
 	for _, check := range report.Checks {
+		if check.Found && check.Note != "" {
+			fmt.Printf("WARNING: %s (%s); %s\n", check.Name, check.Detail, check.Note)
+			continue
+		}
 		if check.Found {
 			fmt.Printf("OK: %s found (%s)\n", check.Name, check.Detail)
 			continue
@@ -194,7 +198,7 @@ func runDoctor(dir string) error {
 	for _, ignored := range report.Ignored {
 		fmt.Printf("WARNING: %s\n", ignored)
 	}
-	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
+	fmt.Printf("Template in use: %s. See %s\n", report.Template, doctor.TemplateDocsURL)
 	if strings.HasPrefix(report.Template, "Workspace override") {
 		fmt.Println("  Plugin updates to an overridden file do not reach your copy; compare it with the Plugin's after updating.")
 	}

@@ -73,6 +73,30 @@ func Check(root string, lookup VisibilityLookup) ([]string, error) {
 	return append(warnings, remoteWarnings...), nil
 }
 
+// permissionMarker is what every per-path permission warning from Check contains.
+const permissionMarker = "): permissions "
+
+// CollapsePermissions folds Check's per-path permission warnings into one line with the
+// single command that fixes them all, so a copied Workspace (every file readable by
+// others) does not bury the other warnings under a hundred lines. A lone warning, and
+// the remote-visibility warnings, stay as they are.
+func CollapsePermissions(warnings []string, root string) []string {
+	var out []string
+	count := 0
+	for _, w := range warnings {
+		if strings.Contains(w, permissionMarker) {
+			count++
+			continue
+		}
+		out = append(out, w)
+	}
+	if count < 2 {
+		return warnings
+	}
+	summary := fmt.Sprintf("%d files and folders in the Workspace are not private (open to other users); fix them all with chmod -R go-rwx %s", count, shellQuote(root))
+	return append([]string{summary}, out...)
+}
+
 func checkRemote(root string, lookup VisibilityLookup) ([]string, error) {
 	urls, err := remoteURLs(filepath.Join(root, ".git", "config"))
 	if err != nil {

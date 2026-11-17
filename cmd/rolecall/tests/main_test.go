@@ -246,7 +246,7 @@ func TestCLIDoctorDirWarnsButExitsSuccessfully(t *testing.T) {
 	cmd := exec.Command(binary, "doctor", "--dir", workspace)
 	cmd.Env = append(os.Environ(), "HOME="+home)
 	out, err := cmd.CombinedOutput()
-	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) || !strings.Contains(string(out), "Template in use: Header Band (default)") || !strings.Contains(string(out), "Make your documents yours") {
+	if err != nil || !strings.Contains(string(out), workspace+" (directory)") || !strings.Contains(string(out), "chmod 700 "+workspace) || !strings.Contains(string(out), "Template in use: Header Band (default)") || !strings.Contains(string(out), "#make-your-documents-yours") {
 		t.Fatalf("doctor output = %q, err = %v", out, err)
 	}
 	for _, check := range []string{"typst", "pandoc", "Python 3", "Plugin path", "Harness command"} {
@@ -383,5 +383,37 @@ func TestCLIVersionFlagDefaultsWithoutInjectingLdflags(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil || string(out) != "rolecall dev\n" {
 		t.Fatalf("--version output = %q, err = %v; want \"rolecall dev\\n\"", out, err)
+	}
+}
+
+// A Workspace copied with loose permissions is one summary line, not one per file; the
+// Editor fallback and the documentation pointers are plain URLs; the exit status is 0.
+func TestCLIDoctorCollapsesPermissionsAndWarnsOnViFallback(t *testing.T) {
+	binary := buildRolecall(t)
+	home := t.TempDir()
+	workspace := filepath.Join(home, "ws")
+	for _, d := range []string{"a", "b", "c"} {
+		if err := os.MkdirAll(filepath.Join(workspace, "jobs", d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(workspace, "jobs", d, "f.md"), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cmd := exec.Command(binary, "doctor", "--dir", workspace)
+	cmd.Env = append(os.Environ(), "HOME="+home, "VISUAL=", "EDITOR=")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("doctor failed: %v\n%s", err, out)
+	}
+	text := string(out)
+	if strings.Count(text, "permissions 0") != 0 || !strings.Contains(text, "chmod -R go-rwx "+workspace) {
+		t.Errorf("permission warnings not collapsed:\n%s", text)
+	}
+	if strings.Contains(text, "OK: Editor") || !strings.Contains(text, "WARNING: Editor") || !strings.Contains(text, "vi fallback") {
+		t.Errorf("Editor fallback not a warning:\n%s", text)
+	}
+	if strings.Contains(text, "README") || !strings.Contains(text, "https://github.com/lukebrown14-code/rolecall/blob/main/docs/harnesses/") {
+		t.Errorf("README pointers remain:\n%s", text)
 	}
 }
