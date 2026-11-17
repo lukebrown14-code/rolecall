@@ -10,7 +10,14 @@ rolecall init [DIR]   # creates the Workspace (default ./rolecall) and its local
 rolecall              # opens the app; the first time, it asks for the Contact (Name, Email required)
 rolecall doctor       # checks the Workspace, typst, pandoc, Python, fonts, Plugin and Harness
 rolecall move FOLDER STATUS   # moves an Application to a Status as the app does; Applied also saves sent/
+rolecall now [--days N] [--list]   # one plain line: follow-ups due, next steps and closing dates within N days (7)
+rolecall export [--format csv|json | --ics] [--out FILE]   # every Application as CSV or JSON, or next steps and close dates as .ics
 ```
+
+`now` and `export` are read-only and take `--dir PATH`; `export` writes only where `--out` says.
+`e` on an Application also takes a **next step** (a date and what it is) and its first
+**contact**; moving one to Rejected or Withdrawn asks why it ended (optional), which Stats
+shows as where Applications dropped off.
 
 Esc skips the Contact form; it returns on the next launch until Name and Email are saved.
 Tracks, the Search area, Search rules and Sources are set in Settings. The Profile comes from the `create-profile` skill.
@@ -64,16 +71,19 @@ that day, and `u` takes it back. A Status change restarts the count too.
 | Key | Does |
 | --- | --- |
 | `1`–`6` | Leads (and Dismissed, Filtered), Drafts (and Deadlines: `s` on Drafts), Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
-| `Tab` · `j`/`k` | move between tables · rows |
+| `←`/`→` or `s` · `j`/`k` | change view within a screen (`Tab` is an unlisted alias of `→`, except on Profile where it switches pane) · move between rows |
 | `Enter` / `v` | open the Application's details |
 | `a` · `e` · `m` · `x` | add · edit · move to another Status · dismiss |
+| `*` | mark or unmark the row; with rows marked, `x` and `m` act on all of them (`Esc` clears) |
 | `n` | the Application's notes |
 | `f` · `p` | Handoff to the Harness: assess-fit (any row) · prepare-documents (Lead or Draft) |
 | `F` · `l` | on a Follow-up due row, Handoff to draft-follow-up · record that you followed up today (Applied, Interviewing) |
 | `r` | re-read the Workspace |
 | `b` · `d` | build PDFs · copy the PDFs to the `downloads` folder |
-| `/` · `t` · `s` · `o` | search · Track filter · change view · sort |
-| `u` · `space` · `,` · `?` · `q` | undo · menu · Settings · help · quit |
+| `w` · `c` | open the job ad's link · copy it |
+| `/` · `t`/`T` · `s` · `o` | search · next / previous Track filter · change view · sort Leads |
+| `z` · `h` · `J`/`K` | compact rows (wide sizes) · connect a Harness (while none is set) · next / previous row's detail |
+| `u` · `space` · `,` · `?` · `q` | undo · command palette (`:` and `Ctrl-K` open it too) · Settings · help · quit |
 
 A Handoff runs the `harness` command from `config.toml` with the skill and the Application's
 folder, started in the Workspace wherever rolecall was launched; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
