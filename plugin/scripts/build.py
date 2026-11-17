@@ -641,28 +641,200 @@ def contact_failure(text, name, email):
     return None
 
 
-def ats_check(pdf, md_name, contact):
+# --- PDF text check (what an ATS reads) --------------------------------------------
+
+# Section headings an ATS files a resume's text under. A heading outside this list
+# reads as part of the section above it. Compared case-insensitively.
+STANDARD_HEADINGS = {
+    "summary", "professional summary", "profile", "career summary", "objective",
+    "key skills", "skills", "technical skills", "core skills", "core competencies",
+    "experience", "professional experience", "work experience", "employment history",
+    "relevant experience", "career history",
+    "education", "education and training", "qualifications", "training",
+    "professional development",
+    "certifications", "certificates", "licences", "licenses",
+    "certifications and licences", "certifications and licenses",
+    "projects", "selected projects", "personal projects", "open source",
+    "publications", "awards", "honours", "honors", "achievements",
+    "volunteering", "volunteer experience", "languages", "interests",
+    "referees", "references", "additional information",
+}
+
+# Merged-letter glyphs (ligatures), and the marks of text a PDF reader could not map
+# back to letters: an ATS sees these as unknown characters, not words.
+BAD_CHARS = re.compile("[\ufb00-\ufb06\ufffd\ue000-\uf8ff]")
+
+
+def _flat(s):
+    """Text compared across Markdown and PDF: one space, plain dashes and quotes."""
+    s = s.replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", '"').replace("\u201d", '"')
+    s = re.sub(r"\s*[\u2013\u2014-]\s*", "-", s)
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
+def _markdown_plain(s):
+    """A Markdown heading's text without inline marks or escapes."""
+    return re.sub(r"[*_`\\]", "", s).replace("--", "\u2013").strip()
+
+
+def role_line_problems(md_text, lines):
+    """Each `### Role | Dates` whose dates are not on the role's extracted line.
+
+    A role wrapped over two lines may carry its dates on the second.
+    """
+    flat = [_flat(line) for line in lines]
+    problems = []
+    for left, dates in re.findall(r"^###\s+(.+?)\s+\|\s+(.+?)\s*$", md_text, re.M):
+        role, when = _flat(_markdown_plain(left)), _flat(_markdown_plain(dates))
+        found = False
+        for i, line in enumerate(flat):
+            joined = line + " " + flat[i + 1] if i + 1 < len(flat) else line
+            if role in line:
+                found = True
+                if when in line[line.index(role) + len(role):]:
+                    break
+            elif role in joined and when in flat[i + 1]:
+                found = True
+                break
+        else:
+            label = _markdown_plain(left)
+            problems.append(
+                f"the dates of {label!r} are not on its line in the PDF text"
+                if found
+                else f"the role {label!r} is not in the PDF text as one line"
+            )
+    return problems
+
+
+def heading_problems(md_text, lines):
+    """Level-2 headings that are not standard, or that the PDF does not yield as words."""
+    flat = {_flat(line) for line in lines}
+    problems = []
+    for heading in re.findall(r"^##\s+(.+?)\s*#*\s*$", md_text, re.M):
+        plain = _markdown_plain(heading)
+        if _flat(plain) not in STANDARD_HEADINGS:
+            problems.append(
+                f"section heading {plain!r} is not one an ATS recognises; use a standard one"
+                " such as Professional Summary, Key Skills, Professional Experience, Skills"
+                " or Education"
+            )
+        elif _flat(plain) not in flat:
+            problems.append(f"section heading {plain!r} does not come out of the PDF as one line")
+    return problems
+
+
+def skills_order_problems(md_text, raw_text):
+    """The Key Skills keywords as the PDF yields them: each one, after the heading, in
+    the Markdown's order. Tags a reader takes for columns come out shuffled."""
+    found = key_skills(md_text)
+    if not found:
+        return []
+    flat = _flat(raw_text)
+    pos = flat.find("key skills")
+    if pos < 0:
+        return []
+    for keyword in found[0]:
+        at = flat.find(_flat(keyword), pos)
+        if at < 0:
+            return [f"Key Skills come out of the PDF out of order, from {keyword!r} on"]
+        pos = at + len(_flat(keyword))
+    return []
+
+
+def char_problems(text):
+    """Words holding a merged-letter glyph or an unmapped character."""
+    words = sorted({w for w in text.split() if BAD_CHARS.search(w)})
+    if not words:
+        return []
+    return [
+        "merged-letter or unreadable characters in the PDF text: "
+        + ", ".join(repr(w) for w in words[:6])
+    ]
+
+
+def hyphen_problems(layout_text):
+    """Words the PDF breaks across lines at a hyphen. A PDF reader joins the two
+    halves ("full-" + "platform" reads as "fullplatform"), so the word is lost."""
+    lines = [line.rstrip() for line in layout_text.splitlines()]
+    problems = []
+    for i, line in enumerate(lines[:-1]):
+        m = re.search(r"([A-Za-z]+)-$", line)
+        nxt = re.match(r"\s*([A-Za-z]+)", lines[i + 1])
+        if m and nxt:
+            problems.append(f"{m.group(1)}-{nxt.group(1)} is split across two lines at its hyphen")
+    return problems
+
+
+def font_problems(pdffonts_output):
+    """Fonts pdffonts lists as not embedded. The table's emb column is found from its
+    header, since a font type may hold a space ("CID TrueType")."""
+    lines = pdffonts_output.splitlines()
+    if len(lines) < 2 or "emb" not in lines[0]:
+        return []
+    column = lines[0].index("emb")
+    missing = [
+        line.split()[0]
+        for line in lines[2:]
+        if line.strip() and line[column : column + 3].strip() == "no"
+    ]
+    return [f"font not embedded: {name}" for name in missing]
+
+
+def ats_problems(md_text, raw_text, layout_text, pdffonts_output, letter=False):
+    """Every reason the PDF's text would read badly to an ATS (empty = clean).
+
+    ``raw_text`` is pdftotext's reading order, ``layout_text`` its -layout view, and
+    ``pdffonts_output`` pdffonts' table, or "" when pdffonts is not installed.
+    """
+    lines = [line for line in raw_text.splitlines() if line.strip()]
+    problems = []
+    if not letter:
+        problems += role_line_problems(md_text, lines)
+        problems += heading_problems(md_text, lines)
+        problems += skills_order_problems(md_text, raw_text)
+    problems += char_problems(raw_text)
+    problems += hyphen_problems(layout_text)
+    problems += font_problems(pdffonts_output)
+    return problems
+
+
+def _pdf_text(*args):
+    return subprocess.run(["pdftotext", *args], capture_output=True, text=True).stdout
+
+
+def ats_check(pdf, md_name, contact, md_text="", letter=False):
     """Confirm the PDF yields clean, ordered text for an ATS parser, and carries
-    the Owner's Contact from the Profile. A mismatch fails the build."""
+    the Owner's Contact from the Profile. Any problem fails the build."""
     if not shutil.which("pdftotext"):
         return None
-    r = subprocess.run(
-        ["pdftotext", "-layout", str(pdf), "-"], capture_output=True, text=True
-    )
-    text = r.stdout
+    text = _pdf_text("-layout", str(pdf), "-")
     reason = contact_failure(text, contact.name, contact.email)
     if reason:
         sys.exit(
             f"\n  {md_name} fails the contact gate: {reason}."
             "\n  The document must carry the Profile's Contact -- check the workspace templates."
         )
+    fonts = ""
+    if shutil.which("pdffonts"):
+        fonts = subprocess.run(["pdffonts", str(pdf)], capture_output=True, text=True).stdout
+    problems = ats_problems(md_text, _pdf_text(str(pdf), "-"), text, fonts, letter)
+    if problems:
+        sys.exit(
+            f"\n  {md_name} fails the ATS check (the PDF's text, as an ATS reads it):\n    - "
+            + "\n    - ".join(problems)
+            + "\n  Fix a heading in the Markdown; anything else comes from the Template"
+            " (a Workspace override in templates/ is the first suspect)."
+        )
     pages = max(1, text.count("\f"))
-    return f"ok, {len(text.split()):,} words, {pages} page(s)", pages
+    checked = "dates, headings, Key Skills order, characters, hyphens" + (", fonts" if fonts else "")
+    if letter:
+        checked = "characters, hyphens" + (", fonts" if fonts else "")
+    return f"ok ({checked}), {len(text.split()):,} words, {pages} page(s)", pages
 
 
-def report_pdf(pdf, md_name, contact, letter=False):
+def report_pdf(pdf, md_name, contact, md_text, letter=False):
     """Run the PDF text check and print it with the page-count notes."""
-    result = ats_check(pdf, md_name, contact)
+    result = ats_check(pdf, md_name, contact, md_text, letter)
     if not result:
         return
     message, pages = result
@@ -752,7 +924,7 @@ def build_cv(name, headline, profile, contact):
     try:
         pdf = build(text, md_name, "resume.typ", staging / cv_pdf_name(contact.name, source.stem), subs)
         print(f"  built {pdf.name}")
-        report_pdf(pdf, md_name, contact)
+        report_pdf(pdf, md_name, contact, text)
         # One PDF per CV: an older one (a renamed Owner) is replaced, not kept.
         out.mkdir(exist_ok=True)
         for old in out.glob("*.pdf"):
@@ -959,7 +1131,9 @@ def main(argv=None):
         for md_name, template, pdf_name in jobs:
             pdf = build(documents[md_name], md_name, template, staging / pdf_name, dict(subs))
             print(f"  built {pdf.name}")
-            report_pdf(pdf, md_name, contact, letter=md_name == "cover-letter.md")
+            report_pdf(
+                pdf, md_name, contact, documents[md_name], letter=md_name == "cover-letter.md"
+            )
             built.append(pdf)
 
         out = d / "out"

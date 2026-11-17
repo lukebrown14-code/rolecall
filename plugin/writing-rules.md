@@ -186,8 +186,11 @@ The code repo holds no Owner data at all.
    beside the date; a letter that opens on `Dear …` keeps its body whole.
 4. `typst compile` produces the PDF, named `<Owner name> Resume <Company> <Role>.pdf` and
    `<Owner name> <Company> <Role> Cover Letter.pdf`.
-5. `pdftotext` confirms the PDF parses as clean text, and the page count is checked (2 pages,
-   3 for a senior role; a 1-page resume warns as UNDERFULL).
+5. The ATS check reads the PDF back with `pdftotext` (and `pdffonts`) and fails the build on
+   any problem: the Owner's Contact missing, a role's dates off the role's line, Key Skills
+   out of order, a non-standard or unreadable `##` heading, merged-letter characters, a word split at a
+   hyphen, or an unembedded font. The page count is then checked (2 pages, 3 for a senior
+   role; a 1-page resume warns as UNDERFULL).
 6. If the current Status in `meta.yml` is `Lead` and PDFs were produced, `build.py` appends
    `Draft`. It writes only `out/` and that one Status entry; it never rewrites other keys.
 
