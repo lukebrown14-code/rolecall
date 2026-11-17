@@ -11,13 +11,50 @@ import (
 // Stats, the tab bar, pop-up layering, the Track filter and the display modes
 // (NO_COLOR, ROLECALL_PLAIN, the light theme) from the design review.
 
-// At narrow sizes the tab bar is bare digits, but the active chip never touches the
-// digit before it.
-func TestNarrowTabBarSpacesTheActiveChip(t *testing.T) {
-	for screen, want := range map[string]string{"4": "1 2 3 [4 Stats] 5 6", "5": "1 2 3 4 [5 Profile] 6", "6": "1 2 3 4 5 [6 Settings]"} {
-		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 64, 24, screen)), "\n")[0])
+// One rule sheds the tab bar by width: other screens' counts, then the gap between tabs,
+// then other screens' names. From 60 columns every screen stays named; the active chip never
+// touches the tab before it.
+func TestNarrowTabBarKeepsNamesFrom60Columns(t *testing.T) {
+	for screen, want := range map[string]string{
+		"4": "1 Leads 2 Drafts 3 Applied [4 Stats] 5 Profile 6 Settings",
+		"5": "1 Leads 2 Drafts 3 Applied 4 Stats [5 Profile] 6 Settings",
+		"6": "1 Leads 2 Drafts 3 Applied 4 Stats 5 Profile [6 Settings]",
+	} {
+		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, screen)), "\n")[0])
 		if bar != want {
 			t.Errorf("screen %s: tab bar %q, want %q", screen, bar, want)
+		}
+	}
+	// Below 60 the names go for every screen alike, and the chip is still spaced.
+	for screen, want := range map[string]string{"4": "1 2 3 [4 Stats] 5 6", "5": "1 2 3 4 [5 Profile] 6", "6": "1 2 3 4 5 [6 Settings]"} {
+		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 56, 24, screen)), "\n")[0])
+		if bar != want {
+			t.Errorf("screen %s at 56: tab bar %q, want %q", screen, bar, want)
+		}
+	}
+}
+
+// The tab bar's detail never depends on which screen is open: every screen's bar at a width
+// names the same set of other screens.
+func TestTabBarDetailDoesNotDependOnTheScreen(t *testing.T) {
+	for _, w := range []int{56, 60, 64, 66, 72, 80} {
+		var named []int
+		for _, screen := range []string{"1", "2", "3", "4", "5", "6"} {
+			bar := chipped(runKeysSized(t, fixtureCopy(t, nil), w, 24, screen))
+			bar = strings.Split(bar, "\n")[0]
+			n := 0
+			for _, name := range []string{"Leads", "Drafts", "Applied", "Stats", "Profile", "Settings"} {
+				if strings.Contains(bar, name) {
+					n++
+				}
+			}
+			named = append(named, n)
+		}
+		for _, n := range named[1:] {
+			if n != named[0] {
+				t.Errorf("%d columns: screens name %v screens in their bar", w, named)
+				break
+			}
 		}
 	}
 }

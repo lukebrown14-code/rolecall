@@ -205,3 +205,25 @@ func TestCtrlCInTheAddFormAsks(t *testing.T) {
 		t.Fatalf("no Discard? question:\n%s", v)
 	}
 }
+
+// q in the detail view goes back to the list, as esc does; on the list it quits.
+func TestQInTheDetailGoesBackNotOut(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
+	m = driveModel(t, m, "3", "enter")
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd != nil {
+		if _, quit := cmd().(tea.QuitMsg); quit {
+			t.Fatal("q in the detail quit the program")
+		}
+	}
+	if v := plain(next); strings.Contains(v, "‹ esc") || !strings.Contains(v, "row 1 of 9") {
+		t.Fatalf("q did not go back to the list:\n%s", v)
+	}
+	_, cmd = next.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd == nil {
+		t.Fatal("q on the list did not quit")
+	}
+	if _, quit := cmd().(tea.QuitMsg); !quit {
+		t.Fatal("q on the list did not quit")
+	}
+}

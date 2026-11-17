@@ -429,7 +429,9 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	m.detail = &d
 	key := k.String()
 	switch key {
-	case "esc":
+	case "esc", "q":
+		// q goes back like esc: leaving a document must not close the whole program. On a
+		// list q quits; ctrl+c quits from anywhere.
 		return m.closeDetail(), nil, true
 	case "right", "left", "tab", "shift+tab":
 		// ←→ switch tabs as they switch views on a list; tab and shift+tab do too, as the
@@ -450,7 +452,7 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 			step = -1
 		}
 		return m.stepDetail(step), nil, true
-	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "q", "ctrl+c":
+	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "ctrl+c":
 		return m, nil, false
 	case "x", "s", "o":
 		// Row and view keys the detail does not run: the shared dispatcher says why in a

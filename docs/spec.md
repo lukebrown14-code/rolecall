@@ -153,7 +153,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `h` | global, while no Harness is set | connect a Harness: Settings › This machine on the Harness row (every screen but Settings, with or without Applications). The no-Harness error offers it |
 | `?` | global | help for where you are: this context's keys, then the global ones, then the glyphs and row words, in at most two pages (the AI skills with no key share one line). `Esc`, `?` and `q` close it; any other key closes it and runs on the screen beneath |
 | `space` / `:` / `Ctrl-K` | global | the one command finder (there is no separate menu): type to filter this context's actions, row actions included, and one `<Screen> screen` entry per other screen; `Enter` runs one. Descriptions are lower case as in `?` (`move`, `rescan`); a screen entry keeps its screen's capital (`Drafts screen`). `space` is the key shown on the tab bar and key line; `Ctrl-K` is an unlisted alias. While it is open every printable key, a digit or `space` too, types into the query; `Esc` closes it |
-| `q` / `Ctrl-C` | global | quit. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
+| `q` / `Ctrl-C` | global | quit; but `q` in the detail view goes back to the list like `Esc` (a stray `q` while reading must not close the program), and a pop-up's `q` closes it. `Ctrl-C` quits from anywhere. `Ctrl-C` over typed text in a form or Settings field asks `Discard changes? y/n` first; a second `Ctrl-C` quits |
 
 - **v0.2 adds** `4` (Stats), `f`, `p`, `F`, `b`: see [v0.2](#v02-harness-and-extras).
 - The key line shows only the keys valid for the current row (e.g. `d` hidden when nothing is built), and
@@ -288,7 +288,7 @@ either end.
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
 | Docs | list, under **Documents**: JD, Resume, Cover letter (`✓` ready or `○` missing) and Gaps (`ready · not counted`: the DOCS meter leaves it out); under **PDFs · out/** each PDF, or `○ PDF  not built yet` while `out/` is empty, so the tab lists every Document the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
 
-`Esc` goes back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
+`Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
 
 ### Download (`d`)
@@ -429,12 +429,14 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   line or the search input (actions left, navigation pinned right).
 - **Tab bar:** every tab has the same padding, active or not, so nothing shifts between
   screens; the active tab is filled and bracketed (`[1 Leads 4]`), so it reads without
-  colour. The wordmark (`▞ rolecall`) leads it at wide sizes only. As it narrows it drops
-  other screens' counts (and the sparkline with them), the word "rolecall", then other
-  screens' names (their digits stay), then the mark; the active screen keeps its name and
-  count, and a space always parts its chip from the digit before it (`1 2 3 [4 Stats] 5 6`).
-  It sheds to the level every screen's bar fits at, so switching screens never sheds
-  or restores a count. The sparkline is the same series Stats draws, over 8 weeks, drawn muted
+  colour. The wordmark (`▞ rolecall`) leads it at wide sizes only. One rule sheds it by width, in
+  this order: other screens' counts (and the sparkline with them), the word "rolecall", the gap
+  between tabs (two cells to one), then other screens' names (their digits stay), then the
+  mark. The active screen keeps its name and count, and a space always parts its chip from the
+  tab before it. So every screen is still named from 60 columns (`1 Leads 2 Drafts [3 Applied 9] 4
+  Stats 5 Profile 6 Settings`); only the 56-59 column sizes fall back to digits
+  (`1 2 3 [4 Stats] 5 6`). It sheds to the level every screen's bar fits at, so switching
+  screens never sheds or restores a count or a name. The sparkline is the same series Stats draws, over 8 weeks, drawn muted
   on a faint baseline, so an empty week shows as `▁` rather than a gap, and labelled
   `applied/wk` while the bar has room (the label goes before the counts); it is hidden when
   no week has an Applied and under `ROLECALL_PLAIN`. Below 72 columns Settings, which then
@@ -452,7 +454,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   empty view; `Stats › All tracks`, `Profile › Contact`, `Settings › Search`), then the key
   line. Every position reads `N of M` (rows, tabs, Profile and Settings, `page 1 of 7` in
   help); only the documents meter keeps `2/4 ready`.
-- **Feedback:** on the breadcrumb line's right; where it cannot sit whole beside it, it takes the whole line. Its keys are never cut (a success drops `esc hide` first). Every
+- **Feedback:** on the breadcrumb line's right; where it cannot sit whole beside it, it takes the whole line. The breadcrumb keeps the one form it has without a message (it never drops to a shorter variant while a message shows). Its keys are never cut (a success drops `esc hide` first). Every
   move, dismiss, save and Settings change says what happened, the Status first, then the
   title and company (`✓ Moved to Applied · Software Engineer (Orbit Labs)   u undo`,
   `✓ Dismissed · …`, `✓ Undone · back to Lead · …`, `✓ Saved Editor: nano · config.toml`), and

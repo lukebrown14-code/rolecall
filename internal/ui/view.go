@@ -32,8 +32,9 @@ const (
 	shedSparkLabel = 1 // topBar detail levels: drop the sparkline's "applied/wk" label…
 	shedCounts     = 2 // …then other screens' counts…
 	shedWordmark   = 3 // …then the word "rolecall"…
-	shedNames      = 4 // …then other screens' names, keeping their digits…
-	shedMark       = 5 // …then the wordmark's mark
+	shedGap        = 4 // …then the gap between tabs narrows to one cell…
+	shedNames      = 5 // …then other screens' names, keeping their digits…
+	shedMark       = 6 // …then the wordmark's mark
 	previewLines   = 3
 	daysPerWeek    = 7
 	daysPerMonth   = 30
@@ -310,7 +311,9 @@ func (m model) screenCountLabel(si int) string {
 // tab starts at, so a click reads the same geometry the bar is drawn with. The active
 // tab is bracketed where the others have spaces: marked without colour, and the same
 // width, so nothing shifts. The detail level is the one every screen's bar fits at, so
-// switching screens never sheds or restores a count.
+// switching screens never sheds or restores a count or a name. One rule sheds by width:
+// other screens' counts, the word "rolecall", the gap between tabs (two cells to one), then
+// other screens' names, which keeps every screen named from 60 columns.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	if r := m.barKeys(p); r != "" {
@@ -368,13 +371,23 @@ func (m model) tabs(p pal) (string, []int) {
 				name = ""
 			}
 			sep := " "
+			if level >= shedGap {
+				sep = "" // one cell between tabs: the leading space alone
+				if si+1 == active {
+					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Applied 9]"
+				}
+			}
 			if name == "" && count == "" {
 				sep = "" // a bare digit needs no trailing space, so the tabs do not spread
 				if si+1 == active {
 					sep = " " // …but the active chip after it never touches it: "3 [4 Stats]"
 				}
 			}
-			out += " " + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
+			lead := " "
+			if level >= shedGap && si == 0 {
+				lead = "" // the first tab starts at the edge, where the active chip's bracket does
+			}
+			out += lead + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
 		}
 		return out, starts
 	}
@@ -461,7 +474,10 @@ func (m model) breadcrumbLine(p pal) string {
 	right := ""
 	if m.feedbackVisible() {
 		msg, keys, short := m.feedbackParts(p)
-		beside := w - rightMargin - gutter - inset - breadcrumbMin
+		// The breadcrumb keeps the one form it has with no message on show: the message
+		// sits beside it when both fit whole, and otherwise takes the line alone. The
+		// breadcrumb never switches to a shorter variant while a message shows.
+		beside := w - rightMargin - gutter - xansi.StringWidth(m.breadcrumbLeft(p, w-rightMargin))
 		if r, ok := feedbackRight(msg, keys, short, beside, false); ok {
 			right = r
 		} else {
@@ -495,7 +511,7 @@ const keyGap = "  "
 // spaceKey is the space bar as the key line names it.
 const spaceKey = "space"
 
-// breadcrumbMin is the cells a toast leaves the breadcrumb: its screen and position.
+// breadcrumbMin is the least room a breadcrumb gets before its stub is left out.
 const breadcrumbMin = 16
 
 // joinNonEmpty joins the parts that have text.
