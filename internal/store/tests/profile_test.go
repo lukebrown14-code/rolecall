@@ -358,3 +358,46 @@ func TestProfileToleratesCRLFAndPipesInValues(t *testing.T) {
 		t.Fatalf("contact = %v", p.Contact)
 	}
 }
+
+// The starter Profile `rolecall init` writes has the Contact table and every expected
+// section under its heading; the how-to comments are hints, not content, and filling the
+// Contact later leaves them in place.
+func TestStarterWorkspaceWritesAProfileSkeleton(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ws")
+	if err := store.InitializeStarterWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.Profile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Sections) != len(store.ProfileGuide)+1 || p.Sections[0].Heading != "Contact" {
+		t.Fatalf("sections = %+v", p.Sections)
+	}
+	for i, g := range store.ProfileGuide {
+		sec := p.Sections[i+1]
+		if sec.Heading != g.Heading || sec.Body != "" || sec.Hint != g.How || sec.Count != 0 {
+			t.Errorf("section %q = %+v", g.Heading, sec)
+		}
+	}
+	if err := s.SetContact(map[string]string{"Name": "Alex Quinn", "Email": "alex@example.test"}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "profile", "master-profile.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"| Name | Alex Quinn |", "## Summary", "<!-- " + store.ProfileGuide[3].How + " -->"} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("profile lacks %q:\n%s", want, b)
+		}
+	}
+	// A second init on the same folder never overwrites it.
+	if err := store.InitializeStarterWorkspace(root); err == nil {
+		t.Fatal("init over an existing Workspace should refuse")
+	}
+}

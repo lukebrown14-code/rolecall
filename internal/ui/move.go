@@ -55,7 +55,13 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 	if status == store.StatusApplied && a.Malformed == nil && a.Documents != store.DocsReady {
 		return &confirmMode{app: a, status: status}, nil
 	}
-	return nil, m.move(a, status, false)
+	before := len(m.undo)
+	cmd := m.move(a, status, false)
+	if (status == store.StatusRejected || status == store.StatusWithdrawn) && m.err == nil && len(m.undo) > before {
+		// The move happened; asking why it ended is optional, and esc skips it.
+		return m.closeReasonPopup([]store.Application{a}, status), cmd
+	}
+	return nil, cmd
 }
 
 // move appends a Status and says so in a toast. It returns the command that ends the

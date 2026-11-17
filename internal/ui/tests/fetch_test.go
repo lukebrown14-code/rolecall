@@ -80,7 +80,7 @@ func newFetchHarness(t *testing.T, opts ...ui.Option) *fetchHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	base := []ui.Option{ui.WithExternalRunner(editor), ui.WithCapturedRunner(h.fake.runner)}
+	base := []ui.Option{ui.WithEditor("myeditor"), ui.WithExternalRunner(editor), ui.WithCapturedRunner(h.fake.runner)}
 	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, append(base, opts...)...)
 	h.wait("Leads 7")
 	return h
@@ -336,8 +336,8 @@ func TestAddURLFetchSpinnerKeepsFormResponsive(t *testing.T) {
 }
 
 // TestAddURLFetchShowsTheRealReasonNotTheWarningBanner runs the real new-job.py on a
-// file:// URL (rejected before anything is read) and checks the form shows warn()'s
-// reason line, not its WARNING banner.
+// file:// URL (rejected before anything is read) and checks the form shows the plain-language
+// message for the script's bad_url kind, not its WARNING banner or raw JSON.
 func TestAddURLFetchShowsTheRealReasonNotTheWarningBanner(t *testing.T) {
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 not installed")
@@ -345,5 +345,8 @@ func TestAddURLFetchShowsTheRealReasonNotTheWarningBanner(t *testing.T) {
 	h := newFetchHarness(t, ui.WithPlugin("../../../plugin"))
 	h.fake.run = true
 	h.openAddWithURL("file:///etc/os-release")
-	h.wait("Could not fetch file:///etc/os-release")
+	h.wait("not a web address")
+	if view := h.tm.plain(); strings.Contains(view, "WARNING") || strings.Contains(view, `"kind"`) {
+		t.Fatalf("raw script output on screen:\n%s", view)
+	}
 }

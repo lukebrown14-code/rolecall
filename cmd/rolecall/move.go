@@ -67,23 +67,29 @@ func canonicalStatus(name string) (string, bool) {
 // openWorkspace opens the Workspace --dir or config.toml names, with the same messages as
 // the app.
 func openWorkspace(home, dir string) (*store.Store, error) {
+	s, _, err := openWorkspaceConfig(home, dir)
+	return s, err
+}
+
+// openWorkspaceConfig is openWorkspace, also returning the settings it read.
+func openWorkspaceConfig(home, dir string) (*store.Store, config.Config, error) {
 	c, err := config.Load(home, dir)
 	var configErr *config.FileError
 	switch {
 	case errors.As(err, &configErr) && c.Workspace == "":
-		return nil, brokenConfigError(configErr)
+		return nil, c, brokenConfigError(configErr)
 	case errors.As(err, &configErr):
 		// --dir names the Workspace, so a broken config.toml does not stop a move.
 	case errors.Is(err, config.ErrNoWorkspace):
-		return nil, noWorkspaceError(home)
+		return nil, c, noWorkspaceError(home)
 	case err != nil:
-		return nil, err
+		return nil, c, err
 	}
 	s, err := store.Open(c.Workspace)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("Workspace %s does not exist", c.Workspace)
+		return nil, c, fmt.Errorf("Workspace %s does not exist", c.Workspace)
 	}
-	return s, err
+	return s, c, err
 }
 
 // resolveFolder follows meta.py's resolve_folder: an absolute path as given; a relative one

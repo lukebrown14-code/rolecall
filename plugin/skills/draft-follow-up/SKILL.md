@@ -21,8 +21,8 @@ message, edits it and sends it themselves.
 
 ## 1. Read the facts
 
-- `<application folder>/meta.yml` — the title, company, `contact` if there is one, the
-  `status_log` and `followed_up`. The log says when the Owner applied and when the Status last
+- `<application folder>/meta.yml` — the title, company, `contacts` if there are any (or the
+  older single `contact`), `next_step` if one is set, the `status_log` and `followed_up`. The log says when the Owner applied and when the Status last
   changed; `followed_up: YYYY-MM-DD`, when present, is the day the Owner last recorded a
   follow-up (`l` in rolecall).
 - When it is due: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py --data <workspace> follow-up --folder <application folder>`
@@ -44,8 +44,12 @@ wants a message now.
 
 ## 2. Write `follow-up.md`
 
-- Address the `contact` from `meta.yml` by name. With no contact, write `Hello,` and say so in
-  the report so the Owner can fill the name in.
+- Address the first entry of `contacts` in `meta.yml` by name (use its `role` to pitch the
+  message: a recruiter and a hiring manager want different things). Fall back to the older
+  single `contact` key. With no contact, write `Hello,` and say so in the report so the Owner
+  can fill the name in.
+- When `next_step` is set (a date and what it is), mention it rather than asking about a step
+  already booked.
 - Three to five sentences. Name the role and the date the Owner applied (or their last
   contact, when the Status is Interviewing), ask for an update, and repeat one fact from the
   Profile that is relevant to the ad. Add nothing the Profile cannot evidence.
@@ -58,7 +62,7 @@ Overwrite an existing `follow-up.md` only after saying you are replacing it.
 
 ## 3. Report
 
-Say where the file is, whether a contact was found, and that nothing was sent. Then tell the
+Say where the file is, whether a contact was found (and which), and that nothing was sent. Then tell the
 Owner: once they have sent it, press `l` on the Application in rolecall to record the follow-up.
 That writes `followed_up` and clears the `⚑` until `follow_up_days` after that day.
 

@@ -353,6 +353,12 @@ func (m model) tabs(p pal) (string, []int) {
 			if d.hasTables {
 				count = " " + m.screenCountLabel(si)
 			}
+			// A Settings problem keeps a ⚠ on the tab at every width, so it outlives the
+			// feedback line it was first shown on.
+			warn := ""
+			if d.name == screenSettings && m.settingsBroken() {
+				warn = glyphWarn
+			}
 			tail := ""
 			if wide && level < shedCounts && d.name == screenStats && spark != "" {
 				tail = spark + " "
@@ -361,7 +367,11 @@ func (m model) tabs(p pal) (string, []int) {
 				}
 			}
 			if si == active {
-				out += p.SelChip(digit+name+count) + tail
+				chip := digit + name + count
+				if warn != "" {
+					chip += " " + warn
+				}
+				out += p.SelChip(chip) + tail
 				continue
 			}
 			if level >= shedCounts {
@@ -387,7 +397,11 @@ func (m model) tabs(p pal) (string, []int) {
 			if level >= shedGap && si == 0 {
 				lead = "" // the first tab starts at the edge, where the active chip's bracket does
 			}
-			out += lead + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + sep + tail
+			if warn != "" {
+				warn = p.Text(p.Warn).Render(" " + warn)
+				sep = " "
+			}
+			out += lead + p.Key().Render(digit) + p.Text(p.Fg).Render(name) + p.Text(p.Dim).Render(count) + warn + sep + tail
 		}
 		return out, starts
 	}
@@ -1225,6 +1239,11 @@ func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipglo
 		}
 		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
 			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
+		}
+		if t == tableInterviewing || t == tableOffer {
+			if text, s := m.nextStepInfo(a.NextStep); s != closeNone {
+				out = append(out, p.CloseStyle(s, st, dimC).Render("next "+text))
+			}
 		}
 	}
 	return out

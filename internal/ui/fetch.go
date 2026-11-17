@@ -92,10 +92,44 @@ func parseFetch(url string, r CapturedResult) fetchFinished {
 // fetchWarningBanner is the heading new-job.py's warn() prints above its reason.
 const fetchWarningBanner = "WARNING"
 
-// fetchReason is the first non-blank line the script printed after warn()'s banner,
-// or a generic reason.
+// fetchFailure is the one JSON line new-job.py --fetch-only ends a failure with:
+// {"error": "...", "kind": "login_wall"}. The kind picks the plain-language message.
+type fetchFailure struct {
+	Error string `json:"error"`
+	Kind  string `json:"kind"`
+}
+
+// fetchKindReasons is the message shown for each failure kind the script reports.
+var fetchKindReasons = map[string]string{
+	"login_wall":  "That site needs a login, so rolecall cannot read it. Paste the job description instead",
+	"blocked":     "The site refused the request, as many job sites do. Paste the job description instead",
+	"not_found":   "That page was not found; the ad may have been taken down. Check the link",
+	"timeout":     "The site took too long to answer. Try again, or paste the job description",
+	"bad_url":     "That is not a web address; it must start with http:// or https://",
+	"non_html":    "That link is a file, not a web page. Open it and paste the job description instead",
+	"unreachable": "Could not reach the site. Check your connection and the link",
+	"thin_page":   "The page loaded but its ad is built in the browser. Paste the job description instead",
+	"too_short":   "The page held too little text to be a job ad. Paste the job description instead",
+}
+
+// fetchReason is the message for a failed run: the kind's own wording when the script's
+// last JSON line has a known kind, else that line's error text, else the first line the
+// script printed after warn()'s banner, else a generic reason.
 func fetchReason(r CapturedResult) string {
-	for _, line := range strings.Split(combinedOutput(r), "\n") {
+	lines := strings.Split(combinedOutput(r), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		var f fetchFailure
+		if err := json.Unmarshal([]byte(strings.TrimSpace(lines[i])), &f); err != nil || f.Kind == "" {
+			continue
+		}
+		if reason, ok := fetchKindReasons[f.Kind]; ok {
+			return reason
+		}
+		if s := strings.TrimSpace(f.Error); s != "" {
+			return s
+		}
+	}
+	for _, line := range lines {
 		if s := strings.TrimSpace(line); s != "" && s != fetchWarningBanner {
 			return s
 		}

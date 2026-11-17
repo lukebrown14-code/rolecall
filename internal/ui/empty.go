@@ -127,7 +127,7 @@ func editorChosen(m model) bool {
 // only Contact, and create-profile adds the rest.
 func profileBeyondContact(p store.Profile) bool {
 	for _, s := range p.Sections {
-		if s.Heading != "Contact" && strings.TrimSpace(s.Body) != "" {
+		if s.Heading != headingContact && strings.TrimSpace(s.Body) != "" {
 			return true
 		}
 	}

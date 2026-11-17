@@ -309,27 +309,19 @@ var statsIndent = strings.Repeat(" ", statsLabelWidth)
 // Follow-up due Applications (3 Applied) and the Leads and Drafts closing within soonDays
 // (2 Drafts, whose Deadlines view lists them). Nothing due draws nothing.
 func (m model) statsNow(p pal, w int) []string {
-	now := m.now()
-	due, closing := 0, 0
-	for _, a := range m.statsApps() {
-		if followUpDue(a, now, m.followUpDays) {
-			due++
-		}
-		if a.Status == store.StatusLead || a.Status == store.StatusDraft {
-			if _, days, ok := daysFrom(a.Closes, now); ok && days >= 0 && days <= soonDays {
-				closing++
-			}
-		}
-	}
+	due := NowFor(m.statsApps(), m.now(), m.followUpDays, soonDays)
 	goes := func(text, key, where string) string {
 		return p.Text(p.Fg).Render(text) + p.Text(p.Dim).Render(" → ") + p.Key().Render(key) + p.Text(p.Dim).Render(" "+where)
 	}
 	var phrases []string
-	if due > 0 {
-		phrases = append(phrases, goes(plural(due, "follow-up due", "follow-ups due"), "3", screenApplied))
+	if n := len(due.FollowUps); n > 0 {
+		phrases = append(phrases, goes(plural(n, "follow-up due", "follow-ups due"), "3", screenApplied))
 	}
-	if closing > 0 {
-		phrases = append(phrases, goes(fmt.Sprintf("%d closing within %d days", closing, soonDays), "2", tableDeadlines))
+	if n := len(due.NextSteps); n > 0 {
+		phrases = append(phrases, goes(fmt.Sprintf("%s within %d days", plural(n, "next step", "next steps"), soonDays), "3", screenApplied))
+	}
+	if n := len(due.Closing); n > 0 {
+		phrases = append(phrases, goes(fmt.Sprintf("%d closing within %d days", n, soonDays), "2", tableDeadlines))
 	}
 	if len(phrases) == 0 {
 		return nil
@@ -384,6 +376,23 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 	closed := "closed  " + mark(store.StatusRejected, r.Rejected) + " · " + mark(store.StatusWithdrawn, r.Withdrawn)
 	for _, l := range strings.Split(keepTogether(w, "   ", closed, mark(store.StatusDismissed, r.Dismissed)), "\n") {
 		lines = append(lines, p.Text(p.Dim).Render(l))
+	}
+	if len(r.DropOff) > 0 {
+		// Where closed Applications ended, by the reason the Owner gave when they moved it.
+		parts := make([]string, 0, len(r.DropOff)+1)
+		for _, d := range r.DropOff {
+			parts = append(parts, fmt.Sprintf("%s %d", d.Reason, d.Count))
+		}
+		if r.Unrecorded > 0 {
+			parts = append(parts, fmt.Sprintf("no reason %d", r.Unrecorded))
+		}
+		for i, l := range strings.Split(keepTogether(max(1, w-statsLabelWidth), " · ", parts...), "\n") {
+			if i == 0 {
+				lines = append(lines, statsHeading(p, "Dropped off", p.Text(p.Dim).Render(l)))
+			} else {
+				lines = append(lines, statsIndent+p.Text(p.Dim).Render(l))
+			}
+		}
 	}
 	return lines
 }

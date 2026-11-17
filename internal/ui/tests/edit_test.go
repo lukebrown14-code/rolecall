@@ -59,7 +59,7 @@ func TestEditPatchesOnlyChangedKeyAndKeepsConcurrentWrites(t *testing.T) {
 	}
 	h.advance() // past URL, the first field
 	h.tm.Type(" Two")
-	h.saveForm(6)
+	h.saveForm(11)
 	h.wait("Saved · Engineer #1 Two")
 	h.quit()
 
@@ -77,7 +77,7 @@ func TestEditWithNoChangesWritesNothing(t *testing.T) {
 	infoBefore, _ := os.Stat(path)
 	h.openEdit("Engineer #1", 1)
 	h.wait("Resume only")
-	h.saveForm(7)
+	h.saveForm(12)
 	h.quit()
 	if !sameSnapshot(before, h.snapshot()) {
 		t.Fatal("saving an unchanged form wrote to the Workspace")
@@ -100,7 +100,7 @@ func TestEditTrackUpdatesFieldAndFilterButNotFolder(t *testing.T) {
 	h.advance()
 	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyLeft}) // Platform → SWE
 	h.advance()
-	h.saveForm(3)
+	h.saveForm(8)
 	view := h.quit()
 
 	b, err := os.ReadFile(filepath.Join(folder, "meta.yml"))
@@ -128,7 +128,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	h.wait("Resume only", "No")
 	h.saveForm(6)
 	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyRight}) // No → Yes
-	h.advance()
+	h.saveForm(6)
 	view := h.quit()
 
 	if _, meta := metaOf(t, h, "docs-partial"); !strings.Contains(meta, "resume_only: \"true\"\n") {

@@ -45,7 +45,10 @@
     "SearchQuery",
     "Listing",
     "ListingChecked",
-    "FollowedUp"
+    "FollowedUp",
+    "NextStep",
+    "Contacts",
+    "CloseReason"
   ],
   "goOnly": [
     "JDHasText",

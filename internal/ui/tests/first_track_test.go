@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
 func workspaceTracks(t *testing.T, root string) []string {
@@ -30,9 +31,9 @@ func TestFirstLeadOnAFreshWorkspaceAddsItsTrack(t *testing.T) {
 	if tracks := workspaceTracks(t, root); len(tracks) != 0 {
 		t.Fatalf("fresh Workspace lists %q", tracks)
 	}
-	d := newDriver(t, root, setupNow, 120, 40)
+	d := newDriver(t, root, setupNow, 120, 40, ui.WithEditor("myeditor"))
 	d.Type("a")
-	requireAll(t, d.plain(), "Add a Lead", "Track*", "SWE", "your first Track")
+	requireAll(t, d.plain(), "Add a Lead", "Track*", "e.g. Nursing, Marketing", "your first Track")
 	d.Type("enter") // URL
 	d.Type("Platform Engineer")
 	d.Type("enter")
@@ -139,4 +140,41 @@ func TestOffListTrackThatBreaksTheRulesIsNotWritten(t *testing.T) {
 		t.Fatalf("workspace.json rewritten:\n%s", after)
 	}
 	workspaceTracks(t, root) // still loads
+}
+
+// With no Editor chosen a new Lead does not open vi on jd.md: the toast says how to paste
+// the description instead, and the Lead is still created and selected.
+func TestAddWithoutAnEditorDoesNotOpenVi(t *testing.T) {
+	root := freshWorkspace(t)
+	var opened []string
+	d := newDriver(t, root, setupNow, 120, 40, ui.WithExternalRunner(recordEditor(&opened)))
+	d.Type("a")
+	d.Type("enter") // URL
+	d.Type("Nurse Educator")
+	d.Type("enter")
+	d.Type("Acme Health")
+	d.Type("enter")
+	d.Type("Nursing")
+	d.Type("ctrl+s")
+	requireAll(t, d.plain(), "Paste the JD: pick an Editor (6 › This machine) or add a URL")
+	if len(opened) != 0 {
+		t.Fatalf("an editor was opened: %v", opened)
+	}
+	if _, err := os.Stat(filepath.Join(root, "jobs", "Nursing", "acme-health-nurse-educator-2026-11-15", "meta.yml")); err != nil {
+		t.Fatalf("Lead not created: %v", err)
+	}
+}
+
+// The first Track's placeholder is an example, not a value that looks typed, and Enter
+// on it still gets the required error.
+func TestFirstTrackPlaceholderIsAnExampleAndStillRequired(t *testing.T) {
+	d := newDriver(t, freshWorkspace(t), setupNow, 120, 40)
+	d.Type("a")
+	d.Type("enter") // URL
+	d.Type("Nurse")
+	d.Type("enter")
+	d.Type("Acme")
+	d.Type("enter") // Track, left empty
+	d.Type("enter")
+	requireAll(t, d.plain(), "e.g. Nursing, Marketing", "Track is required")
 }

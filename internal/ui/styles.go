@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
@@ -40,7 +39,7 @@ func DetectTheme(in, out *os.File) Option {
 	return func(m *model) {
 		t, auto := themeFromEnv()
 		if auto && in != nil && out != nil {
-			if bg, err := lipgloss.BackgroundColor(in, out); err == nil && bg != nil {
+			if bg, err := terminalBackground(in, out); err == nil && bg != nil {
 				t = themeFor(isDark(bg))
 			}
 		}

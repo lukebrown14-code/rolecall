@@ -89,6 +89,7 @@ func (m model) loadSettings() model {
 	}
 
 	m.settings = &st
+	m.wsInvalid = st.Ws.Err != nil
 	st.Row = m.selectableRow(st.Group, st.Row, 1)
 	return m
 }
@@ -135,6 +136,9 @@ func (m model) settingsHelpKeys() []helpKey {
 		if m.configHome != "" {
 			keys = append(keys, help(groupAction, "e", "edit "+configFile))
 		}
+	} else if m.settings != nil && m.settings.Ws.Err != nil {
+		// The invalid-file screen offers e and nothing else, so its key line says so.
+		keys = append(keys, help(groupAction, "e", "fix").at(prioPinned))
 	} else {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
@@ -341,9 +345,16 @@ func (m model) settingsBody(p pal, w, h int) string {
 		case errors.As(why, &tle):
 			head, why = "workspace.json lists a Track rolecall can't use", tle.Err
 		}
-		text := pad + p.Text(p.Bad).Render(head) + "\n" + pad +
-			p.Text(p.Fg).Render(m.settings.Ws.Path) + "\n" + pad + p.Text(p.Fg).Render(why.Error()) +
-			"\n\n" + pad + p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written.")
+		// The path and the reason wrap rather than cut: a long path is what the Owner has to
+		// open, and a cut one cannot be copied.
+		lines := []string{p.Text(p.Bad).Render(head)}
+		for _, part := range []string{m.settings.Ws.Path, why.Error()} {
+			for _, l := range wrapWords(part, max(1, w-inset-rightMargin)) {
+				lines = append(lines, p.Text(p.Fg).Render(l))
+			}
+		}
+		lines = append(lines, "", p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written."))
+		text := pad + strings.Join(lines, "\n"+pad)
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
 	}
 	if m.settings == nil {

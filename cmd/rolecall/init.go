@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/doctor"
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
@@ -119,8 +120,9 @@ func writeInitDone(out io.Writer, root, harness, open string) {
 	lines := []string{"Created your Workspace at " + root, "", "Next:", "  1. Run `" + open + "` to open it and add your Contact."}
 	if harness == "" {
 		lines = append(lines,
-			"  2. Connect a Harness, the AI coding assistant that runs rolecall's skills: see README › Connect your Harness.",
-			"  3. In your Harness, run the create-profile skill to build your Profile.")
+			"  2. Connect a Harness, the AI coding assistant that runs rolecall's skills: see "+doctor.HarnessDocsURL+" (Claude Code) or "+doctor.OtherHarnessDocsURL+".",
+			"  3. In your Harness, run the create-profile skill to build your Profile.",
+			"  No Harness? Fill in profile/master-profile.md by hand (rolecall's 5 Profile screen shows what goes in each section): "+doctor.WithoutHarnessURL)
 	} else {
 		lines = append(lines, "  2. In your Harness, run the create-profile skill to build your Profile.")
 	}

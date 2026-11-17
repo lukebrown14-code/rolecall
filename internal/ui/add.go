@@ -12,7 +12,11 @@ import (
 )
 
 // addValues holds the Add/Edit form's answers.
-type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
+type addValues struct {
+	title, company, track, url, closes, fit, resumeOnly string
+	// The Edit form's next step and first Contact.
+	nextAt, nextWhat, contact, contactRole, contactReach string
+}
 
 // fieldURL, fieldTitle and fieldTrack are the Add/Edit form's URL, Title and Track field labels.
 const (
@@ -90,7 +94,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time
 	track := formField{Label: fieldTrack, Value: v.track, Choices: trackChoices}
 	if len(tracks) == 0 {
 		// No Track to choose yet: the first one is typed here and saved with the Lead.
-		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "SWE", Note: "your first Track",
+		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "e.g. Nursing, Marketing", Note: "your first Track",
 			Validate: validFirstTrack}
 	}
 	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD · tomorrow · +7d · 30 Nov", Validate: validCloses(now), Echo: echoCloses(now)}
@@ -100,7 +104,12 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time
 		return newFormOf("Add a Lead", fields...)
 	}
 	f := newFormOf("Edit "+titleLabel(v.title), link, titleField, company, track, closes, fit,
-		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}})
+		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}},
+		formField{Label: fieldNextStep, Value: v.nextAt, Placeholder: "tomorrow 14:30 · +3d · 30 Nov · YYYY-MM-DD", Validate: validNextStepAt(now), Echo: echoNextStepAt(now)},
+		formField{Label: fieldNextWhat, Value: v.nextWhat, Placeholder: "Phone screen"},
+		formField{Label: fieldContact, Value: v.contact, Placeholder: "name"},
+		formField{Label: fieldContactRole, Value: v.contactRole, Placeholder: "Recruiter"},
+		formField{Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
 	f.ShowDirty = true
 	return f
 }
@@ -108,7 +117,9 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time
 // addValues reads the form's answers.
 func readAddValues(f *form, now time.Time) addValues {
 	return addValues{title: f.Value(fieldTitle), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
-		closes: normaliseCloses(f.Value("Closes"), now), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
+		closes: normaliseCloses(f.Value("Closes"), now), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only"),
+		nextAt: normaliseNextStepAt(f.Value(fieldNextStep), now), nextWhat: strings.TrimSpace(f.Value(fieldNextWhat)), contact: strings.TrimSpace(f.Value(fieldContact)),
+		contactRole: strings.TrimSpace(f.Value(fieldContactRole)), contactReach: strings.TrimSpace(f.Value(fieldContactReach))}
 }
 
 // createFields turns the form's answers into the store's create fields.
@@ -117,7 +128,7 @@ func createFields(v addValues) store.CreateFields {
 }
 
 // afterCreate shows the new Lead. Without fetched text it opens jd.md for pasting the
-// description; with it, the fetched ad is written straight to jd.md and no editor is
+// description, when an Editor is chosen; with it, the fetched ad is written straight to jd.md and no editor is
 // opened. The folder exists by now, so a failure here goes to the feedback line.
 func (m *model) afterCreate(folder string, fields store.CreateFields, jd string) tea.Cmd {
 	if !m.reload("") {
@@ -132,9 +143,22 @@ func (m *model) afterCreate(folder string, fields store.CreateFields, jd string)
 		m.selectFolder(folder)
 		return nil
 	}
+	if !editorChosen(*m) {
+		// Without a chosen Editor jd.md would open in vi, which a first-time user cannot
+		// leave; say how to paste the description instead.
+		m.selectFolder(folder)
+		m.toast = noEditorJDHint
+		if fields.URL != "" {
+			m.toast = strings.TrimSuffix(noEditorJDHint, " or add a URL")
+		}
+		return nil
+	}
 	m.selectAfter = folder
 	return m.editFile(folder, "jd.md")
 }
+
+// noEditorJDHint is the toast that replaces opening jd.md when no Editor is chosen.
+const noEditorJDHint = "Paste the JD: pick an Editor (6 › This machine) or add a URL"
 
 // submitAdd creates the Lead from the Add form, or keeps the form open with the error
 // under its focused field: nothing typed is lost to a failed save.

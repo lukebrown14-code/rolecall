@@ -128,7 +128,12 @@ func (bm *bulkMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	}
 	switch k.String() {
 	case "y":
-		return nil, m.moveMany(bm.apps, bm.status)
+		cmd, moved := m.moveMany(bm.apps, bm.status)
+		if (bm.status == store.StatusRejected || bm.status == store.StatusWithdrawn) && len(moved) > 0 && m.err == nil {
+			// One reason for every Application that ended; skip or esc leaves them as moved.
+			return m.closeReasonPopup(moved, bm.status), cmd
+		}
+		return nil, cmd
 	case "n", "esc":
 		return nil, nil
 	}
@@ -150,12 +155,13 @@ func (m *model) bulkAction(status string) mode {
 }
 
 // moveMany moves each Application to status, as one action: the toast counts them and one u
-// puts every one back. It stops at the first failure, which stays on the feedback line, and
+// puts every one back. It returns those that moved. It stops at the first failure, which stays on the feedback line, and
 // what moved before it stays one undoable group.
-func (m *model) moveMany(apps []store.Application, status string) tea.Cmd {
+func (m *model) moveMany(apps []store.Application, status string) (tea.Cmd, []store.Application) {
 	start := len(m.undo)
 	var cmds []tea.Cmd
 	done := 0
+	var moved []store.Application
 	for _, a := range apps {
 		// A move to Applied was asked for once, for all of them: no per-row prompt.
 		cmd := m.move(a, status, false)
@@ -164,6 +170,7 @@ func (m *model) moveMany(apps []store.Application, status string) tea.Cmd {
 		}
 		if len(m.undo) > start+done { // moved (not "already there")
 			done++
+			moved = append(moved, a)
 		}
 		cmds = append(cmds, cmd)
 	}
@@ -179,7 +186,7 @@ func (m *model) moveMany(apps []store.Application, status string) tea.Cmd {
 		}
 		m.toast, m.toastHint, m.movedTo, m.toastKind = fmt.Sprintf("%s · %s", verb, applications(done)), undoHint, status, toastPlain
 	}
-	return tea.Batch(cmds...)
+	return tea.Batch(cmds...), moved
 }
 
 // undoBatch puts every move of a bulk action back, newest first, and says how many.

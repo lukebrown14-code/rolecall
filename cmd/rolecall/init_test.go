@@ -106,7 +106,7 @@ func TestInitOutputListsNextStepsAndShowsHarnessNoteOnlyWithAHarness(t *testing.
 	if next < 0 || private < 0 || next > private {
 		t.Fatalf("Next steps do not come before the privacy note:\n%s", got)
 	}
-	for _, want := range []string{"Connect a Harness", "Connect your Harness", "In your Harness, run the create-profile skill"} {
+	for _, want := range []string{"Connect a Harness", "docs/harnesses/claude-code.md", "In your Harness, run the create-profile skill"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing %q:\n%s", want, got)
 		}
@@ -227,5 +227,23 @@ func TestInitRefusesToPatchABrokenConfig(t *testing.T) {
 	}
 	if _, err := os.Stat(ws); !os.IsNotExist(err) {
 		t.Fatalf("Workspace created despite the broken config: %v", err)
+	}
+}
+
+// init writes the Profile skeleton: the Contact table and each expected heading with a
+// how-to comment, so a Profile can be written by hand without a Harness.
+func TestInitWritesProfileSkeleton(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ws")
+	if err := initWorkspaceFiles(root); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(root, "profile", "master-profile.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"## Contact", "| Field | Value |", "## Headlines (approved per track)", "## Experience", "## Key Skills keyword pool", "## Summary", "## Facts that are NOT available", "<!-- "} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("master-profile.md lacks %q:\n%s", want, b)
+		}
 	}
 }

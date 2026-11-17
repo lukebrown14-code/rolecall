@@ -40,8 +40,9 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 ├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
-│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents, draft-follow-up
-│  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py
+│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents, draft-follow-up,
+│  │            import-applications, interview-prep, answer-questions
+│  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py, import_csv.py
 │  ├─ templates/ resume.typ, cover-letter.typ, brand.typ, fonts/
 │  ├─ styles/au.md
 │  └─ writing-rules.md
@@ -85,8 +86,10 @@ Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_
 If there is no workspace, rolecall exits with a one-line message naming the config path. No wizard until v1.0.
 An invalid `workspace.json` (bad JSON, a wrong-shaped key, or a `tracks` list that breaks the Track
 name rules) does not stop startup: the app opens with no Track filter and the footer says
-`workspace.json: invalid Workspace settings · 6 Settings shows why, e to fix it`. Only a newer
-`schema` stops it.
+`workspace.json: invalid Workspace settings · 6 then e to fix it` (`e` on a table screen edits the
+row, so the hint names the screen first; on Settings it reads `e to fix it`). While `workspace.json`
+or `config.toml` cannot be used, the Settings tab keeps a `⚠` at every width, after the banner is
+dismissed too. Only a newer `schema` stops it.
 
 ### Screens
 
@@ -202,6 +205,14 @@ table, and the feedback line says `Moved to Interviewing · <Title> (<Company>)`
 1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, `y` mark Applied, `n`/`Esc` cancel.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
+**Moving to Rejected or Withdrawn** asks a second, optional question once the move is done: a
+`Why did it end?` pop-up with one field cycling `skip` · `no-response` · `after-screen` ·
+`after-interview` · `salary` · `role-closed` · `other` (`←` `→`; `enter` saves, `esc` or `skip`
+leaves it as it is). The answer is `close_reason` (SCHEMA); free text can be typed into `meta.yml`.
+The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
+Status travels with the entry that made it, and goes when the Application leaves that Status (the
+undo of the move included). The card's `CLOSED` row shows it.
+
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
 Status (the log stays append-only) and says so on the feedback line (`Undone · back to Applied · Title (Company)`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
 Undoing an Application's first move back to Lead leaves it as it was: the card says `Not moved
@@ -222,7 +233,7 @@ set it opens on the URL instead, where `Enter` fetches the ad. The URL is option
 value that is not a web address is refused when the field is left (`✘ URL must start with
 https://`); Edit never refuses a saved URL it did not change. Track needs no `*`: it is a choice and
 always holds a track. With no Tracks yet (a fresh `rolecall init` Workspace), Track is a
-required text field instead (`Track*`, placeholder `SWE`), and saving adds that Track to
+required text field instead (`Track*`, a dim placeholder `e.g. Nursing, Marketing` that is an example, not a value), and saving adds that Track to
 `workspace.json` before the Lead's folder is made. `Enter` checks the field and moves on; on the last field it checks them
 all and saves; `ctrl+s` checks them all and saves from any field, and the keys in the border say
 which enter does. `↑` `↓`, `tab` and `shift+tab` move between fields on every field; a choice
@@ -243,13 +254,21 @@ On save:
    Detail, `s` saves anyway, `esc` goes back to the form with every value kept.
 2. Create `jobs/<track>/<slug>/` (SCHEMA → Folder name), write `meta.yml` (`schema: 1`, the
    fields, `status_log` with one `Lead` entry), and an empty `jd.md`.
-3. Open `jd.md` in `$EDITOR` so the description can be pasted. On return, select the new row.
+3. Open `jd.md` in the Editor so the description can be pasted. On return, select the new row.
+   With no Editor chosen (config, `$VISUAL`, `$EDITOR`) nothing opens, since the `vi` fallback
+   traps a first-time user: the new row is selected and the toast reads `Paste the JD: pick an
+   Editor (6 › This machine) or add a URL` (without the last clause when a URL was given).
    If the save fails, the form stays open with its values and the error under the field.
 
 ### Edit form (`e` in a table)
 
-The same fields as Add, in the same order, plus **Resume only** (yes/no). Saving patches only the keys that
-changed. Changing Track does **not** move the folder.
+The same fields as Add, in the same order, plus **Resume only** (yes/no), **Next step** (a date,
+`YYYY-MM-DD` with an optional `THH:MM`, under the Closes rules: it must be a real date), **What** (the next step in
+words), and the first Contact (**Contact**, **Role**, **Email / URL**). A What needs a date, a Role needs a name or
+address, and a Contact's address is an email or an `https://` link; the form stays open with the reason under the
+field. Clearing the date removes `next_step`. Only the first Contact is edited here; the rest of `contacts` is kept
+as it is, and saving a list drops the legacy `contact` key (its value is read into the list first). Saving patches
+only the keys that changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)
 
@@ -292,6 +311,27 @@ either end.
 
 `Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
+
+### Next step, contacts and exports
+
+Added after 0.6.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
+
+- **Next step** (`next_step: {at, what}`): shown as `next 4 Oct 10:30 · Phone screen` on Interviewing and Offer
+  rows (amber within 7 days, `▲` within 2, `was …` struck through once past), as a `NEXT STEP` row in the card and
+  Overview, and in Stats → Now. Edited with `e`.
+- **Contacts** (`contacts:`): a `CONTACTS` card row, one line each (`Sam Lee, Recruiter · sam@…`), below the
+  timeline. `e` edits the first. The `draft-follow-up` skill addresses the first. The old `contact` key still
+  reads as the one Contact; no writer adds it.
+- **`rolecall now [--dir PATH] [--days N] [--list]`**: the Now panel as one plain line, `2 follow-ups due | 1 next
+  step within 7 days | 3 closing within 7 days`, no colour, nothing printed when nothing is due, exit 0. The
+  follow-up period is Settings'. `--list` prints `kind<TAB>folder<TAB>when<TAB>title<TAB>company` per item. It is
+  the same code as the panel, so the two never count differently.
+- **`rolecall export [--dir PATH] [--format csv|json | --ics] [--out FILE]`**: every well-formed Application
+  (core fields, dates from the status log with undone moves left out, next step, contacts, `close_reason`, the
+  log), or with `--ics` an iCalendar file of next steps (a one-hour event with a time, otherwise all day) and the
+  close dates of Leads and Drafts. Malformed ones are skipped and counted on stderr. Both commands are
+  read-only. `export` writes only to `--out` (ADR-0005), through a temp file, mode 0600; without `--out` it prints
+  to stdout. A CSV cell starting `=` `+` `-` `@` gets a leading `'`.
 
 ### Download (`d`)
 
@@ -471,8 +511,11 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   honestly see of a Harness working in another terminal; a Handoff run hands the terminal
   over, so nothing is drawn during it.
 - **First run:** while the Profile's Contact lacks Name or Email the app opens on the Contact
-  form, titled `Welcome to rolecall · first, your Contact`, with one line on why (`rolecall puts
-  these on every Resume and Cover letter. You can change them any time: 5 Profile, then c.`)
+  form, titled `Welcome to rolecall · first, your Contact`, with a line on why (`rolecall puts
+  these on every Resume and Cover letter. Name and Email are required; the rest is optional.
+  You can change them any time: 5 Profile, then c.`; opened from the Profile screen, the last
+  sentence is left out). It asks for Name, Email, Phone, Location, LinkedIn, GitHub and Work
+  rights (SCHEMA's Contact fields), with no per-field `optional`, which wrapped at 80 columns
   and `esc skip` in its border; esc skips it until the next launch. Its placeholders say what
   goes in a field (`your full name`, `your email address`), never a plausible person's details.
   A Workspace with no Applications shows a centred welcome instead of
@@ -619,6 +662,9 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
 | `draft-follow-up` | `follow-up.md` (a message for the Owner to send; the TUI never sends it) |
+| `import-applications` | new folders from a CSV export through `import_csv.py` (approximate `status_log`, `notes.md` from the notes column); dry run first, Owner confirms the column and status mapping |
+| `interview-prep` | `prep.md` (likely questions, a STAR story from the Profile per gap, questions to ask; nothing the Profile cannot evidence) |
+| `answer-questions` | `answers.md` (answers to pasted application-form questions from `jd.md` and the Profile) |
 
 All skills: never append to `status_log` unless the Owner explicitly asks. Never touch
 `notes.md`, `sent/`, or the profile fact table.
@@ -698,7 +744,8 @@ line. No pop-up, no retry.
 
 #### Build: `b`
 
-- Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode.
+- Runs `python3 <plugin>/scripts/build.py <dir> --data <workspace>` in captured mode. It needs only
+  the Plugin, not a Harness: a `resume.md` written by hand builds the same way.
 - Shown only on Lead or Draft whose Documents state is Written or Ready (rebuilds Ready).
 - Spinner in the feedback line, then `Built 2 PDFs`. If the build fails (e.g. a gate), a pop-up shows
   `build.py`'s output.
@@ -735,8 +782,10 @@ Response rate on the left, the weekly chart and By track on the right; Now leads
 Insights follows, full width.
 
 0. **Now**: what wants doing today, each count with the key that goes there:
-   `3 follow-ups due → 3 Applied · 1 closing within 7 days → 2 Deadlines`. Hidden when
-   nothing is due.
+   `3 follow-ups due → 3 Applied · 1 next step within 7 days → 3 Applied · 1 closing within 7
+   days → 2 Deadlines`. A next step counts from today to 7 days ahead on an Application that is not
+   Rejected, Withdrawn or Dismissed. Hidden when nothing is due. `rolecall now` prints the same
+   counts (see [Next step, contacts and exports](#next-step-contacts-and-exports)).
 1. **Funnel**: Applications that **ever reached** each Status: Lead → Draft → Applied →
    Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
    optional starts, so a rung can be higher than the one before and there is no drop-off;
@@ -745,7 +794,9 @@ Insights follows, full width.
    reached it (`29% of Applied`); a rung with Applications that never were on the previous
    one says how they arrived, as counts (`1 from Leads · 2 started at Draft`, `3 via Draft
    · 8 never a Draft`, `11 never a Draft`), never `0% of` or `none`. Nothing when the
-   previous rung is empty. Rejected, Withdrawn and Dismissed on a muted `closed` line.
+   previous rung is empty. Rejected, Withdrawn and Dismissed on a muted `closed` line. Under it,
+   once any closed Application has a `close_reason`, a `Dropped off` line counts them by reason,
+   most first (`no-response 4 · after-screen 2 · no reason 1`).
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
    leaving out Applications whose Applied date (an implied one takes the date of the Status
    implying it) is within `follow_up_days`, on the funnel's bar (`36% · 4 of 11`). A line
@@ -862,7 +913,7 @@ opening stays but is best-effort, with no CI.
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
 | 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
 | 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
-| 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
+| 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). It writes a starter `profile/master-profile.md` (the Contact table, then each expected `##` heading with a one-line how-to as a comment, so a Profile can be written by hand without a Harness). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
 | 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |
 | 9 | `doctor` tool checks | typst, pandoc, Python 3, Plugin path, Template fonts, Harness command. Warnings with install hints; non-zero exit only when the Workspace can't be opened. Builds on #78 |
 | 10 | Schema guard | A missing `schema` in `workspace.json` means 1; a file with a newer schema is refused with a clear message |
@@ -893,6 +944,12 @@ prose, so the 1.x edit form covers the Contact only.
 - **Focus:** the context row names both panes and brackets the focused one (`[SECTIONS]
   CONTENT`), and the focused pane's rule takes the accent. While the content has focus the
   list's selected row keeps its `▌` mark but loses its fill.
+- **No Harness:** a Profile with only a Contact lists each expected section (`Headlines`,
+  `Experience`, `Key Skills keyword pool`, `Summary`, `Facts that are NOT available`) with how to
+  fill it by hand: under the Contact when the file lacks the headings, or on each section's own
+  page when `rolecall init`'s starter file has them (its `<!-- -->` how-to comment is a hint,
+  not content, so a section holding only it counts as empty). A Contact with no fields shows `No
+  Contact details yet · c to fill them in`, never an empty Field│Value table.
 - **Edge cases:** no `master-profile.md` shows `No Profile yet: profile/master-profile.md not
   found`, then the welcome's instruction (`Set up your Profile: fill in your Contact, then …`,
   naming the Harness only when one is set) and `c fill in your Contact · r read it again`;

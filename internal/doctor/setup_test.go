@@ -59,7 +59,7 @@ func TestCheckSetupWithoutPluginWarnsOnceAndNamesConfigPath(t *testing.T) {
 	if len(report.Warnings) != 2 {
 		t.Errorf("want the Plugin and Harness warnings only, got:\n%s", joined)
 	}
-	for _, want := range []string{"Set plugin in " + cfg, "set it in " + cfg, harnessExample, "Connect your Harness"} {
+	for _, want := range []string{"Set plugin in " + cfg, "set it in " + cfg, harnessExample, "docs/harnesses/claude-code.md"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("warnings missing %q:\n%s", want, joined)
 		}
@@ -158,5 +158,26 @@ func TestCheckSetupFoundUnsetAndEnvEditorsAreClean(t *testing.T) {
 	}
 	if got := editorWarnings(t, "", map[string]bool{"hx": true}); len(got) != 1 {
 		t.Errorf("VISUAL takes precedence over EDITOR, want warning: %v", got)
+	}
+}
+
+// An Editor that is only the vi fallback is a warning, not an OK; a chosen one stays OK.
+func TestCheckSetupWarnsWhenEditorIsOnlyTheViFallback(t *testing.T) {
+	lookup := func(name string) (string, error) { return "/stub/" + name, nil }
+	fallback := CheckSetup(Setup{Workspace: t.TempDir(), EditorIsFallback: true}, lookup)
+	chosen := CheckSetup(Setup{Workspace: t.TempDir(), Editor: "nano"}, lookup)
+	has := func(r SetupReport) bool {
+		for _, w := range r.Warnings {
+			if strings.HasPrefix(w, "Editor") && strings.Contains(w, "vi fallback") {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(fallback) {
+		t.Errorf("no vi fallback warning: %q", fallback.Warnings)
+	}
+	if has(chosen) {
+		t.Errorf("chosen Editor warned: %q", chosen.Warnings)
 	}
 }

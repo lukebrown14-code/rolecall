@@ -62,7 +62,8 @@ one (`rolecall --dir DIR`); `rolecall init --switch DIR` makes DIR the default i
 1. Run `rolecall`. The first time it opens it asks for your Contact (Name and Email are
    required; the rest is optional). Press Esc to skip, and it asks again next time.
 2. [Connect your Harness](#connect-your-harness).
-3. In your Harness, run the `create-profile` skill to build your Profile.
+3. In your Harness, run the `create-profile` skill to build your Profile. No Harness? See
+   [Use rolecall without a Harness](#use-rolecall-without-a-harness).
 
 Until you add a Lead, the app's welcome lists the setup steps still to do, each with the key
 that goes there. Add Tracks and a Search area later under Settings (`6`). To check local
@@ -76,6 +77,40 @@ To try the interface with the fictional example Workspace from a source checkout
 ```sh
 go run ./cmd/rolecall --dir ./fixtures/workspace
 ```
+
+## Track what is next, and use it elsewhere
+
+`e` on an Application also takes a **next step** (a date, `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`, and
+what it is) and its first **contact** (name, role, email or link). The next step shows on
+Interviewing and Offer rows, on the detail Overview and in Stats → Now. Moving an Application to
+Rejected or Withdrawn asks why it ended (optional; `esc` skips), and Stats shows where Applications
+dropped off.
+
+Two read-only commands put the same facts in your terminal and calendar. Neither writes to the
+Workspace; both take `--dir PATH`.
+
+```sh
+rolecall now                  # 2 follow-ups due | 1 next step within 7 days | 3 closing within 7 days
+rolecall now --days 3 --list  # one tab-separated line per item: kind, folder, when, title, company
+rolecall export --format csv --out applications.csv   # or --format json; stdout without --out
+rolecall export --ics --out rolecall.ics              # next steps and Lead/Draft close dates
+```
+
+`rolecall now` prints one plain line with no colour and exits 0, printing nothing when nothing is
+due, so it drops into a tmux status line, a prompt or cron:
+
+```sh
+# tmux: ~/.tmux.conf
+set -g status-right '#(rolecall now) %H:%M'
+# bash prompt: show it only when there is something to do
+PS1='$(rolecall now | sed "s/.*/[&] /")\$ '
+# cron: cron mails any output, so a quiet day sends nothing
+0 9 * * 1-5  rolecall now --dir ~/rolecall
+```
+
+`export` writes only where `--out` says (the file is created readable by you alone), so nothing
+leaves your Workspace unless you send it ([Privacy](#privacy)). A CSV cell that starts with `=`, `+`,
+`-` or `@` gets a leading `'`, so a spreadsheet reads it as text.
 
 ## Editor
 
@@ -133,6 +168,29 @@ Plugin's skills and set the `harness` command in your local `config.toml` to ena
 
 - [Set up Claude Code](docs/harnesses/claude-code.md)
 - [Set up Codex, Gemini CLI or opencode](docs/harnesses/other-harnesses.md)
+
+## Use rolecall without a Harness
+
+A Harness is optional. Without one, rolecall is a tracker you fill in yourself:
+
+- **Track your own list.** Press `a` to add a Lead: Title and Company are required, the URL is
+  optional, and the first Lead asks for a Track, a kind of role such as Nursing or Marketing.
+  Pick an Editor first (`6`, then This machine, then `e` on the Editor row) so pasting the job
+  ad into `jd.md` works; otherwise add a URL. Move an Application along with `m`.
+- **Deadlines.** On Drafts (`2`), `→` switches to Deadlines: every Lead and Draft with a closing
+  date still to come, soonest first.
+- **Follow-up due.** A sent Application with no news for the follow-up period (Settings, 14
+  days by default) shows `⚑`. Press `l` once you have followed up and the mark clears.
+- **Stats.** `4` shows your funnel, Response rate and applications per week from the moves you
+  make, with nothing else to set up.
+- **Write your Profile by hand.** `rolecall init` starts `profile/master-profile.md` with its
+  Contact table and one heading per section, each with a one-line how-to under it. Press `5`,
+  then `c` for your Contact and `e` to write the rest in your Editor.
+- **Build PDFs from a hand-written resume.** Install the Plugin and set `plugin` in
+  `config.toml` (with `typst`, `pandoc` and `python3` on your PATH; `rolecall doctor` checks
+  them). Write `resume.md` and `cover-letter.md` in the Application's folder, select it
+  and press `b` to build the PDFs; `d` copies them to your Downloads folder. Documents are
+  still checked against your Profile, so keep its facts and skills current.
 
 ## Your CV
 

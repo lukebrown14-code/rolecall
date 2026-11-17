@@ -14,6 +14,9 @@ type ProfileSection struct {
 	Heading, Body string
 	Count         int
 	Kind          string // entries, rows, bullets or items; "" for no count
+	// Hint is the text of an HTML comment in the section, how to fill it in a starter
+	// file; the comment is not part of Body.
+	Hint string
 }
 
 // ProfileFile is one of the other Profile files beside master-profile.md: its whole
@@ -126,8 +129,9 @@ func parseSections(text string) []ProfileSection {
 
 // newSection pairs a heading and body with the count of what the body holds.
 func newSection(heading, body string) ProfileSection {
+	body, hint := splitComments(body)
 	count, kind := countSection(body)
-	return ProfileSection{Heading: heading, Body: body, Count: count, Kind: kind}
+	return ProfileSection{Heading: heading, Body: body, Count: count, Kind: kind, Hint: hint}
 }
 
 // countSection applies the Profile count rules in order: `###` entries, then table data

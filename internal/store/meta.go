@@ -67,12 +67,21 @@ func readApplication(dir string, b []byte) Application {
 		return fail(1, fmt.Errorf("expected UTF-8, LF and trailing newline"))
 	}
 	seen := map[string]bool{}
-	inLog := false
+	inLog, inContacts := false, false
+	legacy := ""
 	for n, line := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
 		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+			if inContacts {
+				c, err := readContactEntry(line)
+				if err != nil {
+					return fail(n+1, err)
+				}
+				a.Contacts = append(a.Contacts, c)
+				continue
+			}
 			m := entryPattern.FindStringSubmatch(line)
 			if !inLog || m == nil {
 				return fail(n+1, fmt.Errorf("invalid status_log entry or unexpected nesting"))
@@ -100,6 +109,22 @@ func readApplication(dir string, b []byte) Application {
 		}
 		seen[k] = true
 		inLog = k == "status_log"
+		inContacts = k == keyContacts
+		if inContacts {
+			if t := strings.TrimSpace(raw); t != "" && t != "[]" {
+				return fail(n+1, fmt.Errorf("invalid contacts"))
+			}
+			inContacts = strings.TrimSpace(raw) == ""
+			continue
+		}
+		if k == keyNextStep {
+			ns, err := readNextStep(raw)
+			if err != nil {
+				return fail(n+1, err)
+			}
+			a.NextStep = ns
+			continue
+		}
 		if inLog {
 			if strings.TrimSpace(raw) != "" && strings.TrimSpace(raw) != "[]" {
 				return fail(n+1, fmt.Errorf("invalid status_log"))
@@ -180,6 +205,10 @@ func readApplication(dir string, b []byte) Application {
 			a.FilterReason = v
 		case keyFilterNote:
 			a.FilterNote = DisplayText(v)
+		case keyLegacyContact:
+			legacy = v
+		case keyCloseReason:
+			a.CloseReason = strings.TrimSpace(DisplayText(v))
 		case keyFollowedUp:
 			a.FollowedUp = readFollowedUp(v)
 		case keyFilterOverruled:
@@ -203,6 +232,11 @@ func readApplication(dir string, b []byte) Application {
 		if !seen[k] {
 			return fail(1, fmt.Errorf("missing %s", k))
 		}
+	}
+	// The dashboard era's single `contact` still reads, as the one Contact, until the
+	// Owner saves a contacts list.
+	if c, ok := legacyContact(legacy); ok && !seen[keyContacts] {
+		a.Contacts = []Contact{c}
 	}
 	return a
 }

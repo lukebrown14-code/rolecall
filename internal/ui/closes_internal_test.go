@@ -58,3 +58,23 @@ func TestValidClosesNamesTheProblem(t *testing.T) {
 		t.Errorf("echo = %q", got)
 	}
 }
+
+func TestReadNextStepAt(t *testing.T) {
+	now := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
+	for in, want := range map[string]string{
+		"2026-10-05":       "2026-10-05",
+		"2026-10-05T09:00": "2026-10-05T09:00",
+		"tomorrow 14:30":   "2026-10-02T14:30",
+		"+1w 9:05":         "2026-10-08T09:05",
+		"30 Nov 10:00":     "2026-11-30T10:00",
+	} {
+		if got, ok, _ := readNextStepAt(in, now); !ok || got != want {
+			t.Errorf("readNextStepAt(%q) = %q, %v; want %q", in, got, ok, want)
+		}
+	}
+	for _, in := range []string{"soon", "tomorrow 25:00", "2026-02-30T10:00", "10:30"} {
+		if got, ok, _ := readNextStepAt(in, now); ok {
+			t.Errorf("readNextStepAt(%q) = %q, want unreadable", in, got)
+		}
+	}
+}

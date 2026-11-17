@@ -616,6 +616,9 @@ var aiSkills = []aiSkill{
 	{"", "capture-job", "saves a job ad as a Lead"},
 	{"", "find-jobs", "sweeps your Sources for Leads"},
 	{"", "create-profile", "Profile from resume or interview"},
+	{"", "import-applications", "brings in a CSV of past applications"},
+	{"", "interview-prep", "prep.md from the ad and Profile"},
+	{"", "answer-questions", "answers.md for form questions"},
 	{"", "help", "answers questions about rolecall"},
 }
 
