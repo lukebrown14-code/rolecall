@@ -15,7 +15,6 @@ Install Go (the version is declared in `go.mod`) and Python 3, then run:
 
 ```sh
 scripts/check-go.sh              # gofmt, architecture rules, go vet, golangci-lint if installed
-python3 scripts/check-skills.py  # skill dependencies in .agents/skills
 go test -race ./...
 go test -race -count=3 ./internal/ui/...      # the UI tests run three times to catch flakiness
 ruff check plugin                # Python plugin lint (needs: python3 -m pip install ruff pytest)
