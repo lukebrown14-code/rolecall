@@ -86,6 +86,17 @@ On macOS: `brew install pandoc typst poppler`. The build gates every document
 before it compiles either one, and publishes PDFs into `out/` only when every
 gate, build and ATS check has passed.
 
+## Drift check
+
+`python3 plugin/scripts/drift.py --data <workspace>` runs the build's fact rules against the
+current Profile for every unsent Application (Lead or Draft) with a `resume.md` or
+`cover-letter.md`, and lists the ones that have drifted from it, with the reasons. Exit 1 if any have, 0 if none;
+`--json` for machine output. `--urls` also checks that every http(s) URL in those documents
+resolves: 404 and 410 are dead, 403/429/999 are reported as unverified, and no network at all is a
+warning. It is read-only. `build.py` runs the same URL check before building and fails only on a
+dead link; `--skip-url-check` turns it off. Re-checking fit verdicts when evidence leaves the
+Profile is not covered yet.
+
 The style rules the letter gate reads are in `plugin/styles/au.md`.
 
 ## Tone layering

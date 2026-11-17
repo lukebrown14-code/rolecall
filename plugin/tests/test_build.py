@@ -844,3 +844,35 @@ def test_cv_build_writes_no_application_files(tmp_path):
         "cv/out/general",
         "cv/out/general/Alex Quinn Resume.pdf",
     ]
+
+
+# --- URL check -------------------------------------------------------------------
+
+
+def _fetcher(table):
+    """None answers, a status raises that HTTP error, 0 is a connection failure."""
+
+    def fetch(url, timeout=0, max_bytes=0):
+        outcome = table[url]
+        if outcome is not None:
+            raise build.urlcheck.httpfetch.FetchError(f"{url} -- boom", status=outcome or None)
+
+    return fetch
+
+
+def test_build_fails_on_a_dead_link_naming_url_and_document():
+    fetcher = _fetcher({"https://gone.test/x": 404})
+    with pytest.raises(SystemExit) as exit_info:
+        build.check_urls({"resume.md": "See https://gone.test/x"}, fetcher)
+    message = str(exit_info.value)
+    assert "https://gone.test/x" in message and "resume.md" in message
+
+
+def test_build_warns_only_for_blocked_sites_and_for_no_network(capsys):
+    build.check_urls({"resume.md": "https://bot.test"}, _fetcher({"https://bot.test": 999}))
+    assert "could not be verified" in capsys.readouterr().out
+    build.check_urls(
+        {"resume.md": "https://a.test https://b.test"},
+        _fetcher({"https://a.test": 0, "https://b.test": 0}),
+    )
+    assert "no URL could be reached" in capsys.readouterr().out
