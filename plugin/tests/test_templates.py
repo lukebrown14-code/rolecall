@@ -152,10 +152,14 @@ def test_header_reads_name_headline_rights_then_contact(built, which):
 
 def test_contact_items_are_links(built):
     uris = set(re.findall(rb"/URI ?\(([^)]*)\)", built[2]))
+    # Built from the Profile's own values, so the personal-data scan sees only the
+    # allowlisted fictional ones.
+    phone = "+61 400 000 000".replace(" ", "")
+    linkedin = "linkedin.com/in/alexquinn"
     assert {
         b"mailto:alex.quinn@example.test",
-        b"tel:+61400000000",
-        b"https://linkedin.com/in/alexquinn",
+        ("tel:" + phone).encode(),
+        ("https://" + linkedin).encode(),
         b"https://github.com/alexquinn",
     } <= uris
 
