@@ -1,0 +1,11 @@
+Job Title,Company,Status,Date Applied,Job Link,Notes,Salary
+Backend Engineer,Northwind Traders,Applied,12/03/2026,https://careers.northwind.example/jobs/101,Referred by a friend,120k
+Data Analyst,Contoso Ltd,Phone screen,2026-02-20,https://jobs.contoso.example/da-7,"Spoke with the hiring manager;
+asked about SQL",
+Platform Engineer,Fabrikam Pty Ltd,Rejected,5 Jan 2026,,No feedback given,
+Support Engineer,Tailspin Toys,Ghosted,"Feb 3, 2026",https://tailspin.example/careers/9,,
+QA Lead,Wingtip Group,,,https://wingtip.example/jobs/qa,Saved for later,
+Site Reliability Engineer,Adventure Works,Offer,31/02/2026,not a link,Date in the export is wrong,
+,Litware,Applied,01/04/2026,,Row with no title,
+Backend Engineer,Northwind Traders,Applied,13/03/2026,,Same role listed twice,
+Developer Advocate,Proseware,Withdrawn,10/12/2025,,,

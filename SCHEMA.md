@@ -64,6 +64,8 @@ date. When nothing is left (a CJK or symbol-only name) it is `application`. If t
 | `fit.md` | — | agent | the reasoning behind `fit`. Its `## Gaps` section (any `##` heading starting `Gaps`) lists one gap per `- ` bullet, name first, then ` — ` and the detail; Insights counts the names |
 | `gaps.md` | — | agent | gaps found while writing |
 | `follow-up.md` | — | agent | a drafted follow-up message for the Owner to send |
+| `prep.md` | — | agent (`interview-prep`) | interview preparation: likely questions, a STAR story from the Profile per gap, questions to ask. Additive: not a Document, not read by the TUI, no Ready or Written state depends on it |
+| `answers.md` | — | agent (`answer-questions`) | answers to the employer's application-form questions, from `jd.md` and the Profile. Additive: as `prep.md` |
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
@@ -114,6 +116,7 @@ status_log:
 | `company` | string | ✅ | the real employer. For an agency ad, the client the recruiter is hiring for |
 | `track` | string | ✅ | one of `workspace.json` → `tracks`. Unknown values are shown, not rejected |
 | `url` | string | — | ad URL. The Sweep's dedupe key |
+| `aggregator_url` | string | — | the aggregator listing the ad was found on, when `url` is the employer's own posting that the listing links to. Written by `new-job.py`; `url` stays the dedupe key |
 | `closes` | date `YYYY-MM-DD` | — | application close date |
 | `fit` | enum | — | `Strong` · `Good` · `Marginal` · `Poor`. Empty or missing = not assessed |
 | `resume_only` | bool | — | `true` / `false`. Missing = `false` |
@@ -197,7 +200,7 @@ Each entry is a flow map on one line:
 |---|---|---|
 | **TUI** | creates folders. Writes any key through Add / Edit, and `followed_up` through `l`. Appends any Status | touch docs, `fit.md`, `out/` |
 | **`rolecall move`** | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find) through `meta.py create`, never by hand. Writes `title` `company` `track` `url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
+| **Agent** (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
 | **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 

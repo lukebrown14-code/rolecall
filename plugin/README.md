@@ -2,7 +2,8 @@
 
 The skills and scripts a coding harness loads to work a rolecall Workspace:
 creating the Profile, capturing jobs, assessing Fit, preparing documents, drafting follow-ups,
-sweeping Sources and keeping the Profile's project facts current. The `help` skill answers
+importing an existing application list, preparing for interviews, answering application-form
+questions, sweeping Sources and keeping the Profile's project facts current. The `help` skill answers
 questions about the other skills and the app, from `skills/*/SKILL.md` and
 `skills/help/app.md`; keep `app.md` in step when screens, keys or settings change.
 
@@ -33,6 +34,42 @@ The skills name their scripts as `${CLAUDE_PLUGIN_ROOT}/scripts/…`, because th
 runs from inside the Workspace, where a relative `plugin/scripts/` does not exist. Claude
 Code fills the variable in; another harness should set it to this folder's absolute path.
 
+## Skills
+
+| Skill | Use it to | Writes |
+| --- | --- | --- |
+| `create-profile` | build or update the Profile from a resume or an interview | `profile/` |
+| `capture-job` | save a job ad (a URL, a file or pasted text) as an Application | `meta.yml`, `jd.md` |
+| `find-jobs` | sweep the Sources and save the roles worth a look as Leads | Lead folders |
+| `assess-fit` | judge an Application against the Profile | `fit.md`, `fit` |
+| `prepare-documents` | write the tailored resume, cover letter and gaps, and build them | `resume.md`, `cover-letter.md`, `gaps.md`, `out/` |
+| `draft-follow-up` | draft a nudge for a sent Application | `follow-up.md` |
+| `import-applications` | bring in applications the Owner already made, from a CSV | Application folders |
+| `interview-prep` | prepare for an interview: questions, a STAR story per gap, questions to ask | `prep.md` |
+| `answer-questions` | answer an employer's application-form questions | `answers.md` |
+| `help` | answer questions about rolecall | nothing |
+
+`prep.md` and `answers.md` are optional extra files (SCHEMA.md); the app does not read them, and
+neither changes an Application's Documents or Ready state. Like every document, they say only
+what the Profile can evidence.
+
+## Importing an existing list
+
+`scripts/import_csv.py` imports a CSV or TSV export of applications. The `import-applications`
+skill drives it, but it runs by hand too:
+
+```sh
+python3 plugin/scripts/import_csv.py --data <workspace> --file export.csv --inspect
+python3 plugin/scripts/import_csv.py --data <workspace> --file export.csv --track SWE --dry-run
+python3 plugin/scripts/import_csv.py --data <workspace> --file export.csv --track SWE
+```
+
+`--inspect` shows the columns it matched (title, company, status, date applied, URL, notes) and how
+each status value maps; fix them with `--map field=Column` and `--status-map "Value=Status"`. A
+status it does not know stops the import until it is mapped. Rows become folders through
+`meta.create` with date-only, `approx: true` status entries, a duplicate of a saved Application
+or an earlier row is skipped (`--allow-duplicate` overrides), and `--dry-run` writes nothing.
+
 ## Search rules
 
 `scripts/rules.py` applies the Workspace's `search_rules` and Source registry
@@ -45,6 +82,15 @@ dismisses the Leads in place with a `filter_reason` (`--include-drafts` for Draf
 `sync-github.py` also needs the GitHub account and its in-scope repositories,
 which are personal data: set `ROLECALL_GITHUB_OWNER` and
 `ROLECALL_GITHUB_REPOS` (comma-separated) rather than committing them here.
+
+## Fetching an ad
+
+`new-job.py --url` fetches the raw page through `httpfetch` (http and https only, size-capped) and
+follows a known aggregator listing (Jora, Adzuna, Jooble ...) to the employer's own posting, which
+becomes `url` while the listing is kept as `aggregator_url`. `--fetch-only` prints the ad as JSON;
+when it fails, its last stderr line is JSON too, `{"error": "...", "kind": "..."}`, where `kind`
+is `login_wall`, `blocked`, `not_found`, `timeout`, `bad_url`, `non_html`, `unreachable`,
+`thin_page` or `too_short`. The Add form shows a plain-language message for each.
 
 ## One-time migration from the dashboard era
 

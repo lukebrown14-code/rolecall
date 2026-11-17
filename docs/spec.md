@@ -40,8 +40,9 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 ├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
-│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents, draft-follow-up
-│  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py
+│  ├─ skills/  create-profile, capture-job, find-jobs, assess-fit, prepare-documents, draft-follow-up,
+│  │            import-applications, interview-prep, answer-questions
+│  ├─ scripts/ build.py, sweep.py, new-job.py, sync-github.py, migrate.py, import_csv.py
 │  ├─ templates/ resume.typ, cover-letter.typ, brand.typ, fonts/
 │  ├─ styles/au.md
 │  └─ writing-rules.md
@@ -624,6 +625,9 @@ Output must match today's documents. Check by rebuilding two existing Applicatio
 | `assess-fit` | `fit.md` + `fit:` in `meta.yml` |
 | `prepare-documents` | `resume.md`, `cover-letter.md`, `gaps.md`, sets `resume_only` if chosen, runs `build.py` |
 | `draft-follow-up` | `follow-up.md` (a message for the Owner to send; the TUI never sends it) |
+| `import-applications` | new folders from a CSV export through `import_csv.py` (approximate `status_log`, `notes.md` from the notes column); dry run first, Owner confirms the column and status mapping |
+| `interview-prep` | `prep.md` (likely questions, a STAR story from the Profile per gap, questions to ask; nothing the Profile cannot evidence) |
+| `answer-questions` | `answers.md` (answers to pasted application-form questions from `jd.md` and the Profile) |
 
 All skills: never append to `status_log` unless the Owner explicitly asks. Never touch
 `notes.md`, `sent/`, or the profile fact table.
