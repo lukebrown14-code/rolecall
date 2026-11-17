@@ -75,7 +75,7 @@ func (m model) nextStepRow(p pal, a store.Application, w int, keep func(string) 
 
 // closedRow is the card's CLOSED row: why a Rejected or Withdrawn Application ended.
 func (m model) closedRow(p pal, a store.Application, w int) []string {
-	if a.CloseReason == "" || !(a.Status == store.StatusRejected || a.Status == store.StatusWithdrawn) {
+	if a.CloseReason == "" || (a.Status != store.StatusRejected && a.Status != store.StatusWithdrawn) {
 		return nil
 	}
 	return []string{p.cardRow("CLOSED", p.Text(p.Fg).Render(a.CloseReason), "", "", w)}

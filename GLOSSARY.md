@@ -108,6 +108,12 @@ _Avoid_: analytics
 A sent Application (Applied or Interviewing) that has gone the follow-up period without a Status change or a recorded follow-up. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again.
 _Avoid_: stale, reminder
 
+**Next step**:
+What the Owner does next on an Application and when (`next_step`: a date, optionally a time, and a few words). Shown on Interviewing and Offer rows, in the detail and in Stats → Now. Not the card's `NEXT` row, which suggests the key to press.
+
+**Close reason**:
+Why a Rejected or Withdrawn Application ended (`close_reason`), asked when it moves there and optional. Stats counts Applications by it, as where they dropped off.
+
 **Response**:
 A sent Application that reached Interviewing or Offer. A rejection without an interview is not a Response. An Application at Interviewing, Offer, Rejected or Withdrawn was sent, whether or not its Applied was recorded. Response rate leaves out Applications sent within the follow-up period, because they are too new to judge. A move the Owner undid never happened.
 _Avoid_: reply, callback

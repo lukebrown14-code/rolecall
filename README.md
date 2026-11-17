@@ -77,6 +77,40 @@ To try the interface with the fictional example Workspace from a source checkout
 go run ./cmd/rolecall --dir ./fixtures/workspace
 ```
 
+## Track what is next, and use it elsewhere
+
+`e` on an Application also takes a **next step** (a date, `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM`, and
+what it is) and its first **contact** (name, role, email or link). The next step shows on
+Interviewing and Offer rows, on the detail Overview and in Stats → Now. Moving an Application to
+Rejected or Withdrawn asks why it ended (optional; `esc` skips), and Stats shows where Applications
+dropped off.
+
+Two read-only commands put the same facts in your terminal and calendar. Neither writes to the
+Workspace; both take `--dir PATH`.
+
+```sh
+rolecall now                  # 2 follow-ups due | 1 next step within 7 days | 3 closing within 7 days
+rolecall now --days 3 --list  # one tab-separated line per item: kind, folder, when, title, company
+rolecall export --format csv --out applications.csv   # or --format json; stdout without --out
+rolecall export --ics --out rolecall.ics              # next steps and Lead/Draft close dates
+```
+
+`rolecall now` prints one plain line with no colour and exits 0, printing nothing when nothing is
+due, so it drops into a tmux status line, a prompt or cron:
+
+```sh
+# tmux: ~/.tmux.conf
+set -g status-right '#(rolecall now) %H:%M'
+# bash prompt: show it only when there is something to do
+PS1='$(rolecall now | sed "s/.*/[&] /")\$ '
+# cron: cron mails any output, so a quiet day sends nothing
+0 9 * * 1-5  rolecall now --dir ~/rolecall
+```
+
+`export` writes only where `--out` says (the file is created readable by you alone), so nothing
+leaves your Workspace unless you send it ([Privacy](#privacy)). A CSV cell that starts with `=`, `+`,
+`-` or `@` gets a leading `'`, so a spreadsheet reads it as text.
+
 ## Editor
 
 The `editor` setting opens files. If it is unset, rolecall uses `$VISUAL`, then `$EDITOR`, then

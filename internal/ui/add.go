@@ -124,7 +124,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}},
 		formField{Label: fieldNextStep, Value: v.nextAt, Placeholder: "YYYY-MM-DD or YYYY-MM-DDTHH:MM", Validate: validNextStepAt},
 		formField{Label: fieldNextWhat, Value: v.nextWhat, Placeholder: "Phone screen"},
-		formField{Label: fieldContact, Value: v.contact, Placeholder: "name", Note: "optional"},
+		formField{Label: fieldContact, Value: v.contact, Placeholder: "name"},
 		formField{Label: fieldContactRole, Value: v.contactRole, Placeholder: "Recruiter"},
 		formField{Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
 	f.ShowDirty = true
