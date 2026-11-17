@@ -254,14 +254,19 @@ func (m model) profileContentWidth(w int) int {
 func (m model) profileMarkdown(st profileState) string {
 	key := "profile\x00" + st.entryName() + "\x00" + st.path()
 	return m.md.body(m.gen, m.profileContentWidth(m.viewWidth()), key, func() string {
-		var body string
+		var body, hint string
 		cv, isCV := st.cv()
 		if file, ok := st.file(); ok {
 			body = file.Body
 		} else if isCV {
 			body = cv.Body
 		} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
-			body = st.profile.Sections[st.selected].Body
+			body, hint = st.profile.Sections[st.selected].Body, st.profile.Sections[st.selected].Hint
+		}
+		contactEmpty := !isCV && st.entryName() == "Contact" && headerOnlyTable(body)
+		if contactEmpty {
+			// A table of column titles and nothing under them says nothing; say what to do.
+			body = ""
 		}
 		warning := contactWarning(st.profile.Missing)
 		width := m.profileContentWidth(m.viewWidth())
@@ -286,7 +291,20 @@ func (m model) profileMarkdown(st profileState) string {
 			if warning != "" {
 				lines = append(lines, "")
 			}
-			lines = append(lines, wrapWords(m.profileEmptyHint(), width)...)
+			if hint != "" {
+				// A starter file's comment says how to fill this section by hand.
+				lines = append(lines, wrapWords(hint, width)...)
+				lines = append(lines, "")
+			}
+			switch {
+			case contactEmpty:
+				lines = append(lines, wrapWords("No Contact details yet · c to fill them in", width)...)
+			default:
+				lines = append(lines, wrapWords(m.profileEmptyHint(), width)...)
+			}
+		}
+		if st.entryName() == "Contact" && !isCV && !profileBeyondContact(st.profile) {
+			lines = append(lines, m.profileGuideLines(st.profile, width)...)
 		}
 		if body != "" {
 			if warning != "" {
@@ -375,6 +393,55 @@ const tableHead = 2
 // plainInline drops a table cell's inline Markdown marks: bold, italic and code.
 func plainInline(s string) string {
 	return strings.TrimSpace(strings.NewReplacer("**", "", "`", "", "*", "").Replace(s))
+}
+
+// headerOnlyTable reports a body that is a table's header and divider rows and no data.
+func headerOnlyTable(body string) bool {
+	rows := 0
+	for _, l := range strings.Split(body, "\n") {
+		if l = strings.TrimSpace(l); l == "" {
+			continue
+		}
+		if !strings.HasPrefix(l, "|") {
+			return false
+		}
+		rows++
+	}
+	return rows > 0 && rows <= tableHead
+}
+
+// profileGuideLines is what a Profile with only a Contact still needs, as a list under
+// Contact: each expected section of master-profile.md and how to fill it by hand. A
+// section the file already has is left out, since its own entry says how.
+func (m model) profileGuideLines(prof store.Profile, width int) []string {
+	have := map[string]bool{}
+	for _, s := range prof.Sections {
+		have[s.Heading] = true
+	}
+	p := m.pal()
+	var lines []string
+	for _, g := range store.ProfileGuide {
+		if have[g.Heading] {
+			continue
+		}
+		lines = append(lines, "", p.Text(p.Fg).Bold(true).Render("## "+g.Heading))
+		for _, l := range wrapWords(g.How, width-inset) {
+			lines = append(lines, strings.Repeat(" ", inset)+p.Text(p.Sub).Render(l))
+		}
+	}
+	if len(lines) == 0 {
+		// The file already has every heading: each section's own page says how to fill it.
+		return append([]string{""}, wrapWords("Then fill in each section in the list: select one to see what goes in it.", width)...)
+	}
+	intro := "Then add these sections to master-profile.md (e), each under its own ## heading:"
+	if m.harness != "" {
+		intro = "Or run create-profile in your Harness. By hand, add these sections to master-profile.md (e), each under its own ## heading:"
+	}
+	var head []string
+	for _, l := range wrapWords(intro, width) {
+		head = append(head, p.Text(p.Dim).Render(l))
+	}
+	return append(append([]string{""}, head...), lines...)
 }
 
 // profileEmptyHint is an empty Profile file or section: how to fill it.

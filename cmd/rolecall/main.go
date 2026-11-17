@@ -98,7 +98,7 @@ Flags:
 
 // initWorkspaceFiles writes the starter Workspace and its private local git repository.
 func initWorkspaceFiles(root string) error {
-	if err := store.InitializeWorkspace(root, nil, nil, store.SearchArea{}); err != nil {
+	if err := store.InitializeStarterWorkspace(root); err != nil {
 		return err
 	}
 	return process.InitGit(root)

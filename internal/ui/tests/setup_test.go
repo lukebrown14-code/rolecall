@@ -155,3 +155,31 @@ func TestContactFormFromProfileDoesNotSendYouToProfile(t *testing.T) {
 		t.Fatalf("form opened from Profile points back at Profile:\n%s", view)
 	}
 }
+
+// A fresh Profile screen has no empty Field/Value table: it says to fill the Contact in,
+// and lists the sections a Profile needs with how to write each by hand.
+func TestFreshProfileScreenListsSectionsAndHowToFillThem(t *testing.T) {
+	d := newDriver(t, freshWorkspace(t), setupNow, 100, 40)
+	d.Type("5")
+	view := d.plain()
+	requireAll(t, view, "No Contact details yet", "## Headlines (approved per track)", "## Experience",
+		"## Key Skills keyword pool", "## Summary", "## Facts that are NOT available", "One ### heading per job")
+	if strings.Contains(view, "Field") && strings.Contains(view, "│ Value") {
+		t.Fatalf("empty Field/Value table shown:\n%s", view)
+	}
+}
+
+// With the starter file `rolecall init` writes, each section's page carries its how-to,
+// and the starter's comments do not count as a Profile begun.
+func TestStarterProfileSectionsShowTheirHowTo(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "ws")
+	if err := store.InitializeStarterWorkspace(root); err != nil {
+		t.Fatal(err)
+	}
+	d := newDriver(t, root, setupNow, 100, 40)
+	requireAll(t, d.plain(), "Set up", "5  set up your Profile")
+	d.Type("5")
+	d.Type("j")
+	d.Type("j")
+	requireAll(t, d.plain(), "SECTION Experience", "One ### heading per job", "Nothing here yet")
+}
