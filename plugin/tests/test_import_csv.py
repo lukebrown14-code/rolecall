@@ -7,7 +7,6 @@ verbatim, and nothing invented for a row that lacks a fact.
 
 import json
 import sys
-from pathlib import Path
 
 import pytest
 

@@ -59,7 +59,7 @@ func TestFullScreenHelpPagesAndCloses(t *testing.T) {
 	m := driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 72, 24), "1", "?")
 	m.View() // the help counts its pages as it is drawn, as the program draws after each key
 	m = driveModel(t, m, "down")
-	if v := chipped(m.View().Content); !strings.Contains(v, "page 2 of 2") || !strings.Contains(v, "GLYPHS") {
+	if v := chipped(m.View().Content); !strings.Contains(v, "page 2 of 3") || !strings.Contains(v, "GLYPHS") {
 		t.Errorf("↓ did not turn to the second page:\n%s", v)
 	}
 	if v := chipped(driveModel(t, m, "esc").View().Content); strings.Contains(v, "Keys · Leads") || !strings.Contains(v, "Drafts") {

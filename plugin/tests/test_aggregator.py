@@ -59,7 +59,7 @@ def test_a_relative_link_is_resolved_only_against_the_page():
     "https://www.facebook.com/sharer?u=x",
     "https://twitter.com/intent/tweet",
     "https://play.google.com/store/apps/x",
-    "mailto:jobs@acme.test",
+    "mailto:jobs",
     "javascript:void(0)",
     "https://au.jora.com/other",
     "https://www.adzuna.com/job/1",

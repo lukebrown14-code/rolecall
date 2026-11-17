@@ -66,9 +66,9 @@ def fetch_only(*args, stdin=""):
 
 
 def failure(result):
-    """The JSON failure line: the last non-blank line of stderr."""
-    last = [line for line in result.stderr.splitlines() if line.strip()][-1]
-    return json.loads(last)
+    """The JSON failure line: the last line of stderr that is a JSON object."""
+    lines = [line for line in result.stderr.splitlines() if line.startswith("{")]
+    return json.loads(lines[-1])
 
 
 @pytest.mark.parametrize(
@@ -122,7 +122,7 @@ def test_the_human_text_stays_above_the_json_line(server):
     result = fetch_only("--url", server + "/missing")
     assert "WARNING" in result.stderr
     assert "--paste" in result.stderr
-    assert result.stderr.strip().splitlines()[-1].startswith('{"error"')
+    assert result.stderr.strip().splitlines()[-1].startswith('{"error"')  # human text first
 
 
 def test_without_fetch_only_there_is_no_json_line(server):

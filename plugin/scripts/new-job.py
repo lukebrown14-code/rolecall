@@ -556,10 +556,9 @@ def read_input(args):
 def too_short(jd):
     """Exit when the ad text is too short to be an ad; a JSON line first under --fetch-only."""
     message = f"Job description is only {len(jd)} characters -- that looks wrong."
-    print(message, file=sys.stderr)
     if JSON_ERRORS:
         print(fail_line("too_short", message), file=sys.stderr)
-    sys.exit(1)
+    sys.exit(message)
 
 
 def main(argv=None):
