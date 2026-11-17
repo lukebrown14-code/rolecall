@@ -28,7 +28,7 @@ type Setup struct {
 // Where the documentation lives on the public repository, for hints a person may read
 // from a terminal where the README is not at hand.
 const (
-	docsBase            = "https://github.com/lukebrown14-code/rolecall"
+	docsBase          = "https://github.com/lukebrown14-code/rolecall"
 	HarnessDocsURL    = docsBase + "/blob/main/docs/harnesses.md"
 	TemplateDocsURL   = docsBase + "#make-your-documents-yours"
 	WithoutHarnessURL = docsBase + "#use-rolecall-without-a-harness"
