@@ -127,3 +127,11 @@ def test_skills_never_run_a_script_by_a_workspace_relative_path():
         assert "`plugin/" not in text, f"{path} names a plugin file by a relative path"
         if "${CLAUDE_PLUGIN_ROOT}" in text and path.name == "SKILL.md":
             assert "**Plugin paths.**" in text, f"{path} uses the plugin root without the note"
+
+
+def test_capture_job_fetches_the_raw_page_and_follows_aggregators():
+    text = read(PLUGIN / "skills" / "capture-job" / "SKILL.md")
+    assert "Fetch the raw page, always" in text
+    assert "web-fetch" in text and "summary" in text
+    for aggregator in ("Jora", "Indeed", "Seek", "LinkedIn"):
+        assert aggregator in text, f"capture-job does not name {aggregator}"

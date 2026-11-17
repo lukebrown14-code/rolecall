@@ -42,6 +42,16 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/new-job.py" --track SWE --file ~/Desktop/
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/new-job.py" --track SWE --paste                              # read stdin
 ```
 
+**Fetch the raw page, always.** For a URL, use `new-job.py --url` (it fetches with
+`httpfetch`). Never read the ad with the agent's web-fetch tool: that returns a summary, and
+the saved `jd.md` loses detail (a Jora copy held about half of the employer's own ad).
+
+**Aggregator listings** (Jora, Indeed, Seek, LinkedIn) often hold a cut-down copy. Fetch the
+listing raw, find its link to the employer's own posting, and capture from that URL if it is
+reachable (record the listing with `--source`). If it is not reachable, capture the listing
+and say the ad may be partial (`--completeness summary`). Never type a link you have not
+seen on the page.
+
 - `--track` is required and names one of the Workspace's tracks.
 - `--paste` reads the JD from stdin, so pipe or paste the ad text in.
 
