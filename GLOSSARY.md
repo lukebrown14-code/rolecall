@@ -30,7 +30,7 @@ The locked fact set every document is written from: career facts plus the rules 
 _Avoid_: personal details, master profile (for the whole set)
 
 **Contact**:
-The Owner's name and how to reach them, printed on every document. Part of the Profile.
+The Owner's name and how to reach them, printed on every document: Name and Email are required; Phone, Location, LinkedIn, GitHub and Work rights are optional. Part of the Profile.
 _Avoid_: personal details, identity
 
 **Experience**:

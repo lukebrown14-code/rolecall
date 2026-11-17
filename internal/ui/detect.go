@@ -19,6 +19,13 @@ import (
 // and then stdout, each waiting this long at most.
 const backgroundQueryWait = 200 * time.Millisecond
 
+// oscBackground is the OSC command a terminal answers the background-colour request with,
+// and oscReplyParts the parts of its data ("11;rgb:…").
+const (
+	oscBackground = 11
+	oscReplyParts = 2
+)
+
 // terminalBackground asks the terminal for its background colour, as
 // lipgloss.BackgroundColor does but giving up after backgroundQueryWait on each file.
 // One of in and out must be a terminal.
@@ -51,8 +58,8 @@ func queryBackground(f term.File, wait time.Duration) (color.Color, error) {
 	err = queryTerminal(f, f, wait, func(seq string, pa *ansi.Parser) bool {
 		switch {
 		case ansi.HasOscPrefix(seq):
-			if pa.Command() == 11 {
-				if parts := strings.Split(string(pa.Data()), ";"); len(parts) == 2 {
+			if pa.Command() == oscBackground {
+				if parts := strings.Split(string(pa.Data()), ";"); len(parts) == oscReplyParts {
 					c = ansi.XParseColor(parts[1])
 				}
 			}

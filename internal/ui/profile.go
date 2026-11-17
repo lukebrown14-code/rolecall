@@ -263,7 +263,7 @@ func (m model) profileMarkdown(st profileState) string {
 		} else if st.selected >= 0 && st.selected < len(st.profile.Sections) {
 			body, hint = st.profile.Sections[st.selected].Body, st.profile.Sections[st.selected].Hint
 		}
-		contactEmpty := !isCV && st.entryName() == "Contact" && headerOnlyTable(body)
+		contactEmpty := !isCV && st.entryName() == headingContact && headerOnlyTable(body)
 		if contactEmpty {
 			// A table of column titles and nothing under them says nothing; say what to do.
 			body = ""
@@ -303,7 +303,7 @@ func (m model) profileMarkdown(st profileState) string {
 				lines = append(lines, wrapWords(m.profileEmptyHint(), width)...)
 			}
 		}
-		if st.entryName() == "Contact" && !isCV && !profileBeyondContact(st.profile) {
+		if st.entryName() == headingContact && !isCV && !profileBeyondContact(st.profile) {
 			lines = append(lines, m.profileGuideLines(st.profile, width)...)
 		}
 		if body != "" {

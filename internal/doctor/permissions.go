@@ -74,6 +74,9 @@ func Check(root string, lookup VisibilityLookup) ([]string, error) {
 }
 
 // permissionMarker is what every per-path permission warning from Check contains.
+// minCollapsed is how many permission warnings are folded into one; a lone one stays.
+const minCollapsed = 2
+
 const permissionMarker = "): permissions "
 
 // CollapsePermissions folds Check's per-path permission warnings into one line with the
@@ -90,7 +93,7 @@ func CollapsePermissions(warnings []string, root string) []string {
 		}
 		out = append(out, w)
 	}
-	if count < 2 {
+	if count < minCollapsed {
 		return warnings
 	}
 	summary := fmt.Sprintf("%d files and folders in the Workspace are not private (open to other users); fix them all with chmod -R go-rwx %s", count, shellQuote(root))

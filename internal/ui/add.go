@@ -166,7 +166,6 @@ func (m *model) afterCreate(folder string, fields store.CreateFields, jd string)
 // noEditorJDHint is the toast that replaces opening jd.md when no Editor is chosen.
 const noEditorJDHint = "Paste the JD: pick an Editor (6 › This machine) or add a URL"
 
-
 // submitAdd creates the Lead from the Add form, or keeps the form open with the error
 // under its focused field: nothing typed is lost to a failed save.
 func (fm *formMode) submitAdd(m *model, fields store.CreateFields) (mode, tea.Cmd) {

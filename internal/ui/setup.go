@@ -10,6 +10,9 @@ import (
 // this form. Esc skips it; the Profile screen keeps its warning and the form returns on
 // the next launch until Name and Email are saved.
 
+// headingContact is the Contact section of the Profile.
+const headingContact = "Contact"
+
 const (
 	fieldName     = "Name"
 	fieldEmail    = "Email"
