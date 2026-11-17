@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import contact as owner_contact_module  # noqa: E402
 import meta as meta_module  # noqa: E402
+import urlcheck  # noqa: E402
 from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 
 PLUGIN = Path(__file__).resolve().parent.parent
@@ -46,6 +47,8 @@ TEMPLATE_FILES = ("brand.typ", "resume.typ", "cover-letter.typ")
 
 # Set by main() from --data / ROLECALL_WORKSPACE. Tests repoint it after import.
 DATA = None
+# Tests set this to a fake fetcher so the URL check never touches the network.
+URL_FETCHER = None
 
 LETTER_MAX_WORDS = 350
 LETTER_MIN_WORDS = 150
@@ -802,6 +805,34 @@ def run_gates(md_name, text, company, subs, profile, jd_text):
         )
 
 
+def check_urls(documents, fetcher=None):
+    """Exit on a definitely dead link; warn when links are unverified or the network is down."""
+    found = {name: urlcheck.urls_in(text) for name, text in documents.items()}
+    results = urlcheck.check({u for urls in found.values() for u in urls}, **fetcher_args(fetcher))
+    if urlcheck.offline(results):
+        print("        WARNING: no URL could be reached (offline?); links were not checked.")
+        return
+    for url in urlcheck.unverified(results):
+        print(f"        WARNING: {url} could not be verified ({results[url][1]}).")
+    bad = set(urlcheck.failures(results))
+    lines = [
+        f"{url} in {name}: {results[url][1]}"
+        for name, urls in found.items()
+        for url in urls
+        if url in bad
+    ]
+    if lines:
+        sys.exit(
+            "\n  dead link(s):\n    - " + "\n    - ".join(lines)
+            + "\n  Fix or remove the link, or build with --skip-url-check."
+        )
+    print("        links: ok")
+
+
+def fetcher_args(fetcher):
+    return {"fetcher": fetcher} if fetcher else {}
+
+
 def check_letter_present(application, letter_text):
     """Require a letter unless the Application explicitly chose Resume only."""
     if letter_text.strip():
@@ -828,6 +859,11 @@ def main(argv=None):
     )
     parser.add_argument(
         "--headline", help="with --cv: the headline (default: the Profile's General headline)"
+    )
+    parser.add_argument(
+        "--skip-url-check",
+        action="store_true",
+        help="do not check that the URLs in the documents resolve",
     )
     add_data_argument(parser)
     args = parser.parse_args(argv)
@@ -907,6 +943,9 @@ def main(argv=None):
     # must leave no PDF of an earlier one behind.
     for md_name, _template, _pdf_name in jobs:
         run_gates(md_name, documents[md_name], company, subs, profile, jd_text)
+
+    if not args.skip_url_check:
+        check_urls({name: documents[name] for name, _t, _p in jobs}, URL_FETCHER)
 
     overrides = overridden_templates()
     if overrides:

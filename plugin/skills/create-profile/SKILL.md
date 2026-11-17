@@ -3,6 +3,12 @@ name: create-profile
 description: Create or update the Owner's Profile from a resume or a guided interview. Use when the Owner asks to create, build, import or review their Profile.
 ---
 
+> **Plugin paths.** `${CLAUDE_PLUGIN_ROOT}` is this plugin's folder (the one holding `skills/`
+> and `scripts/`). Claude Code fills it in; in another harness, or if it reaches the shell
+> unexpanded, use the absolute path of the folder two levels above this file. Never run a
+> script by a path relative to the Workspace, and never hand-write `meta.yml` because a
+> script was not found: stop and say which path failed.
+
 # Create Profile
 
 Build the Owner's Profile: the fact set every Application document must come from. The Owner
@@ -87,6 +93,15 @@ Only after approval, save the confirmed files under the Workspace's `profile/` d
 approved Profile is the locked fact set: future application documents may select and rephrase its
 facts, but must not add claims it cannot support. Report the files written and any questions the
 Owner left unresolved.
+
+Then run the read-only drift check, so drafts written against the old Profile are flagged:
+
+```sh
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/drift.py" --data <workspace>
+```
+
+It lists each unsent Application whose `resume.md` or `cover-letter.md` no longer matches the
+Profile. Report the list to the Owner; do not edit those drafts from this skill.
 
 ## Writer rules
 

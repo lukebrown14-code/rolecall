@@ -140,6 +140,15 @@ Fix the document and build again until it prints `built …`. The hard gates are
 Page count is a **warning**, not a failure: the AU norm is two pages (three for senior roles), and
 a one-page resume reads as junior. Fix it with content, not by shrinking the template.
 
+### After a Profile edit
+
+Whenever the Profile changes, run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/drift.py" --data <workspace>`
+(add `--urls` to check links too). It lists every unsent draft (Lead or Draft) that now breaks the
+fact rules against the current Profile, with the reasons, and exits 1 if any are stale. Rewrite each
+listed draft from the Profile and build again. The build also checks every URL in a document and
+fails on a dead one (404 or 410); a site that merely refuses the check (403, 429) only warns, and
+`--skip-url-check` skips it.
+
 ### A CV (no Application)
 
 When the Owner asks for a general or master resume rather than one for an Application, write
