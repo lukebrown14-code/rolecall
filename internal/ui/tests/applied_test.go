@@ -171,6 +171,7 @@ func TestSecondMoveToAppliedLeavesExistingSentUntouched(t *testing.T) {
 	wait("Applied 1")
 	tm.Type("mw") // away from Applied
 	wait("Moved to Withdrawn")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape}) // skip the close reason
 	before := sentFiles(t, folder)
 
 	if err := os.WriteFile(filepath.Join(folder, "resume.md"), []byte("changed"), 0o644); err != nil {

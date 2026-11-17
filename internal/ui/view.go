@@ -1273,6 +1273,11 @@ func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipglo
 		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
 			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
 		}
+		if t == tableInterviewing || t == tableOffer {
+			if text, s := m.nextStepInfo(a.NextStep); s != closeNone {
+				out = append(out, p.CloseStyle(s, st, dimC).Render("next "+text))
+			}
+		}
 	}
 	return out
 }

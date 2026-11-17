@@ -276,6 +276,7 @@ func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []str
 		section(line)
 	}
 	section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	section(m.contactRows(p, a, w)...)
 	section(m.notesRow(p, a, w, keep))
 	return rows
 }
@@ -362,6 +363,8 @@ func (m model) factRows(p pal, a store.Application, w int, keep func(string) boo
 	} else if a.ClosesUnclear && a.Closes == "" && beforeApplied(tableOf(a)) {
 		rows = append(rows, p.cardRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), key, action, w))
 	}
+	rows = append(rows, m.nextStepRow(p, a, w, keep)...)
+	rows = append(rows, m.closedRow(p, a, w)...)
 	return append(rows, m.sweepRows(p, a, w)...)
 }
 

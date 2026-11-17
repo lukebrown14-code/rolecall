@@ -13,7 +13,11 @@ import (
 )
 
 // addValues holds the Add/Edit form's answers.
-type addValues struct{ title, company, track, url, closes, fit, resumeOnly string }
+type addValues struct {
+	title, company, track, url, closes, fit, resumeOnly string
+	// The Edit form's next step and first Contact.
+	nextAt, nextWhat, contact, contactRole, contactReach string
+}
 
 // fieldURL, fieldTitle and fieldTrack are the Add/Edit form's URL, Title and Track field labels.
 const (
@@ -117,7 +121,12 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 		return newFormOf("Add a Lead", fields...)
 	}
 	f := newFormOf("Edit "+titleLabel(v.title), link, titleField, company, track, closes, fit,
-		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}})
+		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}},
+		formField{Label: fieldNextStep, Value: v.nextAt, Placeholder: "YYYY-MM-DD or YYYY-MM-DDTHH:MM", Validate: validNextStepAt},
+		formField{Label: fieldNextWhat, Value: v.nextWhat, Placeholder: "Phone screen"},
+		formField{Label: fieldContact, Value: v.contact, Placeholder: "name", Note: "optional"},
+		formField{Label: fieldContactRole, Value: v.contactRole, Placeholder: "Recruiter"},
+		formField{Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
 	f.ShowDirty = true
 	return f
 }
@@ -125,7 +134,9 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 // addValues reads the form's answers.
 func readAddValues(f *form) addValues {
 	return addValues{title: f.Value(fieldTitle), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
-		closes: f.Value("Closes"), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
+		closes: f.Value("Closes"), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only"),
+		nextAt: f.Value(fieldNextStep), nextWhat: strings.TrimSpace(f.Value(fieldNextWhat)), contact: strings.TrimSpace(f.Value(fieldContact)),
+		contactRole: strings.TrimSpace(f.Value(fieldContactRole)), contactReach: strings.TrimSpace(f.Value(fieldContactReach))}
 }
 
 // createFields turns the form's answers into the store's create fields.
