@@ -208,6 +208,9 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 	if m.trackFilterApplies() {
 		keys = append(keys, help(groupFilter, "t", descTrackFilter).at(prioMinor), help(groupFilter, "T", "previous track"))
 	}
+	if m.markCount() > 0 {
+		keys = append(keys, help(groupFilter, "esc", "clear marks").at(prioPinned))
+	}
 	if m.text != "" && m.detail == nil && m.screen != settingsScreen {
 		// A search follows the Owner to every screen, so how to end it is never dropped.
 		keys = append(keys, help(groupFilter, "esc", "clear search").at(prioPinned))

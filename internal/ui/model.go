@@ -35,6 +35,7 @@ type model struct {
 	overlay               mode // the pop-up, prompt or search input that owns the keyboard
 	selectAfter           string
 	undo                  []undoMove
+	marks                 *markSet  // rows marked for a bulk action, in one view (bulk.go)
 	toast                 string    // feedback line: what just happened (cleared on the next key)
 	movedTo               string    // destination Status of the move the toast reports, else ""
 	toastKind             toastKind // how the feedback line draws the toast
@@ -300,6 +301,15 @@ func (m model) matches(a store.Application) bool {
 	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	next, cmd := m.update(msg)
+	if nm, ok := next.(model); ok && nm.marks != nil && (nm.marks.screen != nm.screen || nm.marks.table != nm.table) {
+		nm.marks = nil // marks belong to the view they were made in
+		return nm, cmd
+	}
+	return next, cmd
+}
+
+func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The Stats report is built at most once per interaction; this drops the previous
 	// interaction's copy so the next access to Stats rebuilds it.
 	m.resetStats()
@@ -458,9 +468,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "t", "T":
 				m.cycleTrack(k.String() == "T")
 			case "esc":
-				// esc clears a search; otherwise it only hides the toast, so the cursor
-				// stays where the Owner was working.
-				if m.text != "" {
+				// esc drops the marks first, then clears a search; otherwise it only hides
+				// the toast, so the cursor stays where the Owner was working.
+				if m.clearMarks() {
+					m.toast, m.toastKind = "Marks cleared", toastNote
+				} else if m.text != "" {
 					m.text = ""
 					m.cursor = 0
 				}

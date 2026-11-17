@@ -117,6 +117,8 @@ type moveMode struct {
 	app     store.Application
 	options []string
 	sel     int
+	// bulk is the marked rows when the pop-up moves several (bulk.go); app is then the first.
+	bulk []store.Application
 }
 
 // Keys name the first letters on offer, so the letter keys read as keys: "d/a/x… move".
@@ -160,15 +162,23 @@ func (mv *moveMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	case "up", "k":
 		mv.sel = max(mv.sel-1, 0)
 	case "enter":
-		return m.requestMove(mv.app, mv.options[mv.sel])
+		return mv.pick(m, mv.options[mv.sel])
 	default:
 		for _, status := range mv.options {
 			if statusLetters[status] == key {
-				return m.requestMove(mv.app, status)
+				return mv.pick(m, status)
 			}
 		}
 	}
 	return mv, nil
+}
+
+// pick moves the pop-up's Application to status, or for several marked rows asks first.
+func (mv *moveMode) pick(m *model, status string) (mode, tea.Cmd) {
+	if mv.bulk != nil {
+		return m.bulkAction(status), nil
+	}
+	return m.requestMove(mv.app, status)
 }
 
 // confirmMode asks before moving a not-Ready Application to Applied.

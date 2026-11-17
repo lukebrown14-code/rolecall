@@ -190,6 +190,11 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return onRow(m) && usable(m) },
 		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
+			if marked := m.markedHere(); len(marked) > 0 {
+				// Marked rows move together: the pop-up names the count, then asks once.
+				m.overlay = &moveMode{app: marked[0], options: bulkOptions(marked), bulk: marked}
+				return nil
+			}
 			a, ok := m.current()
 			if ok && a.Malformed != nil {
 				// Refused at the key, as x is: the pop-up would offer Statuses for an
@@ -220,8 +225,8 @@ var listActions = []listAction{
 		group: groupAction, prio: fixed(prioLean),
 		// Not in the detail view, where a reader's stray x would close what they are
 		// reading: there it points to m, as on a row it does not apply to.
-		listed:  func(m model) bool { return m.detail == nil && usable(m) && leadOrDraft(m) },
-		enabled: func(m model) bool { return m.detail == nil && leadOrDraft(m) },
+		listed:  func(m model) bool { return m.detail == nil && ((usable(m) && leadOrDraft(m)) || m.markCount() > 0) },
+		enabled: func(m model) bool { return m.detail == nil && (leadOrDraft(m) || m.markCount() > 0) },
 		why: onRowWhy(func(m model) string {
 			if m.detail != nil && leadOrDraft(m) {
 				return "x: dismisses from the list only · m to move"
@@ -229,9 +234,30 @@ var listActions = []listAction{
 			return "x: only Leads and Drafts can be dismissed · m to move"
 		}),
 		run: func(m *model, _ string) tea.Cmd {
+			if m.markCount() > 0 {
+				m.overlay = m.bulkAction(store.StatusDismissed)
+				return nil
+			}
 			if a, ok := m.current(); ok && a.Unsent() {
 				return m.move(a, store.StatusDismissed, false)
 			}
+			return nil
+		},
+	},
+	{
+		// Marks several rows for one x or m. * is free on every list; space, v and tab are not.
+		keys: []string{keyMark}, keyLabel: keyMark,
+		desc: func(m model) string {
+			if a, ok := m.current(); ok && m.isMarked(a.Folder) {
+				return "unmark row"
+			}
+			return "mark row"
+		},
+		group: groupAction, prio: fixed(prioMain),
+		listed:  func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		enabled: func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		run: func(m *model, _ string) tea.Cmd {
+			m.toggleMark()
 			return nil
 		},
 	},

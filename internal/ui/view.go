@@ -573,6 +573,9 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 		parts = append([]string{v}, parts...)
 	}
 	out := name + p.Text(p.Dim).Render(" › "+strings.Join(parts, " · "))
+	if n := m.markCount(); n > 0 {
+		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("%s %d marked", glyphMarked, n))
+	}
 	if !noFocus && m.detail != nil {
 		out += p.Text(p.Dim).Render(" · ") + p.Text(p.Accent).Bold(true).Render("detail")
 	}
@@ -1031,6 +1034,17 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		bar = p.SelGutter(fill)
 		titleC, dimC = p.Fg, p.Sub
 	}
+	bar2 := bar // the second line carries the selection bar only: the mark sits on the first
+	if m.isMarked(a.Folder) {
+		// A marked row shows ◉ in the gutter, so it reads without colour: where the ▌ would
+		// be, or beside it on the cursor row, which keeps its ▌.
+		mark := st(p.Fg).Bold(true).Render(glyphMarked)
+		if sel {
+			bar = xansi.Cut(bar, 0, 1) + mark
+		} else {
+			bar = mark + st(p.Fg).Render(" ")
+		}
+	}
 	if a.Malformed != nil {
 		title := st(p.Bad).Bold(true).Render("⚠ ") + st(p.Bad).Bold(true).Render(m.malformedTitle(a))
 		if fill {
@@ -1094,7 +1108,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(rp, a, st, dimC), sep)
 	// The bar spans both lines, so the selected row reads as one block.
-	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar+st(p.Fg).Render("  ")+meta, w, "…"))}
+	lines := []string{line.Render(left + gap + right), line.Render(xansi.Truncate(bar2+st(p.Fg).Render("  ")+meta, w, "…"))}
 	if m.flash != "" && a.Folder == m.flash {
 		lines = p.FlashRow(lines, w)
 	}
