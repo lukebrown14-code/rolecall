@@ -21,6 +21,11 @@
 #set text(font: font-stack, size: 10.2pt, fill: ink, lang: "en", region: "au")
 #set par(justify: false, leading: 0.85em, spacing: 1.3em, first-line-indent: 0pt)
 
+// No line breaks inside words: PDF-to-text readers join a word broken at a
+// hyphen ("full-platform" becomes "fullplatform"). See resume.typ.
+#set text(hyphenate: false)
+#show regex("\b\w+(?:-\w+)+\b"): box
+
 #show link: set text(fill: ink)
 #show heading: it => { v(0.4em); text(weight: "bold", size: 10.2pt, fill: band, it.body); v(0.1em) }
 

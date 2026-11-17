@@ -12,6 +12,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -161,6 +162,9 @@ func runDoctor(dir string) error {
 			}
 		}
 		printLegacyWarnings(s.LegacyFiles(), c.Workspace, c.Plugin)
+		if apps, err := s.Scan(); err == nil {
+			printRepeatedStatusWarnings(apps, c.Workspace)
+		}
 		workspaceErr = checkWorkspaceFile(s)
 	}
 
@@ -176,7 +180,13 @@ func runDoctor(dir string) error {
 		}
 		fmt.Printf("WARNING: %s; %s\n", message, check.Hint)
 	}
+	for _, ignored := range report.Ignored {
+		fmt.Printf("WARNING: %s\n", ignored)
+	}
 	fmt.Printf("Template in use: %s. See README → Make your documents yours.\n", report.Template)
+	if strings.HasPrefix(report.Template, "Workspace override") {
+		fmt.Println("  Plugin updates to an overridden file do not reach your copy; compare it with the Plugin's after updating.")
+	}
 	return errors.Join(configProblem, workspaceErr)
 }
 
@@ -220,6 +230,21 @@ func printLegacyWarnings(files []string, workspace, plugin string) {
 	fmt.Printf("  Convert them to Lead folders (close rolecall first; --dry-run writes nothing):\n")
 	fmt.Printf("    python3 %s --data %s --dry-run\n", script, ui.QuoteShellArgument(workspace))
 	fmt.Println("  Then update your Harness to the current Plugin, which saves each Lead as a folder.")
+}
+
+// printRepeatedStatusWarnings names each meta.yml whose status_log holds the same entry
+// (Status and time) more than once. The app reads the last one; the repeat is noise
+// from a hand edit or an older migration, safe to delete.
+func printRepeatedStatusWarnings(apps []store.Application, workspace string) {
+	for _, a := range apps {
+		for _, e := range a.RepeatedStatusEntries() {
+			rel, err := filepath.Rel(workspace, filepath.Join(a.Folder, "meta.yml"))
+			if err != nil {
+				rel = filepath.Join(a.Folder, "meta.yml")
+			}
+			fmt.Printf("WARNING: %s lists {status: %s, at: %s} more than once; delete the earlier copy (the app reads the last)\n", filepath.ToSlash(rel), e.Status, e.At)
+		}
+	}
 }
 
 func run(dir string) error {

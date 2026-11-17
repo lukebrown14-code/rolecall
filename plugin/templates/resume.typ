@@ -33,6 +33,13 @@
 )
 
 #set text(font: font-stack, size: 10pt, fill: ink, lang: "en", region: "au")
+
+// No line breaks inside words. A hyphen the template adds, or a line that
+// breaks after a compound word's own hyphen, is joined back by PDF-to-text
+// readers ("full-platform" becomes "fullplatform"), so an ATS misses the word.
+// Boxing a hyphenated word moves the whole word to the next line instead.
+#set text(hyphenate: false)
+#show regex("\b\w+(?:-\w+)+\b"): box
 #set par(justify: false, leading: 0.8em, spacing: 1.1em)
 
 // Heading spacing is set here rather than with v() inside the show rules --
@@ -45,17 +52,20 @@
 // slot is the document title, which build.py strips before injection.
 #show heading.where(level: 2): it => section-heading(it.body)
 
-// Role lines: "Title — Employer" on the left, dates flush right.
+// Role lines: "Title — Employer", then the dates on the same line. The dates
+// follow the title rather than sit flush right: PDF-to-text readers put a
+// right-aligned date in a side column read after the role and its sub-line,
+// so an ATS loses which dates belong to which role.
 // Written in Markdown as `### Title — Employer | Dates`.
 #show heading.where(level: 3): it => {
   let parts = to-plain(it.body).split(" | ")
-  grid(
-    columns: (1fr, auto),
-    align: (left, right),
-    column-gutter: 1em,
-    text(weight: "bold", size: 10.5pt, fill: ink, parts.at(0)),
-    text(size: 9pt, weight: "semibold", fill: date-colour, if parts.len() > 1 { parts.at(1) } else { "" }),
-  )
+  block(width: 100%, {
+    text(weight: "bold", size: 10.5pt, fill: ink, parts.at(0))
+    if parts.len() > 1 {
+      h(0.8em)
+      text(size: 9pt, weight: "semibold", fill: date-colour, parts.slice(1).join(" | "))
+    }
+  })
 }
 
 // Sub-line under a role (context, e.g. "UK national security consultancy").
@@ -63,12 +73,15 @@
   text(size: 9pt, weight: "regular", fill: dim, it.body)
 }
 
-// Key Skills as tags. Separated by real spaces so lines can wrap between them
-// and pdftotext still yields one keyword after another.
+// Key Skills as tags, with a dot between them. PDF-to-text readers read a row
+// of words as one line only while each gap stays under about one word gap
+// plus a few points; tag padding alone opens gaps wide enough that they read
+// the rows as columns, out of order. The dot is real text that bridges each
+// gap, so the keywords come out in order on any width of row.
 #let skill-chips(items) = {
-  set par(leading: 0.95em)
-  items.map(s => box(fill: chip, radius: 2pt, inset: (x: 5pt, y: 2.5pt),
-    text(size: 9pt, weight: "medium", s))).join([ #h(1pt) ])
+  set par(leading: 1.05em)
+  items.map(s => box(fill: chip, radius: 2pt, inset: (x: 4pt, y: 2.5pt),
+    text(size: 9pt, weight: "medium", s))).join(text(size: 9pt, fill: dim)[ · ])
 }
 
 #set list(marker: text(fill: dim)[•], indent: 0.3em, body-indent: 0.6em, spacing: 0.7em)

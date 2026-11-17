@@ -17,15 +17,15 @@
 
 #let font-stack = ("Hanken Grotesk", "Helvetica Neue", "Helvetica")
 
-// Top margin is shared by every page; the band covers it on page 1 only.
+// Top margin is shared by every page; the band fills it on page 1 only.
 #let top-margin = 1.3cm
+// No longer used by the default band, which grows to fit its contents; kept so
+// an older Workspace override that still names it compiles.
 #let band-height = 4.1cm
 
-#let page-background = context {
-  if here().page() == 1 {
-    place(top + left, rect(width: 100%, height: band-height, fill: band))
-  }
-}
+// Kept for templates that set `background: page-background`: the band is now
+// drawn by band-header itself, so it can grow with its contents.
+#let page-background = none
 
 // Flatten arbitrary content down to a plain string. Pandoc emits heading
 // bodies as sequences (smart punctuation splits them), so `.text` is unsafe.
@@ -44,32 +44,60 @@
   } else { "" }
 }
 
-// The band's contents. `contact` is the " | "-separated string from build.py;
-// it is kept a string because `@` in content mode is a label reference. `name`
-// is the Owner's name from the Profile (build.py passes {{NAME}}).
+// One contact item as a link where it is an address: mailto for an email, tel
+// for a phone number, https for a bare domain or a full URL. Anything else
+// (a location) stays plain text. The text shown is always the item as written.
+#let contact-item(s) = {
+  let s = s.trim()
+  if s.match(regex("^[^@\s]+@[^@\s]+\.[^@\s]+$")) != none {
+    link("mailto:" + s, s)
+  } else if s.match(regex("^https?://\S+$")) != none {
+    link(s, s)
+  } else if s.match(regex("^(www\.)?[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/\S*)?$")) != none {
+    link("https://" + s, s)
+  } else if s.match(regex("^\+?[0-9][0-9 ()-]{6,}$")) != none {
+    link("tel:" + s.replace(regex("[^0-9+]"), ""), s)
+  } else { s }
+}
+
+// The band: the Owner's name, then the headline with the work-rights tag
+// beside it, then the contact row. Everything sits in reading order on its own
+// line, because PDF-to-text readers (and so an ATS) read a right-aligned item
+// in a side column after the left one, not in place. The band fills the page
+// to the top and sides (outset; the page clips it) and grows with its contents.
+// `contact` is the " | "-separated string from build.py; it is kept a string
+// because `@` in content mode is a label reference. `name` is the Owner's name
+// from the Profile (build.py passes {{NAME}}).
 #let band-header(headline: "", contact: "", rights: "", name: "") = block(
   width: 100%,
-  height: band-height - top-margin,
+  height: auto,
   breakable: false,
+  fill: band,
+  outset: (x: 5cm, top: top-margin + 1cm),
+  inset: (top: 0.45cm, bottom: 0.5cm),
   {
-    grid(
-      columns: (1fr, auto),
-      align: (left + bottom, right + bottom),
-      stack(
-        spacing: 0.5em,
-        text(size: 24pt, weight: "bold", fill: white, name),
-        text(size: 11pt, weight: "medium", fill: band-accent, headline),
-      ),
-      box(
-        stroke: 0.6pt + band-accent,
-        radius: 2pt,
-        inset: (x: 6pt, y: 4pt),
-        text(size: 8pt, weight: "semibold", tracking: 0.04em, fill: band-accent, rights),
-      ),
-    )
-    place(bottom + left, dy: -0.55cm,
-      text(size: 8pt, fill: band-dim,
-        contact.split(" | ").map(s => [#s]).join([ #h(0.9em, weak: true) ])))
+    show link: set text(fill: band-dim)
+    set par(leading: 0.65em, spacing: 0pt)
+    block(below: 0.55em, text(size: 24pt, weight: "bold", fill: white, name))
+    // The tag's stroke is outset, so the gap before it stays one word gap wide
+    // and a PDF reader keeps it on the headline's line.
+    block(below: 0.85em, {
+      text(size: 11pt, weight: "medium", fill: band-accent, headline)
+      if rights != "" {
+        h(0.9em)
+        box(
+          stroke: 0.6pt + band-accent,
+          radius: 2pt,
+          outset: (x: 4pt, y: 3pt),
+          text(size: 8pt, weight: "semibold", tracking: 0.04em, fill: band-accent, rights),
+        )
+      }
+    })
+    // The separator is real text, so the extracted row reads "a | b | c". Each
+    // item is boxed: a long row wraps between items, never inside a link.
+    text(size: 8pt, fill: band-dim,
+      contact.split(" | ").filter(s => s.trim() != "").map(s => box(contact-item(s)))
+        .join([ #text(fill: band-accent)[|] ]))
   },
 )
 

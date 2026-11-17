@@ -73,6 +73,9 @@ type SetupReport struct {
 	Checks   []CheckResult
 	Warnings []string
 	Template string
+	// Ignored names each Workspace file that looks like a Template setting but that the
+	// build never reads, with what to do instead. Each is also in Warnings.
+	Ignored []string
 }
 
 var templateFonts = []string{
@@ -166,12 +169,13 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 		report.Checks = append(report.Checks, CheckResult{Name: editorCheckLabel, Found: true, Detail: path})
 	}
 
-	brand := filepath.Join(setup.Workspace, "brand.typ")
-	if info, err := os.Stat(brand); setup.Workspace != "" && err == nil && info.Mode().IsRegular() {
-		report.Template = "Workspace override (brand.typ)"
+	overrides, ignored := TemplateFiles(setup.Workspace)
+	if len(overrides) > 0 {
+		report.Template = "Workspace override (" + strings.Join(overrides, ", ") + ")"
 	} else {
 		report.Template = "Header Band (default)"
 	}
+	report.Ignored = ignored
 	for _, check := range report.Checks {
 		if !check.Found {
 			detail := check.Name
@@ -181,6 +185,7 @@ func CheckSetup(setup Setup, lookup LookupPath) SetupReport {
 			report.Warnings = append(report.Warnings, fmt.Sprintf("%s; %s", detail, check.Hint))
 		}
 	}
+	report.Warnings = append(report.Warnings, ignored...)
 	return report
 }
 

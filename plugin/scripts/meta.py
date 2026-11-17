@@ -681,7 +681,10 @@ def update(folder, keys, status_log):
     entries = (
         None
         if status_log is None
-        else [_entry_line(status, at, approx) for status, at, approx in status_log]
+        else [
+            _entry_line(status, at, approx)
+            for status, at, approx in dedupe_status_log(status_log)
+        ]
     )
 
     def change(lines):
@@ -805,6 +808,33 @@ def duplicates_of(workspace, fields, jd_text=""):
     )
 
 
+def dedupe_status_log(status_log):
+    """``status_log`` with exact repeats removed: entries with the same Status and
+    ``at`` collapse into one.
+
+    The **last** occurrence is kept, so the current Status (the last entry), the
+    Applied date (a repeat shares its ``at``) and the last change all read the
+    same as before. Entries are ``(status, at, approx)`` tuples.
+    """
+    last = {(status, str(at)): index for index, (status, at, _) in enumerate(status_log)}
+    return [
+        entry
+        for index, entry in enumerate(status_log)
+        if last[(entry[0], str(entry[1]))] == index
+    ]
+
+
+def duplicate_status_entries(status_log):
+    """The ``(status, at)`` pairs that appear more than once in a read log."""
+    seen, repeated = set(), []
+    for entry in status_log:
+        key = (entry.status, entry.at)
+        if key in seen and key not in repeated:
+            repeated.append(key)
+        seen.add(key)
+    return repeated
+
+
 def _entry_line(status, at, approx):
     if status not in STATUSES:
         raise MetaError(f"invalid Status {status!r}")
@@ -824,7 +854,7 @@ def _meta_text(fields, status_log):
         if value is not None and str(value) != "":
             text += key + ": " + quote_scalar(str(value)) + "\n"
     text += "status_log:\n"
-    for status, at, approx in status_log:
+    for status, at, approx in dedupe_status_log(status_log):
         text += _entry_line(status, at, approx) + "\n"
     checked = _read_meta("", text.encode("utf-8"))
     if checked.malformed:
@@ -957,8 +987,14 @@ def _set_status_log_lines(lines, entries):
 
 
 def set_status_log(folder, status_log):
-    """Replace the status_log entries, keeping every other byte and comment."""
-    entries = [_entry_line(status, at, approx) for status, at, approx in status_log]
+    """Replace the status_log entries, keeping every other byte and comment.
+
+    Exact repeats (same Status and ``at``) are written once; see
+    ``dedupe_status_log``.
+    """
+    entries = [
+        _entry_line(status, at, approx) for status, at, approx in dedupe_status_log(status_log)
+    ]
     _update(folder, lambda lines: _set_status_log_lines(lines, entries))
 
 

@@ -435,3 +435,18 @@ def test_archive_gets_a_read_only_notice_and_read_only_files(tmp_path):
     assert "does not read anything in this folder" in notice.read_text()
     for name in ARCHIVE_FILES:
         assert not (archive / name).stat().st_mode & 0o222
+
+
+def test_plan_log_writes_a_repeated_applied_entry_once():
+    """Tracker Status Applied with no legacy applied date: the prepended and the
+    appended Applied entries share the tracker Date, so only one is written and
+    the Application still reads as Applied."""
+    migrate = load_migrate()
+    app = migrate.meta.Application("")
+    app.status_log = [migrate.meta.StatusEntry("Lead", "2026-03-05")]
+    details = []
+
+    log = migrate._plan_log(app, "Applied", None, "2026-03-01", "2026-03-05", details)
+
+    assert log == [("Lead", "2026-03-05", True), ("Applied", "2026-03-01", True)]
+    assert "status_log: a repeated entry (same Status and date) written once" in details

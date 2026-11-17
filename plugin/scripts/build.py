@@ -34,6 +34,8 @@ from workspace import add_data_argument, load, workspace_from_cli  # noqa: E402
 PLUGIN = Path(__file__).resolve().parent.parent
 TEMPLATES = PLUGIN / "templates"
 STYLE = PLUGIN / "styles" / "au.md"
+# The Template files a Workspace may override in <workspace>/templates/.
+TEMPLATE_FILES = ("brand.typ", "resume.typ", "cover-letter.typ")
 
 # Set by main() from --data / ROLECALL_WORKSPACE. Tests repoint it after import.
 DATA = None
@@ -119,6 +121,49 @@ def to_typst(text, name):
     if r.returncode != 0:
         sys.exit(f"pandoc failed on {name}:\n{r.stderr}")
     return r.stdout
+
+
+# A salutation or sign-off line ("Dear Sam,", "Kind regards,") whose next line
+# is the name or the first sentence, not a blank line.
+_LETTER_LINE = re.compile(
+    r"^(?:dear\s.+|(?:(?:kind|warm|warmest|best|with\s+(?:best|kind))\s+)?regards"
+    r"|yours\s+(?:sincerely|faithfully|truly)|sincerely|respectfully|(?:many\s+)?thanks"
+    r"|thank\s+you|cheers|best(?:\s+wishes)?|all\s+the\s+best),\s*$",
+    re.I,
+)
+
+
+def keep_line_breaks(md_text):
+    """Markdown with a hard line break where the Owner meant a new line.
+
+    Markdown joins a line to the one before it unless a blank line separates
+    them, so two mistakes would render as one run-on line:
+
+    - ``Kind regards,`` with the name on the next line ("Kind regards, Sam").
+    - consecutive bold lines such as ``**Languages:** Python`` then
+      ``**Cloud:** AWS`` (one paragraph instead of one line each).
+
+    Both get a trailing backslash, Pandoc's hard line break. Code fences,
+    headings, list items and table rows are left alone.
+    """
+    lines = md_text.split("\n")
+    fenced = False
+    for i, line in enumerate(lines[:-1]):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        if fenced or not line.strip() or line.endswith(("\\", "  ")):
+            continue
+        following = lines[i + 1]
+        if not following.strip() or following.lstrip().startswith("```"):
+            continue
+        stripped = line.strip()
+        if stripped.startswith(("#", "|")):
+            continue
+        if _LETTER_LINE.match(stripped) or (
+            following.startswith("**") and stripped.startswith(("**", "- **", "* **"))
+        ):
+            lines[i] = line.rstrip() + "\\"
+    return "\n".join(lines)
 
 
 def strip_first_heading(typst_body):
@@ -491,13 +536,40 @@ def lift_subject(typst_body):
     return first.strip(), rest
 
 
+def template_path(name):
+    """The Template file the build uses for ``name``: the Workspace's own copy
+    when it has one, else the Plugin's.
+
+    ``<workspace>/templates/<name>`` overrides any of the TEMPLATE_FILES. A
+    ``brand.typ`` at the Workspace root is the older override spot and still
+    works when ``templates/brand.typ`` is absent.
+    """
+    candidates = [Path(DATA) / "templates" / name]
+    if name == "brand.typ":
+        candidates.append(Path(DATA) / "brand.typ")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return TEMPLATES / name
+
+
+def overridden_templates():
+    """Workspace-relative paths of the Template overrides this build uses."""
+    found = []
+    for name in TEMPLATE_FILES:
+        path = template_path(name)
+        if path.parent != TEMPLATES:
+            found.append(path.relative_to(Path(DATA)).as_posix())
+    return found
+
+
 def build(md_text, md_name, template_name, out_pdf, substitutions):
-    body = strip_first_heading(to_typst(md_text, md_name))
+    body = strip_first_heading(to_typst(keep_line_breaks(md_text), md_name))
     if template_name == "resume.typ":
         body = skills_as_chips(body, md_text)
     else:
         substitutions["SUBJECT"], body = lift_subject(body)
-    doc = (TEMPLATES / template_name).read_text()
+    doc = template_path(template_name).read_text()
     substitutions["BODY"] = body
     # BODY, CONTACT and NAME must exist in every template; HEADLINE and DATELINE
     # are per-template (the letter has no headline, the resume has no dateline).
@@ -524,9 +596,7 @@ def build(md_text, md_name, template_name, out_pdf, substitutions):
             Path(tmp) / "templates",
             ignore=shutil.ignore_patterns("fonts"),
         )
-        workspace_brand = Path(DATA) / "brand.typ"
-        if workspace_brand.is_file():
-            shutil.copy2(workspace_brand, Path(tmp) / "templates" / "brand.typ")
+        shutil.copy2(template_path("brand.typ"), Path(tmp) / "templates" / "brand.typ")
         src = Path(tmp) / f".{out_pdf.stem}.typ"
         src.write_text(doc)
         r = subprocess.run(
@@ -712,6 +782,10 @@ def main(argv=None):
     # must leave no PDF of an earlier one behind.
     for md_name, _template, _pdf_name in jobs:
         run_gates(md_name, documents[md_name], company, subs, profile, jd_text)
+
+    overrides = overridden_templates()
+    if overrides:
+        print("  templates: Workspace " + ", ".join(overrides))
 
     # Build into a staging folder in the Application. Only a fully successful
     # build publishes anything into out/, so a failure leaves out/ untouched.
