@@ -32,10 +32,7 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		return []string{"⚠ " + filepath.Base(a.Folder)}
 	}
 	out := []string{a.Title, a.CompanyLabel(), a.Track}
-	fit := a.Fit
-	if fit == "" {
-		fit = glyphNone
-	}
+	fit := a.Fit // blank when not assessed: no placeholder mark
 	docs := ""
 	switch strings.ToLower(a.Documents) {
 	case "ready":

@@ -133,7 +133,7 @@ func TestStatusesAreDistinct(t *testing.T) {
 	}
 }
 
-// Each Fit word has a colour of its own, Strong green, Good blue, Marginal violet and Poor
+// Each Fit word has a colour of its own, Strong green, Good blue, Marginal yellow and Poor
 // muted, and none borrows the amber or red that a row keeps for time, so a Fit never reads
 // as a deadline.
 func TestFitColoursAreApartFromUrgency(t *testing.T) {

@@ -111,7 +111,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 			Validate: validFirstTrack}
 	}
 	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD", Validate: validCloses}
-	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: "—"}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
+	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: fitUnassessed}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
 	fields := []formField{link, titleField, company, track, closes, fit}
 	if !withResumeOnly {
 		return newFormOf("Add a Lead", fields...)

@@ -42,8 +42,8 @@ type Roles struct {
 	// dimmed is everything behind a pop-up, still at the text floor; dimmedOnFill is the
 	// active tab's text on the dimmed fill.
 	Dimmed, DimmedOnFill string
-	// Marginal is a Marginal fit: a soft violet of its own, apart from the urgency amber
-	// and red, so no Fit reads as a deadline.
+	// Marginal is a Marginal fit: a yellow of its own, apart from the urgency orange and
+	// red and from Offer's gold, so no Fit reads as a deadline.
 	Marginal string
 }
 
@@ -76,7 +76,7 @@ var rolePalette = struct {
 	Sel:          rolePair{"#2F5560", "#D6F1EC"}, // light: a teal tint of the accent
 	Ok:           rolePair{"#3FB950", "#14702F"},
 	Info:         rolePair{"#58A6FF", "#074A9A"},
-	Marginal:     rolePair{"#B9A6E3", "#6F5A99"},
+	Marginal:     rolePair{"#E9E066", "#7A6400"},
 	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
 	Purple:       rolePair{"#F778BA", "#7A4AD6"},

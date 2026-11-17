@@ -31,7 +31,7 @@ func inheritColors() Palette {
 		Accent: c(cyan), Sel: c(brightBlack), Ok: c(green), Info: c(blue), Warn: c(brightRed), Bad: c(red),
 		Bg: lipgloss.NoColor{}, Panel: lipgloss.NoColor{},
 		Purple: c(magenta), Gold: c(yellow), Lead: lipgloss.NoColor{}, Draft: c(brightBlue),
-		Marginal: c(brightMagenta),
+		Marginal: c(yellow),
 		Inherit:  true,
 	}
 }

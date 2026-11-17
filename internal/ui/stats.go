@@ -426,7 +426,7 @@ func statusPlural(status string) string {
 // as too new to judge; definition is the one-line meaning of a Response, kept if space
 // allows.
 func (m model) statsResponse(p pal, r reporting.StatsReport, w int) (lines, definition []string) {
-	value := p.Text(p.Fg).Render("—")
+	value := p.Text(p.Dim).Render("not enough sent yet")
 	if r.Response.OK {
 		value = statsBar(p, p.Purple, r.Response.Reached, r.Response.Applied) + " " +
 			p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("%d%%", r.Response.Rate)) +
@@ -510,7 +510,7 @@ func (m model) statsTracks(p pal, r reporting.StatsReport, w int) (lines, note [
 	}
 	lines = []string{statsHeading(p, "By track", p.Text(p.Dim).Render(fmt.Sprintf(cols, "Applied", "Counted", "Responses", "Rate")))}
 	for _, track := range sent {
-		rate := "—"
+		rate := ""
 		if track.OK {
 			rate = fmt.Sprintf("%d%%", track.Rate)
 		}
