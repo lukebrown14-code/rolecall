@@ -26,16 +26,15 @@ const usageErrorExitCode = 2
 var version = "dev"
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "init" {
-		err := initCommand(os.Args[2:], os.Stdout, os.Stderr)
-		if errors.Is(err, flag.ErrHelp) {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "init":
+			exitOn(initCommand(os.Args[2:], os.Stdout, os.Stderr))
+			return
+		case "move":
+			exitOn(moveCommand(os.Args[2:], os.Stdout, os.Stderr))
 			return
 		}
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		return
 	}
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
 		flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
@@ -69,8 +68,17 @@ func main() {
 	}
 }
 
+// exitOn ends a subcommand: quietly for --help, with the message and status 1 for an error.
+func exitOn(err error) {
+	if err == nil || errors.Is(err, flag.ErrHelp) {
+		return
+	}
+	fmt.Fprintln(os.Stderr, err)
+	os.Exit(1)
+}
+
 // usage is `rolecall --help`: the subcommands first, so someone who skipped the install
-// script can find init and doctor from the binary, then the TUI's own flags.
+// script can find init, doctor and move from the binary, then the TUI's own flags.
 func usage() {
 	out := flag.CommandLine.Output()
 	_, _ = fmt.Fprint(out, `usage: rolecall [--dir PATH]    open the Workspace in the terminal app
@@ -79,6 +87,9 @@ func usage() {
                                  makes DIR the default when config.toml names another
        rolecall doctor [--dir PATH]
                                  check the Workspace and the tools rolecall uses
+       rolecall move [--dir PATH] FOLDER STATUS
+                                 move an Application to a Status as the app does;
+                                 Applied also saves sent/
 
 Flags:
 `)
