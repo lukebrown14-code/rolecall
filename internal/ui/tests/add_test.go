@@ -45,7 +45,7 @@ func newAddHarness(t *testing.T) *addHarness {
 			return done(os.WriteFile(path, []byte("Pasted JD"), 0600))
 		}
 	}
-	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, ui.WithExternalRunner(runner))
+	h.tm = newDriver(t, h.root, fixtureClock, 120, 40, ui.WithEditor("myeditor"), ui.WithExternalRunner(runner))
 	h.wait("Leads 7")
 	return h
 }
