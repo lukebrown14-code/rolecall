@@ -10,11 +10,11 @@ rolecall init [DIR]   # creates the Workspace (default ./rolecall) and its local
 rolecall              # opens the app; the first time, it asks for the Contact (Name, Email required)
 rolecall doctor       # checks the Workspace, typst, pandoc, Python, fonts, Plugin and Harness
 rolecall move FOLDER STATUS   # moves an Application to a Status as the app does; Applied also saves sent/
-rolecall now [--days N] [--list]   # one plain line: follow-ups due, next steps and closing dates within N days (7)
+rolecall now [--days N] [--list]   # one plain line: Follow-up due items, next steps and closing dates within N days (7)
 rolecall export [--format csv|json | --ics] [--out FILE]   # every Application as CSV or JSON, or next steps and close dates as .ics
 ```
 
-`now` and `export` are read-only and take `--dir PATH`; `export` writes only where `--out` says.
+`now` and `export` only read the Workspace and take `--dir PATH`; `export` writes only where `--out` says.
 `e` on an Application also takes a **next step** (a date and what it is) and its first
 **contact**; moving one to Rejected or Withdrawn asks why it ended (optional), which Stats
 shows as where Applications dropped off.
