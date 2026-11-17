@@ -26,6 +26,7 @@ from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import adfacts  # noqa: E402
+import aggregator  # noqa: E402
 import httpfetch  # noqa: E402
 import meta as meta_store  # noqa: E402
 from signals import blockers_for, scan  # noqa: E402
@@ -241,28 +242,62 @@ def page_meta(html):
     return meta
 
 
-def fetch_page(url):
-    """(text, meta) for a URL; exits via warn() when the ad cannot be read."""
-    host = re.sub(r"^https?://(www\.)?", "", url).split("/")[0]
+PASTE_HINT = (
+    "Copy the job description from your browser and run:",
+    "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
+)
+MIN_TEXT = 400
+
+
+def _host(url):
+    return re.sub(r"^https?://(www\.)?", "", url).split("/")[0]
+
+
+def _read_page(url):
+    """(html, text, meta) of one raw page, or FetchError."""
+    html = httpfetch.fetch(url, user_agent="Mozilla/5.0", html_only=True)
+    text, meta = html_to_job(html, ats=any(part in _host(url) for part in ATS_HOSTS))
+    return html, text, meta
+
+
+def fetch_page(url, follow=True):
+    """(text, meta) for a URL; exits via warn() when the ad cannot be read.
+
+    The page is always fetched raw, never summarised. When it is an aggregator listing
+    with a link to the employer's own posting, that posting is fetched instead and
+    ``meta["url"]`` is it, ``meta["aggregator_url"]`` the listing. A link that cannot be
+    read falls back to the listing, marked a summary.
+    """
+    host = _host(url)
     if any(walled in host for walled in LOGIN_WALLED):
         warn(
+            "login_wall",
             f"{host} serves job ads behind a login, so fetching it will not work.",
             "Open the ad in your browser, copy the description, and run:",
             "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
         )
 
     try:
-        html = httpfetch.fetch(url, user_agent="Mozilla/5.0")
+        html, text, meta = _read_page(url)
     except httpfetch.FetchError as error:
+        warn(error.kind or "unreachable", f"Could not fetch {error}", *PASTE_HINT)
+    listing = aggregator.is_aggregator(url)
+    if listing and follow:
+        original = aggregator.original_link(html, url)
+        if original:
+            try:
+                _, original_text, original_meta = _read_page(original)
+            except httpfetch.FetchError:
+                original_text = ""
+            if len(original_text) >= MIN_TEXT:
+                original_meta.update(url=original, aggregator_url=url)
+                return original_text, original_meta
+        meta["completeness"] = "summary"  # the listing holds a copy, not the employer's ad
+        if original:
+            meta["original_unreachable"] = original
+    if len(text) < MIN_TEXT:
         warn(
-            f"Could not fetch {error}",
-            "Copy the job description from your browser and run:",
-            "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
-        )
-
-    text, meta = html_to_job(html, ats=any(host_part in host for host_part in ATS_HOSTS))
-    if len(text) < 400:
-        warn(
+            "thin_page",
             f"Fetched {url} but only got {len(text)} characters of text.",
             "The page is probably rendered client-side. Paste the description instead:",
             "    python3 plugin/scripts/new-job.py --track <TRACK> --paste",
@@ -295,11 +330,22 @@ def fetch(url):
     return fetch_page(url)[0]
 
 
-def warn(*lines) -> NoReturn:
+# Set by --fetch-only: a failure then ends with one JSON line the TUI reads (ticket #210).
+JSON_ERRORS = False
+
+
+def fail_line(kind, message):
+    """The one machine-readable failure line: ``{"error": ..., "kind": ...}``."""
+    return json.dumps({"error": message, "kind": kind})
+
+
+def warn(kind, *lines) -> NoReturn:
     print("\n  WARNING", file=sys.stderr)
     for line in lines:
         print(f"  {line}", file=sys.stderr)
     print(file=sys.stderr)
+    if JSON_ERRORS:
+        print(fail_line(kind, lines[0].strip()), file=sys.stderr)
     sys.exit(2)
 
 
@@ -489,8 +535,8 @@ def read_input(args):
     paste is parsed like a fetched page."""
     meta = {}
     if args.url:
-        jd, meta = fetch_page(args.url)
-        source = args.url
+        jd, meta = fetch_page(args.url, follow=not getattr(args, "no_follow", False))
+        source = meta.get("url") or args.url
     elif args.file:
         path = Path(args.file).expanduser()
         if not path.exists():
@@ -507,7 +553,17 @@ def read_input(args):
     return jd.strip(), source, meta
 
 
+def too_short(jd):
+    """Exit when the ad text is too short to be an ad; a JSON line first under --fetch-only."""
+    message = f"Job description is only {len(jd)} characters -- that looks wrong."
+    print(message, file=sys.stderr)
+    if JSON_ERRORS:
+        print(fail_line("too_short", message), file=sys.stderr)
+    sys.exit(1)
+
+
 def main(argv=None):
+    global JSON_ERRORS
     workspace = workspace_from_cli(data_from_argv(argv))
     tracks = load(workspace).tracks
 
@@ -524,6 +580,17 @@ def main(argv=None):
         "--fetch-only",
         action="store_true",
         help="print the JD text and visa signals as JSON and exit; writes nothing",
+    )
+    parser.add_argument(
+        "--listing-url",
+        default="",
+        help="the aggregator listing the ad was found on, when --url is the employer's own "
+        "posting (recorded as aggregator_url)",
+    )
+    parser.add_argument(
+        "--no-follow",
+        action="store_true",
+        help="do not follow an aggregator listing to the employer's own posting",
     )
     parser.add_argument("--company")
     parser.add_argument("--role")
@@ -551,9 +618,10 @@ def main(argv=None):
     # plus the free visa/clearance signals, so a caller can see them before
     # spending a model call.
     if args.fetch_only:
+        JSON_ERRORS = True
         jd, _src, meta = read_input(args)
         if len(jd) < 200:
-            sys.exit(f"Job description is only {len(jd)} characters -- that looks wrong.")
+            too_short(jd)
         facts = extract_facts(jd, args.role or meta.get("role", ""), meta)
         print(
             json.dumps(
@@ -568,7 +636,13 @@ def main(argv=None):
 
     jd, ad_source, meta = read_input(args)
     if len(jd) < 200:
-        sys.exit(f"Job description is only {len(jd)} characters -- that looks wrong.")
+        too_short(jd)
+    listing_url = meta.get("aggregator_url") or args.listing_url
+    if listing_url:
+        try:
+            httpfetch.check_url(listing_url)
+        except httpfetch.FetchError as error:
+            sys.exit(f"rolecall: --listing-url {error}")
 
     # Company/role: explicit flag, then a Company:/Role: line, then the page's
     # structured data (JSON-LD, og:title, <title>), then a placeholder.
@@ -600,11 +674,15 @@ def main(argv=None):
         "recruiter": _one_line(args.recruiter),
         "search_query": _one_line(args.search_query),
         "added_by": args.added_by,
-        "jd_completeness": args.completeness or ("blurb" if len(jd) < BLURB_CHARS else ""),
+        "jd_completeness": args.completeness
+        or meta.get("completeness")
+        or ("blurb" if len(jd) < BLURB_CHARS else ""),
         **ad_facts(jd, facts),
     }
     if not args.allow_duplicate:
         dupes = meta_store.duplicates_of(workspace, fields, jd)
+        dupes += [(meta_store.rescan(folder), "same listing") for folder in
+                  aggregator.saved_with_listing(workspace, listing_url)] if listing_url else []
         if dupes:
             listed = "\n  ".join(f"{app.folder} ({why})" for app, why in dupes)
             sys.exit("rolecall: not saved, it looks like a saved Application:\n  " + listed +
@@ -623,6 +701,8 @@ def main(argv=None):
     except meta_store.MetaError as error:
         sys.exit(f"rolecall: {error}")
 
+    if listing_url:
+        meta_store.patch(folder, {"aggregator_url": listing_url})
     try:
         (folder / "jd.md").write_text(jd.strip() + "\n")
     except OSError as error:
@@ -635,6 +715,11 @@ def main(argv=None):
     for key in ("salary", "closes", "type", "seniority"):
         if facts[key]:
             print(f"  {key:<16} {facts[key]}")
+    if listing_url:
+        print(f"  {'listing':<16} {listing_url} (the ad is the employer's own posting)")
+    if meta.get("original_unreachable"):
+        print(f"  The listing links to {meta['original_unreachable']}, which could not be")
+        print("  read, so jd.md holds the aggregator's copy and may be partial.")
     if company == "company" or role == "role":
         print("\n  Company/role could not be read from the JD -- re-run with --company")
         print("  and --role, or correct meta.yml before assessing fit.")

@@ -27,7 +27,8 @@ capturing a URL, ask whether it is already in the Workspace:
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/meta.py" --data "$ROLECALL_WORKSPACE" find-url https://example.test/jobs/123
 ```
 
-An empty list means the URL is new. A non-empty list names the Application folders that already
+An empty list means the URL is new. (A listing already captured is refused later by the
+script, which also checks each saved `aggregator_url`.) A non-empty list names the Application folders that already
 belong to it, whatever their Status. **Do not create a duplicate.** Report the existing folder
 and stop, unless the Owner explicitly wants a second Application (a re-advertised role, for
 example) — then say so in the report.
@@ -42,15 +43,32 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/new-job.py" --track SWE --file ~/Desktop/
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/new-job.py" --track SWE --paste                              # read stdin
 ```
 
-**Fetch the raw page, always.** For a URL, use `new-job.py --url` (it fetches with
-`httpfetch`). Never read the ad with the agent's web-fetch tool: that returns a summary, and
-the saved `jd.md` loses detail (a Jora copy held about half of the employer's own ad).
+**Fetch the raw page, always.** For a URL, use `new-job.py --url` (it fetches the page itself
+with `httpfetch`: http and https only, size-capped). Never read the ad with the agent's web-fetch
+tool: that returns a summary, and the saved `jd.md` loses detail (a Jora copy held about half of
+the employer's own ad). Pass the URL straight to the script, and do not paste fetched text into
+`--paste`.
 
-**Aggregator listings** (Jora, Indeed, Seek, LinkedIn) often hold a cut-down copy. Fetch the
-listing raw, find its link to the employer's own posting, and capture from that URL if it is
-reachable (record the listing with `--source`). If it is not reachable, capture the listing
-and say the ad may be partial (`--completeness summary`). Never type a link you have not
-seen on the page.
+**Aggregator listings** (Jora, Adzuna, Jooble, Careerjet and the like) often hold a cut-down copy.
+The script follows them for you: it reads the raw listing, finds the link on the page to the
+employer's own posting, fetches that instead, and records both. `url` in `meta.yml` is the
+employer's ad and `aggregator_url` is the listing it was found on. If the link cannot be read,
+it captures the listing and marks `jd_completeness: summary`; say so in the report, because the
+ad may be partial. `--no-follow` keeps the listing.
+
+For a listing site the script does not know, it saves the listing's own copy. If the Owner gives you
+the employer's link, or you saw it in the page the script fetched, capture that with
+`--url <original> --listing-url <listing>`. Never type a link you have not seen. Seek, LinkedIn, Indeed and
+Glassdoor need a login: the script says so, and the ad is captured from pasted text.
+
+When a fetch fails, the script says why in one of these words, and what to do:
+
+| Reason | Do |
+| --- | --- |
+| `login_wall`, `blocked`, `thin_page`, `non_html`, `too_short` | ask the Owner to paste the ad text, then `--paste --source <url>` |
+| `not_found` | tell the Owner the ad is probably gone; ask for another link |
+| `timeout`, `unreachable` | try once more, then ask for a paste |
+| `bad_url` | ask the Owner for the web address again |
 
 - `--track` is required and names one of the Workspace's tracks.
 - `--paste` reads the JD from stdin, so pipe or paste the ad text in.

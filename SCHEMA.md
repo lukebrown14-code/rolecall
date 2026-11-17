@@ -114,6 +114,7 @@ status_log:
 | `company` | string | ✅ | the real employer. For an agency ad, the client the recruiter is hiring for |
 | `track` | string | ✅ | one of `workspace.json` → `tracks`. Unknown values are shown, not rejected |
 | `url` | string | — | ad URL. The Sweep's dedupe key |
+| `aggregator_url` | string | — | the aggregator listing the ad was found on, when `url` is the employer's own posting that the listing links to. Written by `new-job.py`; `url` stays the dedupe key |
 | `closes` | date `YYYY-MM-DD` | — | application close date |
 | `fit` | enum | — | `Strong` · `Good` · `Marginal` · `Poor`. Empty or missing = not assessed |
 | `resume_only` | bool | — | `true` / `false`. Missing = `false` |
