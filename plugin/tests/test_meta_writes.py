@@ -414,3 +414,71 @@ def test_find_by_url_is_exact(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == []
+
+
+def _load_meta():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("meta_under_test", META)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_dedupe_status_log_keeps_the_last_of_each_repeat():
+    meta = _load_meta()
+    log = [
+        ("Applied", "2026-03-01", True),
+        ("Lead", "2026-03-05", True),
+        ("Applied", "2026-03-01", True),
+        ("Interviewing", "2026-04-01T00:00:00Z", False),
+        ("Interviewing", "2026-04-01T00:00:00Z", False),
+    ]
+
+    assert meta.dedupe_status_log(log) == [
+        ("Lead", "2026-03-05", True),
+        ("Applied", "2026-03-01", True),
+        ("Interviewing", "2026-04-01T00:00:00Z", False),
+    ]
+
+
+@pytest.mark.parametrize("writer", ["set_status_log", "update"])
+def test_whole_log_writes_drop_exact_repeats(tmp_path, writer):
+    meta = _load_meta()
+    workspace = copy_fixture_workspace(tmp_path)
+    folder = workspace / "jobs" / "SWE" / "status-draft"
+    log = [
+        ("Lead", "2026-01-01T00:00:00Z", False),
+        ("Applied", "2026-01-02T00:00:00Z", False),
+        ("Applied", "2026-01-02T00:00:00Z", False),
+    ]
+
+    if writer == "set_status_log":
+        meta.set_status_log(folder, log)
+    else:
+        meta.update(folder, {}, log)
+
+    application = meta.rescan(folder)
+    assert [(e.status, e.at) for e in application.status_log] == [
+        ("Lead", "2026-01-01T00:00:00Z"),
+        ("Applied", "2026-01-02T00:00:00Z"),
+    ]
+    assert application.status == "Applied"
+
+
+def test_duplicate_status_entries_names_each_repeat_once(tmp_path):
+    meta = _load_meta()
+    folder = tmp_path / "app"
+    folder.mkdir()
+    (folder / "meta.yml").write_text(
+        "schema: 1\ntitle: T\ncompany: C\ntrack: SWE\nstatus_log:\n"
+        "  - {status: Applied, at: 2026-01-02T00:00:00Z}\n"
+        "  - {status: Applied, at: 2026-01-02T00:00:00Z}\n"
+        "  - {status: Applied, at: 2026-01-02T00:00:00Z}\n"
+    )
+
+    application = meta.rescan(folder)
+
+    assert meta.duplicate_status_entries(application.status_log) == [
+        ("Applied", "2026-01-02T00:00:00Z")
+    ]

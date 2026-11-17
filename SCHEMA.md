@@ -16,7 +16,11 @@ defined in `GLOSSARY.md`.
 ```
 <workspace>/
 ├─ workspace.json              # tracks, gates, Search rules, Source registry
-├─ brand.typ                   # optional document Template override (see below)
+├─ templates/                  # optional document Template overrides (see below)
+│  ├─ brand.typ
+│  ├─ resume.typ
+│  └─ cover-letter.typ
+├─ brand.typ                   # older spot for the brand.typ override (see below)
 ├─ profile/                    # Owner facts: read by the TUI and agent, written by the agent and Owner
 │  ├─ master-profile.md
 │  ├─ phrasing-bank.md
@@ -176,6 +180,9 @@ Each entry is a flow map on one line:
   `Withdrawn` · `Dismissed`. Case-sensitive.
 - **Append only.** Entries are never edited or removed. Undo appends the earlier Status again.
 - An entry is never appended if it repeats the current Status.
+- An exact repeat (same Status and `at`) is never written: a write that replaces the whole
+  log (migration) keeps only the last copy, and `rolecall doctor` names any repeat already
+  in a file.
 - An empty log (`status_log: []` or no entries) is read as `Lead`.
 - **Applied date** = `at` of the **first** `Applied` entry. It's never stored separately.
 - **Last change** = `at` of the last entry. Follow-up due is measured from it, or from
@@ -404,13 +411,24 @@ role coverage, a `## To assess` list (one
 `### <title> — <company>` block per candidate), a `## Blocked` list, and a
 `## Not reachable by this script` note.
 
-## `brand.typ` (optional document Template override)
+## `templates/` (optional document Template overrides)
 
-The Plugin's default document Template is `plugin/templates/brand.typ`. To customize the
-resume and cover-letter look for a Workspace, copy that file to `<workspace>/brand.typ` and
-edit the copy. The next Build uses the Workspace file; if it is absent, the Plugin default is
-used. Keep the `#let` names imported by `resume.typ` and `cover-letter.typ` when editing, or
-Typst may fail to compile the documents.
+The Plugin's default document Template is three files in `plugin/templates/`: `brand.typ`
+(colours, fonts and the header band, shared by both documents), `resume.typ` and
+`cover-letter.typ`. To customize one for a Workspace, copy it to `<workspace>/templates/`
+under the same name and edit the copy. The next Build uses each Workspace file it finds and
+the Plugin default for the rest, and names the overrides it used.
+
+- `<workspace>/brand.typ` at the Workspace root is the older spot for the `brand.typ`
+  override. It still applies when `templates/brand.typ` is absent.
+- Keep the `#let` names that `resume.typ` and `cover-letter.typ` import from `brand.typ`, and
+  the `{{BODY}}`, `{{CONTACT}}` and `{{NAME}}` markers in the document templates, or the
+  Build fails.
+- Plugin updates to a file never reach a Workspace copy of it. `rolecall doctor` names every
+  override in use.
+- Nothing else is read from `templates/`. `rolecall doctor` warns about any other file
+  there, such as a `style.md` (writing rules belong in `profile/writing-preferences.md`) or
+  `fonts/` (fonts load from the Plugin).
 
 ## Fixtures
 

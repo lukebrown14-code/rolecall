@@ -469,6 +469,7 @@ def fake_tools(tmp_path):
     (bin_dir / "typst").write_text(
         '#!/bin/sh\nfor arg; do last="$arg"; case "$arg" in *.typ) source="$arg";; esac; done\n'
         'cp "$(dirname "$source")/templates/brand.typ" "$ROLECALL_TEST_BRAND_CAPTURE"\n'
+        'cat "$source" >> "$ROLECALL_TEST_SOURCE_CAPTURE"\n'
         'printf "pdf" > "$last"\n'
     )
     (bin_dir / "pdftotext").write_text(
@@ -498,6 +499,7 @@ def run_cli(tmp_path, workspace, folder, *args):
     env = dict(os.environ)
     env["PATH"] = f"{bin_dir}:{env['PATH']}"
     env["ROLECALL_TEST_BRAND_CAPTURE"] = str(tmp_path / "captured-brand.typ")
+    env["ROLECALL_TEST_SOURCE_CAPTURE"] = str(tmp_path / "captured-sources.typ")
     return subprocess.run(
         [sys.executable, str(SCRIPT), str(folder), "--data", str(workspace), *args],
         capture_output=True,
@@ -525,6 +527,44 @@ def test_cli_build_falls_back_to_plugin_brand_typ(tmp_path):
     assert result.returncode == 0, result.stderr + result.stdout
     plugin_brand = (ROOT / "plugin" / "templates" / "brand.typ").read_text()
     assert (tmp_path / "captured-brand.typ").read_text() == plugin_brand
+
+
+def test_cli_build_prefers_templates_folder_brand_over_root_brand(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+    (workspace / "brand.typ").write_text("// root brand\n")
+    (workspace / "templates").mkdir()
+    (workspace / "templates" / "brand.typ").write_text("// templates-folder brand\n")
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (tmp_path / "captured-brand.typ").read_text() == "// templates-folder brand\n"
+    assert "templates: Workspace templates/brand.typ" in result.stdout
+
+
+@pytest.mark.parametrize("name", ["resume.typ", "cover-letter.typ"])
+def test_cli_build_uses_a_workspace_document_template(tmp_path, name):
+    workspace, folder = cli_workspace(tmp_path)
+    plugin_template = (ROOT / "plugin" / "templates" / name).read_text()
+    (workspace / "templates").mkdir()
+    (workspace / "templates" / name).write_text("// Workspace's own " + name + "\n" + plugin_template)
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    sources = (tmp_path / "captured-sources.typ").read_text()
+    assert "// Workspace's own " + name in sources
+    assert sources.count("#import \"/templates/brand.typ\"") == 2
+    assert "templates: Workspace templates/" + name in result.stdout
+
+
+def test_cli_build_without_overrides_names_none(tmp_path):
+    workspace, folder = cli_workspace(tmp_path)
+
+    result = run_cli(tmp_path, workspace, folder)
+
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "templates: Workspace" not in result.stdout
 
 
 def draft_entries(text):
@@ -644,3 +684,38 @@ def test_cli_malformed_meta_is_refused_before_any_output(tmp_path):
     assert "malformed" in result.stderr
     assert not (folder / "out").exists()
     assert (folder / "meta.yml").read_bytes() == before
+
+
+# --- Markdown line breaks (#217) -------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "line",
+    ["Kind regards,", "Regards,", "Yours sincerely,", "Many thanks,", "Thank you,", "Dear Sam Lee,"],
+)
+def test_keep_line_breaks_after_a_salutation_or_sign_off(line):
+    text = f"Body.\n\n{line}\nAlex Quinn\n"
+
+    assert build.keep_line_breaks(text) == f"Body.\n\n{line}\\\nAlex Quinn\n"
+
+
+def test_keep_line_breaks_between_consecutive_bold_lines():
+    text = "**Languages:** Python, Go\n**Cloud:** AWS\n**Data:** SQL\n\nNext paragraph\n"
+
+    assert build.keep_line_breaks(text) == (
+        "**Languages:** Python, Go\\\n**Cloud:** AWS\\\n**Data:** SQL\n\nNext paragraph\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Kind regards,\n\nAlex Quinn\n",  # already its own paragraph
+        "Thanks, Sam, for the call\nand the notes\n",  # a sentence, not a sign-off
+        "- Built services,\n  and **owned** them\n",  # a wrapped list item
+        "```\n**a**\n**b**\n```\n",  # code is left alone
+        "Kind regards,\\\nAlex Quinn\n",  # already broken
+    ],
+)
+def test_keep_line_breaks_leaves_other_text_alone(text):
+    assert build.keep_line_breaks(text) == text

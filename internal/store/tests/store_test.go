@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
@@ -46,5 +47,25 @@ func TestScanFixture(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v want %+v", got, want)
+	}
+}
+
+func TestRepeatedStatusEntriesNamesEachRepeatOnce(t *testing.T) {
+	a := store.Application{StatusLog: []store.StatusEntry{
+		{Status: "Applied", At: "2026-03-01"},
+		{Status: "Lead", At: "2026-03-05"},
+		{Status: "Applied", At: "2026-03-01"},
+		{Status: "Applied", At: "2026-03-01"},
+		{Status: "Interviewing", At: "2026-04-01T00:00:00Z"},
+	}}
+
+	got := a.RepeatedStatusEntries()
+
+	want := []store.StatusEntry{{Status: "Applied", At: "2026-03-01"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("RepeatedStatusEntries = %v, want %v", got, want)
+	}
+	if (store.Application{}).RepeatedStatusEntries() != nil {
+		t.Error("an empty log has no repeats")
 	}
 }

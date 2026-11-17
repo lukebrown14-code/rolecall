@@ -133,10 +133,13 @@ Plugin's skills and set the `harness` command in your local `config.toml` to ena
 
 ## Make your documents yours
 
-The default resume and cover-letter layouts use Typst. To customize the header, copy
-`plugin/templates/brand.typ` into the root of your Workspace as `brand.typ` and edit it there.
-The Workspace copy overrides the bundled default and stays with your data when rolecall is
-updated. See the comments in the template for the available fields.
+The default resume and cover-letter layouts use Typst. To customize them, copy any of
+`plugin/templates/brand.typ` (colours, fonts and the header), `resume.typ` or
+`cover-letter.typ` into a `templates/` folder in your Workspace and edit the copy there.
+Each Workspace copy overrides the bundled file of the same name and stays with your data
+when rolecall is updated, but it also stops receiving the Plugin's fixes to that file.
+`rolecall doctor` lists the overrides in use and warns about files in `templates/` the build
+never reads. See the comments in the templates for the available fields.
 
 ## Privacy
 

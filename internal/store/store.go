@@ -42,6 +42,24 @@ func (a Application) Filtered() bool {
 	return a.Status == StatusDismissed && a.FilterReason != "" && !a.FilterOverruled
 }
 
+// RepeatedStatusEntries lists each status_log entry that appears more than once with
+// the same Status and at, once each, in log order. Nothing appends such a repeat; one
+// in the file was written by hand or by an older migration, and doctor names it.
+func (a Application) RepeatedStatusEntries() []StatusEntry {
+	type key struct{ status, at string }
+	seen, named := map[key]bool{}, map[key]bool{}
+	var repeated []StatusEntry
+	for _, e := range a.StatusLog {
+		k := key{e.Status, e.At}
+		if seen[k] && !named[k] {
+			named[k] = true
+			repeated = append(repeated, e)
+		}
+		seen[k] = true
+	}
+	return repeated
+}
+
 // Unsent reports that the Application is still the Owner's to send: a Lead or a Draft.
 // Documents are prepared, built and dismissed only while it is.
 func (a Application) Unsent() bool {

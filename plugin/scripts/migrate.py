@@ -318,7 +318,13 @@ def _plan_log(app, status, applied, tracker_date, fallback, details):
     if status and status != result[-1][0]:
         details.append(f"status_log: {status} appended (approx, {status_stamp})")
         result.append((status, status_stamp, True))
-    return result
+    # When the tracker Status is Applied and its date is the legacy applied date,
+    # the prepended and the appended Applied entries are the same entry. Keep the
+    # later one, so the Application still reads as Applied.
+    deduped = meta.dedupe_status_log(result)
+    if len(deduped) < len(result):
+        details.append("status_log: a repeated entry (same Status and date) written once")
+    return deduped
 
 
 def plan(workspace):
