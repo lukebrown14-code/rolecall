@@ -66,7 +66,10 @@ one (`rolecall --dir DIR`); `rolecall init --switch DIR` makes DIR the default i
 
 Until you add a Lead, the app's welcome lists the setup steps still to do, each with the key
 that goes there. Add Tracks and a Search area later under Settings (`6`). To check local
-dependencies, run `rolecall doctor`; `rolecall --help` lists every command.
+dependencies, run `rolecall doctor`; `rolecall --help` lists every command. To move an Application
+from a script (or an agent you have asked to), run `rolecall move FOLDER STATUS`, for example
+`rolecall move jobs/SWE/acme applied`: it appends the Status as the app does and, for Applied,
+saves `sent/`.
 
 To try the interface with the fictional example Workspace from a source checkout, run:
 

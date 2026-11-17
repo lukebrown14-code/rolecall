@@ -9,6 +9,7 @@ authoritative; for the Owner's own paths, `rolecall doctor` is.
 rolecall init [DIR]   # creates the Workspace (default ./rolecall) and its local git repo; asks nothing
 rolecall              # opens the app; the first time, it asks for the Contact (Name, Email required)
 rolecall doctor       # checks the Workspace, typst, pandoc, Python, fonts, Plugin and Harness
+rolecall move FOLDER STATUS   # moves an Application to a Status as the app does; Applied also saves sent/
 ```
 
 Esc skips the Contact form; it returns on the next launch until Name and Email are saved.

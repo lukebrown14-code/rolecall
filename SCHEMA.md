@@ -196,7 +196,8 @@ Each entry is a flow map on one line:
 | Writer | May write | Must not |
 |---|---|---|
 | **TUI** | creates folders. Writes any key through Add / Edit, and `followed_up` through `l`. Appends any Status | touch docs, `fit.md`, `out/` |
-| **Agent** (skills) | creates folders (capture, find) through `meta.py create`, never by hand. Writes `title` `company` `track` `url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session |
+| **`rolecall move`** | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
+| **Agent** (skills) | creates folders (capture, find) through `meta.py create`, never by hand. Writes `title` `company` `track` `url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md` and `follow-up.md` | append to `status_log`, except a new folder's first `Lead` entry, a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
 | **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | **`build.py`** | `out/`. Appends `Draft` **only** when the current Status is `Lead` and the build produced PDFs | any other key or Status |
 
