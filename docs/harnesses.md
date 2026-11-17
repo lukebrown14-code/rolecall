@@ -10,7 +10,6 @@ CLI and opencode follow.
 | Installed with | Plugin folder |
 |---|---|
 | Install script | `~/.local/share/rolecall/plugin` (or `$ROLECALL_PREFIX/share/rolecall/plugin`) |
-| Homebrew | `$(brew --prefix rolecall)/libexec/plugin` |
 | `go install` | the `plugin` folder of a clone of this repository |
 
 `rolecall doctor` prints the Plugin path it found, on the `Plugin path` line.
@@ -35,8 +34,6 @@ install script:
 claude plugin marketplace add ~/.local/share/rolecall/plugin
 claude plugin install rolecall@rolecall
 ```
-
-For Homebrew, use `"$(brew --prefix rolecall)/libexec/plugin"` as the folder instead.
 
 The marketplace name and Plugin name are both `rolecall`. If Claude Code is already open,
 restart it after installing the Plugin.

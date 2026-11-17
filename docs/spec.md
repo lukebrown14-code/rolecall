@@ -790,7 +790,7 @@ Documents state rules, Build and the Plugin are unchanged.
 | Data | `schema` migrations (`rolecall migrate`) · CSV/spreadsheet import · CSV/JSON export · optional auto-commit on Status change |
 | Finding | per-workspace sources and locations, no default city |
 | Platform | Linux/Windows file opening · `NO_COLOR` · colour-blind-safe markers · small terminals |
-| Release | goreleaser + Homebrew tap · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
+| Release | goreleaser (GitHub Releases and the install script; Homebrew is 1.x) · README, demo, fictional example workspace · MIT licence · CONTRIBUTING · personal-data CI guard · no telemetry |
 
 ### What v1.0 still needs (agreed 2026-11-12)
 
@@ -801,7 +801,7 @@ public-repo cut (#82) is blocked by all of them.
 Settings screen (#58, including the Search area filter in the Sweep), the `create-profile`
 skill, and the release blockers in the table.
 
-**Moved to 1.x:** UK/US style packs and spelling, template choices, CSV import/export,
+**Moved to 1.x:** Homebrew (tap and formula), UK/US style packs and spelling, template choices, CSV import/export,
 auto-commit on Status change, `rolecall migrate`, and #59–#61.
 
 **Platforms:** macOS and Linux are supported; Windows through WSL. Native Windows file
@@ -809,11 +809,11 @@ opening stays but is best-effort, with no CI.
 
 | # | Item | Decision |
 |---|---|---|
-| 1 | Ownership | v1 stays under `lukebrown14-code`: public repo `lukebrown14-code/rolecall`; module path `github.com/lukebrown14-code/rolecall`; tap `lukebrown14-code/homebrew-tap`. The cut renames the private repo to `rolecall-archive` and creates the fresh public `rolecall`; no organization transfer. Moving to an organization is deferred past v1 |
+| 1 | Ownership | v1 stays under `lukebrown14-code`: public repo `lukebrown14-code/rolecall`; module path `github.com/lukebrown14-code/rolecall`. The cut renames the private repo to `rolecall-archive` and creates the fresh public `rolecall`; no organization transfer. Moving to an organization is deferred past v1 |
 | 2 | Licence · CONTRIBUTING | MIT, "the rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
 | 3 | README | Rewrite for the public release, including "Make your documents yours" (the Privacy section is #77) |
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
-| 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases and the tap. Archives include the Plugin; `plugin` defaults to the installed path |
+| 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases. Archives include the Plugin; `plugin` defaults to the installed path |
 | 6 | Harness guides | Claude Code in full (installed Plugin as a local marketplace); one generic guide with `harness` examples for the rest |
 | 7 | `init` and first run | `rolecall init [--switch] [DIR]` asks nothing: it creates the Workspace (default `./rolecall`) and records it in `config.toml`. When `config.toml` already names another existing Workspace, that stays the default and init prints `rolecall --dir DIR` and `rolecall init --switch DIR`; `--switch` repoints `config.toml` (also for an existing Workspace). It writes a starter `profile/master-profile.md` (the Contact table, then each expected `##` heading with a one-line how-to as a comment, so a Profile can be written by hand without a Harness). The app opens on a Contact form (Name and Email required) while either is missing; Esc skips it until the next launch. Tracks and Search area are set in Settings; the Profile comes from the Harness `create-profile` skill. Replaces the Huh wizard |
 | 8 | `create-profile` skill | From a resume (copied into `cv/`) or from scratch by asking questions; gap-filling questions, then the Owner approves the Profile |

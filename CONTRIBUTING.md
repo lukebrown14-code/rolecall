@@ -79,9 +79,8 @@ git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
 The tag runs `.github/workflows/release.yml`: GoReleaser builds macOS and Linux archives
-(with the Plugin), publishes the GitHub Release with `checksums.txt`, and updates the Homebrew
-formula in `lukebrown14-code/homebrew-tap` using the `TAP_GITHUB_TOKEN` secret. The install
-script and Homebrew pick it up from there. Check with
+(with the Plugin) and publishes the GitHub Release with `checksums.txt`. The install script
+picks it up from there. Check with
 `curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scripts/install.sh | sh`
 in a fresh shell.
 
