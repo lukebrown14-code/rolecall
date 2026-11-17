@@ -215,7 +215,7 @@ does not repeat it.
 ### Add form (`a`)
 
 Form fields: URL · **Title*** · **Company*** · **Track** (choice from `workspace.json`) ·
-Closes (`YYYY-MM-DD`) · Fit (choice, blank allowed). The form opens on Title; with a Plugin
+Closes (`YYYY-MM-DD`, `today`, `tomorrow`, `+7d` / `+2w`, or day-first `30 Nov` / `30/11`; a date with no year is its next occurrence, today counting; the parsed date is echoed beside the field, `→ Mon 30 Nov 2026`, and saved as `YYYY-MM-DD`) · Fit (choice, blank allowed). The form opens on Title; with a Plugin
 set it opens on the URL instead, where `Enter` fetches the ad. The URL is optional, and a
 value that is not a web address is refused when the field is left (`✘ URL must start with
 https://`); Edit never refuses a saved URL it did not change. Track needs no `*`: it is a choice and

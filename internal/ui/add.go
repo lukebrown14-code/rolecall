@@ -3,7 +3,6 @@ package ui
 import (
 	"errors"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -48,22 +47,6 @@ func validFirstTrack(s string) error {
 	return nil
 }
 
-func validCloses(s string) error {
-	if s == "" {
-		return nil
-	}
-	if _, err := time.Parse("2006-01-02", s); err != nil {
-		if datePattern.MatchString(s) {
-			// The shape is right, so saying "must be YYYY-MM-DD" would read as wrong.
-			return errors.New("Closes isn't a real date (YYYY-MM-DD)")
-		}
-		return errors.New("Closes must be YYYY-MM-DD")
-	}
-	return nil
-}
-
-var datePattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-
 // openAdd starts the Add form, or reports why it cannot. With no Tracks yet, as in a
 // fresh Workspace, the Track is typed in and saving adds it to workspace.json, so the
 // first Lead needs no trip to Settings. A tracks list the app refused is not written
@@ -76,7 +59,7 @@ func (m *model) openAdd() tea.Cmd {
 		m.err = errors.New("Add needs a Track, and workspace.json's tracks can't be read · 6 Settings › Tracking shows why")
 		return nil
 	}
-	f := newForm(&addValues{track: first}, m.tracks, false)
+	f := newForm(&addValues{track: first}, m.tracks, false, m.now)
 	for i := range f.Fields {
 		switch {
 		case m.plugin != "" && f.Fields[i].Label == fieldURL:
@@ -95,7 +78,7 @@ func (m *model) openAdd() tea.Cmd {
 
 // newForm builds the fields shared by Add and Edit, in one order: URL first (v0.2 URL
 // fetch), so the fields sit in the same place in both. Edit adds Resume only.
-func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
+func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time.Time) *form {
 	trackChoices := make([]choice, len(tracks))
 	for i, t := range tracks {
 		trackChoices[i] = choice{Value: t, Label: t}
@@ -110,7 +93,7 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "SWE", Note: "your first Track",
 			Validate: validFirstTrack}
 	}
-	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD", Validate: validCloses}
+	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD · tomorrow · +7d · 30 Nov", Validate: validCloses(now), Echo: echoCloses(now)}
 	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: fitUnassessed}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
 	fields := []formField{link, titleField, company, track, closes, fit}
 	if !withResumeOnly {
@@ -123,9 +106,9 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool) *form {
 }
 
 // addValues reads the form's answers.
-func readAddValues(f *form) addValues {
+func readAddValues(f *form, now time.Time) addValues {
 	return addValues{title: f.Value(fieldTitle), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
-		closes: f.Value("Closes"), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
+		closes: normaliseCloses(f.Value("Closes"), now), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only")}
 }
 
 // createFields turns the form's answers into the store's create fields.

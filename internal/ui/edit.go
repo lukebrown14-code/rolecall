@@ -24,7 +24,7 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 	m.overlay = &formMode{form: newForm(&addValues{
 		title: a.Title, company: a.Company, track: a.Track, url: a.URL, closes: a.Closes, fit: a.Fit,
 		resumeOnly: boolText(a.ResumeOnly),
-	}, tracks, true), editOf: &a}
+	}, tracks, true, m.now), editOf: &a}
 	return nil
 }
 

@@ -69,7 +69,7 @@ func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		return nil, nil
 	}
 	f := fm.form
-	v := readAddValues(f)
+	v := readAddValues(f, m.now())
 	if fm.editOf != nil {
 		return nil, m.saveEdit(*fm.editOf, v)
 	}
