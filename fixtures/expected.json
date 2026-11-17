@@ -378,7 +378,15 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   },
   {
     "Title": "Engineer #1",
@@ -412,7 +420,15 @@
       "Approx": true
     },
     "HasJD": true,
-    "HasFit": true
+    "HasFit": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   },
   {
     "Title": "Engineer #1",
@@ -445,7 +461,15 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   },
   {
     "Title": "Engineer #1",
@@ -478,7 +502,15 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   },
   {
     "Title": "Engineer #1",
@@ -511,7 +543,15 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   },
   {
     "Title": "Engineer #1",
@@ -544,6 +584,14 @@
       "At": "2026-01-01",
       "Approx": true
     },
-    "HasJD": true
+    "HasJD": true,
+    "Contacts": [
+      {
+        "Name": "Someone",
+        "Role": "",
+        "Email": "",
+        "URL": ""
+      }
+    ]
   }
 ]

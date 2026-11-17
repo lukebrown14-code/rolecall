@@ -309,6 +309,7 @@ func TestAddThenMoveThroughStatusesAndUndo(t *testing.T) {
 	h.waitForStatus(folder, "Interviewing")
 	h.tm.Type("mr")
 	h.waitForStatus(folder, "Rejected")
+	h.esc() // skip the close reason
 	h.tm.Type("u")
 	h.waitForStatus(folder, "Interviewing")
 	h.quit()

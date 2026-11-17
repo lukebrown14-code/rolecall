@@ -30,6 +30,12 @@ type Application struct {
 	// FollowedUp is the day (YYYY-MM-DD) the Owner last followed up without a Status
 	// change, or "". Follow-up due counts from it when it is later than the last change.
 	FollowedUp string
+	// NextStep is what the Owner does next and when (next_step), or nil. Contacts are the
+	// people to write to (contacts, or the legacy contact). CloseReason is why a Rejected
+	// or Withdrawn Application ended (close_reason), shown only while it is one.
+	NextStep    *NextStep
+	Contacts    []Contact
+	CloseReason string
 	AdFacts
 	StatusLog               []StatusEntry
 	AppliedDate, LastChange *StatusEntry

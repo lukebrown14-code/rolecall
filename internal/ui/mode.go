@@ -71,6 +71,9 @@ func (fm *formMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	f := fm.form
 	v := readAddValues(f)
 	if fm.editOf != nil {
+		if label, problem := editProblem(v); problem != "" {
+			return fm.refuse(label, problem), nil
+		}
 		return nil, m.saveEdit(*fm.editOf, v)
 	}
 	fields := createFields(v)

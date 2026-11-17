@@ -204,6 +204,14 @@ table, and the feedback line says `Moved to Interviewing · <Title> (<Company>)`
 1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, `y` mark Applied, `n`/`Esc` cancel.
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
+**Moving to Rejected or Withdrawn** asks a second, optional question once the move is done: a
+`Why did it end?` pop-up with one field cycling `skip` · `no-response` · `after-screen` ·
+`after-interview` · `salary` · `role-closed` · `other` (`←` `→`; `enter` saves, `esc` or `skip`
+leaves it as it is). The answer is `close_reason` (SCHEMA); free text can be typed into `meta.yml`.
+The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
+Status travels with the entry that made it, and goes when the Application leaves that Status (the
+undo of the move included). The card's `CLOSED` row shows it.
+
 **Undo (`u`):** a session stack of `(folder, previous Status)`. Undo appends the previous
 Status (the log stays append-only) and says so on the feedback line (`Undone · back to Applied · Title (Company)`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
 Undoing an Application's first move back to Lead leaves it as it was: the card says `Not moved
@@ -253,8 +261,13 @@ On save:
 
 ### Edit form (`e` in a table)
 
-The same fields as Add, in the same order, plus **Resume only** (yes/no). Saving patches only the keys that
-changed. Changing Track does **not** move the folder.
+The same fields as Add, in the same order, plus **Resume only** (yes/no), **Next step** (a date,
+`YYYY-MM-DD` with an optional `THH:MM`, under the Closes rules: it must be a real date), **What** (the next step in
+words), and the first Contact (**Contact**, **Role**, **Email / URL**). A What needs a date, a Role needs a name or
+address, and a Contact's address is an email or an `https://` link; the form stays open with the reason under the
+field. Clearing the date removes `next_step`. Only the first Contact is edited here; the rest of `contacts` is kept
+as it is, and saving a list drops the legacy `contact` key (its value is read into the list first). Saving patches
+only the keys that changed. Changing Track does **not** move the folder.
 
 ### Detail view (`v` / `Enter`)
 
@@ -297,6 +310,27 @@ either end.
 
 `Esc` goes back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the v0.2 keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
+
+### Next step, contacts and exports
+
+Added after 0.6.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
+
+- **Next step** (`next_step: {at, what}`): shown as `next 4 Oct 10:30 · Phone screen` on Interviewing and Offer
+  rows (amber within 7 days, `▲` within 2, `was …` struck through once past), as a `NEXT STEP` row in the card and
+  Overview, and in Stats → Now. Edited with `e`.
+- **Contacts** (`contacts:`): a `CONTACTS` card row, one line each (`Sam Lee, Recruiter · sam@…`), below the
+  timeline. `e` edits the first. The `draft-follow-up` skill addresses the first. The old `contact` key still
+  reads as the one Contact; no writer adds it.
+- **`rolecall now [--dir PATH] [--days N] [--list]`**: the Now panel as one plain line, `2 follow-ups due | 1 next
+  step within 7 days | 3 closing within 7 days`, no colour, nothing printed when nothing is due, exit 0. The
+  follow-up period is Settings'. `--list` prints `kind<TAB>folder<TAB>when<TAB>title<TAB>company` per item. It is
+  the same code as the panel, so the two never count differently.
+- **`rolecall export [--dir PATH] [--format csv|json | --ics] [--out FILE]`**: every well-formed Application
+  (core fields, dates from the status log with undone moves left out, next step, contacts, `close_reason`, the
+  log), or with `--ics` an iCalendar file of next steps (a one-hour event with a time, otherwise all day) and the
+  close dates of Leads and Drafts. Malformed ones are skipped and counted on stderr. Both commands are
+  read-only. `export` writes only to `--out` (ADR-0005), through a temp file, mode 0600; without `--out` it prints
+  to stdout. A CSV cell starting `=` `+` `-` `@` gets a leading `'`.
 
 ### Download (`d`)
 
@@ -745,8 +779,10 @@ Response rate on the left, the weekly chart and By track on the right; Now leads
 Insights follows, full width.
 
 0. **Now**: what wants doing today, each count with the key that goes there:
-   `3 follow-ups due → 3 Applied · 1 closing within 7 days → 2 Deadlines`. Hidden when
-   nothing is due.
+   `3 follow-ups due → 3 Applied · 1 next step within 7 days → 3 Applied · 1 closing within 7
+   days → 2 Deadlines`. A next step counts from today to 7 days ahead on an Application that is not
+   Rejected, Withdrawn or Dismissed. Hidden when nothing is due. `rolecall now` prints the same
+   counts (see [Next step, contacts and exports](#next-step-contacts-and-exports)).
 1. **Funnel**: Applications that **ever reached** each Status: Lead → Draft → Applied →
    Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
    optional starts, so a rung can be higher than the one before and there is no drop-off;
@@ -755,7 +791,9 @@ Insights follows, full width.
    reached it (`29% of Applied`); a rung with Applications that never were on the previous
    one says how they arrived, as counts (`1 from Leads · 2 started at Draft`, `3 via Draft
    · 8 never a Draft`, `11 never a Draft`), never `0% of` or `none`. Nothing when the
-   previous rung is empty. Rejected, Withdrawn and Dismissed on a muted `closed` line.
+   previous rung is empty. Rejected, Withdrawn and Dismissed on a muted `closed` line. Under it,
+   once any closed Application has a `close_reason`, a `Dropped off` line counts them by reason,
+   most first (`no-response 4 · after-screen 2 · no reason 1`).
 2. **Response rate** (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
    leaving out Applications whose Applied date (an implied one takes the date of the Status
    implying it) is within `follow_up_days`, on the funnel's bar (`36% · 4 of 11`). A line

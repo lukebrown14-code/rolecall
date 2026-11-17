@@ -101,6 +101,9 @@ url: https://jobs.ashbyhq.com/upguard/78833788
 closes: 2026-12-01
 fit: Strong
 resume_only: false
+next_step: {at: 2026-12-03T10:30, what: "Phone screen with the hiring manager"}
+contacts:
+  - {name: "Sam Lee", role: "Recruiter", email: sam.lee@example.test}
 status_log:
   - {status: Lead, at: 2026-09-24T01:00:00Z}
   - {status: Draft, at: 2026-09-24T03:12:00Z}
@@ -142,6 +145,9 @@ status_log:
 | `listing` | enum | — | whether the ad was still up when last checked: `live` · `gone` · `closed` |
 | `listing_checked` | date `YYYY-MM-DD` | — | when `listing` was last checked (`rules.py recheck`) |
 | `followed_up` | date `YYYY-MM-DD` | — | the day the Owner last followed up on a sent Application without its Status changing. Written by the TUI (`l`, the Owner's action; its undo removes it or puts back the day before). Follow-up due counts from the later of this and the last change. A value that is not a date reads as unset (the file is not malformed). Not the legacy `followup` key |
+| `next_step` | flow map `{at, what}` | — | what the Owner does next and when. `at` is `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM` (local time, no zone) and required; `what` is text, quoted when it holds a comma, brace or `#`. One line, as a `status_log` entry is. Empty or missing = none. A map without a valid `at` makes the file malformed. Shown on Interviewing and Offer rows, in Stats → Now and on the detail Overview; `rolecall now` and `rolecall export` read it |
+| `contacts` | list of flow maps | — | the people to write to, one `  - {name, role, email, url}` line each, indented two spaces below `contacts:` (as `status_log` is). Each needs a `name`, an `email` or a `url`; `role` is optional; other inner keys are ignored. `contacts: []` or no key = none. The first is who a follow-up addresses. The old single `contact` still reads, as the one Contact, until the Owner saves a list |
+| `close_reason` | string | — | why a Rejected or Withdrawn Application ended. Suggested values: `no-response` · `after-screen` · `after-interview` · `salary` · `role-closed` · `other`; free text is allowed. Set from the Move pop-up when the move is to Rejected or Withdrawn (optional, skippable). Shown only while the Status is Rejected or Withdrawn; the TUI removes it when the Application leaves them (an undo included). Stats shows where Applications dropped off by it |
 
 **Pay.** Readers estimate an annual AUD figure as pay × the unit's multiplier (hour 1976, day
 230, week 52, month 12, year 1) × the currency's AUD rate (built in: AUD 1, USD 1.55, GBP 1.95,
@@ -169,8 +175,14 @@ file malformed, as an invalid `closes` does.
 
 **Unknown keys must be preserved** by every writer, byte for byte. Legacy keys from the
 dashboard era (`applied`, `applied_approx`, `followup`, `contact`, `salary`, `outcome`,
-`outcome_date`, `rejection_reason`) fall under this rule. No writer adds them any more. The
+`outcome_date`, `rejection_reason`) fall under this rule, except that the TUI drops `contact`
+when the Owner saves a `contacts` list (its value is read into the list first). No writer adds them any more. The
 legacy `followup` is unrelated to `followed_up` and is never read.
+
+**Adding these keys is additive and the schema stays 1.** A file without `next_step`,
+`contacts` and `close_reason` reads exactly as before. An older rolecall cannot read a file
+that has `next_step` or `contacts` (its reader does not know a flow-map value) and shows it as
+malformed, so upgrade rolecall before using them. The schema version guard is unchanged.
 
 ### `status_log`
 
@@ -198,7 +210,8 @@ Each entry is a flow map on one line:
 
 | Writer | May write | Must not |
 |---|---|---|
-| **TUI** | creates folders. Writes any key through Add / Edit, and `followed_up` through `l`. Appends any Status | touch docs, `fit.md`, `out/` |
+| **TUI** | creates folders. Writes any key through Add / Edit (`next_step` and the first of `contacts` included), `followed_up` through `l`, and `close_reason` from the Move pop-up. Appends any Status | touch docs, `fit.md`, `out/` |
+| **`rolecall now`**, **`rolecall export`** | nothing in the Workspace. Read-only. `export` writes only where the Owner's `--out` names | any file under the Workspace |
 | **`rolecall move`** | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
 | **Agent** (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
 | **`rules.py check --apply`** | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
@@ -209,9 +222,9 @@ Each entry is a flow map on one line:
 The format is a strict subset of YAML, so Python can read it with no YAML library and Go can
 patch it without reformatting.
 
-1. Top-level lines: `key: value`. Key matches `[A-Za-z_][A-Za-z0-9_-]*`. No nesting except `status_log`.
+1. Top-level lines: `key: value`. Key matches `[A-Za-z_][A-Za-z0-9_-]*`. No nesting except `status_log` and `contacts`. A value may be a one-line flow map (`next_step`, and each `status_log` and `contacts` entry): `{key: value, key: "value"}`, values plain (no comma, brace, bracket or ` #`) or double-quoted, text after the closing brace only an inline comment.
 2. Scalars may be plain or double-quoted. Inline `# comments` on scalar lines are allowed and kept.
-3. `status_log:` is followed by entries indented two spaces, each `- {…}` on its own line.
+3. `status_log:` is followed by entries indented two spaces, each `- {…}` on its own line. `contacts:` is written the same way, above `status_log:`.
 4. UTF-8, LF line endings, trailing newline.
 5. **Writers patch, they don't rewrite.** Re-read the file right before writing, change only the
    lines for the keys being set (append missing keys at the end, before `status_log`), and

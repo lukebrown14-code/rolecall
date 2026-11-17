@@ -21,7 +21,7 @@ func (s *Store) Patch(folder string, keys map[string]string) error {
 		}
 		sort.Strings(names)
 		for _, k := range names {
-			if !keyPattern.MatchString(k) || k == "status_log" {
+			if !keyPattern.MatchString(k) || k == "status_log" || k == keyContacts || k == keyNextStep {
 				return nil, fmt.Errorf("invalid scalar key %q", k)
 			}
 			value := quoteScalar(keys[k])
@@ -149,6 +149,11 @@ func (s *Store) AppendStatus(folder, status string, at time.Time) (bool, error) 
 			// Restoring a Lead a Search rule dismissed overrules the rule: it never
 			// dismisses this Application again.
 			lines = overruleFilter(lines)
+		}
+		if !closedWithReason(status) {
+			// A close_reason belongs to a closed Application: it goes when it reopens
+			// (and so when the move to it is undone).
+			lines = slices.DeleteFunc(lines, func(l string) bool { return strings.HasPrefix(l, keyCloseReason+":") })
 		}
 		index, end := statusLogSpan(lines)
 		if index < 0 {

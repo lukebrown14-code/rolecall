@@ -4,6 +4,7 @@ package reporting
 import (
 	"math"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
@@ -35,6 +36,17 @@ type StatsReport struct {
 	Response  Response
 	Weeks     []Week
 	Tracks    []TrackStats
+	// DropOff is where closed Applications ended, by close_reason, most first. It is empty
+	// until at least one closed Application has a reason; Unrecorded counts the ones
+	// without.
+	DropOff    []DropOff
+	Unrecorded int
+}
+
+// DropOff is how many Rejected or Withdrawn Applications carry one close_reason.
+type DropOff struct {
+	Reason string
+	Count  int
 }
 
 // FunnelStep is one rung of the ever-reached funnel (see Reached). Lead and Draft are
@@ -289,6 +301,7 @@ func Build(apps []store.Application, now time.Time, followUpDays ...int) StatsRe
 		report.Response.Rate = percentOf(report.Response.Reached, report.Response.Applied)
 	}
 
+	report.DropOff, report.Unrecorded = dropOff(tracked)
 	report.Weeks = weeksOf(paths, now, StatsWeeks)
 	report.Tracks = tracksOf(tracked, paths, now, days)
 	return report
@@ -437,4 +450,36 @@ func OrderTracks(rows []TrackStats, order []string) (sent, idle []TrackStats) {
 		}
 	}
 	return sent, idle
+}
+
+// dropOff tallies the close_reason of every Application now Rejected or Withdrawn, most
+// first and by name among equals. With no reason recorded anywhere it reports nothing, so
+// the screen shows no empty section.
+func dropOff(apps []store.Application) ([]DropOff, int) {
+	counts := map[string]int{}
+	unrecorded := 0
+	for _, a := range apps {
+		if a.Status != store.StatusRejected && a.Status != store.StatusWithdrawn {
+			continue
+		}
+		if a.CloseReason == "" {
+			unrecorded++
+			continue
+		}
+		counts[a.CloseReason]++
+	}
+	if len(counts) == 0 {
+		return nil, 0
+	}
+	out := make([]DropOff, 0, len(counts))
+	for reason, n := range counts {
+		out = append(out, DropOff{Reason: reason, Count: n})
+	}
+	slices.SortFunc(out, func(a, b DropOff) int {
+		if a.Count != b.Count {
+			return b.Count - a.Count
+		}
+		return strings.Compare(a.Reason, b.Reason)
+	})
+	return out, unrecorded
 }

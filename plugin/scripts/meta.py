@@ -173,6 +173,9 @@ class Application:
         self.filter_note = ""
         self.filter_overruled = False
         self.followed_up = ""
+        self.next_step = None
+        self.contacts = []
+        self.close_reason = ""
         for attribute, _, kind in FACTS.values():
             setattr(self, attribute, "" if isinstance(kind, set) else _FACT_DEFAULTS[kind])
         self.status_log = []
@@ -211,6 +214,9 @@ class Application:
             "FilterNote": self.filter_note,
             "FilterOverruled": self.filter_overruled,
             "FollowedUp": self.followed_up,
+            "NextStep": self.next_step,
+            "Contacts": list(self.contacts),
+            "CloseReason": self.close_reason,
             **{name: getattr(self, attribute) for attribute, name, _ in FACTS.values()},
             "StatusLog": [entry.to_dict() for entry in self.status_log],
             "AppliedDate": self.applied_date.to_dict() if self.applied_date else None,
@@ -340,6 +346,132 @@ def _valid_timestamp(value):
     return True
 
 
+NEXT_STEP_AT = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$")
+LEGACY_CONTACT = "contact"
+
+
+def _flow_map(text):
+    """Read a one-line flow map ``{key: value, key: "value"}`` as the Go store does.
+
+    Returns ``(pairs, rest)``: ``rest`` is whatever follows the closing brace, which may
+    only be an inline comment. Raises MetaError for anything else.
+    """
+    text = text.lstrip(" \t")
+    if not text.startswith("{"):
+        raise MetaError("invalid flow map: expected {")
+    pairs = {}
+    i = 1
+    n = len(text)
+
+    def skip(i):
+        while i < n and text[i] in " \t":
+            i += 1
+        return i
+
+    while True:
+        i = skip(i)
+        if i >= n:
+            raise MetaError("invalid flow map: missing }")
+        if text[i] == "}":
+            i += 1
+            break
+        start = i
+        while i < n and text[i] not in ":,}":
+            i += 1
+        key = text[start:i].strip()
+        if i >= n or text[i] != ":" or not KEY.fullmatch(key):
+            raise MetaError("invalid flow map: expected key:")
+        if key in pairs:
+            raise MetaError("invalid flow map: duplicate key " + key)
+        i = skip(i + 1)
+        if i < n and text[i] == '"':
+            end = -1
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == '"':
+                    end = j + 1
+                    break
+                j += 1
+            if end < 0:
+                raise MetaError("invalid flow map: unterminated string")
+            value = _decode_quoted(text[i:end])
+            i = end
+        else:
+            start = i
+            while i < n and text[i] not in ",}":
+                i += 1
+            value = text[start:i].strip()
+            if any(c in value for c in '{["\'\t') or " #" in value:
+                raise MetaError("invalid flow map: unquoted value")
+        pairs[key] = value
+        i = skip(i)
+        if i < n and text[i] == ",":
+            i += 1
+            continue
+        if i >= n or text[i] != "}":
+            raise MetaError("invalid flow map: expected , or }")
+    rest = text[i:]
+    tail = rest.lstrip(" \t")
+    if tail and not tail.startswith("#"):
+        raise MetaError("invalid flow map: text after }")
+    return pairs, rest
+
+
+def _valid_next_step_at(value):
+    if not NEXT_STEP_AT.fullmatch(value):
+        return False
+    try:
+        datetime.strptime(value, "%Y-%m-%dT%H:%M" if "T" in value else "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
+
+
+def _read_next_step(raw):
+    """next_step's value: ``{"At", "What"}`` (the Go store's shape), or None when empty."""
+    if not raw.strip():
+        return None
+    pairs, _ = _flow_map(raw)
+    at = pairs.get("at", "")
+    if not _valid_next_step_at(at):
+        raise MetaError("invalid next_step at (YYYY-MM-DD or YYYY-MM-DDTHH:MM)")
+    return {"At": at, "What": pairs.get("what", "")}
+
+
+def _read_contact(line):
+    """One ``  - {name: …}`` line of ``contacts`` as ``{"Name", "Role", "Email", "URL"}``."""
+    if not line.startswith("  - "):
+        raise MetaError("invalid contacts entry or unexpected nesting")
+    pairs, _ = _flow_map(line[4:])
+    contact = {
+        "Name": pairs.get("name", ""),
+        "Role": pairs.get("role", ""),
+        "Email": pairs.get("email", ""),
+        "URL": pairs.get("url", ""),
+    }
+    if not (contact["Name"] or contact["Email"] or contact["URL"]):
+        raise MetaError("empty contacts entry")
+    return contact
+
+
+def _legacy_contact(value):
+    """The dashboard era's ``contact: Name`` as one Contact, or None when blank."""
+    value = value.strip()
+    if not value:
+        return None
+    contact = {"Name": "", "Role": "", "Email": "", "URL": ""}
+    if value.startswith(("http://", "https://")):
+        contact["URL"] = value
+    elif "@" in value and not re.search(r"[ \t]", value):
+        contact["Email"] = value
+    else:
+        contact["Name"] = value
+    return contact
+
+
 def _read_meta(folder, data):
     app = Application(folder)
     meta_path = Path(folder) / "meta.yml"
@@ -357,10 +489,18 @@ def _read_meta(folder, data):
 
     seen = set()
     in_log = False
+    in_contacts = False
+    legacy = ""
     for number, line in enumerate(text[:-1].split("\n"), start=1):
         if not line.strip() or line.startswith("#"):
             continue
         if line.startswith((" ", "\t")):
+            if in_contacts:
+                try:
+                    app.contacts.append(_read_contact(line))
+                except MetaError as error:
+                    return fail(number, str(error))
+                continue
             match = ENTRY.match(line)
             if not in_log or match is None:
                 return fail(number, "invalid status_log entry or unexpected nesting")
@@ -382,6 +522,19 @@ def _read_meta(folder, data):
             return fail(number, "invalid or duplicate key")
         seen.add(key)
         in_log = key == "status_log"
+        in_contacts = key == "contacts"
+        if in_contacts:
+            stripped = raw.strip()
+            if stripped and stripped != "[]":
+                return fail(number, "invalid contacts")
+            in_contacts = not stripped
+            continue
+        if key == "next_step":
+            try:
+                app.next_step = _read_next_step(raw)
+            except MetaError as error:
+                return fail(number, str(error))
+            continue
         if in_log:
             stripped = raw.strip()
             if stripped and stripped != "[]":
@@ -439,6 +592,11 @@ def _read_meta(folder, data):
             app.filter_reason = value
         elif key == "filter_note":
             app.filter_note = value
+        elif key == LEGACY_CONTACT:
+            legacy = value
+            app.unknown[key] = value
+        elif key == "close_reason":
+            app.close_reason = value.strip()
         elif key == "followed_up":
             # Only times a reminder: a value that is not a date reads as unset, as in the
             # Go store, rather than making the file malformed. The line itself is kept.
@@ -466,6 +624,10 @@ def _read_meta(folder, data):
     for required in ("title", "company", "track"):
         if required not in seen:
             return fail(1, f"missing {required}")
+    # The dashboard era's single ``contact`` still reads, as the one Contact.
+    old = _legacy_contact(legacy)
+    if old is not None and "contacts" not in seen:
+        app.contacts = [old]
     return app
 
 
@@ -646,7 +808,7 @@ def _update(folder, change):
 def _patch_lines(lines, keys):
     """Set scalar keys in place, keeping every other byte and inline comment."""
     for name in sorted(keys):
-        if not KEY.fullmatch(name) or name == "status_log":
+        if not KEY.fullmatch(name) or name in ("status_log", "contacts", "next_step"):
             raise MetaError(f"invalid scalar key {name!r}")
         value = quote_scalar(keys[name])
         found = False

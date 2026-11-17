@@ -34,6 +34,12 @@ func main() {
 		case "move":
 			exitOn(moveCommand(os.Args[2:], os.Stdout, os.Stderr))
 			return
+		case "now":
+			exitOn(nowCommand(os.Args[2:], os.Stdout, os.Stderr, time.Now))
+			return
+		case "export":
+			exitOn(exportCommand(os.Args[2:], os.Stdout, os.Stderr, time.Now))
+			return
 		}
 	}
 	if len(os.Args) > 1 && os.Args[1] == "doctor" {
@@ -90,6 +96,12 @@ func usage() {
        rolecall move [--dir PATH] FOLDER STATUS
                                  move an Application to a Status as the app does;
                                  Applied also saves sent/
+       rolecall now [--dir PATH] [--days N] [--list]
+                                 one plain line of what wants doing today: follow-ups
+                                 due, next steps and close dates within N days (7)
+       rolecall export [--dir PATH] [--format csv|json | --ics] [--out FILE]
+                                 every Application as CSV or JSON, or next steps and
+                                 close dates as an .ics; stdout unless --out names a file
 
 Flags:
 `)
