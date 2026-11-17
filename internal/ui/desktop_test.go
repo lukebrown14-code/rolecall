@@ -27,3 +27,27 @@ func TestDesktopCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestWSLDesktopCommand(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		path         string
+		wslview, xdg bool
+		command      string
+		args         []string
+	}{
+		{"wslview wins", "/tmp/a.pdf", true, true, "wslview", []string{"/tmp/a.pdf"}},
+		{"xdg-open when no wslview", "/tmp/a.pdf", false, true, "xdg-open", []string{"/tmp/a.pdf"}},
+		{"explorer with wslpath for a file", "/tmp/a b.pdf", false, false, "/bin/sh",
+			[]string{"-c", `explorer.exe "$(wslpath -w "$1")"; [ $? -le 1 ]`, "rolecall-open", "/tmp/a b.pdf"}},
+		{"explorer takes a URL as is", "https://example.com/x", false, false, "/bin/sh",
+			[]string{"-c", `explorer.exe "$1"; [ $? -le 1 ]`, "rolecall-open", "https://example.com/x"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			command, args := wslDesktopCommand(tc.path, tc.wslview, tc.xdg)
+			if command != tc.command || !reflect.DeepEqual(args, tc.args) {
+				t.Fatalf("got %s %q; want %s %q", command, args, tc.command, tc.args)
+			}
+		})
+	}
+}

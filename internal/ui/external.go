@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -238,6 +239,9 @@ func WithWatch(window time.Duration) Option { return func(m *model) { m.watchWin
 // openPath opens a document or reveals the downloads folder with the desktop launcher.
 func (m model) openPath(folder, path string, reveal bool) tea.Cmd {
 	command, args := desktopCommand(runtime.GOOS, path, reveal)
+	if runtime.GOOS == "linux" && process.IsWSL() {
+		command, args = wslDesktopCommand(path, process.OnPath("wslview"), process.OnPath("xdg-open"))
+	}
 	return m.runExternal(folder, command, args...)
 }
 
@@ -252,5 +256,23 @@ func desktopCommand(platform, path string, reveal bool) (string, []string) {
 		return "rundll32.exe", []string{"url.dll,FileProtocolHandler", path}
 	default:
 		return "xdg-open", []string{path}
+	}
+}
+
+// wslDesktopCommand opens a path or URL from inside WSL, where xdg-open is often not
+// installed. wslview (wslu) is preferred; a working xdg-open is next, since it may be
+// wired to a Windows browser; otherwise Windows' explorer.exe gets the path through
+// wslpath, which turns a Linux path into one Windows can read. URLs go to explorer.exe
+// unchanged. explorer.exe exits 1 even when it succeeds, so only a status above 1 (missing program) is an error.
+func wslDesktopCommand(path string, hasWslview, hasXdgOpen bool) (string, []string) {
+	switch {
+	case hasWslview:
+		return "wslview", []string{path}
+	case hasXdgOpen:
+		return "xdg-open", []string{path}
+	case strings.HasPrefix(path, "/"):
+		return "/bin/sh", []string{"-c", `explorer.exe "$(wslpath -w "$1")"; [ $? -le 1 ]`, "rolecall-open", path}
+	default:
+		return "/bin/sh", []string{"-c", `explorer.exe "$1"; [ $? -le 1 ]`, "rolecall-open", path}
 	}
 }
