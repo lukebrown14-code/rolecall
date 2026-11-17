@@ -58,6 +58,9 @@ DEFAULTS = {
     "SearchQuery": "",
     "Listing": "",
     "ListingChecked": "",
+    "NextStep": None,
+    "Contacts": [],
+    "CloseReason": "",
 }
 
 
