@@ -9,9 +9,9 @@ each other directly: files are the only link.
   in each folder), ADR-0003 (files are the only harness contract).
 - Data contract: [`SCHEMA.md`](../SCHEMA.md). Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 - Status of this doc: v0.1 and v0.2 were agreed in grilling sessions on 2026-11-11 and v1.0 on
-  2026-11-12. Written as the current behaviour of the app: v0.1 to v0.6 are built (0.6.0 is the latest
-  release), the v1.0 readiness work of 2026-11-17 is merged but not yet released, and what v1.0 still
-  needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
+  2026-11-12. Written as the current behaviour of the app: v0.1 to v0.7 are built. 0.7.0 is the release
+  that ships the v1.0 readiness work of 2026-11-17 (0.6.0 merged but was never tagged, so its
+  changes ship in 0.7.0 too), and what v1.0 still needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
   the per-version acceptance lists are in [`history.md`](history.md).
 
 ## Roadmap
@@ -25,7 +25,7 @@ each other directly: files are the only link.
 | v0.4 | search rules and Sources | `search_rules` and the Source registry in `workspace.json`, Settings → Rules and Sources, posting age on Leads, Filtered view, `rules.py` dry run, coverage report (ADR-0007) |
 | v0.5 | follow-up and review polish | Follow-up due, `l` to record a follow-up, `F` and the `draft-follow-up` skill, lean rows, fit words, full-screen help |
 | v0.6 | documents and checks | Template overrides and ATS-safe templates, the ATS check (dates, headings, Key Skills order, characters, hyphens, fonts), CVs built from the Profile screen, drift and URL checks on unsent drafts, `rolecall move`, capture that follows aggregators to the employer's ad |
-| v1.0 readiness (merged after 0.6.0) | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills |
+| v0.7 | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills, the one-vocabulary pass (#188: the Pipeline screen, Closed, one Document set, one label per key), Homebrew moved to 1.x, the structural personal-data guard |
 | v1.0 | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Repositories
@@ -312,7 +312,7 @@ detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses fr
 
 ### Next step, contacts and exports
 
-Added after 0.6.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
+Added in 0.7.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
 
 - Next step (`next_step: {at, what}`): shown as `next 4 Oct 10:30 · Phone screen` on Interviewing and Offer
   rows (amber within 7 days, `▲` within 2, `was …` struck through once past), as a `NEXT STEP` row in the card and
