@@ -90,34 +90,44 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time
 	for i, t := range tracks {
 		trackChoices[i] = choice{Value: t, Label: t}
 	}
+	// Every empty text field shows a placeholder in words no one would take for a value, as
+	// the Contact form's do, so an empty field looks the same in Add and Edit.
 	link := formField{Label: fieldURL, Role: forms.RoleURL, Value: v.url, Placeholder: "https://…", Note: "optional",
 		Validate: validURL(v.url)}
-	titleField := formField{Label: fieldTitle, Required: true, Value: v.title}
-	company := formField{Label: "Company", Required: true, Value: v.company}
+	titleField := formField{Label: fieldTitle, Required: true, Value: v.title, Placeholder: "the job title"}
+	company := formField{Label: "Company", Required: true, Value: v.company, Placeholder: "who is hiring"}
 	track := formField{Label: fieldTrack, Value: v.track, Choices: trackChoices}
 	if len(tracks) == 0 {
 		// No Track to choose yet: the first one is typed here and saved with the Lead.
 		track = formField{Label: fieldTrack, Required: true, Value: v.track, Placeholder: "e.g. Nursing, Marketing", Note: "your first Track",
 			Validate: validFirstTrack}
 	}
-	closes := formField{Label: "Closes", Value: v.closes, Placeholder: "YYYY-MM-DD · tomorrow · +7d · 30 Nov", Validate: validCloses(now), Echo: echoCloses(now)}
+	closes := formField{Label: "Closes", Value: v.closes, Placeholder: dateHint, Validate: validCloses(now), Echo: echoCloses(now)}
 	fit := formField{Label: "Fit", Value: v.fit, Choices: []choice{{Value: "", Label: fitUnassessed}, {Value: store.FitStrong, Label: store.FitStrong}, {Value: store.FitGood, Label: store.FitGood}, {Value: store.FitMarginal, Label: store.FitMarginal}, {Value: store.FitPoor, Label: store.FitPoor}}}
 	fields := []formField{link, titleField, company, track, closes, fit}
 	if !withResumeOnly {
 		return newFormOf("Add a Lead", fields...)
 	}
-	f := newFormOf("Edit "+titleLabel(v.title), link, titleField, company, track, closes, fit,
-		formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}},
-		formField{Label: fieldNextStep, Value: v.nextAt, Placeholder: "tomorrow 14:30 · +3d · 30 Nov · YYYY-MM-DD", Validate: validNextStepAt(now), Echo: echoNextStepAt(now)},
-		formField{Label: fieldNextWhat, Value: v.nextWhat, Placeholder: "Phone screen"},
-		formField{Label: fieldContact, Value: v.contact, Placeholder: "name"},
-		formField{Label: fieldContactRole, Value: v.contactRole, Placeholder: "Recruiter"},
-		formField{Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
+	// Edit's fields sit under headings named as the card's sections: the role itself, then
+	// the next step, the first Contact and, on a Rejected or Withdrawn Application, why it
+	// closed.
+	fields = append(fields, formField{Label: "Resume only", Value: v.resumeOnly, Choices: []choice{{Value: "false", Label: "No"}, {Value: "true", Label: "Yes"}}})
+	for i := range fields {
+		fields[i].Group = groupRole
+	}
+	fields = append(fields,
+		formField{Group: groupNextStep, Label: fieldNextStep, Value: nextStepText(v.nextAt, now()), Placeholder: dateHint,
+			Validate: validNextStepAt(now), Echo: echoNextStepAt(now)},
+		formField{Group: groupNextStep, Label: fieldNextWhat, Value: v.nextWhat, Placeholder: "e.g. Phone screen"},
+		formField{Group: groupContact, Label: fieldContact, Value: v.contact, Placeholder: "their name"},
+		formField{Group: groupContact, Label: fieldContactRole, Value: v.contactRole, Placeholder: "e.g. Recruiter"},
+		formField{Group: groupContact, Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
 	if v.ended {
 		// Last, so the fields above sit where they do on every Edit form.
-		f.Fields = append(f.Fields, formField{Label: fieldCloseReason, Value: v.closeReason, Orig: v.closeReason,
+		fields = append(fields, formField{Group: groupClosed, Label: fieldCloseReason, Value: v.closeReason,
 			Choices: closeReasonChoices(v.closeReason)})
 	}
+	f := newFormOf("Edit "+titleLabel(v.title), fields...)
 	f.ShowDirty = true
 	return f
 }

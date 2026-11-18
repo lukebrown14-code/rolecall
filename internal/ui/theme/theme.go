@@ -35,7 +35,7 @@ type Roles struct {
 	Info   string // links, Good fit
 	Warn   string // closes within a week, quiet follow-up, written docs, warning pop-ups
 	Danger string // closes today, errors
-	Purple string // Interviewing: magenta on dark, so it parts from Applied blue under red-green colour blindness
+	Purple string // Interviewing: a purple in both themes, apart from the error red and, under red-green colour blindness, from Applied blue
 	Gold   string // Offer
 	Lead   string // Lead: a grey-green (sage), apart from the closed Statuses' grey and the blues
 	Draft  string // Draft: a lighter blue than Applied, apart from the accent
@@ -79,7 +79,7 @@ var rolePalette = struct {
 	Marginal:     rolePair{"#E9E066", "#7A6400"},
 	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
-	Purple:       rolePair{"#F778BA", "#7A4AD6"},
+	Purple:       rolePair{"#CE8DC3", "#7A4AD6"},
 	Gold:         rolePair{"#F2CC60", "#8A5A00"},
 	Lead:         rolePair{"#9CB0A0", "#406850"},
 	Draft:        rolePair{"#A5D6FF", "#2D6A8F"},

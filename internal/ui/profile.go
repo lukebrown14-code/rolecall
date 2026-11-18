@@ -158,6 +158,7 @@ func (m model) loadProfile() model {
 		return m
 	}
 	m.profileStarted = profileBeyondContact(p)
+	m.contactSaved = contactComplete(p)
 	st := &profileState{profile: p, focus: profileList, body: viewport.New()}
 	if m.profile != nil {
 		st.selected, st.focus = m.profile.selectedIndex(p), m.profile.focus
@@ -431,11 +432,12 @@ func (m model) profileGuideLines(prof store.Profile, width int) []string {
 	}
 	if len(lines) == 0 {
 		// The file already has every heading: each section's own page says how to fill it.
-		return append([]string{""}, wrapWords("Then fill in each section in the list: select one to see what goes in it.", width)...)
+		return append([]string{""}, wrapWords("The rest of your Profile: fill in each section in the list. Select one to see what goes in it.", width)...)
 	}
-	intro := "Then add these sections to master-profile.md (e), each under its own ## heading:"
+	// It starts with what it is, the rest of the Profile after the Contact above it.
+	intro := "The rest of your Profile: add these sections to master-profile.md (e), each under its own ## heading:"
 	if m.harness != "" {
-		intro = "Or run create-profile in your Harness. By hand, add these sections to master-profile.md (e), each under its own ## heading:"
+		intro = "The rest of your Profile: run create-profile in your Harness, or add these sections to master-profile.md (e) by hand, each under its own ## heading:"
 	}
 	var head []string
 	for _, l := range wrapWords(intro, width) {
@@ -462,6 +464,18 @@ func (m model) profileSetupWords() string {
 	}
 	return "fill in your Contact, then write the rest in your Editor"
 }
+
+// profileRestWords is the Profile step once the Contact is saved: only the rest is left,
+// so the welcome no longer asks for the Contact.
+func (m model) profileRestWords() string {
+	if m.harness != "" {
+		return "run create-profile in your Harness to write the rest of your Profile"
+	}
+	return "write the rest of your Profile in your Editor"
+}
+
+// contactComplete reports a Profile whose Contact has every required field: Name and Email.
+func contactComplete(p store.Profile) bool { return p.Exists && len(p.Missing) == 0 }
 
 // keyContact opens the Contact form on the Profile screen, so a first-run form skipped
 // with esc can be filled in any time.
@@ -539,8 +553,8 @@ func (m model) profileHelpKeys() []helpKey {
 		}
 	}
 	// c is first while the Contact still needs filling in; once it is complete it stays
-	// one key away for a change.
-	contact := help(groupAction, keyContact, "edit Contact").at(prioScreen)
+	// one key away for a change, on the key line: the first-run form promises "5 Profile, then c".
+	contact := help(groupAction, keyContact, "edit Contact").at(prioLean)
 	if m.contactMissing() {
 		contact = help(groupAction, keyContact, "fill in Contact").at(prioCore)
 	}

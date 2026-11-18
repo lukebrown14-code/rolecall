@@ -26,7 +26,7 @@ func TestWelcomeListsSetupStepsNotDone(t *testing.T) {
 	d := newDriver(t, contactOnly(t), fixtureClock, 120, 36, ui.WithEditorSource("default"))
 	v := d.plain()
 	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "6  pick an Editor in Settings",
-		"h  connect a Harness, the AI coding tool you already use", "5  set up your Profile: fill in your Contact, then write the rest in your Editor", "?  see every key"} {
+		"h  connect a Harness, the AI coding tool you already use", "✓  Contact saved", "5  write the rest of your Profile in your Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("welcome lacks %q:\n%s", want, v)
 		}

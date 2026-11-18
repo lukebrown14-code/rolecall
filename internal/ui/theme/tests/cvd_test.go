@@ -147,3 +147,44 @@ func TestLeadIsNotTheClosedGrey(t *testing.T) {
 		}
 	}
 }
+
+// lchHue is c's perceptual hue: its CIELAB hue angle in degrees, with normal vision.
+func lchHue(c color.Color) float64 {
+	lab := simulate(c, [3][3]float64{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}})
+	h := deg(math.Atan2(lab[2], lab[1]))
+	if h < 0 {
+		h += 360
+	}
+	return h
+}
+
+// hueGap is the shorter way round the wheel between two hues.
+func hueGap(a, b float64) float64 {
+	d := math.Abs(a - b)
+	return math.Min(d, 360-d)
+}
+
+// Interviewing is good news: its hue stays well apart from the error red on both
+// palettes, and it keeps one hue family (purple) when the theme changes, so it never
+// reads as an error and is not relearnt in the other theme. Hue is perceptual (CIELAB).
+// The floor is what the colour-blindness floor above leaves room for on dark: a purple
+// further from red reads as Applied blue under deuteranopia.
+func TestInterviewingIsApartFromErrorRed(t *testing.T) {
+	const (
+		fromError   = 55.0 // degrees from the error colour, at least
+		acrossTheme = 30.0 // degrees between the dark and light value, at most
+	)
+	dark, light := theme.Dark.Base(), theme.Light.Base()
+	for _, th := range []struct {
+		name string
+		p    theme.Palette
+	}{{"dark", dark}, {"light", light}} {
+		iv := lchHue(th.p.StatusColor(store.StatusInterviewing))
+		if gap := hueGap(iv, lchHue(th.p.Bad)); gap < fromError {
+			t.Errorf("%s palette: Interviewing is %.0f° from the error colour, want ≥ %.0f°", th.name, gap, fromError)
+		}
+	}
+	if gap := hueGap(lchHue(dark.StatusColor(store.StatusInterviewing)), lchHue(light.StatusColor(store.StatusInterviewing))); gap > acrossTheme {
+		t.Errorf("Interviewing changes hue by %.0f° between dark and light, want ≤ %.0f°", gap, acrossTheme)
+	}
+}

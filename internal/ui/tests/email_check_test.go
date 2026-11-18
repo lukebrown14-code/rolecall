@@ -40,10 +40,7 @@ func TestApplicationContactRefusesPartialEmails(t *testing.T) {
 	fill := func(reach string) (*driver, string) {
 		root := stepWorkspace(t, "contact: Jo\n")
 		d := newDriver(t, root, fixtureClock, 120, 40)
-		editStepper(d)
-		for range 7 { // URL … Resume only
-			d.Type("enter")
-		}
+		editStepper(d) // opens on the next step
 		d.Type("2026-10-05T09:00")
 		d.Type("enter")
 		d.Type("Phone screen")

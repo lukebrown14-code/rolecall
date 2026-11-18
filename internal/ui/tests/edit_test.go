@@ -126,7 +126,7 @@ func TestEditResumeOnlyTogglesFlagAndDocsMarker(t *testing.T) {
 	h.wait("docs-partial", "/4")
 	h.tm.Type("e")
 	h.wait("Resume only", "No")
-	h.saveForm(6)
+	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})    // an Offer's form opens on its next step, just below
 	h.tm.Send(tea.KeyPressMsg{Code: tea.KeyRight}) // No → Yes
 	h.saveForm(6)
 	view := h.quit()

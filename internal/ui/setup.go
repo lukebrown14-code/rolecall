@@ -115,6 +115,9 @@ func contactPopupTitled(title string, contact map[string]string, intro string) m
 		}
 		if m.profile != nil {
 			*m = m.loadProfile()
+		} else if p, err := m.store.Profile(); err == nil {
+			// The welcome reads these, so it ticks the Contact off as soon as it is saved.
+			m.profileStarted, m.contactSaved = profileBeyondContact(p), contactComplete(p)
 		}
 		m.toast = "Saved Contact · " + profilePath
 		return nil, nil

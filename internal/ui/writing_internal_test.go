@@ -15,6 +15,7 @@ import (
 func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	m := fixtureModel(t)
 	m.width, m.height = 120, 36
+	m.harness = "claude {skill} {dir}" // only a Harness writes Documents
 	folder := filepath.Join(m.store.Root(), "jobs", "SWE", "docs-none")
 	if err := os.WriteFile(filepath.Join(folder, resumeFile), []byte("# Resume\n\nFictional text."), 0o600); err != nil {
 		t.Fatal(err)
@@ -40,6 +41,25 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	m = next.(model)
 	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "✓ Resume") {
 		t.Fatalf("mark not put out:\n%s", view)
+	}
+}
+
+// With no Harness set no agent is writing, so a written file, such as the empty jd.md a new
+// Lead gets or a Resume saved in the Owner's Editor, never shows the writing mark.
+func TestNoHarnessNeverShowsTheWritingMark(t *testing.T) {
+	m := fixtureModel(t)
+	m.width, m.height = 120, 36
+	m.harness = ""
+	folder := filepath.Join(m.store.Root(), "jobs", "SWE", "docs-none")
+	written := []string{watch.DocumentKey(folder, jdFile), watch.DocumentKey(folder, resumeFile)}
+	next, _ := m.Update(watch.Changed{Folders: []string{folder}, Written: written})
+	m = next.(model)
+	if len(m.writing) != 0 {
+		t.Fatalf("writes marked with no Harness: %v", m.writing)
+	}
+	m.screen, m.cursor = 1, 1
+	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") {
+		t.Fatalf("writing mark with no Harness:\n%s", view)
 	}
 }
 

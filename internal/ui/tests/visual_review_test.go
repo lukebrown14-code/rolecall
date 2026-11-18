@@ -13,9 +13,9 @@ import (
 
 // Fixes from the visual review of the design overhaul (#166).
 
-// The key line ends with "? help" and "space commands" on every screen where space opens the
-// Workspace commands, and keeps both at every size, dropping lower-priority keys first. Wide,
-// the tab bar carries "space commands  ? help" and the key line ends at help.
+// space and ? have one place at every width: the key line's right end, ? help last. Where
+// the line is short, space commands is the first key it drops, before the screen's own
+// actions; ? help names it. The tab bar never carries them.
 func TestKeyLineEndsWithHelpAndSpaceCommands(t *testing.T) {
 	screens := map[string][]string{
 		"leads":    {"1"},
@@ -25,26 +25,48 @@ func TestKeyLineEndsWithHelpAndSpaceCommands(t *testing.T) {
 		"profile":  {"5"},
 		"settings": {"6"},
 	}
-	for _, sz := range keyLineSizes {
+	for _, sz := range append(keyLineSizes, [2]int{160, 44}, [2]int{64, 24}) {
 		for name, keys := range screens {
 			t.Run(fmt.Sprintf("%s/%dx%d", name, sz[0], sz[1]), func(t *testing.T) {
 				view := chipped(runKeysSized(t, fixtureCopy(t, nil), sz[0], sz[1], keys...))
-				line := keyLineOf(view)
-				// Wide, space and ? sit on the tab bar too, so the key line ends at help.
-				want := "? help  space commands"
-				if sz[0] >= 100 {
-					want = "? help"
-					if bar := strings.SplitN(view, "\n", 2)[0]; !strings.HasSuffix(strings.TrimRight(bar, " "), "space commands  ? help") {
-						t.Errorf("tab bar does not end with space commands  ? help: %q", bar)
-					}
+				line := strings.TrimRight(keyLineOf(view), " ")
+				if !strings.HasSuffix(line, "? help") {
+					t.Errorf("key line does not end with ? help: %q", line)
 				}
-				if !strings.HasSuffix(strings.TrimRight(line, " "), want) {
-					t.Errorf("key line does not end with %s: %q", want, line)
+				if strings.Contains(line, "space commands") && !strings.HasSuffix(line, "space commands  ? help") {
+					t.Errorf("space commands is not beside ? help: %q", line)
+				}
+				if bar := strings.SplitN(view, "\n", 2)[0]; strings.Contains(bar, "? help") || strings.Contains(bar, "space") {
+					t.Errorf("tab bar carries space or ?: %q", bar)
 				}
 				if w := ansi.StringWidth(line); w > sz[0] {
 					t.Errorf("key line is %d wide in %d: %q", w, sz[0], line)
 				}
 			})
+		}
+	}
+	// With room, both show.
+	for _, keys := range [][]string{{"1"}, {"3"}, {"6"}} {
+		if line := lastLine(t, 120, 36, keys...); !strings.HasSuffix(strings.TrimRight(line, " "), "space commands  ? help") {
+			t.Errorf("%v at 120: key line lacks space commands  ? help: %q", keys, line)
+		}
+	}
+}
+
+// A short key line keeps the screen's main action and drops the generic space commands
+// first: x dismiss on Leads at 64x24, enter edit on Settings at 56x14.
+func TestShortKeyLineKeepsTheMainAction(t *testing.T) {
+	for _, tc := range []struct {
+		w, h int
+		keys []string
+		want string
+	}{
+		{64, 24, []string{"1"}, "x dismiss"},
+		{56, 14, []string{"6"}, "enter edit"},
+	} {
+		line := lastLine(t, tc.w, tc.h, tc.keys...)
+		if !strings.Contains(line, tc.want) || !strings.Contains(line, "? help") {
+			t.Errorf("%dx%d %v: key line lacks %q or ? help: %q", tc.w, tc.h, tc.keys, tc.want, line)
 		}
 	}
 }

@@ -238,6 +238,13 @@ func (m model) overviewRows(p pal, a store.Application, w int) []string {
 // matters, what the Sweep and the ad recorded), the Documents, the timeline and the
 // Notes. A key shows once: a row whose key the next step offers leaves it to NEXT.
 func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []string {
+	return m.cardRows(p, a, w, mode, false)
+}
+
+// cardRows is fieldRows, without what the Sweep and the ad recorded (POSTED, TYPE, PAY,
+// LISTING…) when lean: a card short of room folds those first, so NEXT, the next step and
+// the TIMELINE keep their lines.
+func (m model) cardRows(p pal, a store.Application, w int, mode cardMode, lean bool) []string {
 	nextKey := ""
 	if s, ok := m.nextAction(a); ok {
 		nextKey = s.key
@@ -262,7 +269,11 @@ func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []str
 		}
 	}
 	section(head...)
-	section(m.factRows(p, a, w, keep)...)
+	facts := m.factRows(p, a, w, keep)
+	if !lean {
+		facts = append(facts, m.sweepRows(p, a, w)...)
+	}
+	section(facts...)
 	if mode != cardFull {
 		section(m.docsBlock(p, a, w, keep)...)
 	}
@@ -344,8 +355,8 @@ func (m model) stageAge(p pal, a store.Application, long bool) string {
 	return p.Text(p.Dim).Render(s)
 }
 
-// factRows are the card's facts: the close date while it matters, then what the Sweep and
-// the ad recorded.
+// factRows are the card's facts: the close date while it matters, the next step and the
+// close reason. What the Sweep and the ad recorded (sweepRows) follows them on the card.
 func (m model) factRows(p pal, a store.Application, w int, keep func(string) bool) []string {
 	var rows []string
 	key, action := "e", descEdit
@@ -358,8 +369,7 @@ func (m model) factRows(p pal, a store.Application, w int, keep func(string) boo
 		rows = append(rows, p.cardRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), key, action, w))
 	}
 	rows = append(rows, m.nextStepRow(p, a, w, keep)...)
-	rows = append(rows, m.closedRow(p, a, w, keep)...)
-	return append(rows, m.sweepRows(p, a, w)...)
+	return append(rows, m.closedRow(p, a, w, keep)...)
 }
 
 // docsBlock is "DOCS ■■□□ 2/4" with the one key that fixes the next missing Document,

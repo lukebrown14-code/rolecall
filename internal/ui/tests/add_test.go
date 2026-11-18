@@ -199,7 +199,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	}
 	h.tm.Type("someday")
 	h.enter()
-	h.wait("Closes: use YYYY-MM-DD")
+	h.wait("✘ tomorrow · fri · +7d · 30 Nov")
 	h.esc()
 	h.quit()
 	if !sameSnapshot(before, h.snapshot()) {

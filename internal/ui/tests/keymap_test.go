@@ -24,7 +24,7 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 	}{
 		{"leads 80", 80, 24, []string{"1"}, []string{"enter open", "m move", "a add", "/ search", "? help", "space commands"}, []string{"1-6 screen"}},
 		{"leads 60", 60, 16, []string{"1"}, []string{"enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
-		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "space commands"}, []string{"1-6 screen"}},
+		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "? help"}, []string{"1-6 screen"}},
 		{"settings 60", 60, 16, []string{"6"}, []string{"enter edit", "? help", "space commands"}, []string{"1-6 screen"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

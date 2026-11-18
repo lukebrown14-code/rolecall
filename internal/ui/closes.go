@@ -10,11 +10,16 @@ import (
 )
 
 // The Closes field takes the ad's close date as the Owner would say it: YYYY-MM-DD, today,
-// tomorrow, +7d or +2w, "30 Nov" or "30/11" (day first, as in Australia). A date with no
-// year is its next occurrence, today counting. The form echoes the parsed date back as the
-// Owner types, and the Lead is saved with the YYYY-MM-DD form.
+// tomorrow, a weekday (fri, friday: the next one, never today), +7d or +2w, "30 Nov" or
+// "30/11" (day first, as in Australia). A date with no year is its next occurrence, today
+// counting. The form echoes the parsed date back as the Owner types, and the Lead is saved
+// with the YYYY-MM-DD form.
 
-const closesHelp = "Closes: use YYYY-MM-DD, tomorrow, +7d or 30 Nov"
+// dateHint is the one list of date forms every date field shows, as its placeholder and in
+// its error, so Closes and the next step never word them differently.
+const dateHint = "tomorrow · fri · +7d · 30 Nov · 2026-12-01"
+
+const closesHelp = dateHint
 
 var (
 	datePattern     = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
@@ -47,6 +52,9 @@ func readCloses(s string, now time.Time) (iso string, ok, exists bool) {
 			return "", false, false
 		}
 		return s, true, true
+	}
+	if d, ok := weekdayAhead(s, today); ok {
+		return d.Format(time.DateOnly), true, true
 	}
 	if m := closesOffset.FindStringSubmatch(s); m != nil {
 		n, _ := strconv.Atoi(m[1])
@@ -87,6 +95,26 @@ func readCloses(s string, now time.Time) (iso string, ok, exists bool) {
 		}
 	}
 	return "", false, false
+}
+
+// weekdayAhead reads a weekday name, "fri", "friday" or "next fri", as the next such day
+// after today: on a Friday, "fri" is a week away (today is "today"). Any prefix of the name
+// of three letters or more counts, so "tues" and "thurs" do too.
+func weekdayAhead(s string, today time.Time) (time.Time, bool) {
+	s = strings.TrimPrefix(s, "next ")
+	if len(s) < 3 { //nolint:mnd // the shortest weekday abbreviation
+		return time.Time{}, false
+	}
+	for wd := time.Sunday; wd <= time.Saturday; wd++ {
+		if strings.HasPrefix(strings.ToLower(wd.String()), s) {
+			ahead := (int(wd) - int(today.Weekday()) + daysPerWeek) % daysPerWeek
+			if ahead == 0 {
+				ahead = daysPerWeek
+			}
+			return today.AddDate(0, 0, ahead), true
+		}
+	}
+	return time.Time{}, false
 }
 
 // calendarDay is the date year-month-day, and whether it exists (30 Feb does not).
@@ -140,10 +168,11 @@ func normaliseCloses(s string, now time.Time) string {
 }
 
 // The next step's date takes the Closes forms plus an optional time: "tomorrow 14:30",
-// "+3d 9:00", "30 Nov 10:30", "2026-10-04T10:30". It is saved as YYYY-MM-DD or
-// YYYY-MM-DDTHH:MM.
+// "fri 9:00", "+3d 9:00", "30 Nov 10:30", "2026-10-04T10:30". It is saved as YYYY-MM-DD or
+// YYYY-MM-DDTHH:MM, and the Edit form reopens a saved one as it would be typed
+// (nextStepText).
 
-const nextStepHelp = "Next step: use YYYY-MM-DD, tomorrow 14:30, +3d or 30 Nov"
+const nextStepHelp = closesHelp + " · with a time: fri 9:00"
 
 var nextStepTime = regexp.MustCompile(`(?i)^(.*?)(?:\s+|t)(\d{1,2}):(\d{2})$`)
 
@@ -189,6 +218,26 @@ func echoNextStepAt(now func() time.Time) func(string) string {
 		}
 		return "→ " + t.Format(layout)
 	}
+}
+
+// nextStepText is a saved next step's date as the Owner would type it, "21 Nov 09:00", for
+// the Edit form to reopen with. It reads back to the same date, so an untouched field saves
+// nothing new: a date that would read as another year says its year ("1 Oct 2026"), and
+// one that is not a date at all is left as saved.
+func nextStepText(at string, now time.Time) string {
+	clock := ""
+	t, err := time.Parse("2006-01-02T15:04", at)
+	if err == nil {
+		clock = t.Format(" 15:04")
+	} else if t, err = time.Parse(time.DateOnly, at); err != nil {
+		return at
+	}
+	for _, layout := range []string{"2 Jan", "2 Jan 2006"} {
+		if text := t.Format(layout) + clock; normaliseNextStepAt(text, now) == at {
+			return text
+		}
+	}
+	return at
 }
 
 // normaliseNextStepAt is what the next step is saved with, or s unchanged when unreadable.

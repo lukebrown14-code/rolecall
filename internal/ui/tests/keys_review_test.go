@@ -51,10 +51,10 @@ func TestDetailHelpNamesPaging(t *testing.T) {
 // space opens the command finder, esc closes it, and typing filters it (a digit is text there,
 // not a screen key); the old Menu is gone.
 func TestSpaceFinderFiltersAndCloses(t *testing.T) {
-	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ : ") {
+	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ Commands: ") {
 		t.Fatalf("esc did not close the finder:\n%s", v)
 	}
-	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ : 3") || strings.Contains(v, "[3 Pipeline") {
+	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ Commands: 3") || strings.Contains(v, "[3 Pipeline") {
 		t.Fatalf("a digit in the finder should filter, not switch screens:\n%s", v)
 	}
 	if v := view(t, " "); !strings.Contains(v, "rescan") || !strings.Contains(v, "change view") || strings.Contains(v, "Rescan") || strings.Contains(v, "Menu") {

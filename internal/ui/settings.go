@@ -143,15 +143,15 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
 	if m.settings != nil && m.settings.Ws.Err == nil {
-		// ←→ switch sections as they switch views elsewhere; tab and [ ] do too, unlisted, as
-		// help says tab switches panes and would wrap [ ] in brackets.
+		// ←→ switch sections as they switch views elsewhere; tab does too (tabKey), and [ ]
+		// unlisted, as the help would wrap [ ] in brackets.
 		// Below the medium width there is no group list beside the rows, so the section key
 		// is pinned: it is the only sign the other sections are there.
 		section := help(groupNav, "←→", "section").at(prioCore)
 		if m.layout().w < mediumWidth {
 			section = section.at(prioPinned)
 		}
-		keys = append(keys, section, help(groupNav, "j k", "select"),
+		keys = append(keys, section, tabKey("section"), help(groupNav, "j k", "select"),
 			help(groupNav, "g G", "first, last").at(prioHelpOnly))
 	}
 	if m.err != nil {
@@ -636,14 +636,17 @@ func (m model) settingsRows(group int) []settingRow {
 
 // trackBreakdown explains each Track's count so the numbers add up: how many of its
 // Applications are active, how many closed (Rejected or Withdrawn, as the Pipeline screen's
-// Closed view holds) and how many dismissed.
+// Closed view holds), how many dismissed and how many unreadable (malformed, which Stats
+// leaves out, so the Stats Track count is the rest).
 func (m model) trackBreakdown(st settingsState) map[string]string {
-	closed, dismissed := map[string]int{}, map[string]int{}
+	closed, dismissed, unreadable := map[string]int{}, map[string]int{}, map[string]int{}
 	for _, a := range m.apps {
-		switch a.Status {
-		case store.StatusRejected, store.StatusWithdrawn:
+		switch {
+		case a.Malformed != nil:
+			unreadable[a.Track]++
+		case a.Status == store.StatusRejected, a.Status == store.StatusWithdrawn:
 			closed[a.Track]++
-		case store.StatusDismissed:
+		case a.Status == store.StatusDismissed:
 			dismissed[a.Track]++
 		}
 	}
@@ -651,12 +654,16 @@ func (m model) trackBreakdown(st settingsState) map[string]string {
 	for _, t := range st.Ws.Tracks {
 		c := min(closed[t], st.TrackUse[t])
 		d := min(dismissed[t], st.TrackUse[t]-c)
-		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d) + " active"
+		u := min(unreadable[t], st.TrackUse[t]-c-d)
+		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d-u) + " active"
 		if c > 0 {
 			out[t] += " · " + strconv.Itoa(c) + " closed"
 		}
 		if d > 0 {
 			out[t] += " · " + strconv.Itoa(d) + " dismissed"
+		}
+		if u > 0 {
+			out[t] += " · " + strconv.Itoa(u) + " unreadable"
 		}
 	}
 	return out

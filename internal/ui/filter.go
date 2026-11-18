@@ -89,7 +89,7 @@ type option struct {
 }
 
 // options draws a selector: the label and key, then each option with its count, the chosen
-// one as a chip. Compact keeps only the chosen option; collapsed is "s:All". chosen is
+// one as a chip. Compact keeps the label and the chosen option; collapsed is "s:All". chosen is
 // the index into opts.
 func (m model) options(p pal, label, key string, opts []option, chosen int, form trackForm, track bool) filterPart {
 	var f filterPart
@@ -104,7 +104,14 @@ func (m model) options(p pal, label, key string, opts []option, chosen int, form
 		}
 		f.add(p.Text(p.Dim).Render(opts[chosen].name), track, opts[chosen].idx)
 		return f
-	case trackCompact:
+	case trackCompact, trackTerse:
+		// Beside another compact part the label stays, "VIEW s [All 9]▸ │ TRACK t [All 9]▸":
+		// the two chosen options often read alike, and the key letter alone does not say
+		// which filter is which. Beside the full view row (terse) it has nothing to be
+		// confused with.
+		if form == trackCompact {
+			f.add(p.Text(p.Dim).Render(label+" "), false, -1)
+		}
 		if k != "" {
 			f.add(k+" ", false, -1)
 		}
@@ -174,11 +181,15 @@ func (m model) trackPart(p pal, form trackForm) filterPart {
 	return m.options(p, "TRACK", "t", opts, chosen, form, true)
 }
 
+// trackTerse is the compact form without its label, "t [All 9]▸": only beside the full
+// view row, whose options say which part is which.
+const trackTerse = trackCollapsed + 1
+
 // filterForms is every fit of the filter row, widest first: the status form, then the
 // Track form.
 var filterForms = [][2]trackForm{
 	{trackFull, trackFull},
-	{trackFull, trackCompact},
+	{trackFull, trackTerse},
 	{trackCompact, trackCompact},
 	{trackCompact, trackCollapsed},
 	{trackCollapsed, trackCollapsed},

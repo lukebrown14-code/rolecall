@@ -55,7 +55,7 @@ func TestSpaceOpensTheSamePaletteAsColon(t *testing.T) {
 		m = driveModel(t, m, "1")
 		viaSpace := chipped(driveModel(t, m, " ").View().Content)
 		viaColon := chipped(driveModel(t, m, ":").View().Content)
-		if viaSpace != viaColon || !strings.Contains(viaSpace, "╭─ : ") {
+		if viaSpace != viaColon || !strings.Contains(viaSpace, "╭─ Commands: ") {
 			t.Fatalf("%dx%d: space and : differ:\n%s\n%s", size[0], size[1], viaSpace, viaColon)
 		}
 		if strings.Contains(viaSpace, "Menu") {
@@ -80,7 +80,7 @@ func TestSpaceOpensTheSamePaletteAsColon(t *testing.T) {
 func TestPaletteSearchFindsAScreen(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	got := chipped(driveModel(t, m, " ", "stat", "enter").View().Content)
-	if !strings.Contains(got, "Stats") || strings.Contains(got, "╭─ : ") {
+	if !strings.Contains(got, "Stats") || strings.Contains(got, "╭─ Commands: ") {
 		t.Fatalf("finder did not open Stats:\n%s", got)
 	}
 }

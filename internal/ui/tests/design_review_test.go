@@ -34,7 +34,7 @@ func TestPaletteClearsOnlyItsFootprint(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", " "))
 	right := -1 // the palette's right border column
 	for _, l := range strings.Split(view, "\n") {
-		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ : ") {
+		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ Commands: ") {
 			right = ansi.StringWidth(l[:i])
 		}
 	}
@@ -107,7 +107,7 @@ func TestTypingHidesTheGlobalKeys(t *testing.T) {
 func TestCursorDoesNotShiftAnEmptyField(t *testing.T) {
 	unfocused := lineWith(chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "a")), "Title*")
 	focused := lineWith(chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "a", "enter")), "Title*")
-	start := func(l string) int { return strings.IndexAny(l, "_▏") }
+	start := func(l string) int { return strings.Index(l, "the job title") } // Title's placeholder
 	if start(unfocused) < 0 || start(focused) < 0 {
 		t.Fatalf("no field:\n%q\n%q", unfocused, focused)
 	}
