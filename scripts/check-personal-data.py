@@ -4,16 +4,22 @@
 Owner-specific terms are one per line in .rolecall-personal-data-terms by
 default. ROLECALL_PERSONAL_DATA_TERMS_FILE selects another file, and
 ROLECALL_PERSONAL_DATA_TERMS supplies additional newline-separated terms.
+
+--history also scans every file version and commit message reachable from any
+ref. --github OWNER/REPO also scans that repository's issue and pull request
+titles, bodies, comments and reviews, fetched with the gh CLI.
 """
 
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 PATTERNS = (
@@ -101,34 +107,151 @@ def load_owner_terms(root: Path) -> set[str]:
     return terms
 
 
-def scan(root: Path, terms: set[str] | None = None) -> list[str]:
+def scan_text(
+    label: str, text: str, owner_terms: tuple[str, ...], allowlist: set[str]
+) -> list[str]:
+    findings: list[str] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if any(term in line.casefold() for term in owner_terms):
+            findings.append(f"{label}:{line_number}: Owner-specific term")
+        for name, pattern in PATTERNS:
+            if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
+                findings.append(f"{label}:{line_number}: {name}")
+    return findings
+
+
+def tracked_texts(root: Path) -> Iterator[tuple[str, str]]:
+    for relative in tracked_files(root):
+        try:
+            yield relative, (root / relative).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+
+
+def git(root: Path, *args: str, stdin: bytes | None = None) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, input=stdin
+    ).stdout
+
+
+def history_texts(root: Path) -> Iterator[tuple[str, str]]:
+    """Yield every commit message and every distinct file version reachable from any ref."""
+    log = git(root, "log", "--all", "--format=%H%x00%B%x00")
+    fields = log.split(b"\0")
+    for sha, message in zip(fields[0::2], fields[1::2]):
+        sha = sha.strip()
+        if sha:
+            yield f"commit {sha[:12].decode()} message", message.decode("utf-8", "replace")
+
+    blobs: dict[str, str] = {}
+    objects = git(root, "rev-list", "--all", "--objects").decode("utf-8", "surrogateescape")
+    for entry in objects.splitlines():
+        sha, _, path = entry.partition(" ")
+        if path and sha not in blobs:
+            blobs[sha] = path
+    if not blobs:
+        return
+    batch = git(
+        root,
+        "cat-file",
+        "--batch",
+        stdin="".join(f"{sha}\n" for sha in blobs).encode(),
+    )
+    offset = 0
+    while offset < len(batch):
+        header_end = batch.index(b"\n", offset)
+        sha, kind, size = batch[offset:header_end].decode().split()
+        start = header_end + 1
+        contents = batch[start : start + int(size)]
+        offset = start + int(size) + 1
+        if kind != "blob":
+            continue
+        try:
+            text = contents.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        yield f"{sha[:12]}:{blobs[sha]}", text
+
+
+def gh_json_lines(path: str, jq: str) -> list[dict]:
+    output = subprocess.run(
+        ["gh", "api", "--paginate", path, "--jq", jq],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return [json.loads(line) for line in output.splitlines() if line.strip()]
+
+
+def github_texts(
+    repo: str, fetch: Callable[[str, str], list[dict]] = gh_json_lines
+) -> Iterator[tuple[str, str]]:
+    """Yield the text of every issue and pull request in repo, with its comments and reviews."""
+    pulls: list[int] = []
+    items = fetch(
+        f"repos/{repo}/issues?state=all&per_page=100",
+        ".[] | {number, title, body, pr: (.pull_request != null)}",
+    )
+    for item in items:
+        kind = "pr" if item["pr"] else "issue"
+        if item["pr"]:
+            pulls.append(item["number"])
+        yield f"{kind} #{item['number']} title", item["title"] or ""
+        yield f"{kind} #{item['number']} body", item["body"] or ""
+    for comment in fetch(
+        f"repos/{repo}/issues/comments?per_page=100", ".[] | {id, issue_url, body}"
+    ):
+        number = comment["issue_url"].rsplit("/", 1)[-1]
+        yield f"#{number} comment {comment['id']}", comment["body"] or ""
+    for comment in fetch(
+        f"repos/{repo}/pulls/comments?per_page=100", ".[] | {id, pull_request_url, body}"
+    ):
+        number = comment["pull_request_url"].rsplit("/", 1)[-1]
+        yield f"pr #{number} review comment {comment['id']}", comment["body"] or ""
+    for number in pulls:
+        for review in fetch(
+            f"repos/{repo}/pulls/{number}/reviews?per_page=100", ".[] | {id, body}"
+        ):
+            yield f"pr #{number} review {review['id']}", review["body"] or ""
+
+
+def scan(
+    root: Path,
+    terms: set[str] | None = None,
+    sources: Iterable[tuple[str, str]] | None = None,
+) -> list[str]:
     allowlist = load_allowlist(root)
     configured_terms = terms if terms is not None else load_owner_terms(root)
     owner_terms = tuple(term.casefold() for term in configured_terms)
     findings: list[str] = []
-    for relative in tracked_files(root):
-        path = root / relative
-        try:
-            contents = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        for line_number, line in enumerate(contents.splitlines(), start=1):
-            if any(term in line.casefold() for term in owner_terms):
-                findings.append(f"{relative}:{line_number}: Owner-specific term")
-            for label, pattern in PATTERNS:
-                if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
-                    findings.append(f"{relative}:{line_number}: {label}")
+    for label, text in sources if sources is not None else tracked_texts(root):
+        findings.extend(scan_text(label, text, owner_terms, allowlist))
     return findings
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path, help="repository root to scan")
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="also scan every file version and commit message reachable from any ref",
+    )
+    parser.add_argument(
+        "--github",
+        metavar="OWNER/REPO",
+        help="also scan the repository's issues, pull requests, comments and reviews (needs gh)",
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     try:
         terms = load_owner_terms(root)
-        findings = scan(root, terms)
+        sources: Iterable[tuple[str, str]] = tracked_texts(root)
+        if args.history:
+            sources = itertools.chain(sources, history_texts(root))
+        if args.github:
+            sources = itertools.chain(sources, github_texts(args.github))
+        findings = scan(root, terms, sources)
         if not terms:
             print(
                 "Owner-specific terms unavailable; scanning generic patterns only.",

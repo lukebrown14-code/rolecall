@@ -15,9 +15,9 @@ jobs:
         with:
           python-version: "3.x"
       - run: python3 scripts/check-personal-data.py .
-      # The Owner-terms guard belongs to the public repository, where the
-      # ROLECALL_PERSONAL_DATA_TERMS secret is configured (ADR-0005 and the
-      # public-repo cut checklist). The private archive and forks run the
+      # The Owner-terms guard runs on the public repository, where the
+      # ROLECALL_PERSONAL_DATA_TERMS secret is configured (ADR-0005, ADR-0009
+      # and the public-repo cut checklist). Forks and private copies run the
       # generic scan above and skip this step.
       - name: Check Owner-specific terms
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private
