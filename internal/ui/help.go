@@ -173,6 +173,12 @@ func (m model) contextKeys() []helpKey {
 		return screenDefs[m.screen].help(m)
 	}
 	keys := m.actionKeys()
+	if a, ok := m.current(); ok && m.detail != nil && a.Malformed != nil {
+		// A malformed Application has no tabs and nothing to scroll: only e (an action
+		// key), J/K and back apply.
+		return append(keys, help(groupNav, "J", "next row").at(prioDetailStep), help(groupNav, "K", "previous row").at(prioDetailStep),
+			help(groupNav, "esc", "back").at(prioPinned), help(groupNav, "q", "back").at(prioHelpOnly))
+	}
 	if m.detail != nil {
 		vertical := "scroll"
 		if m.detail.tab == tabDocs {
@@ -701,6 +707,44 @@ func (m model) skillsBlock(p pal, inner int) helpBlock {
 	return append(out, helpLine{text: dim.Render("in the Harness: ") + p.Text(p.Fg).Render(strings.Join(others, " · "))})
 }
 
+// coreWords are rolecall's own words, each in one line, as GLOSSARY.md defines them.
+var coreWords = [][2]string{
+	{"Lead", "worth a look, not committed to"},
+	{"Draft", "committed to, not yet sent"},
+	{"Track", "a kind of role, such as SWE"},
+	{"Harness", "the AI coding tool you use"},
+	{"Ready", "its Documents built to send"},
+	{"Filtered", "dismissed by a Search rule"},
+}
+
+// wordsPerLine is how many core words share a line where they fit.
+const wordsPerLine = 2
+
+// wordsBlock defines rolecall's core words, so a newcomer can read the screens: two to a
+// line where they fit, otherwise one.
+func wordsBlock(p pal, inner int) helpBlock {
+	labelW, defW := 0, 0
+	for _, w := range coreWords {
+		labelW, defW = max(labelW, len(w[0])+gutter), max(defW, len(w[1]))
+	}
+	out := helpBlock{heading(p, "Words")}
+	if cell := labelW + defW; inner >= wordsPerLine*cell+gutter && !plainMode() { // plain help reads down one column
+		for i := 0; i < len(coreWords); i += wordsPerLine {
+			var cells []string
+			for _, w := range coreWords[i:min(i+wordsPerLine, len(coreWords))] {
+				cells = append(cells, p.Text(p.Fg).Render(padRight(w[0], labelW))+p.Text(p.Dim).Render(padRight(w[1], defW)))
+			}
+			out = append(out, helpLine{text: strings.Join(cells, strings.Repeat(" ", gutter))})
+		}
+		return out
+	}
+	rows := make([][2]string, len(coreWords))
+	for i, w := range coreWords {
+		rows[i] = [2]string{p.Text(p.Fg).Render(w[0]), w[1]}
+	}
+	return append(out, labelled(p, rows, inner, labelW-gutter)...)
+}
+
 // rowWordCap is the widest row word that sets the label column: the Fit values,
 // "Strong Good Marginal Poor". A longer one has its meaning on the line below.
 const rowWordCap = 25
@@ -934,16 +978,26 @@ func wrapBlock(b helpBlock, inner int) helpBlock {
 }
 
 // helpContent is the help's blocks at inner cells wide: the keys of the context it was
-// opened from and the global keys, the AI skills, the glyph legend, then on a list the
-// row words. Each is wrapped to inner, so a page is never taller than the room for it.
+// opened from and the global keys, the AI skills, the glyph legend, on a list the row
+// words, then the core words. Each is wrapped to inner, so a page is never taller than
+// the room for it.
 func (m model) helpContent(p pal, inner int, flow bool) []helpBlock {
 	under := m
 	under.overlay = nil
 	keys := append(under.screenKeys(), under.dormantKeys()...)
+	for i, k := range keys {
+		if k.group == groupAction && k.Help().Key == "u" && k.Help().Desc == "undo" {
+			// The key line has room for "undo" alone; the help says how long it lasts.
+			keys[i].SetHelp("u", "undo (this session)")
+		}
+	}
 	blocks := []helpBlock{keyBlock(p, keys, inner, flow), m.skillsBlock(p, inner), glyphLegend(p, m.followUpDays, inner)}
 	if m.hasTables() {
 		blocks = append(blocks, rowWords(p, m.followUpDays, inner))
 	}
+	// The core words come last: the keys and glyphs keep their pages, and the words are
+	// a page further on where they do not fit beside them.
+	blocks = append(blocks, wordsBlock(p, inner))
 	for i := range blocks {
 		blocks[i] = wrapBlock(blocks[i], inner)
 	}

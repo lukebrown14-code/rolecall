@@ -73,13 +73,13 @@ type closeReasonMode struct {
 	status string
 	sel    int
 	// The move's toast, put back when the pop-up closes so its u undo stays on offer.
-	toast, toastHint, movedTo string
-	toastKind                 toastKind
+	toast, toastHint, movedTo, follow string
+	toastKind                         toastKind
 }
 
 func (m model) closeReasonPopup(apps []store.Application, status string) mode {
 	return &closeReasonMode{apps: apps, status: status,
-		toast: m.toast, toastHint: m.toastHint, movedTo: m.movedTo, toastKind: m.toastKind}
+		toast: m.toast, toastHint: m.toastHint, movedTo: m.movedTo, follow: m.follow, toastKind: m.toastKind}
 }
 
 func (cr *closeReasonMode) Keys() [][2]string {
@@ -130,7 +130,7 @@ func (cr *closeReasonMode) pick(m *model, reason string) (mode, tea.Cmd) {
 }
 
 func (cr *closeReasonMode) restoreToast(m *model) {
-	m.toast, m.toastHint, m.movedTo, m.toastKind = cr.toast, cr.toastHint, cr.movedTo, cr.toastKind
+	m.toast, m.toastHint, m.movedTo, m.toastKind, m.follow = cr.toast, cr.toastHint, cr.movedTo, cr.toastKind, cr.follow
 }
 
 // title says the move is done before it asks: "Moved to Rejected · why did it end?".

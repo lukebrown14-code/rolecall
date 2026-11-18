@@ -93,7 +93,7 @@ const (
 	keyCtrlS        = "ctrl+s"
 	hintDiscard     = "discard"
 	hintKeepEditing = "keep editing"
-	keyNoEsc        = "n esc"
+	keyNoEsc        = "n / esc"
 )
 
 // Result is what one message did to a Form.

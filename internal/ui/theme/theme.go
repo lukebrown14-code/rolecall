@@ -18,8 +18,11 @@ import (
 // every role has a dark and a light value; one frame is drawn with one Mode's Roles.
 // Colour always pairs with a word or glyph, so meaning never rests on colour alone.
 //
-// Floors (contrast_internal_test.go): text Roles 4.5:1 on bg, panel and the selection
-// bar; rules, separators and glyphs 3:1. Accent is the colour of keys; it also marks the selection gutter.
+// Floors (tests/contrast_test.go): text Roles 4.5:1 on bg, panel and the selection
+// bar; rules, separators and glyphs 3:1; the selection fill itself 1.4:1 on bg in light,
+// so the bar reads as a band and not only by its gutter. The pop-up fill (Panel) is a
+// faint tint: a pop-up is told from the page by its border in the secondary colour, 3:1
+// and more on both. Accent is the colour of keys; it also marks the selection gutter.
 type Roles struct {
 	Bg     string // painted as the terminal background
 	Panel  string // pop-up fill and the feedback line
@@ -71,9 +74,9 @@ var rolePalette = struct {
 	Muted:        rolePair{"#8B949E", "#57606A"},
 	Faint:        rolePair{"#6E7681", "#6E7985"},
 	Rule:         rolePair{"#5A6878", "#6E7985"},
-	Accent:       rolePair{"#5EEAD4", "#0F766E"},
+	Accent:       rolePair{"#5EEAD4", "#0E655E"}, // light: deep enough to clear 4.5:1 on Sel
 	OnFill:       rolePair{darkBg, lightBg},
-	Sel:          rolePair{"#2F5560", "#D6F1EC"}, // light: a teal tint of the accent
+	Sel:          rolePair{"#2F5560", "#B5E2D9"}, // light: a teal tint of the accent, 1.4:1 on bg
 	Ok:           rolePair{"#3FB950", "#14702F"},
 	Info:         rolePair{"#58A6FF", "#074A9A"},
 	Marginal:     rolePair{"#E9E066", "#7A6400"},
@@ -538,16 +541,17 @@ func (p Palette) PanelFill(s string) string {
 // statusGlyphs are each Status's glyph and its ASCII stand-in. The open Statuses run a
 // cold-to-gold ramp; the closed ones are muted, never alarming.
 // The stand-ins are punctuation that is no key and no other mark: not the move keys
-// (Rejected's "x" sat beside the dismiss key x), not "/" search, not "<" the left arrow.
+// (Rejected's "x" sat beside the dismiss key x), not "*" mark, ":" commands or "/"
+// search, not "<" the left arrow; glyphs.go says why each one.
 var statusGlyphs = map[string][2]string{
 	store.StatusLead:         {"◌", "("},
 	store.StatusDraft:        {"✎", "="},
-	store.StatusApplied:      {"●", "*"},
-	store.StatusInterviewing: {"◆", "@"},
+	store.StatusApplied:      {"●", "#"},
+	store.StatusInterviewing: {"◆", "&"},
 	store.StatusOffer:        {"★", "$"},
 	store.StatusRejected:     {"✕", "\\"},
-	store.StatusWithdrawn:    {"↩", "{"},
-	store.StatusDismissed:    {"⊘", ";"},
+	store.StatusWithdrawn:    {"↩", "`"},
+	store.StatusDismissed:    {"⊘", "%"},
 }
 
 // ClosedGroupGlyph is the glyph of the Closed group (Rejected, Withdrawn, Dismissed), or

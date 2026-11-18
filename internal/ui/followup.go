@@ -92,9 +92,10 @@ func (m *model) undoFollowUp(a store.Application, was string) tea.Cmd {
 }
 
 // followedUpRow is the card's "FOLLOW-UP  sent 3d ago · next due in 11d" once a
-// follow-up is recorded and not yet due again; "" otherwise (NEXT says when it is due).
+// follow-up is recorded and not yet due again; "" otherwise (NEXT says when it is due, and
+// a booked next step holds it, so NEXT STEP says what comes next).
 func (m model) followedUpRow(p pal, a store.Application, w int) string {
-	if a.Malformed != nil || !followUpStatus(a.Status) || !followedUpLater(a) {
+	if a.Malformed != nil || !followUpStatus(a.Status) || !followedUpLater(a) || nextStepBooked(a, m.now()) {
 		return ""
 	}
 	past, due := followUpDaysPast(a, m.now(), m.followUpDays)

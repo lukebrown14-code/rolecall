@@ -62,9 +62,11 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
 			// The flag runs from the last Status change or recorded follow-up, so a move or
 			// z clears it: a note would not, and NEXT does not suggest one.
-			step := nextStep{label: followUpLabel, what: m.followUpWords(a), why: keyFollowedUp + " once you have followed up", key: keyFollowedUp, desc: descFollowedUp}
+			// The l key and its action already say how to record it; with a Harness, F
+			// takes the key, so the reason names l.
+			step := nextStep{label: followUpLabel, what: m.followUpWords(a), key: keyFollowedUp, desc: descFollowedUp}
 			if harness {
-				step.key, step.desc = "F", descNudge
+				step.why, step.key, step.desc = keyFollowedUp+" once you have followed up", "F", descNudge
 			}
 			return step, true
 		}

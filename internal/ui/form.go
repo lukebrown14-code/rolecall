@@ -21,7 +21,7 @@ const (
 	formMark      = 2
 	formReq       = 2
 	formUnderline = 24
-	keyNoEsc      = "n esc"
+	keyNoEsc      = "n / esc"
 )
 
 // formBox draws the form at width w (before the pop-up grows to fit its hints).

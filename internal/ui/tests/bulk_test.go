@@ -88,13 +88,14 @@ func TestMarkedRowsKeepTheStatusGlyphColumn(t *testing.T) {
 	}
 }
 
-// In ASCII mode the mark is "[", which no Status, key or other mark uses.
+// In ASCII mode the mark is "{", which no Status, key (Settings takes [ and ]) or other
+// mark uses.
 func TestMarkASCIIStandIn(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "1", "*")
 	view := chipped(m.View().Content)
-	if !strings.Contains(view, " [ ( Platform Engineer") || !strings.Contains(view, "[ 1 marked") {
+	if !strings.Contains(view, " { ( Platform Engineer") || !strings.Contains(view, "{ 1 marked") {
 		t.Fatalf("ASCII mark:\n%s", view)
 	}
 }
@@ -142,7 +143,7 @@ func TestBulkDismissConfirmsAndUndoesAsOne(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 36)
 	m = driveModel(t, m, "1", "*", "*", "x")
 	view := chipped(m.View().Content)
-	if !strings.Contains(view, "Dismiss 2 Applications?") || !strings.Contains(view, "y dismiss 2") {
+	if !strings.Contains(view, "Dismiss 2 Applications?") || !strings.Contains(view, "y yes · n / esc no") {
 		t.Fatalf("no confirmation naming the count:\n%s", view)
 	}
 	if got := dismissedOnDisk(t, root); got != was {

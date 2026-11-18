@@ -481,7 +481,10 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m.closeDetail(), nil, true
 	case "right", "left", "tab", "shift+tab":
 		// ←→ switch tabs as they switch views on a list; tab and shift+tab do too, as the
-		// detail has one pane.
+		// detail has one pane. A malformed Application has no tabs to switch.
+		if a.Malformed != nil {
+			return m, nil, true
+		}
 		tabs := m.detailTabs(a)
 		step := 1
 		if key == "left" || key == "shift+tab" {
@@ -624,16 +627,20 @@ func (m model) detailView(p pal) string {
 	// the card, the strip stands in for it.
 	ctx := []string{title}
 	if !m.cardShown() {
-		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)
+		ctx = append([]string{title}, m.detailStrip(p, a, m.stripWidth())...)
 	}
 	var pane string
 	if a.Malformed != nil {
 		for i := 1; i < len(ctx); i++ {
 			ctx[i] = ""
 		}
-		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
-		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), paneW-paneMargin), "\n")) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
-			"\n\n" + p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")
+		// No tabs and no card: the error takes the whole width. Where and how to fix it, the
+		// file's Workspace path, and the keys that fix it: e opens it in the Editor, r
+		// rescans once it is saved.
+		paneW = w
+		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), min(maxReadWidth, paneW-paneMargin)), "\n")) + "\n\n" +
+			p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) + "\n\n" +
+			p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor  ·  ") + p.Key().Render("r") + p.Text(p.Dim).Render(" rescan")
 	} else {
 		// The tab names sit one cell in from their brackets; the content lines up with them.
 		content := strings.Split(m.detailContent(p, a, paneW), "\n")
@@ -651,7 +658,7 @@ func (m model) detailView(p pal) string {
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
-	if m.cardShown() {
+	if m.cardShown() && a.Malformed == nil {
 		// The card stands where the preview stood, at its width, so opening the detail
 		// moves nothing on the right: the list on the left gives way to the tabs.
 		cardW := m.cardWidth()
@@ -718,7 +725,7 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 		more = []string{p.Text(p.Dim).Render("…")}
 	}
 	for _, cand := range []string{
-		join(pastDated, []string{current}, ahead),
+		join(pastDated, []string{current}, ahead), // trackWhole: every stop with its date
 		join(past, []string{current}, ahead),
 		join(past, []string{current}, next),
 		join(more, []string{current}, next),
@@ -730,6 +737,18 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 	}
 	return xansi.Truncate(current, w, "…")
 }
+
+// trackWhole reports that the strip's timeline track fits whole at its width, every
+// Status with its date and the ones still ahead, so the Overview beneath it need not
+// repeat the timeline.
+func (m model) trackWhole(p pal, a store.Application) bool {
+	_, pastDated, current, ahead := m.trackStops(p, a)
+	stops := slices.Concat(pastDated, []string{current}, ahead)
+	return xansi.StringWidth(strings.Join(stops, " ─ ")) <= m.stripWidth()
+}
+
+// stripWidth is the width the strip's lines are fitted to.
+func (m model) stripWidth() int { return m.viewWidth() - inset - rightMargin }
 
 // trackStops is a timeline track's stops: earlier Statuses without and with their dates,
 // the current one, and the Statuses still ahead.
@@ -908,9 +927,6 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 // detailCard is the column beside the tabs: the preview as it stood beside the list,
 // with the link under it, h lines tall.
 func (m model) detailCard(p pal, a store.Application, h int) string {
-	if a.Malformed != nil {
-		return ""
-	}
 	w := m.cardWidth()
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, h, cardDetail))
 }

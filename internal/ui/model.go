@@ -41,6 +41,7 @@ type model struct {
 	movedTo               string    // destination Status of the move the toast reports, else ""
 	toastKind             toastKind // how the feedback line draws the toast
 	toastHint             string    // key hint shown with it, e.g. "u undo"
+	follow                string    // folder the toast offers to go to with keyFollow, else ""
 	flash                 string    // folder of the row just moved, lit until flashID's tick
 	flashID               int
 	tick                  Ticker
@@ -414,9 +415,10 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	follow := m.follow // the toast's offer, good for this key only
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
+		m.toast, m.toastHint, m.movedTo, m.toastKind, m.follow = "", "", "", toastPlain, ""
 		if k.String() == "ctrl+c" {
 			if next, held := m.quitHeld(); held {
 				return next, nil // typed Settings text is never dropped without asking
@@ -430,6 +432,10 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		m.clampCursor()
 		return m, cmd
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok && follow != "" && k.String() == keyFollow {
+		m.followAfterMove(follow)
+		return m.syncDetail(), nil
 	}
 	if m.fieldOpen() {
 		// An open Settings field owns the keyboard, so typing digits or "," is text.

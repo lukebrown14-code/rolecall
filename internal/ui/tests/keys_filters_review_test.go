@@ -73,7 +73,7 @@ func TestPaletteOpensEditOnAField(t *testing.T) {
 		field string
 	}{
 		{[]string{"3", ":", "next step", "enter"}, "When"},
-		{[]string{"3", ":", "contact", "enter"}, "Name"},
+		{[]string{"3", ":", "person", "enter"}, "Name"},
 		{[]string{"3", "s", "s", "s", "s", ":", "close reason", "enter"}, "Reason"},
 	} {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 40, tc.keys...))

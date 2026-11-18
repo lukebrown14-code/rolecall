@@ -191,11 +191,18 @@ func (mv *moveMode) pick(m *model, status string) (mode, tea.Cmd) {
 type confirmMode struct {
 	app    store.Application
 	status string
+	// askedY is set by enter, which does not confirm: the pop-up then says to press y.
+	askedY bool
 }
 
-func (cm *confirmMode) Keys() [][2]string {
-	return [][2]string{{"y", "mark Applied"}, {keyNoEsc, "cancel"}}
-}
+// confirmKeys is a yes-or-no question's keys. enter is left out on purpose: a question
+// that changes Applications takes y, so a stray enter cannot answer it (pressY says so).
+var confirmKeys = [][2]string{{"y", "yes"}, {keyNoEsc, "no"}}
+
+// pressY is what a yes-or-no pop-up says once enter has been pressed.
+const pressY = "Press y to confirm, or n to cancel."
+
+func (cm *confirmMode) Keys() [][2]string { return confirmKeys }
 
 func (cm *confirmMode) View(m *model, p pal) string { return m.confirmBox(p, cm) }
 
@@ -209,6 +216,8 @@ func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		return nil, m.move(cm.app, cm.status, false)
 	case "n", "esc":
 		return nil, nil
+	case "enter":
+		cm.askedY = true
 	}
 	return cm, nil
 }

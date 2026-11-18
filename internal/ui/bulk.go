@@ -146,6 +146,8 @@ type bulkMode struct {
 	status  string
 	skipped int // marked rows that do not apply (already there, or malformed, or not a Lead or Draft)
 	notRdy  int // moving to Applied without Ready Documents
+	// askedY is set by enter, which does not confirm: the pop-up then says to press y.
+	askedY bool
 }
 
 // newBulk builds the confirmation for moving the marked rows to status. Rows already at the
@@ -166,17 +168,7 @@ func (m model) newBulk(marked []store.Application, status string) *bulkMode {
 	return bm
 }
 
-func (bm *bulkMode) Keys() [][2]string {
-	return [][2]string{{"y", bm.verb()}, {keyNoEsc, "cancel"}}
-}
-
-// verb is what y does: "dismiss 3", "move 3".
-func (bm *bulkMode) verb() string {
-	if bm.status == store.StatusDismissed {
-		return "dismiss " + strconv.Itoa(len(bm.apps))
-	}
-	return "move " + strconv.Itoa(len(bm.apps))
-}
+func (bm *bulkMode) Keys() [][2]string { return confirmKeys }
 
 func (bm *bulkMode) View(m *model, p pal) string { return m.bulkBox(p, bm) }
 
@@ -190,6 +182,8 @@ func (bm *bulkMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		return bm.apply(m)
 	case "n", "esc":
 		return nil, nil
+	case "enter":
+		bm.askedY = true
 	}
 	return bm, nil
 }
@@ -268,7 +262,7 @@ func (m *model) moveMany(apps []store.Application, status string) (tea.Cmd, []st
 		if status == store.StatusDismissed {
 			verb = "Dismissed"
 		}
-		m.toast, m.toastHint, m.movedTo, m.toastKind = fmt.Sprintf("%s · %s", verb, applications(done)), undoHint, status, toastPlain
+		m.toast, m.toastHint, m.movedTo, m.toastKind, m.follow = fmt.Sprintf("%s · %s", verb, applications(done)), undoHint, status, toastPlain, ""
 	}
 	return tea.Batch(cmds...), moved
 }
@@ -289,7 +283,7 @@ func (m *model) undoBatch(group []undoMove) tea.Cmd {
 		}
 	}
 	if m.err == nil {
-		m.toast, m.toastKind, m.toastHint = fmt.Sprintf("Undone · %s moved back", applications(back)), toastUndo, ""
+		m.toast, m.toastKind, m.toastHint, m.follow = fmt.Sprintf("Undone · %s moved back", applications(back)), toastUndo, "", ""
 		if back < len(group) {
 			m.toast += fmt.Sprintf(" · %d changed since", len(group)-back)
 		}

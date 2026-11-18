@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -120,12 +121,38 @@ func TestHelpPagesNeverEndOnAHeading(t *testing.T) {
 // The help fits in a page or two at common sizes, 80x24 included (the skills with no key
 // share one line, so the ten Plugin skills cost three rows), and in six on the smallest
 // terminal rolecall runs in: below wide it is a screen of its own rather than a pop-up
-// between the frame's rules.
+// between the frame's rules. The core Words come last and may take one page more where
+// they do not fit beside the rest, so the keys, glyphs and row words keep their pages.
 func TestHelpPageCounts(t *testing.T) {
 	for _, tc := range []struct{ w, h, most int }{{166, 44, 2}, {120, 36, 2}, {90, 30, 2}, {80, 24, 2}, {72, 24, 2}, {56, 14, 6}} {
 		for _, keys := range helpContexts {
-			if _, hm := helpAt(t, tc.w, tc.h, keys); hm.pages > tc.most {
-				t.Errorf("%dx%d keys %q: help is %d pages, want at most %d", tc.w, tc.h, keys, hm.pages, tc.most)
+			m, hm := helpAt(t, tc.w, tc.h, keys)
+			most := tc.most
+			hm.page = hm.pages - 1
+			if last := strings.Join(helpBody(m), "\n"); strings.Contains(last, "WORDS") && !strings.Contains(last, "ROW WORDS") &&
+				!strings.Contains(last, "GLYPHS") {
+				most++ // a page of the core Words alone
+			}
+			if hm.pages > most {
+				t.Errorf("%dx%d keys %q: help is %d pages, want at most %d", tc.w, tc.h, keys, hm.pages, most)
+			}
+		}
+	}
+}
+
+// ? defines each core word, in every context, on one of its pages.
+func TestHelpDefinesTheCoreWords(t *testing.T) {
+	for _, keys := range helpContexts {
+		m, hm := helpAt(t, 120, 36, keys)
+		var all []string
+		for page := range hm.pages {
+			hm.page = page
+			all = append(all, helpBody(m)...)
+		}
+		text := strings.Join(all, "\n")
+		for _, w := range []string{"Lead", "Draft", "Track", "Harness", "Ready", "Filtered"} {
+			if !regexp.MustCompile(`(?m)\b` + w + `\s{2,}\S`).MatchString(text) {
+				t.Errorf("keys %q: the help does not define %s:\n%s", keys, w, text)
 			}
 		}
 	}

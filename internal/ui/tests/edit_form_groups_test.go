@@ -35,7 +35,7 @@ func TestEditOpensOnTheNextStepAsTyped(t *testing.T) {
 		}
 		d.Type("e")
 		v := d.plain()
-		requireAll(t, v, "ROLE", "NEXT STEP", "CONTACT")
+		requireAll(t, v, "ROLE", "NEXT STEP", "PERSON")
 		when := lineWith(v, "When")
 		if !strings.Contains(when, "▌") || !strings.Contains(when, "4 Oct 10:30") || !strings.Contains(when, "→ Sun 4 Oct 2026 10:30") {
 			t.Fatalf("detail %v: the form is not on the next step, shown as typed:\n%s", viaDetail, v)

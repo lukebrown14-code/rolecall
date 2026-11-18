@@ -73,10 +73,11 @@ func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 	}
 }
 
-// The detail tabs keep to one line: hidden ones are marked ‹ ›, and the Overview's cue
-// still shows under it.
+// The detail tabs keep to one line: hidden ones are marked ‹ ›, and a cut tab's cue still
+// shows under it. (The Overview no longer overflows here: the strip's whole track stands in
+// for its TIMELINE, so the cut tab is the Cover letter.)
 func TestDetailTabsNeverWrap(t *testing.T) {
-	for _, keys := range [][]string{{"3", "/docs-written", "enter", "enter"}, {"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}} {
+	for _, keys := range [][]string{{"3", "/docs-written", "enter", "enter", "right", "right", "right", "right"}, {"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}} {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 14, keys...))
 		if strings.Contains(view, "\n  Notes   Docs") {
 			t.Errorf("keys %q: tabs wrap:\n%s", keys, view)

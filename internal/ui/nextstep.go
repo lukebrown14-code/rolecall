@@ -88,7 +88,7 @@ func (m model) nextStepInfo(ns *store.NextStep) (string, closeState) {
 	return text, state
 }
 
-// contactRows are the card's CONTACTS rows: one line per Contact, a long one wrapped
+// contactRows are the card's PEOPLE rows (an Application's contacts, never the Owner's Contact): one line per person, a long one wrapped
 // under itself.
 func (m model) contactRows(p pal, a store.Application, w int) []string {
 	var rows []string
@@ -96,7 +96,7 @@ func (m model) contactRows(p pal, a store.Application, w int) []string {
 	for i, c := range a.Contacts {
 		label := ""
 		if i == 0 {
-			label = "CONTACTS"
+			label = "PEOPLE"
 		}
 		lines := wrapWords(c.Label(), max(1, w-cardLabelW))
 		if i == 0 {
@@ -111,11 +111,18 @@ func (m model) contactRows(p pal, a store.Application, w int) []string {
 	return rows
 }
 
-// nextStepRow is the card's NEXT STEP row, with the e key that edits it.
+// nextStepRow is the card's NEXT STEP row, with the e key that edits it. Once the
+// Application is closed or dismissed its next step no longer matters, but it stays in
+// meta.yml, so the row stays too, struck through and muted with "· closed": nothing is kept
+// out of sight. e on the CLOSED row (the same Edit form) clears it.
 func (m model) nextStepRow(p pal, a store.Application, w int, keep func(string) bool) []string {
 	text, s := m.nextStepInfo(a.NextStep)
-	if s == closeNone || !openStatus(a.Status) {
+	if s == closeNone {
 		return nil
+	}
+	if !openStatus(a.Status) {
+		value := p.Text(p.Dim).Strikethrough(true).Render(text) + p.Text(p.Dim).Render(" · closed")
+		return []string{p.cardRow("NEXT STEP", value, "", "", w)}
 	}
 	key, action := "e", descEdit
 	if !keep(key) {

@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
@@ -72,8 +73,9 @@ func (m model) trackHelpKeys() []helpKey {
 	switch {
 	case m.onTrack():
 		// enter renames, as it edits every other row: r stays rescan, as it is everywhere.
-		keys = append([]helpKey{help(groupAction, "enter", "rename").at(prioCore)}, keys...)
-		keys = append(keys, help(groupAction, "x", "remove"), help(groupAction, "J/K", "reorder"))
+		// The key line names add and remove too, or the Owner never finds them.
+		keys = []helpKey{help(groupAction, "enter", "rename").at(prioCore), help(groupAction, "a", "add").at(prioCore),
+			help(groupAction, "x", "remove").at(prioCore), help(groupAction, "J/K", "reorder")}
 	case m.onAddTrack():
 		keys = []helpKey{help(groupAction, "enter", "add a Track").at(prioCore)}
 	default:
@@ -216,7 +218,7 @@ func (m model) trackCount(track string) (listed, dismissed, unreadable int) {
 }
 
 // removeBlocked is the refusal for a Track still in use, counting what the lists do not
-// show so the number adds up.
+// show so the number adds up, and naming the Applications the lists hold on it.
 func (m model) removeBlocked(track string, n int) *removeBlockedMode {
 	listed, dismissed, unreadable := m.trackCount(track)
 	var incl []string
@@ -229,28 +231,70 @@ func (m model) removeBlocked(track string, n int) *removeBlockedMode {
 	if other := n - listed; other > 0 {
 		incl = append(incl, strconv.Itoa(other)+" archived")
 	}
-	return &removeBlockedMode{track: track, n: n, incl: strings.Join(incl, ", ")}
+	var names []string
+	for _, a := range m.apps {
+		if a.Track == track && a.Malformed == nil {
+			names = append(names, appLabel(a))
+		}
+	}
+	return &removeBlockedMode{track: track, n: n, incl: strings.Join(incl, ", "), names: names}
 }
 
+// appLabel names an Application in a list of them: its company and title.
+func appLabel(a store.Application) string {
+	switch {
+	case a.Company == "":
+		return a.Title
+	case a.Title == "":
+		return a.Company
+	}
+	return a.Company + " · " + a.Title
+}
+
+// blockedShown is how many blocking Applications the refusal names before "and n more".
+const blockedShown = 3
+
+// keyShowBlocking is the refusal's key that shows the lists filtered to the Track.
+const keyShowBlocking = "f"
+
 // removeBlockedMode refuses removing a Track that Applications still use. It is a pop-up
-// by the rows rather than a footer error, and it names the way out: move the Applications
-// still on it to another Track first.
+// by the rows rather than a footer error. It names the first few Applications on the
+// Track and the way out: f shows them all, filtered to the Track, so each can be moved.
 type removeBlockedMode struct {
 	track string
 	n     int
-	incl  string // "1 Dismissed, 2 archived": the part of n the lists do not show
+	incl  string   // "1 Dismissed, 2 archived": the part of n the lists do not show
+	names []string // the readable Applications on the Track, as "Company · Title"
 }
 
-func (rb *removeBlockedMode) Keys() [][2]string { return [][2]string{{"esc", hintClose}} }
+func (rb *removeBlockedMode) Keys() [][2]string {
+	if len(rb.names) == 0 {
+		return [][2]string{{"esc", hintClose}}
+	}
+	return [][2]string{{keyShowBlocking, "show them"}, {"esc", hintClose}}
+}
 
 func (rb *removeBlockedMode) View(m *model, p pal) string {
 	what := fmt.Sprintf("%s is used by %s", rb.track, plural(rb.n, "Application", "Applications"))
 	if rb.incl != "" {
 		what += ",\nincl. " + rb.incl
 	}
-	next := "Move its Applications to another Track first: e on each, then change its Track."
-	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(what+".") + "\n\n" +
-		p.Text(p.Dim).Width(popSmall-popInset).Render(next)
+	inner := popSmall - popInset
+	body := lipgloss.NewStyle().Foreground(p.Fg).Width(inner).Render(what + ".")
+	if len(rb.names) == 0 {
+		next := "Move its Applications to another Track first: e on each, then change its Track."
+		body += "\n\n" + p.Text(p.Dim).Width(inner).Render(next)
+		return popup(p, "Can't remove Track "+rb.track, true, popSmall, m.viewWidth(), body, p.Keys(rb.Keys()))
+	}
+	// The way out comes before the names, so a short terminal clips the names first.
+	next := "Move its Applications to another Track first: f shows them, then e on each to change its Track."
+	body += "\n\n" + p.Text(p.Dim).Width(inner).Render(next) + "\n"
+	for _, name := range rb.names[:min(blockedShown, len(rb.names))] {
+		body += "\n" + p.Text(p.Sub).Render(xansi.Truncate("· "+name, inner, "…"))
+	}
+	if more := len(rb.names) - blockedShown; more > 0 {
+		body += "\n" + p.Text(p.Dim).Render(fmt.Sprintf("  and %d more", more))
+	}
 	return popup(p, "Can't remove Track "+rb.track, true, popSmall, m.viewWidth(), body, p.Keys(rb.Keys()))
 }
 
@@ -262,8 +306,39 @@ func (rb *removeBlockedMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	switch k.String() {
 	case "esc", "enter":
 		return nil, nil
+	case keyShowBlocking:
+		if len(rb.names) > 0 {
+			*m = m.showTrack(rb.track)
+			return nil, nil
+		}
 	}
 	return rb, nil
+}
+
+// showTrack leaves Settings for the list that holds most of a Track's Applications,
+// filtered to that Track: the Pipeline screen's All view, Drafts or Leads.
+func (m model) showTrack(track string) model {
+	type place struct{ screen, table int }
+	count := map[place]int{}
+	best, most := place{screen: screenIndex(screenPipeline)}, 0
+	for _, a := range m.apps {
+		if a.Track != track || a.Malformed != nil {
+			continue
+		}
+		name, table := appLocation(a)
+		if name == screenPipeline {
+			table = allView
+		}
+		at := place{screen: screenIndex(name)}
+		at.table = max(0, slices.Index(screenDefs[at.screen].tables, table))
+		if count[at]++; count[at] > most {
+			best, most = at, count[at]
+		}
+	}
+	m.back, m.detail = nil, nil
+	m.screen, m.table, m.cursor = best.screen, best.table, 0
+	m.track = slices.Index(m.filterTracks(), track) + 1
+	return m
 }
 
 var validTrackName = store.ValidTrackName
