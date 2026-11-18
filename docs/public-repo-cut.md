@@ -16,27 +16,27 @@ archive repository and no fresh history-less repository.
 - [ ] Confirm the release tree is the intended v1.0 source and has no uncommitted changes.
 - [ ] Stop if any blocker remains open or any required work has not merged.
 
-## 2. Run the personal-data scanner with Owner terms
+## 2. Run the personal-data guard over the tree, history and tracker
 
-Put one Owner-specific term per line in the gitignored `.rolecall-personal-data-terms` file at
-the repository root. Include the Owner's name and known identifying terms such as former
-employers, locations, and visa terms; do not add those terms to repository files.
+The guard works by Workspace structure: it fails when Workspace data (`workspace.json`,
+`config.toml`, `jobs/`, `profile/`, `cv/`, `sent/`, `meta.yml`, PDFs, `.rolecall-*`) is tracked
+outside `fixtures/` and `examples/`, and it requires fictional values inside them. It also
+scans for emails, phone numbers, profile URLs and street addresses.
 
-- [ ] Confirm `.rolecall-personal-data-terms` contains the complete Owner-specific term list and
-  is not tracked (`git check-ignore .rolecall-personal-data-terms`).
+- [ ] Put your own name, former employers, locations and visa terms, one per line, in the
+  gitignored `.rolecall-personal-data-terms` (check `git check-ignore
+  .rolecall-personal-data-terms`). Do not add those terms to repository files. CI never sees
+  them, so this run is the only Owner-terms check of the history and the tracker.
 - [ ] Fetch every branch and tag (`git fetch --all --tags`), then from the repository root run:
 
   ```sh
   python3 scripts/check-personal-data.py . --history --github lukebrown14-code/rolecall
   ```
 
-  This scans the tracked tree, every file version and commit message reachable from any ref,
-  and every issue and pull request title, body, comment and review (through `gh`, which must be
-  signed in). It reads the default terms file automatically. To store the terms file elsewhere,
-  set `ROLECALL_PERSONAL_DATA_TERMS_FILE=/absolute/path/to/terms` for this command.
-  Alternatively, provide newline-separated terms with `ROLECALL_PERSONAL_DATA_TERMS`; the
-  scanner adds these to the terms in the file. The command must exit zero with no findings. Do
-  not add Owner terms to the allowlist.
+  This checks the tracked tree, every file version and commit message on any branch, tag or
+  remote ref, and every issue and pull request title, body, comment and review (through `gh`,
+  which must be signed in). It must exit zero with no findings. Do not widen the allowlist for
+  real data.
 - [ ] Fix each finding where it lives:
   - **Tracked tree**: edit the file and commit.
   - **Issue or pull request text**: edit it on GitHub, then open the item's "edited" history and
@@ -44,8 +44,8 @@ employers, locations, and visa terms; do not add those terms to repository files
   - **History** (a file version or commit message no longer in the tree): rewrite the affected
     commits with `git filter-repo` and force-push every affected branch and tag. GitHub keeps
     pull request refs and cached views of the old commits, so also ask GitHub Support to purge
-    them. Remove stale branches instead of rewriting them where possible.
-- [ ] Run the full scan again after any cleanup and confirm it exits zero.
+    them. Delete stale branches instead of rewriting them where possible.
+- [ ] Run the full command again after any cleanup and confirm it exits zero.
 
 Commit author names and emails are not scanned; they stay as they are. Before the release
 commit, confirm `git config user.email` is the Owner's GitHub noreply address so new commits do
@@ -59,23 +59,16 @@ not add a personal email.
   `meta.yml`, a CV, or the Profile, and asks them to reproduce with the example Workspace.
 - [ ] Read every file under `fixtures/`, including the example Workspace and generated-document
   fixtures. Confirm names and personal facts are fictional and no real Owner data remains.
-- [ ] Resolve any concern and rerun the scanner after edits.
+- [ ] Resolve any concern and rerun the guard after edits.
 
-## 4. Configure CI and repository settings
+## 4. Configure repository settings
 
-- [ ] In **Settings → Secrets and variables → Actions**, create the repository secret
-  `ROLECALL_PERSONAL_DATA_TERMS`. Set its value to the Owner-specific terms, one per line. Keep
-  this value out of commits, issues, and logs.
-- [ ] Confirm the workflow's Owner-terms step runs for pushes to `main` and scans with the
-  configured terms. If the secret is unset it prints a notice and passes without scanning, so
-  check that the run's log shows no `Owner-terms guard skipped` notice. Generic scanning also
-  runs on pushes and pull requests.
 - [ ] Protect `main`: require pull requests before merging, require the status checks `CI / go`
   and `CI / python` to pass, and prevent force pushes and branch deletion. Also require
-  `CI / macos` once it has run green. Do this after any history rewrite in step 2.
+  `CI / macos`. Do this after any history rewrite in step 2.
 - [ ] Add repository topics that describe the project, such as `job-search`, `terminal`, and
   `privacy`.
-- [ ] Confirm a push to `main` runs CI successfully with the Owner-terms secret configured.
+- [ ] Confirm a push to `main` runs CI successfully; the personal-data guard needs no secret.
 
 ## 5. Tag v1.0
 

@@ -24,5 +24,9 @@
   "+61400000000",
   "https://linkedin.com/in/alexquinn",
   "linkedin.com/in/your-name",
-  "alex\u0040example.com"
+  "alex\u0040example.com",
+  "ada\u0040example.com",
+  "name\u0040example.com",
+  "t\u0040example.test",
+  "local\u0040domain.tld"
 ]

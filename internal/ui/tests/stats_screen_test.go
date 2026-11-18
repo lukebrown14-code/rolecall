@@ -93,6 +93,29 @@ func TestStatsScrollsWhenTallerThanTheBody(t *testing.T) {
 	}
 }
 
+// A tall Stats offers j/k on its key line, and pgdn and pgup scroll it a page at a time.
+func TestStatsPagesWithPgdnAndOffersJK(t *testing.T) {
+	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 20)
+	m = driveModel(t, m, "4")
+	top := chipped(m.View().Content)
+	if keys := lastLineOf(top); !strings.Contains(keys, "j/k scroll") {
+		t.Errorf("the Stats key line lacks j/k scroll: %q", keys)
+	}
+	m = runMsg(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
+	paged := chipped(m.View().Content)
+	if paged == top || !regexp.MustCompile(`↑ \d+ more`).MatchString(paged) {
+		t.Fatalf("pgdn did not scroll Stats:\n%s", paged)
+	}
+	// A page moves further than a line.
+	if line := chipped(driveModel(t, driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 20), "4"), "j").View().Content); line == paged {
+		t.Errorf("pgdn moved only a line:\n%s", paged)
+	}
+	m = runMsg(t, m, tea.KeyPressMsg{Code: tea.KeyPgUp})
+	if view := chipped(m.View().Content); view != top {
+		t.Errorf("pgup did not scroll back to the top:\n%s", view)
+	}
+}
+
 // The Track filter offers the off-list Tracks rows are on, after the workspace.json ones,
 // so its options add up to All, and t reaches them. Stats leaves the malformed row out of
 // its counts, as it does of every figure.
@@ -104,7 +127,7 @@ func TestStatsTrackFilterOffersOffListTracks(t *testing.T) {
 		t.Fatalf("Stats track filter does not add up:\n%s", view)
 	}
 	view = chipped(runKeys(t, fixtureCopy(t, nil), 140, "4", "t", "t", "t"))
-	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "closed  ✕ Rejected 1 · ↩ Withdrawn 1   ⊘ Dismissed 1") {
+	if !strings.Contains(view, "[Unknown 6]") || !strings.Contains(view, "Closed 2: ✕ Rejected 1 · ↩ Withdrawn 1") || !strings.Contains(view, "⊘ Dismissed 1, let go before applying") {
 		t.Fatalf("t did not reach the Unknown Track, or Stats is not filtered to it:\n%s", view)
 	}
 	// On Applied, Platform has no rows, so its chip is left out.
@@ -146,14 +169,15 @@ func TestStatsIgnoresAnUndoneMove(t *testing.T) {
 func TestStatsFunnelExplainsEachRung(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 80, 40, "4"))
 	for _, want := range []string{
-		"Applications that ever reached each Status",
+		"Ever reached each Status; tabs count where they are now",
 		"so a bar can outgrow the one above",
-		"◌ Lead ███████████████░░░░░░░░░ 7",
+		"◌ Lead ███████████████████████░░░░░░░░░░░░░ 7",
 		"2 2 started at Draft",
 		"11 11 never a Draft",
 		"4 36% of Applied",
 		"2 50% of Interviewing",
-		"closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3",
+		"Closed 4: ✕ Rejected 2 · ↩ Withdrawn 2",
+		"⊘ Dismissed 3, let go before applying",
 		"33% · 2 of 6",
 		"Not counted: 5 applied in the last 14 days (too new)",
 		"13 Jul 28 Sep",

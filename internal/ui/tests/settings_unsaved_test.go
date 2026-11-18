@@ -242,7 +242,7 @@ func TestSettingsGAndShiftGGoToTheEnds(t *testing.T) {
 // Settings reached with 6 returns on esc to where the Owner was, as it does after ",".
 func TestEscInSettingsOpenedByDigitReturns(t *testing.T) {
 	v := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "6", "esc"))
-	if !strings.Contains(v, "[3 Applied") {
+	if !strings.Contains(v, "[3 Pipeline") {
 		t.Fatalf("esc did not return to Applied:\n%s", v)
 	}
 	if line := lastLine(t, 120, 36, "3", "6"); !strings.Contains(line, "esc back") {

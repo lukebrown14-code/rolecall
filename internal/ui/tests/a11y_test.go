@@ -3,9 +3,11 @@ package ui_test
 import (
 	"fmt"
 	"image/color"
+	"regexp"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -78,7 +80,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 			t.Fatalf("glyph %q survived ROLECALL_ASCII on Stats:\n%s", g, stats)
 		}
 	}
-	if !strings.Contains(stats, "FUNNEL") || !strings.Contains(stats, "RESPONSE RATE   ########................") {
+	if !strings.Contains(stats, "FUNNEL") || !regexp.MustCompile(`RESPONSE RATE   \|+\.+ 33%`).MatchString(stats) {
 		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
 	}
 
@@ -204,7 +206,7 @@ func TestAsciiOnTheLinuxConsole(t *testing.T) {
 func TestAsciiKeepsStatusesApart(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", `\ docs-ready`, "{ docs-resume-only"} {
+	for _, want := range []string{"# Applied | 1", "& Interviewing | 2", "$ Offer | 2", `\ docs-ready`, "` docs-resume-only"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("ASCII lost %q:\n%s", want, view)
 		}
@@ -216,10 +218,10 @@ func TestAsciiKeepsStatusesApart(t *testing.T) {
 // glyphs, as the design draws it.
 func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	list := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
+	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌  ● Software Engineer",
 		"● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "↩ docs-resume-only"} {
 		if !strings.Contains(list, want) {
-			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
+			t.Fatalf("Pipeline screen lacks %q:\n%s", want, list)
 		}
 	}
 	move := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
@@ -236,12 +238,12 @@ func TestClosedGroupHeaderHasAGlyph(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"✕ Closed · 4", "↩ docs-resume-only"} {
 		if !strings.Contains(view, want) {
-			t.Fatalf("Applied screen lacks %q:\n%s", want, view)
+			t.Fatalf("Pipeline screen lacks %q:\n%s", want, view)
 		}
 	}
 	t.Setenv("ROLECALL_ASCII", "1")
 	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	if !strings.Contains(view, `\ Closed . 4`) {
+	if !strings.Contains(view, `\ Closed | 4`) {
 		t.Fatalf("ASCII Closed header lost its glyph:\n%s", view)
 	}
 }
@@ -263,6 +265,119 @@ func TestNoColorShowsAGlyphForEveryStatus(t *testing.T) {
 			if !strings.Contains(view, want) {
 				t.Errorf("NO_COLOR keys %q lacks %q:\n%s", tc.keys, want, view)
 			}
+		}
+	}
+}
+
+// plainFrame is the ANSI-stripped frame and cursor ROLECALL_PLAIN draws after keys.
+func plainFrame(t *testing.T, keys ...string) (string, *tea.Cursor) {
+	t.Helper()
+	t.Setenv("ROLECALL_PLAIN", "1")
+	v := driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36), keys...).View()
+	return ansi.Strip(v.Content), v.Cursor
+}
+
+// ROLECALL_PLAIN draws a pop-up as a screen of its own, so a screen reader reading a
+// line at a time never hears the list behind it: no tab bar, no row, no breadcrumb and
+// no border share its lines. The pop-up's title and keys stay.
+func TestPlainPopUpsReadAlone(t *testing.T) {
+	for _, tc := range []struct {
+		keys        []string
+		title, hint string
+	}{
+		{[]string{"3", "m"}, "Move", "esc cancel"},
+		{[]string{"3", "*", "j", "*", "m"}, "Move", "esc cancel"},
+		{[]string{"1", "m", "a"}, "Docs not Ready", "y yes"},
+		{[]string{"3", "m", "r"}, "why did it end?", "esc skip"},
+		{[]string{"1", "a"}, "Add a Lead", "esc cancel"},
+		{[]string{"1", "e"}, "Edit Platform Engineer", "esc cancel"},
+		{[]string{"1", ":"}, "Drafts screen", "esc close"},
+	} {
+		view, _ := plainFrame(t, tc.keys...)
+		if !strings.Contains(view, tc.title) || !strings.Contains(view, tc.hint) {
+			t.Errorf("keys %q: the pop-up lost %q or %q:\n%s", tc.keys, tc.title, tc.hint, view)
+		}
+		for _, behind := range []string{"Leads 7", "Pipeline 9", "Fictional Labs · SWE", "Pipeline ›", "Leads ›", "│", "╭", "╰", "╮", "╯"} {
+			if strings.Contains(view, behind) {
+				t.Errorf("keys %q: %q from the frame or border shares the pop-up's screen:\n%s", tc.keys, behind, view)
+			}
+		}
+	}
+}
+
+// The terminal cursor still lands on the pop-up's selected option, where a screen reader
+// follows it.
+func TestPlainPopUpCursorIsOnTheSelectedOption(t *testing.T) {
+	view, cur := plainFrame(t, "3", "m")
+	if cur == nil {
+		t.Fatalf("no cursor in the plain Move pop-up:\n%s", view)
+	}
+	row := strings.Split(view, "\n")[cur.Y]
+	if !strings.Contains(row, "▌") || !strings.Contains(row, "Interviewing") {
+		t.Fatalf("the cursor is on %q, not the selected option:\n%s", row, view)
+	}
+	if got := ansi.Cut(row, cur.X, cur.X+1); got != "i" {
+		t.Fatalf("the cursor is on cell %q of %q, not the option's first", got, row)
+	}
+}
+
+// ROLECALL_PLAIN says flags, Document marks and the ready meter as words and Stats as
+// numbers, so no frame reads "black flag", "white circle" or a run of blocks aloud.
+func TestPlainSaysMarksAsWords(t *testing.T) {
+	for _, keys := range [][]string{{"1"}, {"1", "s"}, {"2"}, {"3"}, {"3", "j", "j"}, {"3", "enter"},
+		{"3", "enter", "right", "right", "right", "right"}, {"2", "enter"}, {"4"}, {"5"}, {"6"},
+		{"3", "m"}, {"1", "m", "a"}, {"1", "a"}, {"1", "e"}, {"1", ":"}, {"1", "?"}} {
+		view, _ := plainFrame(t, keys...)
+		for _, g := range []string{"⚑", "□", "■", "○", "⚠", "▲", "◉", "█", "░", "▁"} {
+			if strings.Contains(view, g) {
+				t.Errorf("keys %q: %q survived ROLECALL_PLAIN:\n%s", keys, g, view)
+			}
+		}
+	}
+	t.Setenv("ROLECALL_PLAIN", "1")
+	if help := helpPages(t, 120, 36, "1"); strings.ContainsAny(help, "⚑□■○⚠▲◉█░▁") {
+		t.Errorf("a mark survived on a plain help page:\n%s", help)
+	}
+	list, _ := plainFrame(t, "3")
+	if !strings.Contains(list, "follow-up due 9mo  Good") {
+		t.Errorf("the Follow-up flag is not said as words, or pushed the Fit off its row:\n%s", list)
+	}
+	detail, _ := plainFrame(t, "3", "enter")
+	if !strings.Contains(detail, "missing Resume missing PDF") {
+		t.Errorf("the detail's Document marks are not words:\n%s", detail)
+	}
+	stats, _ := plainFrame(t, "4")
+	for _, want := range []string{"◌ Lead            7", "RESPONSE RATE    33% · 2 of 6", "APPLIED / WEEK  0 0 0 0 0 0 0 0 0 0 1 0"} {
+		if !strings.Contains(stats, want) {
+			t.Errorf("plain Stats lacks %q:\n%s", want, stats)
+		}
+	}
+}
+
+// ROLECALL_PLAIN lays the help out in one column, read top to bottom: the key sections
+// one under another, and the glyph legend one item to a line.
+func TestPlainHelpIsOneColumn(t *testing.T) {
+	t.Setenv("ROLECALL_PLAIN", "1")
+	help := helpPages(t, 160, 44, "1")
+	for _, l := range strings.Split(help, "\n") {
+		heads, items := 0, 0
+		for _, h := range []string{"NAVIGATE", "ACT", "FILTER & FIND", "GLYPHS"} {
+			if strings.Contains(l, h) {
+				heads++
+			}
+		}
+		for _, it := range []string{"Lead", "Draft", "Applied", "ready", "missing", "not needed", "needs attention", "closes within"} {
+			if strings.Contains(l, it) {
+				items++
+			}
+		}
+		if heads > 1 || items > 1 {
+			t.Errorf("plain help sets two columns on one line: %q", l)
+		}
+	}
+	for _, want := range []string{"NAVIGATE", "FILTER & FIND", "GLYPHS", "follow-up due (14d)", "2/3 ready"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("plain help lost %q:\n%s", want, help)
 		}
 	}
 }

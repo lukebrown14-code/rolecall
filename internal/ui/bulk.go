@@ -9,13 +9,23 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// Bulk actions. `*` marks the row under the cursor (and again unmarks it); with rows marked,
-// x dismisses and m moves all of them, after a confirmation that names the count, and one u
-// undoes the lot. Marks belong to the view they were made in: another screen, view or an esc
-// clears them, so a bulk action never reaches a row the Owner cannot see.
+// Bulk actions. `*` marks the row under the cursor (and again unmarks it) and steps down,
+// so * * * marks three rows in a row; V marks every row in the view (and, with all of them
+// marked, unmarks them). With rows marked, x dismisses and m moves all of them, and one u
+// undoes the lot. One marked row is a plain x or m on that row. A bulk dismiss asks once,
+// naming the count; a bulk move asks once, in the Move pop-up, unless it sends Applications
+// without Ready Documents, which asks as a single move does. Marks belong to the view they
+// were made in: another screen, view, Track or search, or an esc, clears them (and says
+// so), so a bulk action never reaches a row the Owner cannot see.
 
-// keyMark marks or unmarks the row under the cursor.
-const keyMark = "*"
+// keyMark marks or unmarks the row under the cursor; keyMarkAll every row in the view.
+const (
+	keyMark    = "*"
+	keyMarkAll = "V"
+)
+
+// marksCleared is the note when marks are dropped.
+const marksCleared = "Marks cleared"
 
 // markSet is the folders marked in one view.
 type markSet struct {
@@ -43,22 +53,71 @@ func (m model) isMarked(folder string) bool {
 	return m.marks != nil && m.marks.screen == m.screen && m.marks.table == m.table && m.marks.folders[folder]
 }
 
-// toggleMark marks or unmarks the row under the cursor.
+// toggleMark marks or unmarks the row under the cursor, then steps to the next row.
 func (m *model) toggleMark() {
 	a, ok := m.selected()
 	if !ok {
 		return
 	}
-	if m.marks == nil || m.marks.screen != m.screen || m.marks.table != m.table {
-		m.marks = &markSet{screen: m.screen, table: m.table, folders: map[string]bool{}}
-	}
+	m.ensureMarks()
 	if m.marks.folders[a.Folder] {
 		delete(m.marks.folders, a.Folder)
 	} else {
 		m.marks.folders[a.Folder] = true
 	}
-	if n := len(m.markedHere()); n > 0 {
-		m.toast, m.toastKind = fmt.Sprintf("%d marked · x dismiss · m move · esc clear", n), toastNote
+	if m.cursor < len(m.rows())-1 {
+		m.cursor++
+	}
+}
+
+// allMarked reports whether every row in the view is marked.
+func (m model) allMarked() bool {
+	n := len(m.rows())
+	return n > 0 && len(m.markedHere()) == n
+}
+
+// markAll marks every row in the view, or with all of them marked, clears the marks.
+func (m *model) markAll() {
+	if m.allMarked() {
+		m.marks = nil
+		m.toast, m.toastKind = marksCleared, toastNote
+		return
+	}
+	m.ensureMarks()
+	for _, a := range m.rows() {
+		m.marks.folders[a.Folder] = true
+	}
+}
+
+// ensureMarks starts a mark set for the view on screen, dropping one from another view.
+func (m *model) ensureMarks() {
+	if m.marks == nil || m.marks.screen != m.screen || m.marks.table != m.table {
+		m.marks = &markSet{screen: m.screen, table: m.table, folders: map[string]bool{}}
+	}
+}
+
+// markView is what marks belong to: the screen, view, Track filter and search. A change
+// to any of them drops the marks.
+type markView struct {
+	screen, table, track int
+	text                 string
+}
+
+func (m model) markView() markView {
+	return markView{screen: m.screen, table: m.table, track: m.track, text: m.text}
+}
+
+// dropStaleMarks clears the marks made in before when next shows another view, and says
+// so when there were any. While the search input holds the feedback line the note waits
+// for it to close.
+func dropStaleMarks(before markView, next *model) {
+	if next.marks != nil && (next.markView() != before || next.marks.screen != next.screen || next.marks.table != next.table) {
+		next.marksNote = next.marksNote || len(next.marks.folders) > 0
+		next.marks = nil
+	}
+	if next.marksNote && !next.searching() {
+		next.marksNote = false
+		next.toast, next.toastHint, next.toastKind = marksCleared, "", toastNote
 	}
 }
 
@@ -87,6 +146,8 @@ type bulkMode struct {
 	status  string
 	skipped int // marked rows that do not apply (already there, or malformed, or not a Lead or Draft)
 	notRdy  int // moving to Applied without Ready Documents
+	// askedY is set by enter, which does not confirm: the pop-up then says to press y.
+	askedY bool
 }
 
 // newBulk builds the confirmation for moving the marked rows to status. Rows already at the
@@ -107,17 +168,7 @@ func (m model) newBulk(marked []store.Application, status string) *bulkMode {
 	return bm
 }
 
-func (bm *bulkMode) Keys() [][2]string {
-	return [][2]string{{"y", bm.verb()}, {keyNoEsc, "cancel"}}
-}
-
-// verb is what y does: "dismiss 3", "move 3".
-func (bm *bulkMode) verb() string {
-	if bm.status == store.StatusDismissed {
-		return "dismiss " + strconv.Itoa(len(bm.apps))
-	}
-	return "move " + strconv.Itoa(len(bm.apps))
-}
+func (bm *bulkMode) Keys() [][2]string { return confirmKeys }
 
 func (bm *bulkMode) View(m *model, p pal) string { return m.bulkBox(p, bm) }
 
@@ -128,30 +179,57 @@ func (bm *bulkMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	}
 	switch k.String() {
 	case "y":
-		cmd, moved := m.moveMany(bm.apps, bm.status)
-		if (bm.status == store.StatusRejected || bm.status == store.StatusWithdrawn) && len(moved) > 0 && m.err == nil {
-			// One reason for every Application that ended; skip or esc leaves them as moved.
-			return m.closeReasonPopup(moved, bm.status), cmd
-		}
-		return nil, cmd
+		return bm.apply(m)
 	case "n", "esc":
 		return nil, nil
+	case "enter":
+		bm.askedY = true
 	}
 	return bm, nil
 }
 
-// bulkAction opens the confirmation for moving the marked rows to status, or says why there
-// is nothing to do.
-func (m *model) bulkAction(status string) mode {
+// bulkDismiss is x with rows marked: one marked row is dismissed as a plain x would, with no
+// confirmation; several ask first, naming the count.
+func (m *model) bulkDismiss() (mode, tea.Cmd) {
+	marked := m.markedHere()
+	bm := m.newBulk(marked, store.StatusDismissed)
+	if len(bm.apps) == 0 {
+		m.toast, m.toastKind = "x: none of the marked can be dismissed (only Leads and Drafts) · m to move", toastNote
+		return nil, nil
+	}
+	if len(marked) == 1 {
+		m.marks = nil
+		return nil, m.move(bm.apps[0], store.StatusDismissed, false)
+	}
+	return bm, nil
+}
+
+// bulkMove is a Status picked in the Move pop-up for several marked rows. The pick is the
+// confirmation, so the rows move at once; only a move to Applied without Ready Documents
+// asks again, as it does for one row.
+func (m *model) bulkMove(status string) (mode, tea.Cmd) {
 	bm := m.newBulk(m.markedHere(), status)
 	if len(bm.apps) == 0 {
 		m.toast, m.toastKind = fmt.Sprintf("Nothing to move to %s · %d marked already there or can't be", status, bm.skipped), toastNote
-		if status == store.StatusDismissed {
-			m.toast = "x: none of the marked can be dismissed (only Leads and Drafts) · m to move"
-		}
-		return nil
+		return nil, nil
 	}
-	return bm
+	if bm.notRdy > 0 {
+		return bm, nil
+	}
+	return bm.apply(m)
+}
+
+// apply moves the confirmed rows and, for Rejected or Withdrawn, asks one reason for all.
+func (bm *bulkMode) apply(m *model) (mode, tea.Cmd) {
+	cmd, moved := m.moveMany(bm.apps, bm.status)
+	if bm.skipped > 0 && len(moved) > 0 && m.err == nil {
+		m.toast += fmt.Sprintf(" · %d left out", bm.skipped)
+	}
+	if (bm.status == store.StatusRejected || bm.status == store.StatusWithdrawn) && len(moved) > 0 && m.err == nil {
+		// One reason for every Application that ended; skip or esc leaves them as moved.
+		return m.closeReasonPopup(moved, bm.status), cmd
+	}
+	return nil, cmd
 }
 
 // moveMany moves each Application to status, as one action: the toast counts them and one u
@@ -184,7 +262,7 @@ func (m *model) moveMany(apps []store.Application, status string) (tea.Cmd, []st
 		if status == store.StatusDismissed {
 			verb = "Dismissed"
 		}
-		m.toast, m.toastHint, m.movedTo, m.toastKind = fmt.Sprintf("%s · %s", verb, applications(done)), undoHint, status, toastPlain
+		m.toast, m.toastHint, m.movedTo, m.toastKind, m.follow = fmt.Sprintf("%s · %s", verb, applications(done)), undoHint, status, toastPlain, ""
 	}
 	return tea.Batch(cmds...), moved
 }
@@ -205,7 +283,7 @@ func (m *model) undoBatch(group []undoMove) tea.Cmd {
 		}
 	}
 	if m.err == nil {
-		m.toast, m.toastKind, m.toastHint = fmt.Sprintf("Undone · %s moved back", applications(back)), toastUndo, ""
+		m.toast, m.toastKind, m.toastHint, m.follow = fmt.Sprintf("Undone · %s moved back", applications(back)), toastUndo, "", ""
 		if back < len(group) {
 			m.toast += fmt.Sprintf(" · %d changed since", len(group)-back)
 		}

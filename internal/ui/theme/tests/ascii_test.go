@@ -43,9 +43,10 @@ func TestStatusGlyphsAndASCIIStandIns(t *testing.T) {
 // The frame-wide fold maps each glyph to the stand-in the design names.
 func TestASCIIFoldTable(t *testing.T) {
 	for glyph, want := range map[string]string{
-		"■": "#", "□": ":", "◌": "(", "⚑": "}", "⚠": "!", "↩": "{", "▌": ">", "▶": ">", "✕": `\`,
-		"●": "*", "★": "$", "◆": "@", "⊘": ";", "▁": "_", "▂": ".", "▃": ".", "▅": "-", "▆": "#", "█": "#",
-		"✎": "=", "✓": "+", "○": "_", "—": "-", "…": ".", "·": ".", "⠹": "%", "▲": "^", "Δ": "&",
+		"■": "+", "□": "_", "◌": "(", "⚑": "@", "⚠": "!", "↩": "`", "▌": ">", "▶": ">", "✕": `\`,
+		"●": "#", "★": "$", "◆": "&", "⊘": "%", "▁": ".", "▂": "-", "▃": "-", "▅": "|", "▆": "|", "█": "|",
+		"✎": "=", "✓": "+", "○": "_", "—": "-", "…": ".", "·": "|", "⠹": ";", "⠋": ";", "▲": "!", "Δ": "'",
+		"◉": "{", "╭": "-", "┼": "|", "↑": "^",
 	} {
 		if got := theme.ASCIIFold(glyph, true); got != want {
 			t.Errorf("%q folds to %q, want %q", glyph, got, want)
@@ -70,10 +71,16 @@ func TestLegendGlyphsFoldToDistinctASCII(t *testing.T) {
 		if what, ok := reserved[a]; ok {
 			t.Errorf("%s %q folds to %q, the stand-in of %s", g.Meaning, g.Mark, a, what)
 		}
-		if other, ok := byASCII[a]; ok && other != g.Mark {
+		// A glyph that repeats another's meaning (the ready meter's cells) takes its
+		// stand-in; no other two share one.
+		meaning := g.Mark
+		if shared := theme.SharedMeaning(g.Mark); shared != "" {
+			meaning = shared
+		}
+		if other, ok := byASCII[a]; ok && other != meaning {
 			t.Errorf("%q and %q both fold to %q", other, g.Mark, a)
 		}
-		byASCII[a] = g.Mark
+		byASCII[a] = meaning
 	}
 	// No legend glyph is also the separator.
 	for _, g := range theme.Legend() {
@@ -127,11 +134,13 @@ func TestEveryDrawnGlyphHasAnASCIIFold(t *testing.T) {
 	}
 }
 
-// No legend stand-in is a letter, a digit, the search or help key, so in the Move
-// pop-up ("r  \ Rejected") and beside the key line a stand-in never reads as a key, and
-// no stand-in is an arrow's: "<" and ">" belong to ← → ‹ › and the gutter.
+// No legend stand-in is a letter, a digit or a punctuation key (/ search, ? help,
+// : commands, , settings, * mark, [ ] Settings sections), so in the Move pop-up
+// ("r  \ Rejected"), the `?` help (which lists keys and glyphs together) and beside the
+// key line a stand-in never reads as a key; and no stand-in is an arrow's: "<" and ">"
+// belong to ← → ‹ › and the gutter, "^" and "v" to ↑ ↓.
 func TestLegendStandInsAreNeverKeys(t *testing.T) {
-	keys := "/?<>"
+	keys := "/?:,*[]<>^"
 	for _, g := range theme.Legend() {
 		c := rune(g.ASCII[0])
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || strings.ContainsRune(keys, c) {
@@ -141,6 +150,24 @@ func TestLegendStandInsAreNeverKeys(t *testing.T) {
 	for _, s := range []string{"cut…", "a · b"} {
 		if got := theme.ASCIIFold(s, true); strings.HasSuffix(got, ">") {
 			t.Errorf("%q folds to %q: cut text ends in an arrow", s, got)
+		}
+	}
+}
+
+// No legend stand-in is also chrome's: a rule's corner, the separator, an arrow key (↑ is
+// ^ in "^v select"), the sparkline or a bar never draws a character that means something.
+// The not-needed dash is the one exception: an em dash is a dash in ASCII.
+func TestLegendStandInsAreNeverChrome(t *testing.T) {
+	chrome := map[string]bool{}
+	for _, a := range theme.ChromeASCII() {
+		chrome[a] = true
+	}
+	for _, g := range theme.Legend() {
+		if g.Mark == theme.GlyphNone {
+			continue
+		}
+		if chrome[g.ASCII] {
+			t.Errorf("%s stands in as %q, which chrome also draws", g.Meaning, g.ASCII)
 		}
 	}
 }

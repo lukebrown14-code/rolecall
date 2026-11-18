@@ -16,7 +16,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
 
-// allView is the Applied screen's first view: every Application past Draft, one
+// allView is the Pipeline screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
 
@@ -36,10 +36,12 @@ type model struct {
 	selectAfter           string
 	undo                  []undoMove
 	marks                 *markSet  // rows marked for a bulk action, in one view (bulk.go)
+	marksNote             bool      // marks dropped while the search input hid the feedback line
 	toast                 string    // feedback line: what just happened (cleared on the next key)
 	movedTo               string    // destination Status of the move the toast reports, else ""
 	toastKind             toastKind // how the feedback line draws the toast
 	toastHint             string    // key hint shown with it, e.g. "u undo"
+	follow                string    // folder the toast offers to go to with keyFollow, else ""
 	flash                 string    // folder of the row just moved, lit until flashID's tick
 	flashID               int
 	tick                  Ticker
@@ -77,6 +79,7 @@ type model struct {
 	spinner               spinner.Model
 	profile               *profileState
 	profileStarted        bool // the Profile has more than Contact, so the welcome drops its Profile step
+	contactSaved          bool // the Contact has a Name and an Email, so the welcome ticks it off
 	settings              *settingsState
 	// rules are workspace.json's Search rules, re-read with every scan, for the age warning.
 	rules       store.SearchRules
@@ -118,6 +121,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		m.loadRules()
 		if p, err := s.Profile(); err == nil {
 			m.profileStarted = profileBeyondContact(p)
+			m.contactSaved = contactComplete(p)
 		}
 		if e != nil && (invalidWorkspaceFile(s) || badTrackList(e)) {
 			// An invalid workspace.json does not stop startup: the app opens with no Track
@@ -172,7 +176,7 @@ func (m model) rows() []store.Application {
 	return m.rowsOf(m.screen, m.views()[m.table])
 }
 
-// rowsOf lists one view of a screen. All groups the Applied screen's tables in
+// rowsOf lists one view of a screen. All groups the Pipeline screen's tables in
 // appliedGroups order; Leads and Draft put expired close dates last.
 func (m model) rowsOf(screen int, table string) []store.Application {
 	if table == allView {
@@ -303,9 +307,10 @@ func (m model) matches(a store.Application) bool {
 	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	before := m.markView()
 	next, cmd := m.update(msg)
-	if nm, ok := next.(model); ok && nm.marks != nil && (nm.marks.screen != nm.screen || nm.marks.table != nm.table) {
-		nm.marks = nil // marks belong to the view they were made in
+	if nm, ok := next.(model); ok && (nm.marks != nil || nm.marksNote) {
+		dropStaleMarks(before, &nm) // marks belong to the view they were made in
 		return nm, cmd
 	}
 	return next, cmd
@@ -383,6 +388,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fm.finishFetch(&m, done)
 		return m, nil
 	}
+	if open, ok := msg.(editFieldMsg); ok && m.overlay == nil {
+		return m, m.openEditAt(open.field)
+	}
 	if done, ok := msg.(sourceChecked); ok {
 		return m.finishSourceCheck(done), nil
 	}
@@ -390,9 +398,27 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.capturedRun = false
 		return m.finishBuild(done)
 	}
+	if m.tooSmall() {
+		// The too-small notice hides everything else, so no key may act on what is
+		// hidden: only q and ctrl+c, the way out it names, get through. Both go through
+		// the unsaved-text guard, so a q meant as text in an open form never drops it.
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			if s := msg.String(); s == "q" || s == "ctrl+c" {
+				if next, held := m.quitHeld(); held {
+					return next, nil
+				}
+				return m, m.quit()
+			}
+			return m, nil
+		case tea.PasteMsg:
+			return m, nil
+		}
+	}
+	follow := m.follow // the toast's offer, good for this key only
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
-		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
+		m.toast, m.toastHint, m.movedTo, m.toastKind, m.follow = "", "", "", toastPlain, ""
 		if k.String() == "ctrl+c" {
 			if next, held := m.quitHeld(); held {
 				return next, nil // typed Settings text is never dropped without asking
@@ -406,6 +432,10 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.overlay = next
 		m.clampCursor()
 		return m, cmd
+	}
+	if k, ok := msg.(tea.KeyPressMsg); ok && follow != "" && k.String() == keyFollow {
+		m.followAfterMove(follow)
+		return m.syncDetail(), nil
 	}
 	if m.fieldOpen() {
 		// An open Settings field owns the keyboard, so typing digits or "," is text.
@@ -473,10 +503,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// esc drops the marks first, then clears a search; otherwise it only hides
 				// the toast, so the cursor stays where the Owner was working.
 				if m.clearMarks() {
-					m.toast, m.toastKind = "Marks cleared", toastNote
+					m.toast, m.toastKind = marksCleared, toastNote
 				} else if m.text != "" {
 					m.text = ""
 					m.cursor = 0
+					if m.anyFilter() {
+						// A Track or view is still on: say so, and how to clear them too.
+						m.toast, m.toastHint = "Search cleared", keyBackspace+" "+descClearFilters
+					}
 				}
 			case "q", "ctrl+c":
 				return m, m.quit()

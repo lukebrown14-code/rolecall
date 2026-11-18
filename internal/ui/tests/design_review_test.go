@@ -19,11 +19,11 @@ func TestRowMovedTodayKeepsItsStage(t *testing.T) {
 	}
 }
 
-// A status filter named like its screen still shows in the breadcrumb: Applied › Applied
-// is filtered, Applied › All is not.
+// A status filter named like its screen still shows in the breadcrumb: Pipeline › Applied
+// is filtered, Pipeline › All is not.
 func TestBreadcrumbShowsAStatusFilterNamedLikeItsScreen(t *testing.T) {
 	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "s"))
-	if !strings.Contains(view, "Applied › Applied · All tracks") {
+	if !strings.Contains(view, "Pipeline › Applied · All tracks") {
 		t.Errorf("breadcrumb drops the Applied filter:\n%s", view)
 	}
 }
@@ -34,7 +34,7 @@ func TestPaletteClearsOnlyItsFootprint(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", " "))
 	right := -1 // the palette's right border column
 	for _, l := range strings.Split(view, "\n") {
-		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ : ") {
+		if i := strings.Index(l, "╮"); i >= 0 && strings.Contains(l, "╭─ Commands: ") {
 			right = ansi.StringWidth(l[:i])
 		}
 	}
@@ -73,10 +73,11 @@ func TestUndoKeyShowsAfterASettingsSave(t *testing.T) {
 	}
 }
 
-// The detail tabs keep to one line: hidden ones are marked ‹ ›, and the Overview's cue
-// still shows under it.
+// The detail tabs keep to one line: hidden ones are marked ‹ ›, and a cut tab's cue still
+// shows under it. (The Overview no longer overflows here: the strip's whole track stands in
+// for its TIMELINE, so the cut tab is the Cover letter.)
 func TestDetailTabsNeverWrap(t *testing.T) {
-	for _, keys := range [][]string{{"3", "/docs-written", "enter", "enter"}, {"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}} {
+	for _, keys := range [][]string{{"3", "/docs-written", "enter", "enter", "right", "right", "right", "right"}, {"3", "/docs-written", "enter", "enter", "left", "left", "left", "left", "left"}} {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 14, keys...))
 		if strings.Contains(view, "\n  Notes   Docs") {
 			t.Errorf("keys %q: tabs wrap:\n%s", keys, view)
@@ -107,7 +108,7 @@ func TestTypingHidesTheGlobalKeys(t *testing.T) {
 func TestCursorDoesNotShiftAnEmptyField(t *testing.T) {
 	unfocused := lineWith(chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "a")), "Title*")
 	focused := lineWith(chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "a", "enter")), "Title*")
-	start := func(l string) int { return strings.IndexAny(l, "_▏") }
+	start := func(l string) int { return strings.Index(l, "the job title") } // Title's placeholder
 	if start(unfocused) < 0 || start(focused) < 0 {
 		t.Fatalf("no field:\n%q\n%q", unfocused, focused)
 	}

@@ -24,7 +24,7 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 	}
 	v := addValues{
 		title: a.Title, company: a.Company, track: a.Track, url: a.URL, closes: a.Closes, fit: a.Fit,
-		resumeOnly: boolText(a.ResumeOnly),
+		resumeOnly: boolText(a.ResumeOnly), ended: endedStatus(a.Status), closeReason: a.CloseReason,
 	}
 	if a.NextStep != nil {
 		v.nextAt, v.nextWhat = a.NextStep.At, a.NextStep.What
@@ -33,8 +33,33 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 		c := a.Contacts[0]
 		v.contact, v.contactRole, v.contactReach = c.Name, c.Role, c.Reach()
 	}
-	m.overlay = &formMode{form: newForm(&v, tracks, true, m.now), editOf: &a}
+	f := newForm(&v, tracks, true, m.now)
+	if label := editFocus(a); label != "" {
+		for i := range f.Fields {
+			if f.Fields[i].Label == label {
+				f.Focus = i
+			}
+		}
+		// A saved value is selected, so typing a new date replaces it.
+		f.SelectValue()
+	}
+	m.overlay = &formMode{form: f, editOf: &a}
 	return nil
+}
+
+// editFocus is the field the Edit form opens on: the one whose card row offers e. A
+// Rejected or Withdrawn Application's is why it closed (CLOSED); one with a next step, or
+// in the Pipeline, where setting the next step is the usual edit, opens on its date (NEXT
+// STEP). Anything else opens at the top, "" here.
+func editFocus(a store.Application) string {
+	switch {
+	case endedStatus(a.Status):
+		return fieldCloseReason
+	case a.Status == store.StatusApplied, a.Status == store.StatusInterviewing, a.Status == store.StatusOffer,
+		a.NextStep != nil && openStatus(a.Status):
+		return fieldNextStep
+	}
+	return ""
 }
 
 func boolText(b bool) string {
@@ -44,21 +69,35 @@ func boolText(b bool) string {
 	return "false"
 }
 
-// The Edit form's next step and first Contact fields.
+// The Edit form's next step and first Contact fields, each under its group's heading, so
+// their labels need not repeat it: "Their role" is never read as the job's.
 const (
-	fieldNextStep     = "Next step"
+	fieldNextStep     = "When"
 	fieldNextWhat     = "What"
-	fieldContact      = "Contact"
-	fieldContactRole  = "Role"
-	fieldContactReach = "Email / URL"
+	fieldContact      = "Name"
+	fieldContactRole  = "Their role"
+	fieldContactReach = "Email/link"
 )
 
-// validReach accepts an email address or a web link; blank is left to editProblem.
+// The Edit form's groups, named as the card's sections they edit. An Application's contacts
+// are People (Person here), never Contact, which is the Owner's own (GLOSSARY.md).
+const (
+	groupRole     = "Role"
+	groupNextStep = "Next step"
+	groupContact  = "Person"
+	groupClosed   = "Closed"
+)
+
+// validReach accepts an email address or a web link; blank is left to editProblem. A
+// value with an @ is meant as an email, so it is checked as one, in the same words as
+// the Contact form's Email.
 func validReach(s string) error {
 	s = strings.TrimSpace(s)
-	if s == "" || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://") ||
-		(strings.Contains(s, "@") && !strings.ContainsAny(s, " \t")) {
+	switch {
+	case s == "" || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://"):
 		return nil
+	case strings.Contains(s, "@"):
+		return validEmail(s)
 	}
 	return errors.New("Use an email address or a link starting https://")
 }
@@ -70,7 +109,7 @@ func editProblem(v addValues) (label, problem string) {
 	case v.nextWhat != "" && v.nextAt == "":
 		return fieldNextStep, "Add a date, or clear What"
 	case v.contactRole != "" && v.contact == "" && v.contactReach == "":
-		return fieldContact, "Add a name or an email, or clear Role"
+		return fieldContact, "Add a name or an email, or clear Their role"
 	}
 	return "", ""
 }
@@ -134,7 +173,8 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 		wasContact = a.Contacts[0]
 	}
 	contactChanged := contact != wasContact
-	if len(changed) == 0 && !stepChanged && !contactChanged {
+	reasonChanged := endedStatus(a.Status) && v.closeReason != a.CloseReason
+	if len(changed) == 0 && !stepChanged && !contactChanged && !reasonChanged {
 		m.toast = "Nothing changed · " + appName(a.Title)
 		return nil
 	}
@@ -163,6 +203,13 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 			list = append(list, a.Contacts[1:]...)
 		}
 		if err := m.store.SetContacts(a.Folder, list); err != nil {
+			m.err = err
+			return nil
+		}
+	}
+	if reasonChanged {
+		// none removes the key, as skipping the question after the move does.
+		if err := m.store.SetCloseReason(a.Folder, v.closeReason); err != nil {
 			m.err = err
 			return nil
 		}

@@ -78,9 +78,10 @@ type layout struct {
 	filterLines int
 	// footerRow is the row the footer sits on: always the last.
 	footerRow int
-	// profileW and groupsW are Profile's section list and
-	// Settings' group list.
-	profileW, groupsW int
+	// profileW is Profile's section list. It is a navigation list beside a reader, not a
+	// list beside an aside, so it is narrower than listW; Settings' rows beside their about
+	// pane take listW and detailW, so the divider holds its column from Leads to Settings.
+	profileW int
 	// status is the lines the status area needs: one for the key line, or two while the
 	// feedback line sits above it, so the key line is never wiped by a toast or an error.
 	status int
@@ -110,7 +111,6 @@ func sizeLayout(w, h int) layout {
 		l.filterLines = filtersCollapsed
 	}
 	l.profileW = l.panel(profileShare, profileMin, profileMax)
-	l.groupsW = l.panel(groupsShare, groupsMin, groupsMax)
 	return l
 }
 
@@ -138,9 +138,8 @@ func (l layout) panel(share, lo, hi int) int { return min(max(l.w*share/percent,
 
 // Side panels: share of the width, then the least and most cells.
 const (
-	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list
+	previewShare, previewMin, previewMax = 45, 44, 72 // the preview beside the list, and Settings' about pane
 	profileShare, profileMin, profileMax = 28, 26, 36 // Profile's section list: short names whole from 80 columns
-	groupsShare, groupsMin, groupsMax    = 18, 18, 24 // Settings' group list
 )
 
 // contextLines is how many context lines the current screen draws under the tab bar.
@@ -351,7 +350,7 @@ func (m model) tooSmallView(p pal) string {
 // between the rules, never over the tab bar, context lines or status row. A box taller
 // than the body scrolls inside its border, keeping the selection bar (▌) in view. Only
 // the box's own footprint and a margin around it are cleared (see popMargin), so the
-// dimmed frame stays in view beside it and no word is cut off against its border.
+// dimmed frame stays in view beside it and no phrase is cut off against its border.
 func (m model) overlayBody(p pal, base, box string) string {
 	l, ctx := m.layout(), m.contextLines()
 	top, h := l.bodyTop(ctx), l.bodyHeight(ctx)
@@ -370,28 +369,101 @@ func (m model) overlayBody(p pal, base, box string) string {
 	layers := []*lipgloss.Layer{lipgloss.NewLayer(base)}
 	baseRows := strings.Split(base, "\n")
 	for row := max(top, y-rows); row < min(top+h, y+len(lines)+rows, len(baseRows)); row++ {
-		from, to := wordEdges(xansi.Strip(baseRows[row]), max(0, x-side), min(l.w, x+boxW+side))
+		from, to := phraseEdges(xansi.Strip(baseRows[row]), max(0, x-side), min(l.w, x+boxW+side))
 		layers = append(layers, lipgloss.NewLayer(strings.Repeat(" ", to-from)).X(from).Y(row).Z(layerClear))
 	}
 	layers = append(layers, lipgloss.NewLayer(strings.Join(lines, "\n")).X(x).Y(y).Z(layerPopUp))
 	return lipgloss.NewCompositor(layers...).Render()
 }
 
-// wordEdges widens the cleared cells [from, to) of a backdrop row to the ends of any word
-// they cut, so the frame beside a pop-up shows whole words or nothing. Rules and
-// dividers are never words: the pane divider stays whole beside the pop-up.
-func wordEdges(row string, from, to int) (int, int) {
-	word := func(c int) bool {
-		cell := xansi.Cut(row, c, c+1)
-		return cell != "" && cell != " " && !strings.ContainsAny(cell, "│┬┴─|")
+// phraseEdges widens the cleared cells [from, to) of a backdrop row so the frame beside a
+// pop-up shows whole phrases or nothing: words joined by single spaces go together ("add
+// your Lead"), while two spaces or a rule end a phrase, so table columns and the pane
+// divider stay whole. A lone key or glyph that a cleared phrase leaves behind ("a", "▞")
+// goes with it, as a key without its words is a fragment too.
+func phraseEdges(row string, from, to int) (int, int) {
+	cells := backdropCells(row)
+	ink := func(c int) bool { return c >= 0 && c < len(cells) && cells[c] == cellInk }
+	for s := 0; s < len(cells); {
+		if !ink(s) {
+			s++
+			continue
+		}
+		e := s
+		for ink(e) || (ink(e-1) && ink(e+1)) { // a single space inside a phrase joins it
+			e++
+		}
+		if s < to && e > from {
+			from, to = min(from, s), max(to, e)
+		}
+		s = e
 	}
-	for from > 0 && word(from) && word(from-1) {
-		from--
+	return absorbStub(cells, from, -1), absorbStub(cells, to, 1)
+}
+
+// backdropStub is the widest run of ink a cleared phrase takes with it: a key ("a", "?",
+// "5") or a glyph left on its own.
+const backdropStub = 2
+
+// backdropStubGap is the most spaces between a cleared phrase and a stub it takes along.
+const backdropStubGap = 3
+
+// absorbStub moves a cleared edge (from, going left with dir -1; to, going right with
+// dir 1) past a stub beside it: a run of at most backdropStub ink cells within
+// backdropStubGap spaces, with no ink just beyond it.
+func absorbStub(cells []backdropCell, edge, dir int) int {
+	ink := func(c int) bool { return c >= 0 && c < len(cells) && cells[c] == cellInk }
+	c := edge
+	if dir < 0 {
+		c = edge - 1
 	}
-	for to < xansi.StringWidth(row) && word(to-1) && word(to) {
-		to++
+	gap := 0
+	for c >= 0 && c < len(cells) && cells[c] == cellSpace && gap <= backdropStubGap {
+		c += dir
+		gap++
 	}
-	return from, to
+	if gap == 0 || gap > backdropStubGap || !ink(c) {
+		return edge
+	}
+	run := 0
+	for ink(c) {
+		c += dir
+		run++
+	}
+	if run > backdropStub || ink(c+dir) {
+		return edge // a word, or one of a phrase's words: it stays
+	}
+	if dir < 0 {
+		return c + 1
+	}
+	return c
+}
+
+// backdropCell is what one cell of a backdrop row holds, as phraseEdges reads it.
+type backdropCell byte
+
+const (
+	cellSpace backdropCell = iota
+	cellInk                // part of a word or glyph
+	cellRule               // a rule or divider: never part of a phrase, and a stub never crosses it
+)
+
+// backdropCells is a plain backdrop row as cells. A wide character's cells are all ink.
+func backdropCells(row string) []backdropCell {
+	var cells []backdropCell
+	for _, r := range row {
+		kind := cellInk
+		switch {
+		case r == ' ':
+			kind = cellSpace
+		case strings.ContainsRune("│┬┴─|╭╮╰╯├┤┼", r):
+			kind = cellRule
+		}
+		for range xansi.StringWidth(string(r)) {
+			cells = append(cells, kind)
+		}
+	}
+	return cells
 }
 
 // The overlay's layers above the frame: the cleared margin, then the pop-up.

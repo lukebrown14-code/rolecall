@@ -21,6 +21,13 @@ type detailTab string
 
 const coverLetterFile = "cover-letter.md"
 
+// o in the detail view opens the current tab's file, or the Docs tab's selected
+// Document, in the Editor; e edits the fields there as on a row.
+const (
+	keyOpenFile  = "o"
+	descOpenFile = "open in editor"
+)
+
 const (
 	tabLetter detailTab = docCoverLetter
 	tabGaps   detailTab = "Gaps"
@@ -80,16 +87,23 @@ func (e docEntry) markdown() bool { return strings.HasSuffix(e.name, ".md") }
 func (e docEntry) group() string {
 	switch {
 	case strings.HasPrefix(e.name, "out/"):
-		return "PDFs · out/"
+		return groupPDFs
 	case strings.HasPrefix(e.name, "sent/"):
 		return "Sent"
+	case e.name == jdFile || e.name == gapsFile:
+		return groupInputs
 	}
 	return groupDocuments
 }
 
-// groupDocuments is the Docs tab's heading over the source Documents, the DOCS meter's name
-// for them.
-const groupDocuments = "Documents"
+// The Docs tab's headings: the inputs the Documents are written from, which the DOCS
+// meter never counts, then the Documents it counts (Resume and Cover letter, written) and
+// their built PDFs.
+const (
+	groupDocuments = "Documents"
+	groupPDFs      = "PDFs · out/"
+	groupInputs    = "Inputs · not counted"
+)
 
 func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
@@ -111,33 +125,39 @@ const resumeOnlyNote = notNeeded + " · Resume only"
 // notNeeded is the state of a Document the Application does not need.
 const notNeeded = "not needed"
 
-// displayStatus is a source document's state, ready or missing (an empty file is
-// missing), and whether it is ready. Built and sent files are ready by being there.
+// The Docs tab's states for a Document's first step.
+const (
+	docWritten    = stepWritten
+	docNotWritten = "not written"
+)
+
+// displayStatus is a source file's state and whether it is done: a Document is written
+// or not written, an input ready or missing (an empty file is missing or not written).
+// Built and sent files are done by being there.
 func (e docEntry) displayStatus(a store.Application) (string, bool) {
 	switch {
 	case !e.markdown():
 		return "", true
 	case e.name == coverLetterFile && a.ResumeOnly && !e.hasText:
 		return resumeOnlyNote, false
-	case e.name == gapsFile && !e.hasText:
-		return docMissing + " · " + notCounted, false
-	case e.name == gapsFile:
-		return docReady + " · " + notCounted, true
-	case !e.hasText:
+	case e.group() == groupInputs && !e.hasText:
 		return docMissing, false
+	case e.group() == groupInputs:
+		return docReady, true
+	case !e.hasText:
+		return docNotWritten, false
 	}
-	return docReady, true
+	return docWritten, true
 }
 
-// notCounted marks the Docs tab's Gaps, which the DOCS meter does not count toward ready.
-const notCounted = "not counted"
-
-// pdfNotBuilt is the Docs tab's PDF row while out/ holds none, so the tab lists every
-// Document the DOCS meter counts.
+// pdfNotBuilt is the Docs tab's row for a Document whose PDF is not in out/ yet, so the
+// tab lists every step the DOCS meter counts.
 const pdfNotBuilt = "not built yet"
 
+// docEntries is the Docs tab's entries in order: the inputs, the Documents, their built
+// PDFs, then the sent copy.
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{jdFile, a.JDHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}, {gapsFile, a.GapsHasText}}
+	entries := []docEntry{{jdFile, a.JDHasText}, {gapsFile, a.GapsHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, false})
 	}
@@ -199,6 +219,31 @@ func (m model) stepDetail(step int) model {
 	return m
 }
 
+// dismissFromDetail is x in the detail view: it dismisses the open Lead or Draft, as x on
+// its row does (u puts it back), then opens the next row of the view on the same tab, or
+// goes back to the list when it was the last.
+func (m *model) dismissFromDetail(a store.Application) tea.Cmd {
+	rows := m.rows()
+	next := ""
+	if at := slices.IndexFunc(rows, func(r store.Application) bool { return r.Folder == a.Folder }); at >= 0 && at+1 < len(rows) {
+		next = rows[at+1].Folder
+	}
+	undos := len(m.undo)
+	cmd := m.move(a, store.StatusDismissed, false)
+	if len(m.undo) == undos {
+		return cmd // not moved: the error or note says why, and the detail stays
+	}
+	if next == "" {
+		*m = m.closeDetail()
+		m.cursor = max(0, min(m.cursor, len(m.rows())-1))
+		return cmd
+	}
+	m.lastTab = m.detail.tab
+	m.keepCursor(next)
+	m.openDetail(next)
+	return cmd
+}
+
 func (m model) closeDetail() model {
 	if m.detail == nil {
 		return m
@@ -219,7 +264,7 @@ const (
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
-	docColumn     = 14 // the Docs tab's name and state columns
+	docColumn     = 18 // the Docs tab's name and state columns
 	stripLines    = 2  // the strip that stands in for the card: timeline track, then documents
 )
 
@@ -378,16 +423,16 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 func (m model) emptyDocument(a store.Application, tab detailTab, name string) string {
 	switch tab {
 	case tabJD:
-		return "No JD saved · e to open " + name
+		return "No JD saved · " + keyOpenFile + " to open " + name
 	case tabFit:
 		if m.harness != "" {
 			return "f to assess fit"
 		}
 		return ""
 	case tabNotes:
-		return "No notes yet · e to write some"
+		return "No notes yet · n to write some"
 	}
-	return "No " + docName(name) + " yet · e to open " + name
+	return "No " + docName(name) + " yet · " + keyOpenFile + " to open " + name
 }
 
 // fitSummary is the Fit with where it comes from when the two sources disagree: the
@@ -418,8 +463,9 @@ func (m model) renderMarkdown(text string, width int) string {
 }
 
 // detailKey handles keys specific to the detail view. Keys it does not handle fall
-// through to the shared actions (m, n, u, r, quit); every other key is consumed so
-// the table underneath is not driven by accident.
+// through to the shared actions (m, e, n, x, u, r, quit); every other key is consumed so
+// the table underneath is not driven by accident. e edits the fields, as on a row; o
+// opens the current tab's file in the Editor.
 func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	a, ok := m.application(m.detail.folder)
 	if !ok {
@@ -435,7 +481,10 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m.closeDetail(), nil, true
 	case "right", "left", "tab", "shift+tab":
 		// ←→ switch tabs as they switch views on a list; tab and shift+tab do too, as the
-		// detail has one pane.
+		// detail has one pane. A malformed Application has no tabs to switch.
+		if a.Malformed != nil {
+			return m, nil, true
+		}
 		tabs := m.detailTabs(a)
 		step := 1
 		if key == "left" || key == "shift+tab" {
@@ -452,11 +501,10 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 			step = -1
 		}
 		return m.stepDetail(step), nil, true
-	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "ctrl+c":
+	case "m", "n", "x", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "ctrl+c":
 		return m, nil, false
-	case "x", "s", "o":
-		// Row and view keys the detail does not run: the shared dispatcher says why in a
-		// note, the same one a list row gives, rather than do nothing.
+	case "s":
+		// A view key the detail does not run: the shared dispatcher says why in a note.
 		return m, nil, false
 	}
 	if isScreenKey(key) {
@@ -468,11 +516,11 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	}
+	if key == "e" {
+		return m, nil, false // the shared edit key opens the Edit form, on every tab
+	}
 	if d.tab == tabDocs {
 		return m.docsKey(a, &d, key)
-	}
-	if d.tab == tabOverview && key == "e" {
-		return m, nil, false // the shared edit key opens the Application's meta.yml
 	}
 	switch key {
 	case "down", "j":
@@ -487,12 +535,14 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.GotoTop()
 	case "G":
 		d.body.GotoBottom()
-	case "e":
-		name := markdownTabFiles[d.tab]
-		if d.tab == tabNotes {
+	case keyOpenFile:
+		name, ok := markdownTabFiles[d.tab]
+		switch {
+		case d.tab == tabNotes:
 			return m, m.editNotes(a.Folder), true
+		case ok:
+			return m, m.editFile(a.Folder, name), true
 		}
-		return m, m.editFile(a.Folder, name), true
 	}
 	return m, nil, true
 }
@@ -508,7 +558,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		d.docs = 0
 	case "G":
 		d.docs = len(entries) - 1
-	case "enter", "e":
+	case "enter", keyOpenFile:
 		e := entries[d.docs]
 		switch {
 		case e.pdf() && key == "enter":
@@ -523,7 +573,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 				}
 			}
 		case e.markdown():
-			// e on any document, and Enter on one not written yet, open it in the Editor:
+			// o on any document, and Enter on one not written yet, open it in the Editor:
 			// writing a missing document is the normal next step, not an error.
 			return m, m.editFile(a.Folder, e.name), true
 		}
@@ -551,7 +601,8 @@ func (m model) detailView(p pal) string {
 		title = pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case s != closeNone && beforeApplied(tableOf(a)):
 		when = p.CloseStyle(s, p.Text, p.Dim).Render(text)
-	case appliedDate(a) != nil:
+	case appliedDate(a) != nil && !beforeApplied(tableOf(a)):
+		// Only while the Status is Applied or later: moved back to Draft, it was not sent.
 		if m.futureDate(appliedDate(a)) {
 			when = p.Text(p.Warn).Render("applied " + futureFlag)
 		} else {
@@ -576,16 +627,20 @@ func (m model) detailView(p pal) string {
 	// the card, the strip stands in for it.
 	ctx := []string{title}
 	if !m.cardShown() {
-		ctx = append([]string{title}, m.detailStrip(p, a, w-inset-rightMargin)...)
+		ctx = append([]string{title}, m.detailStrip(p, a, m.stripWidth())...)
 	}
 	var pane string
 	if a.Malformed != nil {
 		for i := 1; i < len(ctx); i++ {
 			ctx[i] = ""
 		}
-		// Where and how to fix it, the file's Workspace path, and the key that opens it there.
-		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), paneW-paneMargin), "\n")) + "\n\n" + p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) +
-			"\n\n" + p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor")
+		// No tabs and no card: the error takes the whole width. Where and how to fix it, the
+		// file's Workspace path, and the keys that fix it: e opens it in the Editor, r
+		// rescans once it is saved.
+		paneW = w
+		pane = p.Text(p.Fg).Render(strings.Join(wrapWords(m.malformedReason(a), min(maxReadWidth, paneW-paneMargin)), "\n")) + "\n\n" +
+			p.Text(p.Dim).Render(m.rel(filepath.Join(a.Folder, "meta.yml"))) + "\n\n" +
+			p.Key().Render("e") + p.Text(p.Dim).Render(" fix in editor  ·  ") + p.Key().Render("r") + p.Text(p.Dim).Render(" rescan")
 	} else {
 		// The tab names sit one cell in from their brackets; the content lines up with them.
 		content := strings.Split(m.detailContent(p, a, paneW), "\n")
@@ -603,7 +658,7 @@ func (m model) detailView(p pal) string {
 	}
 	pane = lipgloss.NewStyle().Width(paneW).Height(h).MaxHeight(h).PaddingLeft(gutter).Render(pane)
 	body, split, focus := pane, 0, focusNone
-	if m.cardShown() {
+	if m.cardShown() && a.Malformed == nil {
 		// The card stands where the preview stood, at its width, so opening the detail
 		// moves nothing on the right: the list on the left gives way to the tabs.
 		cardW := m.cardWidth()
@@ -670,7 +725,7 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 		more = []string{p.Text(p.Dim).Render("…")}
 	}
 	for _, cand := range []string{
-		join(pastDated, []string{current}, ahead),
+		join(pastDated, []string{current}, ahead), // trackWhole: every stop with its date
 		join(past, []string{current}, ahead),
 		join(past, []string{current}, next),
 		join(more, []string{current}, next),
@@ -682,6 +737,18 @@ func (m model) timelineTrack(p pal, a store.Application, w int) string {
 	}
 	return xansi.Truncate(current, w, "…")
 }
+
+// trackWhole reports that the strip's timeline track fits whole at its width, every
+// Status with its date and the ones still ahead, so the Overview beneath it need not
+// repeat the timeline.
+func (m model) trackWhole(p pal, a store.Application) bool {
+	_, pastDated, current, ahead := m.trackStops(p, a)
+	stops := slices.Concat(pastDated, []string{current}, ahead)
+	return xansi.StringWidth(strings.Join(stops, " ─ ")) <= m.stripWidth()
+}
+
+// stripWidth is the width the strip's lines are fitted to.
+func (m model) stripWidth() int { return m.viewWidth() - inset - rightMargin }
 
 // trackStops is a timeline track's stops: earlier Statuses without and with their dates,
 // the current one, and the Statuses still ahead.
@@ -804,25 +871,40 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		group = g
 		lines = append(lines, p.Heading(g))
 	}
-	// With nothing in out/ yet, the PDF the DOCS meter counts still has its row, after the
-	// source Documents. It is not an entry: there is nothing to open.
-	notBuilt := func() {
-		if group == groupDocuments && len(a.PDFs) == 0 {
-			heading("PDFs · out/")
-			lines = append(lines, "  "+p.Text(p.Dim).Render("○ "+padRight(docPDF, docColumn)+pdfNotBuilt))
+	// A Document whose PDF is not in out/ yet still has its row under the PDFs, so the tab
+	// lists every step the DOCS meter counts. It is not an entry: there is nothing to open.
+	unbuilt := func() {
+		var rows []string
+		for _, c := range docChips(a) {
+			if c.step == stepBuilt && !c.ready {
+				rows = append(rows, "  "+p.Text(p.Dim).Render(glyphMissing+" "+padRight(c.doc+" PDF", docColumn)+pdfNotBuilt))
+			}
 		}
+		if len(rows) == 0 {
+			return
+		}
+		if group != groupPDFs {
+			heading(groupPDFs)
+		}
+		lines = append(lines, rows...)
 	}
 	for i, e := range docEntries(a) {
 		if g := e.group(); g != group {
-			notBuilt()
+			if group == groupDocuments || group == groupPDFs {
+				unbuilt()
+			}
 			heading(g)
 		}
 		status, ready := e.displayStatus(a)
-		mark, nameC := p.Text(p.Ok).Render("✓ "), p.Fg
-		if !ready {
-			mark, nameC = p.Text(p.Dim).Render("○ "), p.Dim
+		// One glyph per state, as on the card: ✓ ready, ○ missing, — not needed.
+		mark, nameC := p.Text(p.Ok).Render(glyphReady+" "), p.Fg
+		switch {
+		case status == resumeOnlyNote:
+			mark, nameC = p.Text(p.Dim).Render(glyphNone+" "), p.Dim
+		case !ready:
+			mark, nameC = p.Text(p.Dim).Render(glyphMissing+" "), p.Dim
 		}
-		// The name, then its state, then the file it lives in, muted: what e opens.
+		// The name, then its state, then the file it lives in, muted: what o opens.
 		name := e.title()
 		file := ""
 		if e.markdown() {
@@ -836,16 +918,15 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		lines = append(lines, row)
 	}
-	notBuilt()
+	if group == groupDocuments || group == groupPDFs {
+		unbuilt()
+	}
 	return strings.Join(lines, "\n")
 }
 
 // detailCard is the column beside the tabs: the preview as it stood beside the list,
 // with the link under it, h lines tall.
 func (m model) detailCard(p pal, a store.Application, h int) string {
-	if a.Malformed != nil {
-		return ""
-	}
 	w := m.cardWidth()
 	return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).Padding(0, 1).Render(m.previewText(p, a, w-previewInset, h, cardDetail))
 }

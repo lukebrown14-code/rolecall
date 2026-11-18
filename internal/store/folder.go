@@ -84,6 +84,7 @@ func readFolder(a *Application) error {
 		resume = resume || strings.Contains(e.Name(), "Resume")
 		letter = letter || strings.Contains(e.Name(), "Cover Letter")
 	}
+	a.ResumeBuilt, a.CoverLetterBuilt = resume, letter
 	if resume && (letter || a.ResumeOnly) {
 		a.Documents = DocsReady
 		return nil

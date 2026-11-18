@@ -83,7 +83,7 @@ func TestProfileSectionsFollowTheFileAndSkipTheTitle(t *testing.T) {
 	})
 	view := chipped(runKeys(t, root, 120, "5"))
 	// The list shows short names (no "(…)" aside, the template's long headings shortened).
-	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Facts NOT available", "Volunteer"}
+	headings := []string{"Contact", "Headlines", "Experience", "Key Skills", "Summary", "Never claim", "Volunteer"}
 	last := -1
 	for _, heading := range headings {
 		i := strings.Index(view, heading)
@@ -194,7 +194,7 @@ func TestProfileSectionRowsShowCounts(t *testing.T) {
 		{"Headlines", "2"},
 		{"Experience", "2"},
 		{"Key Skills", "8"},
-		{"Facts NOT available", "2"},
+		{"Never claim", "2"},
 	} {
 		row := requireProfileListRow(t, view, tc.section)
 		if !strings.HasSuffix(row, tc.count) {
@@ -351,7 +351,7 @@ func TestProfileShowsExistingOtherFilesBelowTheDivider(t *testing.T) {
 	if !hasProfileDivider(view) {
 		t.Fatalf("no divider above the other Profile files:\n%s", view)
 	}
-	last := strings.Index(view, "Facts NOT available")
+	last := strings.Index(view, "Never claim")
 	projects := strings.Index(view, "projects.md")
 	if last < 0 || projects < 0 || projects < last {
 		t.Fatalf("projects.md not below the sections:\n%s", view)

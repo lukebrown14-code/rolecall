@@ -1,24 +1,24 @@
- ▞ rolecall  1 Leads 7 [2 Drafts 2] 3 Applied 9  4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7 [2 Drafts 2] 3 Pipeline 9  4 Stats  ▁▁▁▁▁▁█▁ applied/wk  5 Profile  6 Settings                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s [Drafts 2] Deadlines 2 │ TRACK t [All 2] SWE 1  Unknown 1                                                     
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ✎ Drafts · 2 ──────────────────────────────────────────────── │ Engineer #1                                          
- ▌ ✎ Engineer #1                                       Good      │ Example · Unknown                                    
- ▌   Example · Unknown · ○ 0/3 ready                             │                                                      
-   ✎ docs-none                                                   │ ✎ Draft · ~9mo in Draft                    fit Good  
-     Fictional Labs · SWE · ○ 0/4 ready                          │ NEXT         add the JD                  enter open  
+    ✎ Drafts · 2 ─────────────────────────────────────────────── │ Engineer #1                                          
+ ▌  ✎ Engineer #1                                      Good      │ Example · Unknown                                    
+ ▌    Example · Unknown · ○ 0/2 ready                            │                                                      
+    ✎ docs-none                                                  │ ✎ Draft · ~9mo in Draft                    fit Good  
+      Fictional Labs · SWE · ○ 0/4 ready                         │ NEXT         add the JD                  enter open  
                                                                  │                                                      
-                                                                 │ DOCS         □□□ 0/3 ready                           
-                                                                 │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
+                                                                 │ DOCS         □□ 0/2 ready                            
+                                                                 │   ○ Resume ○ PDF   — Cover letter                    
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │   ● Applied                             ~1 Jan 2025  
                                                                  │   ✎ Draft                               ~1 Jan 2026  
                                                                  │   ● Applied                                    next  
                                                                  │                                                      
-                                                                 │ CONTACTS     Someone                                 
+                                                                 │ PEOPLE       Someone                                 
                                                                  │                                                      
-                                                                 │ NOTES        none yet                         n add  
+                                                                 │ NOTES        none yet                       n notes  
                                                                  │                                                      
                                                                  │ FIT                                                  
                                                                  │ - Kafka                                              
@@ -37,4 +37,4 @@
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
    Drafts › All tracks · row 1 of 2                                                                                     
- enter open  m move  x dismiss  a add  / search                                                                  ? help 
+ enter open  m move  x dismiss  a add  / search                                                  space commands  ? help 

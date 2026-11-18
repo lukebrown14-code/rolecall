@@ -143,15 +143,15 @@ func (m model) settingsHelpKeys() []helpKey {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
 	if m.settings != nil && m.settings.Ws.Err == nil {
-		// ←→ switch sections as they switch views elsewhere; tab and [ ] do too, unlisted, as
-		// help says tab switches panes and would wrap [ ] in brackets.
+		// ←→ switch sections as they switch views elsewhere; tab does too (tabKey), and [ ]
+		// unlisted, as the help would wrap [ ] in brackets.
 		// Below the medium width there is no group list beside the rows, so the section key
 		// is pinned: it is the only sign the other sections are there.
 		section := help(groupNav, "←→", "section").at(prioCore)
 		if m.layout().w < mediumWidth {
 			section = section.at(prioPinned)
 		}
-		keys = append(keys, section, help(groupNav, "j k", "select"),
+		keys = append(keys, section, tabKey("section"), help(groupNav, "j k", "select"),
 			help(groupNav, "g G", "first, last").at(prioHelpOnly))
 	}
 	if m.err != nil {
@@ -285,14 +285,15 @@ func (m model) settingsAboutShown() bool {
 	return m.layout().wide() && m.settings != nil && m.settings.Ws.Err == nil
 }
 
-// settingsRowsWidth is the rows pane beside the about pane and its divider. The about
-// pane is a share of the width, so the rows keep room for their values and sources.
+// settingsRowsWidth is the rows pane beside the about pane and its divider: the list's
+// width on the list screens, so the divider stays in one column moving between them and
+// the about pane is as wide as the preview.
 func (m model) settingsRowsWidth(w int) int {
-	return w - min(max(w*aboutShare/percent, aboutMin), aboutMax) - profileDivider
+	if l := m.layout(); l.detailW > 0 {
+		return l.listW
+	}
+	return w
 }
-
-// The about pane's share of the width, and its least and most cells.
-const aboutShare, aboutMin, aboutMax = 30, 30, 48
 
 // settingsTabs is the sections as `[Tracking]  Tracks …`: the active one in the single
 // selection style, brackets and all, so it reads without colour, as the active tab does.
@@ -490,21 +491,37 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 			quiet = p.Sub
 		}
 		pad := bg.Render(strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label))))
+		colW := valueW
 		var value string
+		var more []string // a long value's further lines, under its first
 		if r.Value == "" {
 			value = bg.Foreground(quiet).Italic(true).Render("not set")
 		} else {
-			value = bg.Foreground(p.Sub).Render(fitValue(r.Label, r.ValueText(), valueW))
+			colW = rowValueWidth(r, valueW, room)
+			shown := fitValue(r.Label, r.ValueText(), colW)
+			if !pathLabel(r.Label) && xansi.StringWidth(r.ValueText()) > colW {
+				// Any other value wraps under itself rather than lose its end, at its " · "
+				// breaks when it has them, so a count stays with its word.
+				wrapped := strings.Split(keepTogether(colW, " · ", strings.Split(r.ValueText(), " · ")...), "\n")
+				if !strings.Contains(r.ValueText(), " · ") {
+					wrapped = wrapWords(r.ValueText(), colW)
+				}
+				shown, more = wrapped[0], wrapped[1:]
+			}
+			value = bg.Foreground(p.Sub).Render(shown)
 		}
-		colW := valueW
-		value += bg.Render(strings.Repeat(" ", max(0, colW-xansi.StringWidth(value))))
-		tail := bg.Foreground(quiet).Render(r.Note())
+		ownW := xansi.StringWidth(value) // the value alone, before the column's padding
+		value += bg.Render(strings.Repeat(" ", max(0, colW-ownW)))
+		note, warn := bg.Foreground(quiet).Render(r.Note()), ""
 		if editing != nil && isSetting && editing.Key == set.key {
-			value, tail = m.inlineField(p, bg, quiet, *editing, r, valueW)
+			// The field takes the free width, up to its cap, so a placeholder shows whole.
+			value, note = m.inlineField(p, bg, quiet, *editing, r, max(valueW, room-gutter))
+			colW, ownW, more = xansi.StringWidth(value), xansi.StringWidth(value), nil
 		}
 		if r.Warning != "" {
-			tail += bg.Foreground(p.Warn).Render(warnSep + r.Warning)
+			warn = bg.Foreground(p.Warn).Render(warnSep + r.Warning)
 		}
+		tail := note + warn
 		fillLine := func(s string) string {
 			s = xansi.Truncate(s, width, "…")
 			if selected {
@@ -513,21 +530,61 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 			return s
 		}
 		line += pad + value
-		if plain := xansi.Strip(tail); plain != "" {
-			// The source and any warning are never cut: without room they get their own line.
-			if width-labelW-colW-gutter >= xansi.StringWidth(plain) {
-				line += bg.Render(strings.Repeat(" ", gutter)) + tail
-				lines = append(lines, fillLine(line))
-			} else {
-				lines = append(lines, fillLine(line))
-				// On its own line the tail wraps rather than lose the end of an error.
-				for _, l := range strings.Split(xansi.Wrap(tail, max(1, width-labelW), " "), "\n") {
-					lines = append(lines, strings.Repeat(" ", labelW)+l)
+		indent := strings.Repeat(" ", labelW)
+		under := func(l string) { lines = append(lines, indent+l) }
+		plain := xansi.Strip(tail)
+		// The source and any warning are never cut. They line up in their column; without
+		// room there they follow the value itself, and without room beside it they go under
+		// it, after the rest of a wrapped value.
+		if plain != "" && len(more) == 0 {
+			gap := bg.Render(strings.Repeat(" ", gutter))
+			switch tw := xansi.StringWidth(plain); {
+			case width-labelW-colW-gutter >= tw:
+				lines = append(lines, fillLine(line+gap+tail))
+				continue
+			case width-labelW-ownW-gutter >= tw:
+				lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+tail))
+				continue
+			}
+			// Without room for both, the source stays beside its value and the warning goes
+			// under it, so a long warning never moves the source off the value's line.
+			if nw := xansi.StringWidth(xansi.Strip(note)); warn != "" && nw > 0 {
+				warnLines := strings.Split(xansi.Wrap(bg.Foreground(p.Warn).Render(strings.TrimLeft(warnSep, " ")+r.Warning), max(1, width-labelW), " "), "\n")
+				switch {
+				case width-labelW-colW-gutter >= nw:
+					lines = append(lines, fillLine(line+gap+note))
+				case width-labelW-ownW-gutter >= nw:
+					lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+note))
+				default:
+					warnLines = nil
+				}
+				if warnLines != nil {
+					for _, l := range warnLines {
+						under(l)
+					}
+					continue
 				}
 			}
-			continue
 		}
 		lines = append(lines, fillLine(line))
+		for _, l := range more {
+			under(p.Text(p.Sub).Render(l))
+		}
+		if plain == "" {
+			continue
+		}
+		tailW := max(1, width-labelW)
+		parts := []string{tail}
+		if xansi.StringWidth(plain) > tailW && warn != "" && xansi.Strip(note) != "" {
+			// The source and the warning each take a line rather than break mid-phrase.
+			parts = []string{note, bg.Foreground(p.Warn).Render(strings.TrimLeft(warnSep, " ") + r.Warning)}
+		}
+		for _, part := range parts {
+			// On its own line the tail wraps rather than lose the end of an error.
+			for _, l := range strings.Split(xansi.Wrap(part, tailW, " "), "\n") {
+				under(l)
+			}
+		}
 	}
 	if aboutBelow {
 		if r, ok := m.settingsFocusedRow(); ok && r.About != "" {
@@ -582,6 +639,20 @@ func (m model) inlineField(p pal, bg lipgloss.Style, quiet color.Color, e settin
 	return value, tail
 }
 
+// rowValueWidth is the cells a row's value gets. Values share one column of colW so the
+// sources line up, but a longer value takes the free width after it before it is cut:
+// beside its own source when both fit, otherwise all of room, its source below.
+func rowValueWidth(r settingRow, colW, room int) int {
+	vw := xansi.StringWidth(r.ValueText())
+	if vw <= colW {
+		return colW
+	}
+	if tw := xansi.StringWidth(r.Tail()); tw > 0 && vw <= room-gutter-tw {
+		return vw
+	}
+	return min(vw, room)
+}
+
 // minValueRoom is the least width worth giving a value.
 const minValueRoom = 12
 
@@ -591,11 +662,19 @@ func fitValue(label, value string, room int) string {
 	if xansi.StringWidth(value) <= room || room < 2 {
 		return value
 	}
-	switch label {
-	case labelWorkspace, labelDownloads, labelPlugin:
+	if pathLabel(label) {
 		return "…" + xansi.TruncateLeft(value, xansi.StringWidth(value)-room+1, "")
 	}
 	return xansi.Truncate(value, room, "…")
+}
+
+// pathLabel reports whether a row's value is a path, cut at its start rather than wrapped.
+func pathLabel(label string) bool {
+	switch label {
+	case labelWorkspace, labelDownloads, labelPlugin:
+		return true
+	}
+	return false
 }
 
 type settingRow = settings.Row
@@ -635,15 +714,18 @@ func (m model) settingsRows(group int) []settingRow {
 }
 
 // trackBreakdown explains each Track's count so the numbers add up: how many of its
-// Applications are active, how many closed (Rejected or Withdrawn, as the Applied screen's
-// Closed view holds) and how many dismissed.
+// Applications are active, how many closed (Rejected or Withdrawn, as the Pipeline screen's
+// Closed view holds), how many dismissed and how many unreadable (malformed, which Stats
+// leaves out, so the Stats Track count is the rest).
 func (m model) trackBreakdown(st settingsState) map[string]string {
-	closed, dismissed := map[string]int{}, map[string]int{}
+	closed, dismissed, unreadable := map[string]int{}, map[string]int{}, map[string]int{}
 	for _, a := range m.apps {
-		switch a.Status {
-		case store.StatusRejected, store.StatusWithdrawn:
+		switch {
+		case a.Malformed != nil:
+			unreadable[a.Track]++
+		case a.Status == store.StatusRejected, a.Status == store.StatusWithdrawn:
 			closed[a.Track]++
-		case store.StatusDismissed:
+		case a.Status == store.StatusDismissed:
 			dismissed[a.Track]++
 		}
 	}
@@ -651,12 +733,16 @@ func (m model) trackBreakdown(st settingsState) map[string]string {
 	for _, t := range st.Ws.Tracks {
 		c := min(closed[t], st.TrackUse[t])
 		d := min(dismissed[t], st.TrackUse[t]-c)
-		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d) + " active"
+		u := min(unreadable[t], st.TrackUse[t]-c-d)
+		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d-u) + " active"
 		if c > 0 {
 			out[t] += " · " + strconv.Itoa(c) + " closed"
 		}
 		if d > 0 {
 			out[t] += " · " + strconv.Itoa(d) + " dismissed"
+		}
+		if u > 0 {
+			out[t] += " · " + strconv.Itoa(u) + " unreadable"
 		}
 	}
 	return out

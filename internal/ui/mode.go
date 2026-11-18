@@ -176,10 +176,13 @@ func (mv *moveMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return mv, nil
 }
 
-// pick moves the pop-up's Application to status, or for several marked rows asks first.
+// pick moves the pop-up's Application to status, or the marked rows (bulkMove).
 func (mv *moveMode) pick(m *model, status string) (mode, tea.Cmd) {
 	if mv.bulk != nil {
-		return m.bulkAction(status), nil
+		return m.bulkMove(status)
+	}
+	if m.isMarked(mv.app.Folder) {
+		m.marks = nil // the one marked row: a plain move, and the mark is spent
 	}
 	return m.requestMove(mv.app, status)
 }
@@ -188,11 +191,18 @@ func (mv *moveMode) pick(m *model, status string) (mode, tea.Cmd) {
 type confirmMode struct {
 	app    store.Application
 	status string
+	// askedY is set by enter, which does not confirm: the pop-up then says to press y.
+	askedY bool
 }
 
-func (cm *confirmMode) Keys() [][2]string {
-	return [][2]string{{"y", "mark Applied"}, {keyNoEsc, "cancel"}}
-}
+// confirmKeys is a yes-or-no question's keys. enter is left out on purpose: a question
+// that changes Applications takes y, so a stray enter cannot answer it (pressY says so).
+var confirmKeys = [][2]string{{"y", "yes"}, {keyNoEsc, "no"}}
+
+// pressY is what a yes-or-no pop-up says once enter has been pressed.
+const pressY = "Press y to confirm, or n to cancel."
+
+func (cm *confirmMode) Keys() [][2]string { return confirmKeys }
 
 func (cm *confirmMode) View(m *model, p pal) string { return m.confirmBox(p, cm) }
 
@@ -206,6 +216,8 @@ func (cm *confirmMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		return nil, m.move(cm.app, cm.status, false)
 	case "n", "esc":
 		return nil, nil
+	case "enter":
+		cm.askedY = true
 	}
 	return cm, nil
 }
@@ -311,9 +323,22 @@ func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 }
 
 // searchMode is the `/` filter input. It has no box: the input shows on the status row.
-type searchMode struct{}
+// Reopened over a search, it starts with the old query selected, as a browser's find box
+// does: typing or pasting replaces it, backspace clears it, and enter or an arrow keeps it.
+type searchMode struct {
+	selected bool
+}
+
+// openSearch is / : the input, with any search already on selected.
+func (m *model) openSearch() {
+	m.overlay = &searchMode{selected: m.text != ""}
+}
 
 func (sm *searchMode) Keys() [][2]string {
+	if sm.selected {
+		// Says it in words too, for a terminal without the selection fill.
+		return [][2]string{{"type", "replace"}, {"enter", "keep"}, {"esc", "clear"}}
+	}
 	return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
 }
 
@@ -322,6 +347,9 @@ func (sm *searchMode) View(m *model, p pal) string { return "" }
 func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
+		if sm.selected {
+			m.text = ""
+		}
 		m.text += pasted(msg.Content)
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -332,16 +360,27 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		case "enter":
 			m.cursor = 0
 			return nil, nil
-		case "backspace":
+		case keyBackspace:
+			if sm.selected {
+				m.text = ""
+			}
 			m.text = dropLastGrapheme(m.text)
+		case "left", "right", "up", "down":
+			// The query stays, now to be added to rather than replaced.
+			sm.selected = false
+			return sm, nil
 		default:
 			if msg.Text != "" {
+				if sm.selected {
+					m.text = ""
+				}
 				m.text += msg.Text
 			}
 		}
 	default:
 		return sm, nil
 	}
+	sm.selected = false
 	m.cursor = 0
 	return sm, nil
 }

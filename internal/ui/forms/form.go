@@ -33,7 +33,10 @@ const (
 
 // Field is one row of a Form: a text input, or a Choice cycled with ←→ (or space).
 type Field struct {
-	Label       string
+	Label string
+	// Group is the heading the field sits under ("Next step"), drawn once above the first
+	// field of each group; "" for a Form without headings.
+	Group       string
 	Role        FieldRole
 	Required    bool
 	Value       string
@@ -90,7 +93,7 @@ const (
 	keyCtrlS        = "ctrl+s"
 	hintDiscard     = "discard"
 	hintKeepEditing = "keep editing"
-	keyNoEsc        = "n esc"
+	keyNoEsc        = "n / esc"
 )
 
 // Result is what one message did to a Form.

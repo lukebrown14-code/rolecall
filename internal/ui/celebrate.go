@@ -13,8 +13,8 @@ import (
 const offerPrefix = "OFFER · "
 
 // offerToast is the one-time banner when the Owner moves an Application to Offer, the
-// moment the whole tool exists for: "OFFER · Orbit Labs ★  12 applied · 41 days · first
-// offer". Like every toast it clears on the next key. Rejections get no such thing.
+// moment the whole tool exists for: "OFFER · Orbit Labs ★  first offer, 41 days
+// after applying, 12 sent": short enough that the breadcrumb keeps its place beside it. Like every toast it clears on the next key. Rejections get no such thing.
 func (m model) offerToast(a store.Application) string {
 	applied, offers := 0, 0
 	for _, x := range m.apps {
@@ -29,16 +29,17 @@ func (m model) offerToast(a store.Application) string {
 	if name == "" {
 		name = appName(a.Title)
 	}
-	parts := []string{fmt.Sprintf("%d applied", applied)}
-	if a.AppliedDate != nil {
-		if _, days, ok := daysFrom(a.AppliedDate.At, m.now()); ok && days <= 0 {
-			parts = append(parts, fmt.Sprintf("%d days", -days))
-		}
-	}
+	var parts []string
 	if offers == 0 {
 		parts = append(parts, "first offer")
 	}
-	return offerPrefix + name + " ★  " + strings.Join(parts, " · ")
+	if a.AppliedDate != nil {
+		if _, days, ok := daysFrom(a.AppliedDate.At, m.now()); ok && days <= 0 {
+			parts = append(parts, plural(-days, "day", "days")+" after applying")
+		}
+	}
+	parts = append(parts, fmt.Sprintf("%d sent", applied))
+	return offerPrefix + name + " ★  " + strings.Join(parts, ", ")
 }
 
 // reachedOffer reports whether an Application was ever at Offer.

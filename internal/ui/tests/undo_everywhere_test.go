@@ -27,7 +27,7 @@ func TestUndoAnswersOnEveryScreen(t *testing.T) {
 	// The undone move reaches Stats.
 	before := chipped(runKeys(t, fixtureCopy(t, nil), 120, "4"))
 	after := chipped(runKeys(t, fixtureCopy(t, nil), 120, "2", "m", "a", "y", "4", "u"))
-	funnel := func(v string) string { return v[strings.Index(v, "FUNNEL"):strings.Index(v, "closed")] }
+	funnel := func(v string) string { return v[strings.Index(v, "FUNNEL"):strings.Index(v, "Closed ")] }
 	if funnel(before) != funnel(after) {
 		t.Fatalf("undo on Stats did not reach the funnel:\n%s\n%s", funnel(before), funnel(after))
 	}

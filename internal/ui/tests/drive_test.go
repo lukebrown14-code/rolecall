@@ -143,7 +143,7 @@ func TestDocsEmptyLabel(t *testing.T) {
 
 func TestDocsEnterOpensReader(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
-	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "down", "enter")
+	m = driveModel(t, m, "3", "/docs-written", "enter", "enter", "left", "down", "down", "enter") // JD, Gaps, then the Resume
 	if v := chipped(m.View().Content); !strings.Contains(v, "[Resume]") {
 		t.Fatalf("reader did not open:\n%s", v)
 	}
@@ -158,7 +158,7 @@ func TestReaderFilesFollowRefresh(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0600); err != nil {
 				t.Fatal(err)
 			}
-			m = driveModel(t, m, "e")
+			m = driveModel(t, m, "o")
 			if v := chipped(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "Resume is gone") {
 				t.Fatalf("missing fallback:\n%s", v)
 			}
@@ -245,7 +245,7 @@ func TestResumeOnlyWrittenLetterOpensFromDocs(t *testing.T) {
 	if v := chipped(m.View().Content); strings.Contains(v, "not needed") {
 		t.Fatalf("written letter labelled unnecessary: %s", v)
 	}
-	m = driveModel(t, m, "down", "down", "enter")
+	m = driveModel(t, m, "down", "down", "down", "enter") // JD, Gaps, Resume, then the letter
 	if v := chipped(m.View().Content); !strings.Contains(v, "[Cover letter]") || !strings.Contains(v, "Fictional retained letter") || strings.Contains(v, "is gone") {
 		t.Fatalf("letter did not open: %s", v)
 	}

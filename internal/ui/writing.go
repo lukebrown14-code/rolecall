@@ -23,9 +23,11 @@ type writingDone struct {
 }
 
 // markWriting notes documents the watch.Watcher saw written and returns what keeps the marks
-// alive: the spinner's tick and, per document, the tick that puts its mark out.
+// alive: the spinner's tick and, per document, the tick that puts its mark out. With no
+// Harness set no agent can be writing, so a write (the Owner's own Editor, a Lead's new
+// empty jd.md) marks nothing: the mark never claims work that is not happening.
 func (m *model) markWriting(paths []string) tea.Cmd {
-	if len(paths) == 0 {
+	if len(paths) == 0 || m.harness == "" {
 		return nil
 	}
 	next := make(map[string]int, len(m.writing)+len(paths))
@@ -67,14 +69,30 @@ func (m model) isWriting(a store.Application, file string) bool {
 	return ok
 }
 
-// chipText is one document chip: "✓ Resume", "○ Cover letter", or, while its file is
-// being written, "⠹ Resume writing…".
+// chipText is one step of a Document: its Written step by the Document's name, its Built
+// step as its PDF: "✓ Resume", "○ PDF", or, while its file is being written,
+// "⠹ Resume writing…" ("⠹ PDF building…").
 func (m model) chipText(p pal, a store.Application, c docChip) string {
+	name := c.doc
+	busy := " writing…"
+	if c.step == stepBuilt {
+		name, busy = docPDF, " building…"
+	}
 	switch {
 	case m.isWriting(a, c.file):
-		return m.spinner.View() + p.Text(p.Fg).Render(" "+c.name) + p.Text(p.Dim).Render(" writing…")
+		return m.spinner.View() + p.Text(p.Fg).Render(" "+name) + p.Text(p.Dim).Render(busy)
 	case c.ready:
-		return p.Text(p.Ok).Render(glyphReady) + p.Text(p.Fg).Render(" "+c.name)
+		return p.Text(p.Ok).Render(glyphReady) + p.Text(p.Fg).Render(" "+name)
 	}
-	return p.Text(p.Dim).Render(glyphMissing + " " + c.name)
+	return p.Text(p.Dim).Render(glyphMissing + " " + name)
+}
+
+// docMarks is each Document with its two steps, "✓ Resume ○ PDF", in set order.
+func (m model) docMarks(p pal, a store.Application) []string {
+	chips := docChips(a)
+	out := make([]string, 0, len(chips)/2) //nolint:mnd // two steps per Document
+	for i := 0; i+1 < len(chips); i += 2 {
+		out = append(out, m.chipText(p, a, chips[i])+" "+m.chipText(p, a, chips[i+1]))
+	}
+	return out
 }

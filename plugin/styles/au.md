@@ -124,7 +124,7 @@ Rules for this paragraph:
 - **Propose, do not apologise.** No "unfortunately", "I realise this may be an issue",
   "I understand if this is a barrier". A trial framing turns a constraint into a low-risk
   offer.
-- It counts toward the 350-word cap, like everything else in the letter.
+- It counts toward the 350-word maximum, like everything else in the letter.
 - **Omit it** when there is no relevant fact, when the role is itself short-term, or when the
   ad rules the relevant arrangement out — note the latter in `gaps.md` instead.
 

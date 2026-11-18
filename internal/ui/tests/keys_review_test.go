@@ -51,10 +51,10 @@ func TestDetailHelpNamesPaging(t *testing.T) {
 // space opens the command finder, esc closes it, and typing filters it (a digit is text there,
 // not a screen key); the old Menu is gone.
 func TestSpaceFinderFiltersAndCloses(t *testing.T) {
-	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ : ") {
+	if v := view(t, " ", "esc"); strings.Contains(v, "╭─ Commands: ") {
 		t.Fatalf("esc did not close the finder:\n%s", v)
 	}
-	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ : 3") || strings.Contains(v, "[3 Applied") {
+	if v := view(t, " ", "3"); !strings.Contains(v, "╭─ Commands: 3") || strings.Contains(v, "[3 Pipeline") {
 		t.Fatalf("a digit in the finder should filter, not switch screens:\n%s", v)
 	}
 	if v := view(t, " "); !strings.Contains(v, "rescan") || !strings.Contains(v, "change view") || strings.Contains(v, "Rescan") || strings.Contains(v, "Menu") {
@@ -126,7 +126,7 @@ func TestSearchAlwaysShowsHowToClearIt(t *testing.T) {
 // A search with no match here says where the matches are.
 func TestEmptySearchPointsElsewhere(t *testing.T) {
 	v := view(t, "/orbit", "enter")
-	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Applied`) || !strings.Contains(v, "enter go to Applied") {
+	if !strings.Contains(v, `No match for "orbit" in Leads · 1 in Pipeline`) || !strings.Contains(v, "enter go to Pipeline") {
 		t.Fatalf("empty search does not say where:\n%s", v)
 	}
 }
@@ -134,7 +134,7 @@ func TestEmptySearchPointsElsewhere(t *testing.T) {
 // enter on a view the search emptied jumps to the screen that has the matches.
 func TestEnterJumpsToWhereTheSearchMatches(t *testing.T) {
 	v := view(t, "/orbit", "enter", "enter")
-	if !strings.Contains(v, "[3 Applied") || !strings.Contains(v, "▌") || !strings.Contains(v, "/orbit") {
+	if !strings.Contains(v, "[3 Pipeline") || !strings.Contains(v, "▌") || !strings.Contains(v, "/orbit") {
 		t.Fatalf("enter did not jump to Applied with the search kept:\n%s", v)
 	}
 	// Another view of this screen holds the match (Dismissed), so enter goes there.
@@ -181,17 +181,18 @@ func TestWriteStepWithoutAHarnessOffersAKey(t *testing.T) {
 	}
 }
 
-// Moving to Offer from Applied › All keeps the All view and follows the row.
+// Moving to Offer from Pipeline › All keeps the All view and follows the row.
 func TestOfferFromAllKeepsTheView(t *testing.T) {
 	v := view(t, "3", "m", "i", "m", "o")
-	if !strings.Contains(v, "Applied › All") {
+	if !strings.Contains(v, "Pipeline › All") {
 		t.Fatalf("the view changed:\n%s", v)
 	}
 }
 
 // The Docs-not-Ready gate names what is missing.
 func TestDocsGateNamesWhatIsMissing(t *testing.T) {
-	if v := view(t, "2", "j", "m", "a"); !strings.Contains(strings.Join(strings.Fields(v), " "), "Missing: JD, Resume, Cover letter, PDF") {
+	v := view(t, "2", "j", "m", "a")
+	if !strings.Contains(v, "0 of 4 Document") || !strings.Contains(v, "Still to do: write the Resume,") || !strings.Contains(v, "build the Cover letter.") {
 		t.Fatalf("the gate does not name the documents:\n%s", v)
 	}
 }

@@ -37,10 +37,7 @@ jobs:
           cache: false
       - uses: goreleaser/goreleaser-action@v7
         with:
-          # GoReleaser removed formula generation in v2.16; v2.9.0 is the last
-          # release that supports the required binary Homebrew formula.
-          version: v2.9.0
+          version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

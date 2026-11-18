@@ -53,7 +53,8 @@ func (m model) statsEmptyHints() []emptyHint {
 func (m model) statsHelpKeys() []helpKey {
 	keys := []helpKey{help(groupAction, "a", "add").at(prioCore)}
 	if m.statsMaxTop() > 0 {
-		keys = append(keys, help(groupNav, "↑↓", "scroll").at(prioMain), help(groupCursor, "j k", "scroll"), help(groupCursor, "g G", "top / bottom"))
+		keys = append(keys, help(groupNav, "j/k", "scroll").at(prioLean), help(groupCursor, "↑↓", "scroll"),
+			help(groupCursor, "pgup pgdn", "page"), help(groupCursor, "g G", "top / bottom"))
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -73,6 +74,10 @@ func (m model) statsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.statsTop = min(m.statsTop+1, m.statsMaxTop())
 	case "k", "up":
 		m.statsTop = max(0, min(m.statsTop, m.statsMaxTop())-1)
+	case keyPageDown:
+		m.statsTop = min(m.statsTop+m.statsPage(), m.statsMaxTop())
+	case keyPageUp:
+		m.statsTop = max(0, min(m.statsTop, m.statsMaxTop())-m.statsPage())
 	case "g":
 		m.statsTop = 0
 	case "G":
@@ -195,6 +200,16 @@ func (m model) statsLines(p pal) []string {
 	return lines
 }
 
+// The page keys as Bubble Tea names them.
+const (
+	keyPageDown = "pgdown"
+	keyPageUp   = "pgup"
+)
+
+// statsPage is how far pgup and pgdn scroll Stats: a body less one line, so a line of the
+// last page stays in view.
+func (m model) statsPage() int { return max(1, m.layout().bodyHeight(1)-1) }
+
 // statsMaxTop is the furthest Stats scrolls: the last line at the bottom of the body.
 func (m model) statsMaxTop() int {
 	return max(0, len(m.statsLines(m.pal()))-m.layout().bodyHeight(1))
@@ -202,15 +217,21 @@ func (m model) statsMaxTop() int {
 
 // Stats layout: section labels sit in a column of their own, and what goes beside them
 // starts at statsLabelWidth. Every bar Stats draws (the funnel, the Response rate, the
-// weekly chart) is statsBarWidth cells, so the three read on one scale of width.
+// weekly chart) is one width, cells cells a week of the weekly chart, so the three read on
+// one scale of width. The bars grow from statsWeekCells to statsWeekCellsMax a week while
+// the funnel's notes and the weekly figures still fit beside them, so a wide terminal
+// draws larger charts rather than empty space.
 const (
-	statsLabelWidth = 16
-	statsWeekCells  = 2                                     // the weekly chart's cells per week
-	statsBarWidth   = statsWeekCells * reporting.StatsWeeks // the one bar width
-	statsNameWidth  = 12                                    // the longest funnel Status, "Interviewing"
-	statsColumnMin  = 60                                    // a column's least width in the two-column layout
-	statsColumnGap  = 4
+	statsLabelWidth   = 16
+	statsWeekCells    = 2  // the weekly chart's least cells per week
+	statsWeekCellsMax = 4  // the most
+	statsNameWidth    = 12 // the longest funnel Status, "Interviewing"
+	statsColumnMin    = 60 // a column's least width in the two-column layout
+	statsColumnGap    = 4
 )
+
+// statsBarWidth is the one bar width at cells cells a week.
+func statsBarWidth(cells int) int { return cells * reporting.StatsWeeks }
 
 // statsBody renders the report top to bottom, w cells wide: NOW, then the funnel and the
 // Response rate, the weekly chart and the per-track table, then Insights. Where w holds
@@ -224,15 +245,26 @@ func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 	if two {
 		colW = (w - statsColumnGap) / 2 //nolint:mnd // two columns
 	}
+	// The widest bars that take no more lines than the narrowest: a note or the weekly
+	// figures that no longer fit beside their bar would wrap under it.
+	cells := statsWeekCells
+	least := len(m.statsFunnel(p, r, colW, cells)) + len(statsWeekly(p, r, colW, cells))
+	for c := statsWeekCellsMax; c > statsWeekCells; c-- {
+		if len(m.statsFunnel(p, r, colW, c))+len(statsWeekly(p, r, colW, c)) == least &&
+			statsFits(m.statsFunnel(p, r, colW, c), colW) && statsFits(statsWeekly(p, r, colW, c), colW) {
+			cells = c
+			break
+		}
+	}
 	now := m.statsNow(p, w)
-	funnel := m.statsFunnel(p, r, colW)
-	response, definition := m.statsResponse(p, r, colW)
-	weekly := statsWeekly(p, r, colW)
+	funnel := m.statsFunnel(p, r, colW, cells)
+	response, definition := m.statsResponse(p, r, colW, cells)
+	weekly := statsWeekly(p, r, colW, cells)
 	var tracks, trackNote []string
 	if m.track == 0 {
 		tracks, trackNote = m.statsTracks(p, r, colW)
 	}
-	insights := m.statsInsights(p, w)
+	insights := statsStack(m.statsInsights(p, w), m.statsUnreadable(p, w))
 	build := func(withDef, withNote bool) []string {
 		resp, table := response, tracks
 		if withDef {
@@ -248,6 +280,34 @@ func (m model) statsBody(p pal, r reporting.StatsReport, w, h int) []string {
 	}
 	withDef := len(build(true, false)) <= h
 	return build(withDef, len(trackNote) > 0 && len(build(withDef, true)) <= h)
+}
+
+// statsFits reports that every line is whole within w: none wider, none cut short.
+func statsFits(lines []string, w int) bool {
+	for _, l := range lines {
+		if xansi.StringWidth(l) > w || strings.Contains(l, "…") {
+			return false
+		}
+	}
+	return true
+}
+
+// statsUnreadable says how many Applications on the Track filter Stats leaves out because
+// they cannot be read, so its counts reconcile with the lists, which show them as rows.
+// Nothing when every Application reads.
+func (m model) statsUnreadable(p pal, w int) []string {
+	track, on := m.selectedTrack()
+	n := 0
+	for _, a := range m.apps {
+		if a.Malformed != nil && (!on || a.Track == track) {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	return statsCaption(p, "Not counted", plural(n, "unreadable Application", "unreadable Applications")+
+		", listed as Can't read", w)
 }
 
 // statsStack stacks sections with a blank line between them; an empty one takes no room.
@@ -305,20 +365,22 @@ func statsCaption(p pal, label, text string, w int) []string {
 // statsIndent leaves the label column blank, for a section's continuation lines.
 var statsIndent = strings.Repeat(" ", statsLabelWidth)
 
-// statsNow is what wants doing today, each count with the key that goes there: the
-// Follow-up due Applications (3 Applied) and the Leads and Drafts closing within soonDays
-// (2 Drafts, whose Deadlines view lists them). Nothing due draws nothing.
+// statsNow is what wants doing today, each count with the screen that lists it and the
+// key that goes there: the Follow-up due Applications ("on 3 Pipeline") and the Leads and
+// Drafts closing within soonDays (2 Drafts, whose Deadlines view lists them). It is a
+// statement, not a row to select: Stats has no cursor, so there is no arrow to follow.
+// Nothing due draws nothing.
 func (m model) statsNow(p pal, w int) []string {
 	due := NowFor(m.statsApps(), m.now(), m.followUpDays, soonDays)
 	goes := func(text, key, where string) string {
-		return p.Text(p.Fg).Render(text) + p.Text(p.Dim).Render(" → ") + p.Key().Render(key) + p.Text(p.Dim).Render(" "+where)
+		return p.Text(p.Fg).Render(text) + p.Text(p.Dim).Render(" on ") + p.Key().Render(key) + p.Text(p.Dim).Render(" "+where)
 	}
 	var phrases []string
 	if n := len(due.FollowUps); n > 0 {
-		phrases = append(phrases, goes(plural(n, "follow-up due", "follow-ups due"), "3", screenApplied))
+		phrases = append(phrases, goes(plural(n, "follow-up due", "follow-ups due"), "3", screenPipeline))
 	}
 	if n := len(due.NextSteps); n > 0 {
-		phrases = append(phrases, goes(fmt.Sprintf("%s within %d days", plural(n, "next step", "next steps"), soonDays), "3", screenApplied))
+		phrases = append(phrases, goes(fmt.Sprintf("%s within %d days", plural(n, "next step", "next steps"), soonDays), "3", screenPipeline))
 	}
 	if n := len(due.Closing); n > 0 {
 		phrases = append(phrases, goes(fmt.Sprintf("%d closing within %d days", n, soonDays), "2", tableDeadlines))
@@ -338,16 +400,20 @@ func (m model) statsNow(p pal, w int) []string {
 // right-aligned, and beside each rung after the first how it relates to the previous rung
 // (see funnelNote). Lead and Draft are optional starts, so where a rung holds
 // Applications that skipped the one before, a caption says a bar can outgrow the one
-// above. Then the closed Statuses, muted.
-func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
-	caption := "Applications that ever reached each Status"
+// above. Then Closed (Rejected and Withdrawn) and, on its own line, Dismissed, muted.
+// funnelCaption says what the funnel counts: every Application that ever reached a
+// Status, where the tab counts are the ones at it now.
+const funnelCaption = "Ever reached each Status; tabs count where they are now"
+
+func (m model) statsFunnel(p pal, r reporting.StatsReport, w, cells int) []string {
+	caption := funnelCaption
 	most, notes := 0, make([]string, len(r.Funnel))
 	for i, step := range r.Funnel {
 		most = max(most, step.Count)
 		if i > 0 {
 			notes[i] = funnelNote(step, r.Funnel[i-1].Status, i == 1)
 			if step.Skipped > 0 {
-				caption = "Applications that ever reached each Status. They can start at any Status, so a bar can outgrow the one above"
+				caption = funnelCaption + ". Any Status can be a start, so a bar can outgrow the one above"
 			}
 		}
 	}
@@ -355,7 +421,7 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 	countW := len(fmt.Sprint(most))
 	for i, step := range r.Funnel {
 		line := p.StatusMark(step.Status) + " " + p.Text(p.Fg).Render(fmt.Sprintf("%-*s", statsNameWidth, step.Status)) + "  " +
-			statsBar(p, p.StatusColor(step.Status), step.Count, most) + " " +
+			statsBar(p, p.StatusColor(step.Status), step.Count, most, cells) + " " +
 			p.Text(p.Fg).Render(fmt.Sprintf("%*d", countW, step.Count))
 		// A note too long for the row goes under it, beside the label column.
 		var under []string
@@ -370,18 +436,21 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 		}
 		lines = append(append(lines, xansi.Truncate(line, w, "…")), under...)
 	}
-	// Closed is Rejected and Withdrawn, as the Applied screen's Closed view is; Dismissed
-	// (a Lead let go before applying) stands apart from them.
+	// Closed is Rejected and Withdrawn, as the Pipeline screen's Closed view is; Dismissed
+	// (an Application let go before it was sent) is never Closed, so it has its own line.
 	mark := func(status string, n int) string { return fmt.Sprintf("%s %s %d", p.StatusGlyph(status), status, n) }
-	closed := "closed  " + mark(store.StatusRejected, r.Rejected) + " · " + mark(store.StatusWithdrawn, r.Withdrawn)
-	for _, l := range strings.Split(keepTogether(w, "   ", closed, mark(store.StatusDismissed, r.Dismissed)), "\n") {
+	closed := fmt.Sprintf("Closed %d: ", r.Rejected+r.Withdrawn)
+	dismissed := mark(store.StatusDismissed, r.Dismissed) + ", let go before applying"
+	for _, l := range strings.Split(keepTogether(w, " · ", closed+mark(store.StatusRejected, r.Rejected), mark(store.StatusWithdrawn, r.Withdrawn)), "\n") {
 		lines = append(lines, p.Text(p.Dim).Render(l))
 	}
+	lines = append(lines, p.Text(p.Dim).Render(xansi.Truncate(dismissed, w, "…")))
 	if len(r.DropOff) > 0 {
 		// Where closed Applications ended, by the reason the Owner gave when they moved it.
 		parts := make([]string, 0, len(r.DropOff)+1)
 		for _, d := range r.DropOff {
-			parts = append(parts, fmt.Sprintf("%s %d", d.Reason, d.Count))
+			// In words, lower case mid-line: "no response 2 · salary 1 · no reason 1".
+			parts = append(parts, fmt.Sprintf("%s %d", strings.ToLower(closeReasonLabel(d.Reason)), d.Count))
 		}
 		if r.Unrecorded > 0 {
 			parts = append(parts, fmt.Sprintf("no reason %d", r.Unrecorded))
@@ -434,10 +503,10 @@ func statusPlural(status string) string {
 // statsResponse is the Response rate on the funnel's bar, then the Applications left out
 // as too new to judge; definition is the one-line meaning of a Response, kept if space
 // allows.
-func (m model) statsResponse(p pal, r reporting.StatsReport, w int) (lines, definition []string) {
+func (m model) statsResponse(p pal, r reporting.StatsReport, w, cells int) (lines, definition []string) {
 	value := p.Text(p.Dim).Render("not enough sent yet")
 	if r.Response.OK {
-		value = statsBar(p, p.Purple, r.Response.Reached, r.Response.Applied) + " " +
+		value = statsBar(p, p.Purple, r.Response.Reached, r.Response.Applied, cells) + " " +
 			p.Text(p.Fg).Bold(true).Render(fmt.Sprintf("%d%%", r.Response.Rate)) +
 			p.Text(p.Dim).Render(fmt.Sprintf(" · %d of %d", r.Response.Reached, r.Response.Applied))
 	}
@@ -455,10 +524,10 @@ func (m model) statsResponse(p pal, r reporting.StatsReport, w int) (lines, defi
 	return lines, definition
 }
 
-// statsWeekly is Applied per week as a chart of the report's weeks, statsWeekCells cells
+// statsWeekly is Applied per week as a chart of the report's weeks, cells cells
 // each, empty weeks on the baseline; the first and last week's dates sit under its ends,
 // and this week's count, the busiest week and the average beside it.
-func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
+func statsWeekly(p pal, r reporting.StatsReport, w, cells int) []string {
 	if len(r.Weeks) == 0 {
 		return nil
 	}
@@ -468,7 +537,16 @@ func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
 		peak = max(peak, week.Count)
 	}
 	first, last := r.Weeks[0], r.Weeks[len(r.Weeks)-1]
-	chartW := len(r.Weeks) * statsWeekCells
+	chart := sparkline(p, r.Weeks, cells, p.Info)
+	if plainMode() {
+		// A screen reader reads the weeks' counts, not bar heights.
+		counts := make([]string, len(r.Weeks))
+		for i, week := range r.Weeks {
+			counts[i] = fmt.Sprint(week.Count)
+		}
+		chart = p.Text(p.Fg).Render(strings.Join(counts, " "))
+	}
+	chartW := xansi.StringWidth(chart)
 	from, to := first.Start.Format("2 Jan"), last.Start.Format("2 Jan")
 	dates := p.Text(p.Dim).Render(padRight(from, max(len(from)+1, chartW-len(to))) + to)
 	phrases := []string{
@@ -485,7 +563,7 @@ func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
 			break
 		}
 	}
-	rows := []string{sparkline(p, r.Weeks, statsWeekCells, p.Info), dates}
+	rows := []string{chart, dates}
 	switch {
 	case len(beside) <= len(rows):
 		for i, b := range beside {
@@ -531,7 +609,7 @@ func (m model) statsTracks(p pal, r reporting.StatsReport, w int) (lines, note [
 			lines = append(lines, statsIndent+p.Text(p.Dim).Render(l))
 		}
 	}
-	text := fmt.Sprintf("Counted: applied at least %d days ago, as in the Response rate", m.followUpDays)
+	text := fmt.Sprintf("Applied: ever reached Applied, as in the funnel. Counted: applied at least %d days ago, as in the Response rate", m.followUpDays)
 	for _, l := range wrapWords(text, max(1, w-statsLabelWidth)) {
 		note = append(note, statsIndent+p.Text(p.Dim).Render(l))
 	}
@@ -539,14 +617,18 @@ func (m model) statsTracks(p pal, r reporting.StatsReport, w int) (lines, note [
 }
 
 // statsBar is the one bar Stats draws: count of most as a solid run in colour c on a
-// faint track, statsBarWidth cells in all ("████░░░░"). A non-zero count fills at least
-// one cell, so "some" never reads as none; an empty one is the bare track.
-func statsBar(p pal, c color.Color, count, most int) string {
-	n := 0
-	if count > 0 && most > 0 {
-		n = min(statsBarWidth, max(1, int(math.Round(float64(count)*statsBarWidth/float64(most)))))
+// faint track, statsBarWidth(cells) cells in all ("████░░░░"). A non-zero count fills at least
+// one cell, so "some" never reads as none; an empty one is the bare track. ROLECALL_PLAIN
+// draws no bar: the count beside it says the same, without a run of blocks read aloud.
+func statsBar(p pal, c color.Color, count, most, cells int) string {
+	if plainMode() {
+		return ""
 	}
-	return p.Text(c).Render(strings.Repeat("█", n)) + p.Text(p.Faint).Render(strings.Repeat("░", statsBarWidth-n))
+	width, n := statsBarWidth(cells), 0
+	if count > 0 && most > 0 {
+		n = min(width, max(1, int(math.Round(float64(count)*float64(width)/float64(most)))))
+	}
+	return p.Text(c).Render(strings.Repeat("█", n)) + p.Text(p.Faint).Render(strings.Repeat("░", width-n))
 }
 
 // sparkLevels are the sparkline's eight heights. The lowest is the baseline an empty week

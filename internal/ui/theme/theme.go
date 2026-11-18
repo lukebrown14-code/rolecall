@@ -18,8 +18,11 @@ import (
 // every role has a dark and a light value; one frame is drawn with one Mode's Roles.
 // Colour always pairs with a word or glyph, so meaning never rests on colour alone.
 //
-// Floors (contrast_internal_test.go): text Roles 4.5:1 on bg, panel and the selection
-// bar; rules, separators and glyphs 3:1. Accent is the colour of keys; it also marks the selection gutter.
+// Floors (tests/contrast_test.go): text Roles 4.5:1 on bg, panel and the selection
+// bar; rules, separators and glyphs 3:1; the selection fill itself 1.4:1 on bg in light,
+// so the bar reads as a band and not only by its gutter. The pop-up fill (Panel) is a
+// faint tint: a pop-up is told from the page by its border in the secondary colour, 3:1
+// and more on both. Accent is the colour of keys; it also marks the selection gutter.
 type Roles struct {
 	Bg     string // painted as the terminal background
 	Panel  string // pop-up fill and the feedback line
@@ -35,7 +38,7 @@ type Roles struct {
 	Info   string // links, Good fit
 	Warn   string // closes within a week, quiet follow-up, written docs, warning pop-ups
 	Danger string // closes today, errors
-	Purple string // Interviewing: magenta on dark, so it parts from Applied blue under red-green colour blindness
+	Purple string // Interviewing: a purple in both themes, apart from the error red and, under red-green colour blindness, from Applied blue
 	Gold   string // Offer
 	Lead   string // Lead: a grey-green (sage), apart from the closed Statuses' grey and the blues
 	Draft  string // Draft: a lighter blue than Applied, apart from the accent
@@ -71,15 +74,15 @@ var rolePalette = struct {
 	Muted:        rolePair{"#8B949E", "#57606A"},
 	Faint:        rolePair{"#6E7681", "#6E7985"},
 	Rule:         rolePair{"#5A6878", "#6E7985"},
-	Accent:       rolePair{"#5EEAD4", "#0F766E"},
+	Accent:       rolePair{"#5EEAD4", "#0E655E"}, // light: deep enough to clear 4.5:1 on Sel
 	OnFill:       rolePair{darkBg, lightBg},
-	Sel:          rolePair{"#2F5560", "#D6F1EC"}, // light: a teal tint of the accent
+	Sel:          rolePair{"#2F5560", "#B5E2D9"}, // light: a teal tint of the accent, 1.4:1 on bg
 	Ok:           rolePair{"#3FB950", "#14702F"},
 	Info:         rolePair{"#58A6FF", "#074A9A"},
 	Marginal:     rolePair{"#E9E066", "#7A6400"},
 	Warn:         rolePair{"#F0883E", "#B34700"},
 	Danger:       rolePair{"#FF7B72", "#B01A25"},
-	Purple:       rolePair{"#F778BA", "#7A4AD6"},
+	Purple:       rolePair{"#CE8DC3", "#7A4AD6"},
 	Gold:         rolePair{"#F2CC60", "#8A5A00"},
 	Lead:         rolePair{"#9CB0A0", "#406850"},
 	Draft:        rolePair{"#A5D6FF", "#2D6A8F"},
@@ -228,7 +231,8 @@ func ASCIIMode() bool {
 // PlainMode reports whether ROLECALL_PLAIN=1 asks for a plainer frame, for screen readers
 // and braille displays: no mouse capture, so the terminal's own selection and review
 // cursor work; no decorative sparkline in the tab bar; one pane, no rules, Status words
-// for lone Status glyphs, and the terminal cursor on the selection (internal/ui/plain.go).
+// for lone Status glyphs, words for flags and marks, pop-ups as screens of their own, and
+// the terminal cursor on the selection (internal/ui/plain.go).
 func PlainMode() bool { return os.Getenv("ROLECALL_PLAIN") == "1" }
 
 // utf8Capable reports whether the environment's locale can draw UTF-8. POSIX gives LC_ALL
@@ -385,6 +389,11 @@ func (p Palette) SelGutter(filled bool) string {
 	return p.SelBase(filled).Foreground(p.Accent).Bold(true).Render("▌ ")
 }
 
+// MarkFill is the ground of a row marked for a bulk action, off the cursor: the panel
+// tint, subtler than the selection fill, which every text Role clears 4.5:1 on. The ◉
+// carries the mark where the fill is absent (the terminal's own colours, NO_COLOR).
+func (p Palette) MarkFill() color.Color { return p.Panel }
+
 // OnSel is the palette for what sits on the selection fill. Coloured words there (close
 // dates, warnings, document states) take the secondary colour, which clears the 4.5:1
 // text floor on the fill where the role colours do not; the muted closed-Status glyph
@@ -532,16 +541,17 @@ func (p Palette) PanelFill(s string) string {
 // statusGlyphs are each Status's glyph and its ASCII stand-in. The open Statuses run a
 // cold-to-gold ramp; the closed ones are muted, never alarming.
 // The stand-ins are punctuation that is no key and no other mark: not the move keys
-// (Rejected's "x" sat beside the dismiss key x), not "/" search, not "<" the left arrow.
+// (Rejected's "x" sat beside the dismiss key x), not "*" mark, ":" commands or "/"
+// search, not "<" the left arrow; glyphs.go says why each one.
 var statusGlyphs = map[string][2]string{
 	store.StatusLead:         {"◌", "("},
 	store.StatusDraft:        {"✎", "="},
-	store.StatusApplied:      {"●", "*"},
-	store.StatusInterviewing: {"◆", "@"},
+	store.StatusApplied:      {"●", "#"},
+	store.StatusInterviewing: {"◆", "&"},
 	store.StatusOffer:        {"★", "$"},
 	store.StatusRejected:     {"✕", "\\"},
-	store.StatusWithdrawn:    {"↩", "{"},
-	store.StatusDismissed:    {"⊘", ";"},
+	store.StatusWithdrawn:    {"↩", "`"},
+	store.StatusDismissed:    {"⊘", "%"},
 }
 
 // ClosedGroupGlyph is the glyph of the Closed group (Rejected, Withdrawn, Dismissed), or

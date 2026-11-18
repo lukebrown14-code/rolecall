@@ -137,7 +137,8 @@ func selectedRow(t *testing.T, view string) string {
 	t.Helper()
 	for _, line := range strings.Split(chipped(view), "\n") {
 		if _, rest, ok := strings.Cut(line, "▌ "); ok {
-			// The title follows its Status glyph.
+			// The title follows its Status glyph, after the mark column.
+			rest = strings.TrimLeft(rest, " ")
 			for _, g := range statusGlyphs {
 				rest = strings.TrimPrefix(rest, g+" ")
 			}
@@ -198,7 +199,7 @@ func TestAddRejectsInvalidClosesDate(t *testing.T) {
 	}
 	h.tm.Type("someday")
 	h.enter()
-	h.wait("Closes: use YYYY-MM-DD")
+	h.wait("✘ tomorrow · fri · +7d · 30 Nov")
 	h.esc()
 	h.quit()
 	if !sameSnapshot(before, h.snapshot()) {

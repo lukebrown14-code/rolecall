@@ -58,7 +58,7 @@ func heatOf(row string) string {
 	return ""
 }
 
-// Follow-up due is always the ⚑ flag (} in ASCII), never a dot that could read as a
+// Follow-up due is always the ⚑ flag (@ in ASCII), never a dot that could read as a
 // Status or a separator; how long overdue shows in its weight and its "10d" count.
 func TestFollowUpFlagGlyph(t *testing.T) {
 	for _, tc := range []struct {
@@ -67,7 +67,7 @@ func TestFollowUpFlagGlyph(t *testing.T) {
 		glyph string
 	}{
 		{"unicode", false, "⚑"},
-		{"ascii", true, "}"},
+		{"ascii", true, "@"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ascii {

@@ -24,7 +24,7 @@ func TestKeyLineDropsLowPriorityKeysFirst(t *testing.T) {
 	}{
 		{"leads 80", 80, 24, []string{"1"}, []string{"enter open", "m move", "a add", "/ search", "? help", "space commands"}, []string{"1-6 screen"}},
 		{"leads 60", 60, 16, []string{"1"}, []string{"enter open", "m move", "a add", "? help"}, []string{"1-6 screen", "←→ view"}},
-		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "space commands"}, []string{"1-6 screen"}},
+		{"docs tab 60", 60, 16, []string{"3", "enter", "right", "right", "right", "right"}, []string{"esc back", "enter open", "? help"}, []string{"1-6 screen"}},
 		{"settings 60", 60, 16, []string{"6"}, []string{"enter edit", "? help", "space commands"}, []string{"1-6 screen"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestArrowsSwitchViewsAndShiftTCyclesTracksBack(t *testing.T) {
 // when there is a second page.
 func TestHelpIsContextAwareAndPagesOnlyWhenNeeded(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 80, "3", "enter", "?"))
-	for _, want := range []string{"Keys · Applied · JD", "NAVIGATE"} {
+	for _, want := range []string{"Keys · Pipeline · JD", "NAVIGATE"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("detail help lacks %q:\n%s", want, view)
 		}

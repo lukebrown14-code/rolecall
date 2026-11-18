@@ -13,9 +13,11 @@ history that had already been published, and would cost the project its issues, 
 ## Consequences
 
 - The personal-data guard covers the whole history and the tracker, not just the tree.
-  `scripts/check-personal-data.py --history --github lukebrown14-code/rolecall` scans every
-  file version and commit message reachable from any ref, plus every issue and PR title, body,
-  comment and review.
+  `scripts/check-personal-data.py --history --github lukebrown14-code/rolecall` applies the
+  Workspace-structure rules and generic patterns to every file version and commit message on
+  any branch, tag or remote ref, plus every issue and PR title, body, comment and review. The
+  Owner runs it once with their local terms file before tagging v1.0; CI keeps checking only
+  the tree.
 - A history finding is fixed in place: rewrite the commits (`git filter-repo`) and force-push.
   GitHub keeps PR refs and cached views of old commits, so removing them fully also needs a
   request to GitHub Support. A tracker finding is fixed by editing the text and deleting the

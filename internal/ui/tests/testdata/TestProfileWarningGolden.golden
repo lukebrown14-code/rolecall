@@ -1,4 +1,4 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2  3 Applied 9  4 Stats  ▁▁▁▁▁▁█▁ [5 Profile] 6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2  3 Pipeline 9  4 Stats  ▁▁▁▁▁▁█▁ applied/wk [5 Profile] 6 Settings                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   [SECTIONS]  CONTENT                                                                         profile/master-profile.md 
 ─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
@@ -7,7 +7,7 @@
    Experience                 2  │  ⚠ Contact is missing Email. Builds will fail until it is added.                     
    Key Skills                 8  │                                                                                      
    Summary                       │  NAME         Alex Quinn                                                             
-   Facts NOT available        2  │  PHONE        +61 400 000 000                                                        
+   Never claim                2  │  PHONE        +61 400 000 000                                                        
    files ──────────────────────  │  LOCATION     Brisbane, QLD                                                          
    projects.md                   │  LINKEDIN     linkedin.com/in/alexquinn                                              
                                  │  GITHUB       github.com/alexquinn                                                   
@@ -37,4 +37,4 @@
                                  │                                                                                      
 ─────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────
    Profile › Contact                                                                                                    
- e edit file  c fill in Contact                                                                       tab focus  ? help 
+ e edit file  c fill in Contact                                                       tab focus  space commands  ? help 

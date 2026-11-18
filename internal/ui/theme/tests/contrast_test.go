@@ -49,10 +49,11 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 		graphicFloor = 3.0 // WCAG AA for rules, dividers and glyphs
 	)
 	// The selection fill is a tint, so it cannot reach 3:1 against the page and still keep
-	// the title and accent at 4.5:1 on it: on white the accent's 4.5:1 caps the fill near
-	// 1.2:1. Each fill is as deep as the text floor allows; the accent gutter mark, at
-	// 3:1 and more on both, carries the selection's non-text contrast.
-	selFillFloor := map[string]float64{"dark": 2.3, "light": 1.17}
+	// the title and accent at 4.5:1 on it. On white it reaches 1.4:1, enough to read as a
+	// band on a washed-out display, with the light accent deepened to keep 4.5:1 on it;
+	// the accent gutter mark, at 3:1 and more on both, carries the selection's non-text
+	// contrast.
+	selFillFloor := map[string]float64{"dark": 2.3, "light": 1.4}
 	check := func(t *testing.T, what string, fg, bg color.Color, floor float64) {
 		t.Helper()
 		if got := contrastRatio(fg, bg); got < floor {
@@ -86,6 +87,13 @@ func TestPaletteMeetsContrastFloors(t *testing.T) {
 			}
 			// The fill itself is told from the page by the gutter mark as well as its tint.
 			check(t, "selection fill on background", p.Sel, p.Bg, selFillFloor[th.name])
+			// A row marked for a bulk action off the cursor takes the mark fill: it must not
+			// read as a second selection.
+			check(t, "selection fill against the mark fill", p.Sel, p.MarkFill(), 1.25)
+			// The pop-up fill is a faint tint; its border, in the secondary colour, is what
+			// sets a pop-up off from the page, so the border clears the graphic floor on both.
+			check(t, "pop-up border on background", p.Sub, p.Bg, graphicFloor)
+			check(t, "pop-up border on the pop-up fill", p.Sub, p.Panel, graphicFloor)
 			for _, r := range []role{{"rule", p.Rule}, {"faint", p.Faint}} {
 				check(t, r.name+" on background", r.c, p.Bg, graphicFloor)
 				check(t, r.name+" on the pop-up fill", r.c, p.Panel, graphicFloor)
@@ -157,14 +165,14 @@ func TestFitColoursAreApartFromUrgency(t *testing.T) {
 }
 
 // The light selection fill is a tint of the teal accent, not a blue: green leads, then
-// blue, then red, as in the accent, and it sits nearer the page than the accent.
+// blue, then red, as in the accent, and it sits far nearer the page than the accent.
 func TestLightSelectionIsAnAccentTint(t *testing.T) {
 	p := theme.Light.Base()
 	r, g, b, _ := p.Sel.RGBA()
 	if g < b || b <= r {
 		t.Errorf("light Sel %v is not a teal tint", p.Sel)
 	}
-	if contrastRatio(p.Sel, p.Accent) < contrastRatio(p.Bg, p.Accent)*0.8 {
+	if contrastRatio(p.Sel, p.Accent) < 3*contrastRatio(p.Sel, p.Bg) {
 		t.Errorf("light Sel is too close to the accent to read as a tint of the page")
 	}
 }

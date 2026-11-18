@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -53,7 +52,7 @@ func (m *model) startBuild() tea.Cmd {
 	// The missing Plugin hint comes before the buildable check: b on any row should say
 	// how to turn the feature on, even when that row has nothing to build.
 	if m.plugin == "" {
-		m.err = errors.New(unsetMachineSetting(labelPlugin))
+		m.err = errNoPlugin
 		return nil
 	}
 	if !buildable(a) {
@@ -84,7 +83,7 @@ func (m *model) refuseBusy() bool {
 // Application build: the Plugin must be set and only one build runs at a time.
 func (m *model) startCVBuild(cv store.CV) tea.Cmd {
 	if m.plugin == "" {
-		m.err = errors.New(unsetMachineSetting(labelPlugin))
+		m.err = errNoPlugin
 		return nil
 	}
 	if m.refuseBusy() {

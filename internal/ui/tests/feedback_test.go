@@ -110,7 +110,7 @@ func TestToastGlyphsFoldToASCII(t *testing.T) {
 		t.Fatalf("ASCII toast lacks +:\n%s", plain)
 	}
 	m = driveModel(t, m, "u")
-	if plain := chipped(m.View().Content); !strings.Contains(plain, "+ Undone . back to ") {
+	if plain := chipped(m.View().Content); !strings.Contains(plain, "+ Undone | back to ") {
 		t.Fatalf("ASCII undo toast lacks +:\n%s", plain)
 	}
 }
@@ -126,12 +126,13 @@ func TestMoveOutOfFilteredViewSaysHiddenByFilter(t *testing.T) {
 	}
 }
 
-// Dismiss confirms like a move: the company, and u undo, with the key line still last.
+// Dismiss confirms like a move: the company, u undo and i go to it (the row left the
+// view), with the key line still last.
 func TestDismissToastOffersUndo(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "x")
 	plain := chipped(m.View().Content)
-	if !strings.Contains(plain, "✓ Dismissed ") || !strings.Contains(plain, "u undo  esc hide") {
+	if !strings.Contains(plain, "✓ Dismissed ") || !strings.Contains(plain, "u undo  i go to it") {
 		t.Fatalf("dismiss toast lacks undo:\n%s", plain)
 	}
 	lines := strings.Split(strings.TrimRight(plain, "\n"), "\n")
@@ -162,7 +163,7 @@ func TestOfferMoveHiddenByFilterKeepsTheNote(t *testing.T) {
 
 // A message on the footer never changes the breadcrumb's form: with room both show whole,
 // otherwise the message takes the line alone (it does not shorten the breadcrumb to
-// "Applied › All · All · 1 of 9" and back).
+// "Pipeline › All · All · 1 of 9" and back).
 func TestFeedbackNeverShortensTheBreadcrumb(t *testing.T) {
 	for _, w := range []int{120, 100, 80, 70, 60} {
 		bare := breadcrumbLine(runKeysSized(t, fixtureCopy(t, nil), w, 24, "3"))

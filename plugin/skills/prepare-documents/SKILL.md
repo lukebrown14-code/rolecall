@@ -95,7 +95,7 @@ The letter is an **offer of help, not a request for consideration**.
   the style guide ask for.
 - Carry the closing practical note exactly once; the build styles it by its opening words,
   `One practical note`.
-- **Respect the configured word cap** (default 350), the closing note included. It is hard.
+- **Respect the configured maximum word count** (default 350), the closing note included. It is hard.
 - Use none of the banned phrases in `${CLAUDE_PLUGIN_ROOT}/styles/au.md` ("I am writing to apply…", "I believe I
   would be a great fit…", and the rest of that section).
 
@@ -131,7 +131,7 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/build.py" <job_dir> --data <workspace>
 `build.py` **refuses** to produce a document that breaks a hard rule, naming the file and the fix.
 Fix the document and build again until it prints `built …`. The hard gates are:
 
-- **Cover letter over the word cap** (default 350, `letterWordCap` in `workspace.json`). Cut words;
+- **Cover letter over the maximum word count** (default 350, `letterWordCap` in `workspace.json`). Cut words;
   never shrink the template.
 - **Key Skills outside 8–12** keywords, or a keyword with no evidence below it or in the Profile.
 - **Fact gate** — a number, employer, date or job title the Profile does not evidence, a
@@ -242,7 +242,7 @@ Alex Quinn
 ```
 
 The two things the gates most often catch are visible here: the Key Skills keywords each appear in
-the body below the block, and the letter stays well inside the word cap with the closing note
+the body below the block, and the letter stays well inside the maximum word count with the closing note
 carried exactly once.
 
 ## 11. Hand back

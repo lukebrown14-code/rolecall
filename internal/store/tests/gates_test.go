@@ -29,7 +29,7 @@ func TestSetGateRefusesBadValuesWithTheReasonAndWritesNothing(t *testing.T) {
 		{"letterWordCap", "-5", "number"},
 		{"letterWordCap", "0", "above 0"},
 		{"letterWordCap", "100", "above the minimum"},
-		{"letterWordMin", "350", "below the cap"},
+		{"letterWordMin", "350", "below the maximum"},
 		{"keySkillsMin", "13", "at most the maximum"},
 		{"keySkillsMax", "7", "at least the minimum"},
 		{"bogus", "1", "unknown"},

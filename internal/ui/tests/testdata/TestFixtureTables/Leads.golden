@@ -1,27 +1,27 @@
- ▞ rolecall [1 Leads 7] 2 Drafts 2  3 Applied 9  4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall [1 Leads 7] 2 Drafts 2  3 Pipeline 9  4 Stats  ▁▁▁▁▁▁█▁ applied/wk  5 Profile  6 Settings                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s [Leads 7] Dismissed 2  Filtered 1 │ TRACK t [All 7] SWE 6  Platform 1                                         
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ◌ Leads · 7 · by deadline ─────────────────────────────────── │ Platform Engineer                                    
- ▌ ◌ Platform Engineer                                           │ Fern Systems · Platform                              
- ▌   Fern Systems · Platform · posted 27d ⚠ expires in 3 days    │                                                      
-   ◌ Empty                                                       │ ◌ Lead · added 7d ago              fit not assessed  
-     Example · SWE                                               │ NEXT         add the JD                  enter open  
-   ◌ Empty log                                                   │                                                      
-     Fictional Labs · SWE                                        │ POSTED       2026-09-04 · 27d ago · site said "27d   
-   ◌ Backend Engineer (Level 3)                                  │              ago" on 24 Sep                          
-     Numbat Health · SWE · ad summary only                       │              ⚠ expires in 3 days                     
-   ◌ Data Engineer                                               │ APPLICANTS   41                                      
-     Quokka Energy via Wattle Talent · SWE · contract fits visa… │ SOURCE       greenhouse                              
-   ◌ Reliability Engineer                                        │                                                      
-     Bilby Freight · SWE · closes: date unclear · ⚠ 12-mo contr… │ DOCS         □□□□ 0/4 ready                          
-   ⚠ Can't read SWE/malformed                                    │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
-     meta.yml line 4: indented lines must be status_log entri…   │                                                      
+    ◌ Leads · 7 · by deadline · 1 unreadable ─────────────────── │ Platform Engineer                                    
+ ▌  ◌ Platform Engineer                                          │ Fern Systems · Platform                              
+ ▌    Fern Systems · Platform · posted 27d ⚠ expires in 3 days   │                                                      
+    ◌ Empty                                                      │ ◌ Lead · added 7d ago              fit not assessed  
+      Example · SWE                                              │ NEXT         add the JD                  enter open  
+    ◌ Empty log                                                  │                                                      
+      Fictional Labs · SWE                                       │ POSTED       2026-09-04 · 27d ago · site said "27d   
+    ◌ Backend Engineer (Level 3)                                 │              ago" on 24 Sep                          
+      Numbat Health · SWE · ad summary only                      │              ⚠ expires in 3 days                     
+    ◌ Data Engineer                                              │ APPLICANTS   41                                      
+      Quokka Energy via Wattle Talent · SWE · contract fits vis… │ SOURCE       greenhouse                              
+    ◌ Reliability Engineer                                       │                                                      
+      Bilby Freight · SWE · closes: date unclear · ⚠ 12-mo cont… │ DOCS         □□□□ 0/4 ready                          
+    ⚠ Can't read SWE/malformed                                   │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
+      meta.yml line 4: indented lines must be status_log entri…  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │   ◌ Lead                                     24 Sep  
                                                                  │   ✎ Draft                                      next  
                                                                  │                                                      
-                                                                 │ NOTES        none yet                         n add  
+                                                                 │ NOTES        none yet                       n notes  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -37,4 +37,4 @@
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
    Leads › All tracks · row 1 of 7                                                                                      
- enter open  m move  x dismiss  a add  / search                                                                  ? help 
+ enter open  m move  x dismiss  a add  / search                                                  space commands  ? help 

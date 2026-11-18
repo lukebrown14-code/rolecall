@@ -129,9 +129,12 @@ const heatHighAfter = 7
 // followUpDaysPast is how many whole days past its follow-up date a sent Application is
 // (0 on the day it falls due), and whether it is Follow-up due at all. The follow-up date
 // is follow_up_days after the later of the last Status change and the last recorded
-// follow-up (followed_up), so l clears the flag until it falls due again.
+// follow-up (followed_up), so l clears the flag until it falls due again. A next step
+// booked for today or later holds the flag: something is already arranged, so nothing is
+// due until it passes. Every Follow-up due reader (the row's ⚑, sorting, NEXT, Stats → Now)
+// comes through here, so the hold is the same everywhere.
 func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
-	if !followUpStatus(a.Status) {
+	if !followUpStatus(a.Status) || nextStepBooked(a, now) {
 		return 0, false
 	}
 	t, ok := followUpFrom(a)
@@ -140,6 +143,15 @@ func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) 
 	}
 	past := int(day(now).Sub(t.AddDate(0, 0, days)).Hours() / hoursPerDay)
 	return past, past >= 0
+}
+
+// nextStepBooked reports a next step on or after today's date.
+func nextStepBooked(a store.Application, now time.Time) bool {
+	if a.NextStep == nil {
+		return false
+	}
+	_, days, ok := daysFrom(a.NextStep.Day(), now)
+	return ok && days >= 0
 }
 
 // followUpLate reports a Follow-up due flag drawn bold: more than heatHighAfter days past.

@@ -12,15 +12,15 @@ import (
 // (NO_COLOR, ROLECALL_PLAIN, the light theme) from the design review.
 
 // One rule sheds the tab bar by width: other screens' counts, then the gap between tabs,
-// then other screens' names. From 60 columns every screen stays named; the active chip never
+// then other screens' names. From 61 columns every screen stays named; the active chip never
 // touches the tab before it.
-func TestNarrowTabBarKeepsNamesFrom60Columns(t *testing.T) {
+func TestNarrowTabBarKeepsNamesFrom61Columns(t *testing.T) {
 	for screen, want := range map[string]string{
-		"4": "1 Leads 2 Drafts 3 Applied [4 Stats] 5 Profile 6 Settings",
-		"5": "1 Leads 2 Drafts 3 Applied 4 Stats [5 Profile] 6 Settings",
-		"6": "1 Leads 2 Drafts 3 Applied 4 Stats 5 Profile [6 Settings]",
+		"4": "1 Leads 2 Drafts 3 Pipeline [4 Stats] 5 Profile 6 Settings",
+		"5": "1 Leads 2 Drafts 3 Pipeline 4 Stats [5 Profile] 6 Settings",
+		"6": "1 Leads 2 Drafts 3 Pipeline 4 Stats 5 Profile [6 Settings]",
 	} {
-		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, screen)), "\n")[0])
+		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 61, 24, screen)), "\n")[0])
 		if bar != want {
 			t.Errorf("screen %s: tab bar %q, want %q", screen, bar, want)
 		}
@@ -43,7 +43,7 @@ func TestTabBarDetailDoesNotDependOnTheScreen(t *testing.T) {
 			bar := chipped(runKeysSized(t, fixtureCopy(t, nil), w, 24, screen))
 			bar = strings.Split(bar, "\n")[0]
 			n := 0
-			for _, name := range []string{"Leads", "Drafts", "Applied", "Stats", "Profile", "Settings"} {
+			for _, name := range []string{"Leads", "Drafts", "Pipeline", "Stats", "Profile", "Settings"} {
 				if strings.Contains(bar, name) {
 					n++
 				}
@@ -69,21 +69,40 @@ func TestNarrowSettingsKeepsTheSectionKey(t *testing.T) {
 	}
 }
 
-// With room, the tab bar's sparkline says what it counts.
+// With room, the tab bar's sparkline says what it counts; at any width where the label
+// does not fit, the sparkline goes with it, so the bar never shows unexplained glyphs.
 func TestTabBarSparklineIsLabelled(t *testing.T) {
-	bar := strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 160, 40, "1")), "\n")[0]
+	root := fixtureCopy(t, nil)
+	bar := strings.Split(chipped(runKeysSized(t, root, 160, 40, "1")), "\n")[0]
 	if !strings.Contains(bar, "4 Stats  ▁▁▁▁▁▁█▁ applied/wk ") {
 		t.Errorf("wide tab bar sparkline lacks its label: %q", bar)
+	}
+	for w := 100; w <= 160; w += 4 {
+		for _, screen := range []string{"1", "4", "6"} {
+			bar := strings.Split(chipped(runKeysSized(t, root, w, 36, screen)), "\n")[0]
+			if strings.ContainsAny(bar, "▁▂▃▄▅▆▇█") && !strings.Contains(bar, "applied/wk") {
+				t.Errorf("%d wide, screen %s: sparkline without its label: %q", w, screen, bar)
+			}
+		}
 	}
 }
 
 // The weekly chart draws every one of its 12 weeks, the empty ones on the baseline, with
-// the busiest week's count.
+// the busiest week's count. A week is two cells at least, more where the width allows,
+// and the chart is as wide as the funnel's bars.
 func TestStatsWeeklyChartShowsEveryWeek(t *testing.T) {
-	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 40, "4"))
-	line := lineWith(view, "APPLIED / WEEK")
-	if !strings.Contains(line, "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁██▁▁") || !strings.Contains(line, "max 1/wk") {
-		t.Errorf("weekly chart %q, want 12 two-cell weeks on the baseline and the peak", line)
+	for _, w := range []int{80, 120, 160} {
+		view := chipped(runKeysSized(t, fixtureCopy(t, nil), w, 40, "4"))
+		line := lineWith(view, "APPLIED / WEEK")
+		chart := []rune(regexp.MustCompile(`[▁-█]+`).FindString(line))
+		cells := len(chart) / 12
+		if len(chart)%12 != 0 || cells < 2 || !strings.HasSuffix(string(chart), strings.Repeat("█", cells)+strings.Repeat("▁", cells)) ||
+			!strings.Contains(string(chart), strings.Repeat("█", cells)) || !strings.Contains(line, "max 1/wk") {
+			t.Errorf("%d wide: weekly chart %q, want 12 weeks of 2 cells or more on the baseline and the peak", w, line)
+		}
+		if bar := regexp.MustCompile(`[█░]+`).FindString(lineWith(view, "◌ Lead")); len([]rune(bar)) != len(chart) {
+			t.Errorf("%d wide: the weekly chart is %d cells and the funnel's bars %d", w, len(chart), len([]rune(bar)))
+		}
 	}
 }
 
@@ -105,15 +124,19 @@ func TestStatsBarsShareOneTrack(t *testing.T) {
 	}
 }
 
-// Wide Stats sets the weekly chart and the per-track table beside the funnel; NOW says
-// what is due today and which key goes there.
+// Wide Stats sets the weekly chart and the per-track table beside the funnel, and its bars
+// grow into the free width; NOW says what is due today and which screen lists it, as a
+// statement with no arrow that reads like a row to follow.
 func TestStatsUsesTheWidth(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 160, 44, "4"))
 	if !strings.Contains(lineWith(view, "FUNNEL"), "APPLIED / WEEK") {
 		t.Errorf("wide Stats does not set the weekly chart beside the funnel:\n%s", view)
 	}
-	if now := lineWith(view, "NOW"); !strings.Contains(now, "follow-up") || !strings.Contains(now, "→ 3 Applied") {
-		t.Errorf("NOW = %q, want the follow-ups due and the key to them", now)
+	if bar := regexp.MustCompile(`[█░]+`).FindString(lineWith(view, "◌ Lead")); len([]rune(bar)) <= 24 {
+		t.Errorf("at 160 wide the funnel's bars stay %d cells:\n%s", len([]rune(bar)), view)
+	}
+	if now := lineWith(view, "NOW"); !strings.Contains(now, "follow-up due on 3 Pipeline") || strings.Contains(now, "→") {
+		t.Errorf("NOW = %q, want the follow-ups due and the screen that lists them, no arrow", now)
 	}
 	if !strings.Contains(view, "INSIGHTS") || strings.Contains(view, "COMMON GAPS") {
 		t.Errorf("the gap panel is not called Insights:\n%s", view)
@@ -133,17 +156,33 @@ func TestStatsTracksBusiestFirstWithoutZeroRows(t *testing.T) {
 	}
 }
 
-// A pop-up leaves the frame beside it in view: the rows it covers keep their text left
-// and right of it.
+// A pop-up leaves the frame beside it in view: the rows it covers keep their whole
+// phrases left and right of it (one it would cut goes, see phraseEdges), so neither side
+// is blanked edge to edge.
 func TestPopUpKeepsTheFrameBesideIt(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 160, 44, "1", "m"))
-	row := lineWith(view, "╭─ Move")
-	left := strings.TrimSpace(row[:strings.Index(row, "╭")])
-	if left == "" {
-		t.Errorf("the rows behind the pop-up are blanked edge to edge: %q", row)
+	left, right, in := 0, 0, false
+	for _, row := range strings.Split(view, "\n") {
+		in = in || strings.Contains(row, "╭─ Move")
+		if !in {
+			continue
+		}
+		open, end := strings.IndexAny(row, "╭│╰"), strings.LastIndexAny(row, "╮│╯")
+		if strings.TrimSpace(row[:open]) != "" {
+			left++
+		}
+		if strings.Trim(row[end+len("│"):], " │") != "" {
+			right++
+		}
+		if strings.Contains(row, "╰─") {
+			break
+		}
 	}
-	if right := strings.TrimSpace(row[strings.LastIndex(row, "╮")+len("╮"):]); right == "" {
-		t.Errorf("the preview beside the pop-up is blanked: %q", row)
+	if left == 0 {
+		t.Errorf("the rows behind the pop-up are blanked edge to edge:\n%s", view)
+	}
+	if right == 0 {
+		t.Errorf("the preview beside the pop-up is blanked:\n%s", view)
 	}
 }
 
@@ -205,6 +244,8 @@ func TestPlainModeIsOneRegionWithTheCursorOnTheSelection(t *testing.T) {
 	}
 	if row := lines[v.Cursor.Y]; !strings.Contains(row, "▌") || !strings.Contains(row, "Engineer #1") {
 		t.Errorf("the cursor is on %q, not the selected row", row)
+	} else if at := string([]rune(row)[v.Cursor.X:]); !strings.HasPrefix(at, "Interviewing Engineer #1") {
+		t.Errorf("the cursor is at %q, not the row's first word", at)
 	}
 }
 

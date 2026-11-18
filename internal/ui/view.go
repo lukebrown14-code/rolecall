@@ -29,7 +29,7 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedSparkLabel = 1 // topBar detail levels: drop the sparkline's "applied/wk" label…
+	shedSparkLabel = 1 // topBar detail levels: drop the sparkline with its "applied/wk" label…
 	shedCounts     = 2 // …then other screens' counts…
 	shedWordmark   = 3 // …then the word "rolecall"…
 	shedGap        = 4 // …then the gap between tabs narrows to one cell…
@@ -94,11 +94,9 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 func (m model) View() tea.View {
 	p := m.pal()
 	plain := plainMode()
-	// ROLECALL_PLAIN strips each layer before a pop-up is set over the frame, so a word
-	// put in place of a glyph never shifts the pop-up's border.
-	strip := func(s string, box bool) string {
+	strip := func(s string) string {
 		if plain {
-			return plainFrame(s, m.viewWidth(), box)
+			return plainFrame(s, m.viewWidth())
 		}
 		return s
 	}
@@ -107,15 +105,17 @@ func (m model) View() tea.View {
 	case m.tooSmall():
 		body = m.tooSmallView(p)
 	case box != "" && m.helpScreenOpen():
-		body = strip(box, false) // the full-screen help is the whole frame
+		body = strip(box) // the full-screen help is the whole frame
+	case box != "" && plain:
+		body = m.plainPopUp(p, box) // read alone: nothing of the frame shares its lines
 	case box != "":
 		behind := m.screenView(m.dimmedPal())
 		if noColor() {
 			behind = appearance.StripBold(behind) // without the dimmed colours, weight sets the pop-up apart
 		}
-		body = m.overlayBody(p, strip(behind, false), strip(box, true))
+		body = m.overlayBody(p, behind, box)
 	default:
-		body = strip(m.screenView(p), false)
+		body = strip(m.screenView(p))
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
 	if !plain {
@@ -192,7 +192,11 @@ func (m model) listView(p pal) string {
 	}
 	keys := m.keyLine(p, w)
 	if m.searching() {
-		in := p.Text(p.Fg).Bold(true).Render(" / ") + p.Text(p.Fg).Render(m.text) + p.Text(p.Fg).Render("▏")
+		query := p.Text(p.Fg).Render(m.text)
+		if sm, _ := m.overlay.(*searchMode); sm.selected {
+			query = p.SelText(true).Render(m.text) // typing replaces it
+		}
+		in := p.Text(p.Fg).Bold(true).Render(" / ") + query + p.Text(p.Fg).Render("▏")
 		keys = spread(in, p.Keys(pairs(m.helpKeys(), groupAction, groupFilter, groupNav)), w-1)
 	}
 	// The bottom rule is always drawn; the status row below it holds a toast, an error,
@@ -313,15 +317,13 @@ func (m model) screenCountLabel(si int) string {
 // width, so nothing shifts. The detail level is the one every screen's bar fits at, so
 // switching screens never sheds or restores a count or a name. One rule sheds by width:
 // other screens' counts, the word "rolecall", the gap between tabs (two cells to one), then
-// other screens' names, which keeps every screen named from 60 columns.
+// other screens' names, which keeps every screen named from 61 columns.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
-	if r := m.barKeys(p); r != "" {
-		room -= gutter + xansi.StringWidth(r)
-	}
 	wide := m.layout().wide()
 	// The Applied-per-week sparkline, the same series Stats draws over its last weeks, sits
-	// beside the Stats tab at wide sizes, until the bar is short of room.
+	// beside the Stats tab at wide sizes with its "applied/wk" label, until the bar is short
+	// of room for both, when it goes: the line never shows unlabelled.
 	// It sits outside the tab's own cell, a space either side, so it stays in the same
 	// column whether or not Stats is the active tab.
 	spark, sparkLabel := "", ""
@@ -360,11 +362,9 @@ func (m model) tabs(p pal) (string, []int) {
 				warn = glyphWarn
 			}
 			tail := ""
-			if wide && level < shedCounts && d.name == screenStats && spark != "" {
-				tail = spark + " "
-				if level < shedSparkLabel {
-					tail = spark + sparkLabel + " "
-				}
+			if wide && level < shedSparkLabel && d.name == screenStats && spark != "" {
+				// Only with its label: a bare row of bars reads as a glitch or a loading bar.
+				tail = spark + sparkLabel + " "
 			}
 			if si == active {
 				chip := digit + name + count
@@ -384,7 +384,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if level >= shedGap {
 				sep = "" // one cell between tabs: the leading space alone
 				if si+1 == active {
-					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Applied 9]"
+					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Pipeline 9]"
 				}
 			}
 			if name == "" && count == "" {
@@ -424,22 +424,10 @@ func (m model) tabs(p pal) (string, []int) {
 // whether active or not, so nothing moves between screens. As it narrows it sheds, in
 // order, other screens' counts, the word "rolecall", other screens' names (their digits
 // stay) and the wordmark's mark; the active screen keeps its name and count at every width.
+// space and ? live on the key line alone, at the same place at every width.
 func (m model) topBar(p pal) string {
 	out, _ := m.tabs(p)
-	w := m.layout().w
-	if r := m.barKeys(p); r != "" {
-		return spread(out, r, w-rightMargin)
-	}
-	return xansi.Truncate(out, w-rightMargin, "")
-}
-
-// barKeys is the tab bar's right end, "space commands  ? help", at wide sizes: the two keys
-// that work everywhere. An open Settings field takes space as text, so then it is empty.
-func (m model) barKeys(p pal) string {
-	if !m.layout().wide() || m.fieldOpen() {
-		return ""
-	}
-	return p.KeyRow([][2]string{{spaceKey, descCommands}, {"?", "help"}})
+	return xansi.Truncate(out, m.layout().w-rightMargin, "")
 }
 
 // trackApplies reports whether the track filter changes the current screen: the
@@ -479,7 +467,7 @@ func (m model) trackName() string {
 }
 
 // breadcrumbLine is the footer's first line on every screen: where the Owner is, as
-// "Applied › All · All tracks · row 1 of 9", and at the right what just happened, a toast
+// "Pipeline › All · All tracks · row 1 of 9", and at the right what just happened, a toast
 // or an error with its keys. The breadcrumb gives way first: its focus, then the Track.
 // When the message cannot sit whole beside it, the message takes the whole line: what
 // just happened matters more than where the cursor is.
@@ -539,7 +527,7 @@ func joinNonEmpty(sep string, parts ...string) string {
 	return strings.Join(keep, sep)
 }
 
-// breadcrumb is "Applied › All · All tracks · row 1 of 9 · detail", the Track abbreviated
+// breadcrumb is "Pipeline › All · All tracks · row 1 of 9 · detail", the Track abbreviated
 // when short and the focus, shown only while a detail is open, left off when noFocus. A
 // screen without tables names its own place: "Stats › All tracks", "Settings › Tracking".
 func (m model) breadcrumb(p pal, short, noFocus bool) string {
@@ -582,7 +570,7 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 	}
 	parts := []string{track, where}
 	// The screen's own first view (Leads › Leads) says nothing twice; a status filter named
-	// like its screen (Applied › Applied) is still a filter, so it shows.
+	// like its screen (Pipeline › Applied) is still a filter, so it shows.
 	if v := m.views()[m.table]; m.table > 0 || v != screenDefs[m.screen].name {
 		parts = append([]string{v}, parts...)
 	}
@@ -828,12 +816,18 @@ func groupEnd(div map[int]divider, i, n int) int {
 	return end
 }
 
-// rollup is what a group's rule adds after its count when non-zero: the Follow-ups due and
-// the Applications whose documents are Ready, " · 1 follow-up due · 2 Ready". Closed and
-// Expired groups have nothing left to nudge or send, so they carry none.
+// rollup is what a group's rule adds after its count when non-zero: the Follow-ups due,
+// the Applications whose documents are Ready, and the unreadable rows the count includes,
+// " · 1 follow-up due · 2 Ready · 1 unreadable", so the count never reads as Applications
+// of the group's Status alone. Closed and Expired groups have nothing left to nudge or
+// send, so they carry only the unreadable count.
 func (m model) rollup(label string, group []store.Application) string {
+	unreadable := ""
+	if n := countUnreadable(group); n > 0 {
+		unreadable = fmt.Sprintf(" · %d unreadable", n)
+	}
 	if label == tableClosed || label == groupExpired {
-		return ""
+		return unreadable
 	}
 	due, ready := 0, 0
 	for _, a := range group {
@@ -851,7 +845,18 @@ func (m model) rollup(label string, group []store.Application) string {
 	if ready > 0 {
 		out += fmt.Sprintf(" · %d Ready", ready)
 	}
-	return out
+	return out + unreadable
+}
+
+// countUnreadable is how many of apps are malformed: listed, but with no Status to count.
+func countUnreadable(apps []store.Application) int {
+	n := 0
+	for _, a := range apps {
+		if a.Malformed != nil {
+			n++
+		}
+	}
+	return n
 }
 
 // deadlineEnd counts the rows from i on that keep in.
@@ -961,6 +966,7 @@ func scrollWindow(blocks []block, cur, h int) (start, end int) {
 type slotSet struct {
 	flagW, fitW              int
 	titleW, companyW, trackW int
+	datesW                   int // a compact row's first date, kept whole (compactColumns)
 }
 
 // fitSlotWidth is the Fit column's width: its longest word, so every Fit starts at the
@@ -974,6 +980,11 @@ const (
 	compactTrackMax   = 12
 	compactTitleMin   = 16
 	compactTitleShare = 45 // percent of the row's room
+	compactCompanyMin = 8  // the narrowest the company column gets before it goes
+	compactTitleFloor = 10 // the narrowest the title gets to keep the company and the date
+	// compactDatesMax is the most of a compact row's first date ("21 Nov 10:30 · Phone
+	// screen", "applied ~7w ago") kept whole before the title gives way.
+	compactDatesMax = 28
 )
 
 // slotsFor sizes each right-hand column to its widest value in rows, the whole view rather
@@ -984,7 +995,14 @@ const (
 func (m model) slotsFor(rows []store.Application) slotSet {
 	var s slotSet
 	var flagW, fitW int
+	compact, p := m.compactShown(), m.pal()
+	plain := func(color.Color) lipgloss.Style { return lipgloss.NewStyle() }
 	for _, a := range rows {
+		if compact && a.Malformed == nil {
+			if d := m.compactDates(p, a, plain, p.Dim); len(d) > 0 {
+				s.datesW = max(s.datesW, min(compactDatesMax, xansi.StringWidth(d[0])))
+			}
+		}
 		flag, fit := m.slotText(a)
 		flagW = max(flagW, xansi.StringWidth(flag))
 		if fit != "" {
@@ -1028,36 +1046,45 @@ func (m model) slotText(a store.Application) (flag, fit string) {
 // selected row is a full-width bar; text on it is never dimmed.
 func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []string {
 	line := lipgloss.NewStyle().Width(w).MaxWidth(w)
-	bar := "  "
 	titleC, dimC := p.Fg, p.Dim
 	if m.expired(a) {
 		titleC = p.Dim
 	}
+	marked := m.isMarked(a.Folder)
 	fill := sel
+	// A marked row off the cursor takes the subtle mark fill; the cursor row keeps the
+	// selection fill, and its ◉ says it is marked too.
+	var ground color.Color
+	switch {
+	case fill:
+		ground = p.Sel
+	case marked:
+		ground = p.MarkFill()
+	}
 	st := func(c color.Color) lipgloss.Style {
 		s := lipgloss.NewStyle().Foreground(c)
-		if fill {
-			s = s.Background(p.Sel)
+		if ground != nil {
+			s = s.Background(ground)
 		}
 		return s
 	}
-	if sel {
-		if fill {
-			line = line.Background(p.Sel)
-		}
-		bar = p.SelGutter(fill)
-		titleC, dimC = p.Fg, p.Sub
+	if ground != nil {
+		line = line.Background(ground)
 	}
-	bar2 := bar // the second line carries the selection bar only: the mark sits on the first
-	if m.isMarked(a.Folder) {
-		// A marked row shows ◉ in the gutter, so it reads without colour: where the ▌ would
-		// be, or beside it on the cursor row, which keeps its ▌.
-		mark := st(p.Fg).Bold(true).Render(glyphMarked)
-		if sel {
-			bar = xansi.Cut(bar, 0, 1) + mark
-		} else {
-			bar = mark + st(p.Fg).Render(" ")
-		}
+	// The gutter is three cells: the selection bar, the mark column, a space. The mark has
+	// its own column, so the Status glyph sits in the same cell on every row, marked or
+	// not, under the cursor or not, and the ◉ never touches the ▌ or the glyph.
+	cursor := st(p.Fg).Render(" ")
+	if sel {
+		titleC, dimC = p.Fg, p.Sub
+		cursor = xansi.Cut(p.SelGutter(fill), 0, 1)
+	}
+	space := st(p.Fg).Render(" ")
+	bar2 := cursor + space + space // the second line carries the selection bar only: the mark sits on the first
+	bar := bar2
+	if marked {
+		// ◉ reads without colour (ASCII: [), beside the ▌ on the cursor row.
+		bar = cursor + st(p.Fg).Bold(true).Render(glyphMarked) + space
 	}
 	if a.Malformed != nil {
 		title := st(p.Bad).Bold(true).Render("⚠ ") + st(p.Bad).Bold(true).Render(m.malformedTitle(a))
@@ -1110,7 +1137,8 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	room := max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1)
 	sep := st(dimC).Render(" · ")
 	if m.compactShown() {
-		left := bar + mark + m.compactColumns(a, show, room, st, titleC, dimC, sel, strings.Join(m.metaDates(rp, a, st, dimC), sep))
+		dates := m.compactDates(rp, a, st, dimC)
+		left := bar + mark + m.compactColumns(a, show, room, st, titleC, dimC, sel, strings.Join(dates, sep))
 		gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 		lines := []string{line.Render(left + gap + right)}
 		if m.flash != "" && a.Folder == m.flash {
@@ -1118,7 +1146,9 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		}
 		return lines
 	}
-	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), room, "…"))
+	// Without colour the title and its meta line would draw alike; the title takes bold
+	// there, so the two-line rhythm survives.
+	left := bar + mark + st(titleC).Bold(sel || noColor()).Render(xansi.Truncate(titleLabel(a.Title), room, "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(rp, a, st, dimC), sep)
 	// The bar spans both lines, so the selected row reads as one block.
@@ -1129,14 +1159,55 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	return lines
 }
 
+// compactDates is a compact row's dates column: a booked next step first, then the
+// dates that matter for its table and the ad's badges, as the two-line row's meta has them.
+func (m model) compactDates(p pal, a store.Application, st func(color.Color) lipgloss.Style, dimC color.Color) []string {
+	dates := m.metaDates(p, a, st, dimC)
+	if text, s := m.rowNextStep(a); s != closeNone {
+		dates = append([]string{p.CloseStyle(s, st, dimC).Render(text)}, dates...)
+	}
+	return dates
+}
+
 // compactColumns is a compact row between its Status glyph and its right-hand columns, in
 // room cells: the title, company and track in columns as wide as the view's widest (each
-// capped), then the dates and badges, cut at the end. A column that would squeeze the
-// title below compactTitleMin is left out, track first.
+// capped), then the dates and badges, cut at the end. The first of the dates keeps
+// show.datesW cells, whole: short of room the title gives way first, down to compactTitleMin,
+// then the track column goes, the company narrows, the title narrows further, and last
+// the company goes.
 func (m model) compactColumns(a store.Application, show slotSet, room int, st func(color.Color) lipgloss.Style,
 	titleC, dimC color.Color, sel bool, dates string) string {
 	titleW := min(show.titleW, max(compactTitleMin, room*compactTitleShare/percent), room)
-	companyW, trackW := show.companyW, show.trackW
+	companyW, trackW, minDates := show.companyW, show.trackW, show.datesW
+	need := func() int {
+		n := titleW
+		if companyW > 0 {
+			n += columnGap + companyW
+		}
+		if trackW > 0 {
+			n += columnGap + trackW
+		}
+		if minDates > 0 {
+			n += columnGap + minDates
+		}
+		return n
+	}
+	for over := need() - room; over > 0 && minDates > 0; over = need() - room {
+		switch {
+		case titleW > compactTitleMin:
+			titleW = max(compactTitleMin, titleW-over)
+		case trackW > 0:
+			trackW = 0
+		case companyW > compactCompanyMin:
+			companyW = max(compactCompanyMin, companyW-over)
+		case titleW > compactTitleFloor:
+			titleW = max(compactTitleFloor, titleW-over)
+		case companyW > 0:
+			companyW = 0
+		default:
+			minDates = 0 // no room left to give: the dates are cut at the end
+		}
+	}
 	if titleW+columnGap+companyW > room {
 		companyW = 0
 	}
@@ -1163,6 +1234,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	var out []string
 	if strings.TrimSpace(a.CompanyLabel()) != "" {
 		out = append(out, dim.Render(a.CompanyLabel()))
+	}
+	// A booked next step comes straight after the Company, so a narrow row cuts the
+	// softer facts first.
+	if text, s := m.rowNextStep(a); s != closeNone {
+		out = append(out, p.CloseStyle(s, st, dimC).Render(text))
 	}
 	out = append(out, dim.Render(a.Track))
 	return append(out, m.metaDates(p, a, st, dimC)...)
@@ -1240,11 +1316,6 @@ func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipglo
 		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
 			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
 		}
-		if t == tableInterviewing || t == tableOffer {
-			if text, s := m.nextStepInfo(a.NextStep); s != closeNone {
-				out = append(out, p.CloseStyle(s, st, dimC).Render("next "+text))
-			}
-		}
 	}
 	return out
 }
@@ -1290,27 +1361,65 @@ func (m model) previewText(p pal, a store.Application, inner, h int, mode cardMo
 		return p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a)) + "\n\n" + wrap(m.malformedReason(a), p.Fg, errorLines) +
 			"\n\n" + p.Text(p.Accent).Render("e") + p.Text(p.Dim).Render(" fix in editor")
 	}
-	lines := strings.Split(wrap(titleLabel(a.Title), p.Fg, titleLines), "\n")
-	lines = append(lines, m.previewMeta(p, a, inner), "")
-	for _, r := range m.fieldRows(p, a, inner, mode) {
-		lines = append(lines, strings.Split(r, "\n")...)
-	}
-	if mode == cardDetail && a.URL != "" {
-		// One inline row, as every other field: the link and the key that opens it.
-		key, action := "", ""
-		if _, ok := webLink(a); ok {
-			key, action = "w", descOpen
+	card := func(lean bool) []string {
+		lines := strings.Split(wrap(titleLabel(a.Title), p.Fg, titleLines), "\n")
+		lines = append(lines, m.previewMeta(p, a, inner), "")
+		for _, r := range m.cardRows(p, a, inner, mode, lean) {
+			lines = append(lines, strings.Split(r, "\n")...)
 		}
-		lines = append(lines, "", p.cardRow("LINK", p.Text(p.Info).Render(a.URL), key, action, inner))
+		if mode == cardDetail && a.URL != "" {
+			// One inline row, as every other field: the link and the key that opens it.
+			key, action := "", ""
+			if _, ok := webLink(a); ok {
+				key, action = "w", descOpen
+			}
+			lines = append(lines, "", p.cardRow("LINK", p.Text(p.Info).Render(a.URL), key, action, inner))
+		}
+		return lines
+	}
+	lines := card(false)
+	if len(lines) > h {
+		// Short of room the Sweep's and the ad's rows fold first; what still does not fit
+		// ends in the one overflow cue, never a silent cut.
+		lines = p.cutCard(card(true), h, inner, mode)
 	}
 	if mode == cardPreview {
 		// The Fit's reasoning first, as it decides dismiss or draft; the JD takes what is left.
-		fit := m.excerpt(p, "FIT", m.docLines(a, fitFile), min(fitExcerptLines, h-len(lines)), inner)
+		// Without a Fit in meta.yml, fit.md's text is reasoning with no verdict: the label
+		// says so, so its words never read as a second Fit beside "fit not assessed".
+		label := "FIT"
+		if a.Fit == "" {
+			label = fitReasoningOnly
+		}
+		fit := m.excerpt(p, label, m.docLines(a, fitFile), min(fitExcerptLines, h-len(lines)), inner)
 		lines = append(lines, fit...)
 		lines = append(lines, m.excerpt(p, docJD, m.docLines(a, jdFile), h-len(lines), inner)...)
 	}
 	return strings.Join(lines, "\n")
 }
+
+// cutCard keeps the card's first lines inside h, ending on "↓ 5 more" and where the rest
+// is: enter opens the detail from the list; the detail's card does not scroll, so a
+// taller window shows it (the tabs hold the Notes and Fit whole).
+func (p pal) cutCard(lines []string, h, w int, mode cardMode) []string {
+	if len(lines) <= h || h < 2 { //nolint:mnd // a line of the card and the cue
+		return lines
+	}
+	shown := lines[:h-1]
+	for len(shown) > 1 && xansi.Strip(shown[len(shown)-1]) == "" {
+		shown = shown[:len(shown)-1] // the cue never follows a blank line
+	}
+	where := p.Key().Render("enter") + p.Text(p.Dim).Render(" open")
+	if mode != cardPreview {
+		where = p.Text(p.Dim).Render("taller window shows all")
+	}
+	cue := p.MoreCue(false, len(lines)-len(shown)) + p.Text(p.Dim).Render(" · ") + where
+	return append(append([]string{}, shown...), xansi.Truncate(cue, w, "…"))
+}
+
+// fitReasoningOnly heads the preview's FIT excerpt when fit.md has text but no Fit is
+// set, as the Fit tab says "fit not assessed · reasoning saved below".
+const fitReasoningOnly = "FIT · reasoning only, " + fitUnassessed
 
 // fitExcerptLines is the most of the preview the FIT block takes, its blank line and
 // heading included, so the JD's opening still shows under a long fit.md.
@@ -1344,7 +1453,7 @@ func (m model) excerpt(p pal, label string, text []string, room, w int) []string
 		cue := p.MoreCue(false, len(body)-len(shown)) + p.Text(p.Dim).Render(" · ") + p.Key().Render("enter") + p.Text(p.Dim).Render(" open")
 		body = append(shown, cue)
 	}
-	return append([]string{"", p.blockLabel(label)}, body...)
+	return append([]string{"", p.blockLabel(xansi.Truncate(label, w, "…"))}, body...)
 }
 
 // docLines is a document's text as plain lines for a short excerpt: headings, tables, the
@@ -1404,14 +1513,11 @@ func (m model) previewMeta(p pal, a store.Application, w int) string {
 	return p.Text(p.Dim).Render(xansi.Truncate(strings.Join(parts, " · "), w, "…"))
 }
 
-// fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":
-// ✓ ready, ○ missing. A source document is ready when it has text, not merely a file.
+// fileMarks is the one-line Document set, each Written then Built, "✓ Resume ○ PDF
+// ○ Cover letter ○ PDF": ✓ done, ○ still to do. Written means the file has text, not
+// merely that it exists.
 func (m model) fileMarks(p pal, a store.Application) string {
-	parts := make([]string, 0, len(docChips(a)))
-	for _, c := range docChips(a) {
-		parts = append(parts, m.chipText(p, a, c))
-	}
-	return strings.Join(parts, "  ")
+	return strings.Join(m.docMarks(p, a), "   ")
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for

@@ -19,8 +19,8 @@ func TestSStatusFilterCyclesViews(t *testing.T) {
 	if v := chipped(runKeys(t, root, 120, "1", "s", "s", "s")); !strings.Contains(v, "Leads › All tracks") {
 		t.Fatalf("s did not wrap back to Leads:\n%s", v)
 	}
-	if v := chipped(runKeys(t, root, 120, "3", "s")); !strings.Contains(v, "Applied › Applied · All tracks · ") {
-		t.Fatalf("s on the Applied screen did not step from All:\n%s", v)
+	if v := chipped(runKeys(t, root, 120, "3", "s")); !strings.Contains(v, "Pipeline › Applied · All tracks · ") {
+		t.Fatalf("s on the Pipeline screen did not step from All:\n%s", v)
 	}
 }
 
@@ -37,7 +37,7 @@ func TestOTogglesLeadsSort(t *testing.T) {
 	}
 	base := chipped(runKeys(t, root, 120, "3", "j"))
 	if got := chipped(runKeys(t, root, 120, "3", "o", "j")); got != base {
-		t.Fatalf("o changed the Applied screen:\n%s", got)
+		t.Fatalf("o changed the Pipeline screen:\n%s", got)
 	}
 }
 

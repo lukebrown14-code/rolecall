@@ -1,4 +1,4 @@
- 1 Leads 7  2 Drafts 2  3 Applied 9  4 Stats [5 Profile] 6 Settings    
+ 1 Leads 7  2 Drafts 2  3 Pipeline 9  4 Stats [5 Profile] 6 Settings   
 ───────────────────────────────────────────────────────────────────────
    Experience 3 of 6                         profile/master-profile.md 
 ───────────────────────────────────────────────────────────────────────
@@ -6,19 +6,19 @@
                                                                        
    Acme — Brisbane, AU                                                 
                                                                        
-   Dates: 2023 – Ongoing Canonical title: Developer                    
+   Dates: 2023 – Ongoing                                               
+   Canonical title: Developer                                          
                                                                        
    • Built services in Python with Docker, SQL and REST.               
    • Moved the team's CI from Jenkins to GitHub Actions.               
                                                                        
    Globex — Sydney, AU                                                 
                                                                        
-   Dates: 2020 – 2023 Canonical title: Junior Software Engineer        
+   Dates: 2020 – 2023                                                  
+   Canonical title: Junior Software Engineer                           
                                                                        
    • Lifted unit coverage from 70% to 80%.                             
                                                                        
-                                                                       
-                                                                       
 ───────────────────────────────────────────────────────────────────────
    Profile › Experience                                                
- e edit file                                    ? help  space commands 
+ e edit file  c edit Contact                    space commands  ? help 

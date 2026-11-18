@@ -96,25 +96,36 @@ func (m model) emptySearchLine() (string, []emptyHint) {
 
 // The first-run welcome shows on a table screen of a Workspace with no Applications at
 // all. It offers the first Lead, then a short setup checklist: Editor, Harness, Profile,
-// each with the key that goes there, and only the steps not yet done.
+// each with the key that goes there. While any step is left, the done ones stay in the
+// list ticked off ("✓ Contact saved"), so a save reads as taken.
 
 // welcoming reports that the welcome is on screen.
 func (m model) welcoming() bool { return m.hasTables() && m.detail == nil && len(m.apps) == 0 }
 
-// setupStep is one item of the welcome's checklist.
+// setupStep is one item of the welcome's checklist. A step with no words is never listed
+// as to do (another step covers it) and shows only once done, ticked off.
 type setupStep struct {
-	key   string
-	words func(model) string
-	done  func(model) bool
+	key       string
+	words     func(model) string
+	done      func(model) bool
+	doneWords string
 }
 
-// setupSteps is the checklist in order. Editor and Harness keys open Settings › This
-// machine on their own row; 5 is the Profile screen, whose missing-Profile notice gives
-// the same instruction (profileSetupWords), so the two never disagree.
+// setupSteps is the checklist in order. 6 is Settings, which the welcome opens on This
+// machine's Editor row, and h opens the same group on the Harness row; e stays edit
+// everywhere. 5 is the Profile screen, whose missing-Profile notice gives
+// the same instruction (profileSetupWords), so the two never disagree. Once the Contact
+// is saved the Profile step asks only for the rest.
 var setupSteps = []setupStep{
-	{"e", text("pick an Editor"), editorChosen},
-	{"h", text("connect a Harness"), func(m model) bool { return m.harness != "" }},
-	{"5", func(m model) string { return "set up your Profile: " + m.profileSetupWords() }, func(m model) bool { return m.profileStarted }},
+	{"6", text("pick an Editor in Settings"), editorChosen, "Editor chosen"},
+	{"h", text("connect a Harness, the AI coding tool you already use (Claude Code, Codex…)"), func(m model) bool { return m.harness != "" }, "Harness connected"},
+	{"", nil, func(m model) bool { return m.contactSaved }, "Contact saved"},
+	{"5", func(m model) string {
+		if m.contactSaved {
+			return m.profileRestWords()
+		}
+		return "set up your Profile: " + m.profileSetupWords()
+	}, func(m model) bool { return m.profileStarted }, "Profile started"},
 }
 
 // editorChosen reports an Editor the Owner set (config, $VISUAL or $EDITOR), not the vi
@@ -138,7 +149,7 @@ func profileBeyondContact(p store.Profile) bool {
 func (m model) pendingSetup() []setupStep {
 	var out []setupStep
 	for _, s := range setupSteps {
-		if !s.done(m) {
+		if !s.done(m) && s.words != nil {
 			out = append(out, s)
 		}
 	}
@@ -155,11 +166,10 @@ func (m model) setupPending(key string) bool {
 	return false
 }
 
-// welcomeActions are the welcome's own keys: e and h open Settings on the Editor and
-// Harness rows. They are enabled only while the welcome lists them, so e still edits a
-// row everywhere else.
+// welcomeActions are the welcome's own keys: h opens Settings on the Harness row. It is
+// enabled only while the welcome lists it. The Editor step's 6 is the screen key, which
+// screenKey points at the Editor row while the welcome lists it.
 var welcomeActions = []listAction{
-	welcomeAction("e", "pick an Editor", settings.LabelEditor),
 	welcomeAction("h", "connect a Harness", settings.LabelHarness),
 }
 
@@ -211,10 +221,15 @@ func (m model) welcome(p pal) string {
 	if m.keyAvailable("a") {
 		lines = append(lines, step("a", "add your first Lead"))
 	}
-	if pending := m.pendingSetup(); len(pending) > 0 {
+	if len(m.pendingSetup()) > 0 {
 		lines = append(lines, "", p.Text(p.Dim).Render("Set up"))
-		for _, s := range pending {
-			lines = append(lines, step(s.key, s.words(m)))
+		for _, s := range setupSteps {
+			switch {
+			case s.done(m):
+				lines = append(lines, p.Text(p.Ok).Render(padRight(glyphReady, gutter+1))+p.Text(p.Dim).Render(s.doneWords))
+			case s.words != nil:
+				lines = append(lines, step(s.key, s.words(m)))
+			}
 		}
 	}
 	lines = append(lines, "", step("?", "see every key"))

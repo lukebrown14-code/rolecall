@@ -85,7 +85,7 @@ def test_allowlisted_values_pass(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert result.stdout == ""
-    assert "generic patterns only" in result.stderr
+    assert "structural and generic checks only" in result.stderr
 
 
 def test_only_tracked_files_are_scanned(tmp_path: Path) -> None:
@@ -139,4 +139,4 @@ def test_no_owner_terms_reports_generic_only_mode(tmp_path: Path) -> None:
     result = run_scanner(tracked_tree(tmp_path, "safe\n"))
 
     assert result.returncode == 0
-    assert "generic patterns only" in result.stderr
+    assert "structural and generic checks only" in result.stderr

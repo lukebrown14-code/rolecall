@@ -97,13 +97,13 @@ var markdownMarks = strings.NewReplacer("**", "", "*", "", "`", "")
 // only a Lead or Draft with a JD is offered, and only with a Harness set: a key is offered
 // only where it works.
 func (m model) needsPrepare(a store.Application, c docChip) bool {
-	return m.harness != "" && a.JDHasText && !c.ready && c.name != docPDF && m.handoffAllowed(a, skillPrepareDocuments)
+	return m.harness != "" && a.JDHasText && !c.ready && c.step == stepWritten && m.handoffAllowed(a, skillPrepareDocuments)
 }
 
 // needsBuild reports whether a missing PDF can be built now: b works (buildable), with a
 // Plugin set.
 func (m model) needsBuild(a store.Application, c docChip) bool {
-	return m.plugin != "" && !c.ready && c.name == docPDF && buildable(a)
+	return m.plugin != "" && !c.ready && c.step == stepBuilt && buildable(a)
 }
 
 // logDate is a Status entry's date as the timeline words it, "~" for an approximate one.
@@ -238,6 +238,13 @@ func (m model) overviewRows(p pal, a store.Application, w int) []string {
 // matters, what the Sweep and the ad recorded), the Documents, the timeline and the
 // Notes. A key shows once: a row whose key the next step offers leaves it to NEXT.
 func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []string {
+	return m.cardRows(p, a, w, mode, false)
+}
+
+// cardRows is fieldRows, without what the Sweep and the ad recorded (POSTED, TYPE, PAY,
+// LISTING…) when lean: a card short of room folds those first, so NEXT, the next step and
+// the TIMELINE keep their lines.
+func (m model) cardRows(p pal, a store.Application, w int, mode cardMode, lean bool) []string {
 	nextKey := ""
 	if s, ok := m.nextAction(a); ok {
 		nextKey = s.key
@@ -262,14 +269,22 @@ func (m model) fieldRows(p pal, a store.Application, w int, mode cardMode) []str
 		}
 	}
 	section(head...)
-	section(m.factRows(p, a, w, keep)...)
+	facts := m.factRows(p, a, w, keep)
+	if !lean {
+		facts = append(facts, m.sweepRows(p, a, w)...)
+	}
+	section(facts...)
 	if mode != cardFull {
 		section(m.docsBlock(p, a, w, keep)...)
 	}
 	if line := m.followedUpRow(p, a, w); line != "" {
 		section(line)
 	}
-	section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	if mode != cardFull || !m.trackWhole(p, a) {
+		// The narrow detail's strip already draws the whole timeline as a track; the
+		// Overview repeats it only where the track had to shed stops or dates.
+		section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	}
 	section(m.contactRows(p, a, w)...)
 	section(m.notesRow(p, a, w, keep))
 	return rows
@@ -344,8 +359,8 @@ func (m model) stageAge(p pal, a store.Application, long bool) string {
 	return p.Text(p.Dim).Render(s)
 }
 
-// factRows are the card's facts: the close date while it matters, then what the Sweep and
-// the ad recorded.
+// factRows are the card's facts: the close date while it matters, the next step and the
+// close reason. What the Sweep and the ad recorded (sweepRows) follows them on the card.
 func (m model) factRows(p pal, a store.Application, w int, keep func(string) bool) []string {
 	var rows []string
 	key, action := "e", descEdit
@@ -358,8 +373,7 @@ func (m model) factRows(p pal, a store.Application, w int, keep func(string) boo
 		rows = append(rows, p.cardRow("CLOSES", p.Text(p.Warn).Render(closesUnclearText), key, action, w))
 	}
 	rows = append(rows, m.nextStepRow(p, a, w, keep)...)
-	rows = append(rows, m.closedRow(p, a, w)...)
-	return append(rows, m.sweepRows(p, a, w)...)
+	return append(rows, m.closedRow(p, a, w, keep)...)
 }
 
 // docsBlock is "DOCS ■■□□ 2/4" with the one key that fixes the next missing Document,
@@ -382,10 +396,7 @@ func (m model) docsBlock(p pal, a store.Application, w int, keep func(string) bo
 	if !keep(key) {
 		key, action = "", ""
 	}
-	docs := make([]string, 0, len(docChips(a))+1)
-	for _, c := range docChips(a) {
-		docs = append(docs, m.chipText(p, a, c))
-	}
+	docs := m.docMarks(p, a)
 	if a.ResumeOnly && !a.CoverLetterHasText {
 		// Marked like the other Documents: neither ready nor missing, but not needed.
 		docs = append(docs, p.Text(p.Dim).Render(m.glyph(notNeededMark)+" "+docCoverLetter))
@@ -407,12 +418,12 @@ func (m model) docsBlock(p pal, a store.Application, w int, keep func(string) bo
 	return append(rows, xansi.Truncate(line, w, "…"))
 }
 
-// notesRow is the Notes' first line, or "none yet" with the key that adds them, unless
-// NEXT already offers it.
+// notesRow is the Notes' first line, or "none yet", with n, which reads "notes"
+// everywhere, unless NEXT already offers it.
 func (m model) notesRow(p pal, a store.Application, w int, keep func(string) bool) string {
-	key, value, action := "n", p.Text(p.Dim).Render("none yet"), "add"
+	key, value, action := "n", p.Text(p.Dim).Render("none yet"), descNotes
 	if t := m.docText(a, notesFile); t != "" {
-		value, action = p.Text(p.Fg).Render(markdownMarks.Replace(t)), "notes"
+		value = p.Text(p.Fg).Render(markdownMarks.Replace(t))
 	}
 	if !keep(key) {
 		key, action = "", ""

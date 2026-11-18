@@ -89,6 +89,9 @@ func (m model) bulkBox(p pal, bm *bulkMode) string {
 		lines = append(lines, "", p.Text(p.Warn).Render(fmt.Sprintf("⚠ %d without Ready Documents.", bm.notRdy)))
 	}
 	lines = append(lines, "", p.Text(p.Dim).Render("u undoes them all at once."))
+	if bm.askedY {
+		lines = append(lines, "", p.Text(p.Warn).Bold(true).Render(pressY))
+	}
 	title := "Move"
 	if bm.status == store.StatusDismissed {
 		title = "Dismiss"
@@ -103,12 +106,12 @@ func (m model) confirmBox(p pal, cm *confirmMode) string {
 	var missing []string
 	for _, c := range docChips(a) {
 		if !c.ready {
-			missing = append(missing, c.name)
+			missing = append(missing, c.todo())
 		}
 	}
-	state := fmt.Sprintf("%d of %d documents ready", n, total)
+	state := fmt.Sprintf("%d of %d Document steps finished", n, total)
 	if len(missing) > 0 {
-		state += ". Missing: " + strings.Join(missing, ", ")
+		state += ". Still to do: " + strings.Join(missing, ", ")
 	}
 	name := appName(a.Title)
 	if c := strings.TrimSpace(a.Company); c != "" {
@@ -116,6 +119,9 @@ func (m model) confirmBox(p pal, cm *confirmMode) string {
 	}
 	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(name)+": "+state+".") +
 		"\n\n" + p.Text(p.Sub).Render("Mark it Applied anyway?")
+	if cm.askedY {
+		body += "\n\n" + p.Text(p.Warn).Bold(true).Render(pressY)
+	}
 	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.Keys(cm.Keys()))
 }
 

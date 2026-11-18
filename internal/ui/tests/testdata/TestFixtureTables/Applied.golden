@@ -1,22 +1,22 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Pipeline 9] 4 Stats  ▁▁▁▁▁▁█▁ applied/wk  5 Profile  6 Settings                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s All 9 [Applied 1] Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 1] SWE 1                                   
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ● Applied · 1 ─────────────────────────────────────────────── │ Software Engineer                                    
- ▌ ● Software Engineer                                           │ Orbit Labs · SWE                                     
- ▌   Orbit Labs · SWE · applied 6d ago                           │                                                      
+    ● Applied · 1 ────────────────────────────────────────────── │ Software Engineer                                    
+ ▌  ● Software Engineer                                          │ Orbit Labs · SWE                                     
+ ▌    Orbit Labs · SWE · applied 6d ago                          │                                                      
                                                                  │ ● Applied · 6d in Applied          fit not assessed  
                                                                  │ NEXT         wait to hear back               m move  
                                                                  │                                                      
                                                                  │ DOCS         □□□□ 0/4 ready                          
-                                                                 │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+                                                                 │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
                                                                  │                                                      
                                                                  │ TIMELINE                                             
                                                                  │   ◌ Lead                                     24 Sep  
                                                                  │   ● Applied                                  25 Sep  
                                                                  │   ◆ Interviewing                               next  
                                                                  │                                                      
-                                                                 │ NOTES        none yet                         n add  
+                                                                 │ NOTES        none yet                       n notes  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › Applied · All tracks · row 1 of 1                                                                          
- enter open  m move  a add  / search                                                                             ? help 
+   Pipeline › Applied · All tracks · row 1 of 1                                                                         
+ enter open  m move  a add  / search                                                             space commands  ? help 
