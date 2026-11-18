@@ -55,8 +55,13 @@ const (
 	prioMinor    // the occasional actions: x, u, d, b, f, p, t
 	prioMain     // e edit, n notes, a pop-up's own keys
 	prioLean     // x dismiss on a Lead or Draft: kept on the lean key line, dropped before the core
-	prioCore     // enter, m move, a add, / search, u undo while there is one: how a newcomer finds their way in
-	prioPinned   // ? help and esc back: how to get unstuck, never dropped
+	// The detail's lean line, m move · e edit · n notes · J/K next/prev · x dismiss, drops
+	// from the right: x first, then J/K, then n, then e.
+	prioDetailStep // J/K next / previous row in the detail
+	prioDetailNote // n notes in the detail
+	prioDetailEdit // e edit in the detail
+	prioCore       // enter, m move, a add, / search, u undo while there is one: how a newcomer finds their way in
+	prioPinned     // ? help and esc back: how to get unstuck, never dropped
 )
 
 // The `?` pop-up's layout: key column, then column width.
@@ -172,11 +177,16 @@ func (m model) contextKeys() []helpKey {
 		}
 		// Reading is what the detail view is for, so its navigation outlasts the actions.
 		keys = append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
-			help(groupCursor, "g G", "top / bottom"), help(groupCursor, "J", "next row"), help(groupCursor, "K", "previous row"))
+			help(groupCursor, "g G", "top / bottom"), help(groupNav, "J", "next row").at(prioDetailStep),
+			help(groupNav, "K", "previous row").at(prioDetailStep))
 		if m.detail.tab != tabDocs {
 			keys = append(keys, help(groupCursor, "pgup pgdn", "page"))
 		}
-		return append(keys, help(groupNav, "esc", "back").at(prioPinned))
+		if a, ok := m.current(); ok && a.Malformed == nil && m.detail.tab != tabOverview {
+			keys = append(keys, help(groupAction, keyOpenFile, descOpenFile).at(prioMinor))
+		}
+		// q goes back like esc here, so the help says back rather than quit.
+		return append(keys, help(groupNav, "esc", "back").at(prioPinned), help(groupNav, "q", "back").at(prioHelpOnly))
 	}
 	if len(m.views()) > 1 {
 		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
@@ -339,8 +349,32 @@ func (m model) keyLine(p pal, w int) string {
 		}
 		keys = core
 	}
+	if m.overlay == nil && m.detail != nil {
+		keys = detailLine(keys)
+	}
 	left, right := fitKeys(p, keys, w-gutter)
 	return " " + spread(left, right, w-gutter)
+}
+
+// detailLine is the detail's lean key line, m move · e edit · n notes · J/K next/prev ·
+// x dismiss: its actions in priority order, so the line reads in the order it drops from
+// the right, and J next row and K previous row folded into one "J/K next/prev" (the help
+// and palette keep them apart, each runnable).
+func detailLine(keys []helpKey) []helpKey {
+	var actions, rest []helpKey
+	for _, k := range keys {
+		switch {
+		case k.Help().Key == "J":
+			rest = append(rest, help(groupNav, "J/K", "next/prev").at(k.prio))
+		case k.Help().Key == "K":
+		case k.group == groupAction:
+			actions = append(actions, k)
+		default:
+			rest = append(rest, k)
+		}
+	}
+	slices.SortStableFunc(actions, func(a, b helpKey) int { return b.prio - a.prio })
+	return append(actions, rest...)
 }
 
 // helpTitle names the `?` pop-up's context.
@@ -480,6 +514,9 @@ func keyBlock(p pal, keys []helpKey, inner int, flow bool) helpBlock {
 		return keySection(p, "Navigate", section(keys, groupNav, groupCursor, groupGlobal), keyW),
 			keySection(p, "Act", section(keys, groupAction), keyW),
 			keySection(p, "Filter & find", section(keys, groupFilter), keyW)
+	}
+	if plainMode() {
+		return stack(sections(helpKeyWidth)) // read top to bottom: one column
 	}
 	// shortest is the shortest of the layouts that fit inner, the first among equals.
 	shortest := func(layouts func(nav, act, find helpBlock) [][]helpBlock) helpBlock {
@@ -787,6 +824,16 @@ func glyphLegend(p pal, followUpDays, inner int) helpBlock {
 		}
 	}
 	out = append(out, heading(p, "Glyphs"))
+	if plainMode() {
+		// Read top to bottom: each group's label, then its items one to a line.
+		for _, r := range append([][2]any{{appearance.GroupStatus, append(open, closed...)}}, tabled...) {
+			out = append(out, helpLine{text: p.Text(p.Fg).Render(r[0].(string))})
+			for _, it := range r[1].([]string) {
+				out = append(out, helpLine{text: strings.Repeat(" ", gutter) + it})
+			}
+		}
+		return out
+	}
 	flow(appearance.GroupStatus, open, true)
 	flow(appearance.GroupStatus, closed, false)
 	for _, r := range tabled {

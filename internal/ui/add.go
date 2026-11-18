@@ -16,6 +16,9 @@ type addValues struct {
 	title, company, track, url, closes, fit, resumeOnly string
 	// The Edit form's next step and first Contact.
 	nextAt, nextWhat, contact, contactRole, contactReach string
+	// ended is a Rejected or Withdrawn Application, whose Edit form also asks closeReason.
+	ended       bool
+	closeReason string
 }
 
 // fieldURL, fieldTitle and fieldTrack are the Add/Edit form's URL, Title and Track field labels.
@@ -110,6 +113,11 @@ func newForm(v *addValues, tracks []string, withResumeOnly bool, now func() time
 		formField{Label: fieldContact, Value: v.contact, Placeholder: "name"},
 		formField{Label: fieldContactRole, Value: v.contactRole, Placeholder: "Recruiter"},
 		formField{Label: fieldContactReach, Value: v.contactReach, Placeholder: "email or https:// link", Validate: validReach})
+	if v.ended {
+		// Last, so the fields above sit where they do on every Edit form.
+		f.Fields = append(f.Fields, formField{Label: fieldCloseReason, Value: v.closeReason, Orig: v.closeReason,
+			Choices: closeReasonChoices(v.closeReason)})
+	}
 	f.ShowDirty = true
 	return f
 }
@@ -119,7 +127,8 @@ func readAddValues(f *form, now time.Time) addValues {
 	return addValues{title: f.Value(fieldTitle), company: f.Value("Company"), track: f.Value(fieldTrack), url: f.Value(fieldURL),
 		closes: normaliseCloses(f.Value("Closes"), now), fit: f.Value("Fit"), resumeOnly: f.Value("Resume only"),
 		nextAt: normaliseNextStepAt(f.Value(fieldNextStep), now), nextWhat: strings.TrimSpace(f.Value(fieldNextWhat)), contact: strings.TrimSpace(f.Value(fieldContact)),
-		contactRole: strings.TrimSpace(f.Value(fieldContactRole)), contactReach: strings.TrimSpace(f.Value(fieldContactReach))}
+		contactRole: strings.TrimSpace(f.Value(fieldContactRole)), contactReach: strings.TrimSpace(f.Value(fieldContactReach)),
+		closeReason: f.Value(fieldCloseReason)}
 }
 
 // createFields turns the form's answers into the store's create fields.

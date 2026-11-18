@@ -176,10 +176,13 @@ func (mv *moveMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return mv, nil
 }
 
-// pick moves the pop-up's Application to status, or for several marked rows asks first.
+// pick moves the pop-up's Application to status, or the marked rows (bulkMove).
 func (mv *moveMode) pick(m *model, status string) (mode, tea.Cmd) {
 	if mv.bulk != nil {
-		return m.bulkAction(status), nil
+		return m.bulkMove(status)
+	}
+	if m.isMarked(mv.app.Folder) {
+		m.marks = nil // the one marked row: a plain move, and the mark is spent
 	}
 	return m.requestMove(mv.app, status)
 }

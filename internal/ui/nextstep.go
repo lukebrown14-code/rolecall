@@ -3,8 +3,59 @@ package ui
 import (
 	"strings"
 
+	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
+
+// rowNextStepWhat caps the next step's words on a row, so the facts after it keep room.
+const rowNextStepWhat = 18
+
+// wordToday is a next step due today, as its row says it.
+const wordToday = "today"
+
+// rowNextStep is an Applied, Interviewing or Offer Application's next step as its row's
+// meta line words it, right after the Company: "▲ next tomorrow 14:30, Phone screen". The
+// ▲ leads, so a narrow row that cuts the words keeps the urgency, and NO_COLOR keeps it
+// too. Today and tomorrow are said as words; a later day is the short date, a passed one
+// "next was 3 Oct" (struck through).
+func (m model) rowNextStep(a store.Application) (string, closeState) {
+	switch a.Status {
+	case store.StatusApplied, store.StatusInterviewing, store.StatusOffer:
+	default:
+		return "", closeNone
+	}
+	ns := a.NextStep
+	if ns == nil {
+		return "", closeNone
+	}
+	t, days, ok := daysFrom(ns.Day(), m.now())
+	when := ns.Day()
+	switch {
+	case ok && days == 0:
+		when = wordToday
+	case ok && days == 1:
+		when = "tomorrow"
+	case ok:
+		when = shortDate(t, m.now())
+	}
+	if clock := ns.Time(); clock != "" {
+		when += " " + clock
+	}
+	text, state := "next "+when, closeLater
+	switch {
+	case !ok:
+	case days < 0:
+		text, state = "next was "+when, closePast
+	case days <= urgentDays:
+		text, state = urgentMark+" next "+when, closeUrgent
+	case days <= soonDays:
+		state = closeSoon
+	}
+	if ns.What != "" {
+		text += ", " + xansi.Truncate(ns.What, rowNextStepWhat, "…")
+	}
+	return text, state
+}
 
 // nextStepInfo words an Application's next step with its urgency, as closeInfo does a close
 // date: "3 Dec 10:30 · Phone screen", with ▲ within urgentDays and "was 3 Dec" once passed.
@@ -73,10 +124,20 @@ func (m model) nextStepRow(p pal, a store.Application, w int, keep func(string) 
 	return []string{p.cardRow("NEXT STEP", p.CloseStyle(s, p.Text, p.Dim).Render(text), key, action, w)}
 }
 
-// closedRow is the card's CLOSED row: why a Rejected or Withdrawn Application ended.
-func (m model) closedRow(p pal, a store.Application, w int) []string {
-	if a.CloseReason == "" || (a.Status != store.StatusRejected && a.Status != store.StatusWithdrawn) {
+// closedRow is the card's CLOSED row: why a Rejected or Withdrawn Application ended, in
+// words, with the e key that changes it.
+func (m model) closedRow(p pal, a store.Application, w int, keep func(string) bool) []string {
+	if a.CloseReason == "" || !endedStatus(a.Status) {
 		return nil
 	}
-	return []string{p.cardRow("CLOSED", p.Text(p.Fg).Render(a.CloseReason), "", "", w)}
+	key, action := "e", descEdit
+	if !keep(key) {
+		key, action = "", ""
+	}
+	return []string{p.cardRow("CLOSED", p.Text(p.Fg).Render(closeReasonLabel(a.CloseReason)), key, action, w)}
+}
+
+// endedStatus is a Status that carries a close_reason: Rejected or Withdrawn.
+func endedStatus(status string) bool {
+	return status == store.StatusRejected || status == store.StatusWithdrawn
 }

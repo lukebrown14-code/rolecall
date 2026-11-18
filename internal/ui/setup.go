@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"net/mail"
 	"strings"
 )
 
@@ -63,18 +64,35 @@ func newContactForm(title string, contact map[string]string, intro string) *form
 			f.Required = true
 		case fieldEmail:
 			f.Required = true
-			f.Validate = func(v string) error {
-				if !strings.Contains(v, "@") {
-					return errors.New("enter an email address")
-				}
-				return nil
-			}
+			f.Validate = validEmail
 		}
 		fields = append(fields, f)
 	}
 	f := newFormOf(title, fields...)
 	f.Intro = intro
 	return f
+}
+
+// errEmail is the one wording every email field refuses an address with.
+var errEmail = errors.New("Enter an email like name@example.com")
+
+// validEmail accepts a bare address with a local part, an @ and a domain with a dot,
+// so a typo such as "ada@" never reaches every Resume and Cover letter. Blank is left
+// to the field's Required.
+func validEmail(v string) error {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	addr, err := mail.ParseAddress(v)
+	if err != nil || addr.Address != v || addr.Name != "" {
+		return errEmail
+	}
+	_, domain, _ := strings.Cut(v, "@")
+	if !strings.Contains(domain, ".") || strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+		return errEmail
+	}
+	return nil
 }
 
 // contactPopup is the first-run Contact form: esc skips it until the next launch.

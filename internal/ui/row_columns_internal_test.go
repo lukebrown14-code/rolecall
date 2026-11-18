@@ -84,7 +84,7 @@ func TestRowColumnsFitTheView(t *testing.T) {
 		t.Fatalf("a view without a flag or a Fit reserves cells for them: %+v", show)
 	}
 	got := xansi.Strip(m.row(p, lead, false, show, 40)[0])
-	if !strings.HasPrefix(got, "  ◌ Software Engineer at a long-named…") {
+	if !strings.HasPrefix(got, "   ◌ Software Engineer at a long-name…") {
 		t.Fatalf("the title does not take the unused room: %q", got)
 	}
 	lead.Fit = store.FitStrong

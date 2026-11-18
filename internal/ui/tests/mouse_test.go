@@ -56,7 +56,7 @@ func TestClickSwitchesScreensViewsAndRows(t *testing.T) {
 	}
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = clickOn(t, m, lineOf(t, m, "Empty log"), "Empty log")
-	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Empty log") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌  ◌ Empty log") {
 		t.Fatalf("row click did not move the cursor:\n%s", view)
 	}
 }
@@ -81,11 +81,11 @@ func TestClickTargetsAsciiGlyphs(t *testing.T) {
 func TestWheelMovesTheCursorAndClickClearsTheSearchChip(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelDown})
-	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Empty\n") && !strings.Contains(view, "▌ ◌ Empty ") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌  ◌ Empty\n") && !strings.Contains(view, "▌  ◌ Empty ") {
 		t.Fatalf("wheel down did not move the cursor:\n%s", view)
 	}
 	m = runMsg(t, m, tea.MouseWheelMsg{X: 5, Y: 6, Button: tea.MouseWheelUp})
-	if view := chipped(m.View().Content); !strings.Contains(view, "▌ ◌ Platform Engineer") {
+	if view := chipped(m.View().Content); !strings.Contains(view, "▌  ◌ Platform Engineer") {
 		t.Fatalf("wheel up did not move the cursor back:\n%s", view)
 	}
 	m = driveModel(t, m, "/pl", "enter")

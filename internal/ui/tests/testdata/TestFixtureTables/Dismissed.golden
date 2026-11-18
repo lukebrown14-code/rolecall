@@ -2,11 +2,11 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s Leads 7 [Dismissed 2] Filtered 1 │ TRACK t [All 2] SWE 1  Unknown 1                                           
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ⊘ Dismissed · 2 ───────────────────────────────────────────── │ docs-dismissed                                       
- ▌ ⊘ docs-dismissed                                              │ Fictional Labs · SWE                                 
- ▌   Fictional Labs · SWE · dismissed ~7d ago                    │                                                      
-   ⊘ Engineer #1                                       Good      │ ⊘ Dismissed · ~7d ago              fit not assessed  
-     Example · Unknown · dismissed ~Jan 2026                     │                                                      
+    ⊘ Dismissed · 2 ──────────────────────────────────────────── │ docs-dismissed                                       
+ ▌  ⊘ docs-dismissed                                             │ Fictional Labs · SWE                                 
+ ▌    Fictional Labs · SWE · dismissed ~7d ago                   │                                                      
+    ⊘ Engineer #1                                      Good      │ ⊘ Dismissed · ~7d ago              fit not assessed  
+      Example · Unknown · dismissed ~Jan 2026                    │                                                      
                                                                  │ DOCS         □□□□ 0/4 ready                          
                                                                  │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
                                                                  │                                                      

@@ -36,6 +36,7 @@ type model struct {
 	selectAfter           string
 	undo                  []undoMove
 	marks                 *markSet  // rows marked for a bulk action, in one view (bulk.go)
+	marksNote             bool      // marks dropped while the search input hid the feedback line
 	toast                 string    // feedback line: what just happened (cleared on the next key)
 	movedTo               string    // destination Status of the move the toast reports, else ""
 	toastKind             toastKind // how the feedback line draws the toast
@@ -303,9 +304,10 @@ func (m model) matches(a store.Application) bool {
 	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
 }
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	before := m.markView()
 	next, cmd := m.update(msg)
-	if nm, ok := next.(model); ok && nm.marks != nil && (nm.marks.screen != nm.screen || nm.marks.table != nm.table) {
-		nm.marks = nil // marks belong to the view they were made in
+	if nm, ok := next.(model); ok && (nm.marks != nil || nm.marksNote) {
+		dropStaleMarks(before, &nm) // marks belong to the view they were made in
 		return nm, cmd
 	}
 	return next, cmd
@@ -390,6 +392,23 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.capturedRun = false
 		return m.finishBuild(done)
 	}
+	if m.tooSmall() {
+		// The too-small notice hides everything else, so no key may act on what is
+		// hidden: only q and ctrl+c, the way out it names, get through. Both go through
+		// the unsaved-text guard, so a q meant as text in an open form never drops it.
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			if s := msg.String(); s == "q" || s == "ctrl+c" {
+				if next, held := m.quitHeld(); held {
+					return next, nil
+				}
+				return m, m.quit()
+			}
+			return m, nil
+		case tea.PasteMsg:
+			return m, nil
+		}
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		// The feedback line: a success clears on the next key; an error stays until esc.
 		m.toast, m.toastHint, m.movedTo, m.toastKind = "", "", "", toastPlain
@@ -473,7 +492,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// esc drops the marks first, then clears a search; otherwise it only hides
 				// the toast, so the cursor stays where the Owner was working.
 				if m.clearMarks() {
-					m.toast, m.toastKind = "Marks cleared", toastNote
+					m.toast, m.toastKind = marksCleared, toastNote
 				} else if m.text != "" {
 					m.text = ""
 					m.cursor = 0

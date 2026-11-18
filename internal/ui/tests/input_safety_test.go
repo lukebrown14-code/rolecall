@@ -54,7 +54,7 @@ func TestBlankTitleAndCompanyReadTheSameEverywhere(t *testing.T) {
 	if !strings.Contains(row, "(untitled)") {
 		t.Fatalf("row: %q\n%s", row, d.plain())
 	}
-	if next := rowWith(strings.Split(d.plain(), "\n"), "▌   SWE"); next == "" {
+	if next := rowWith(strings.Split(d.plain(), "\n"), "▌    SWE"); next == "" {
 		t.Fatalf("second line should start with the Track, no leading separator:\n%s", d.plain())
 	}
 	d.Type("enter")

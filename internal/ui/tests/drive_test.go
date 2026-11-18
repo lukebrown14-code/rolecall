@@ -158,7 +158,7 @@ func TestReaderFilesFollowRefresh(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(root, "jobs", "SWE", "docs-written", "resume.md"), []byte(text), 0600); err != nil {
 				t.Fatal(err)
 			}
-			m = driveModel(t, m, "e")
+			m = driveModel(t, m, "o")
 			if v := chipped(m.View().Content); !strings.Contains(v, "[Docs]") || !strings.Contains(v, "Resume is gone") {
 				t.Fatalf("missing fallback:\n%s", v)
 			}
