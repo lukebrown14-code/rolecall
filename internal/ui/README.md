@@ -21,8 +21,10 @@ listed here one by one (`ls internal/ui` is the inventory):
   reads them; any new input to the filtering or sorting must join its key.
 - `keymap.go` (row actions) and `help.go` (the registry): every key is declared once and read
   by the key line, `?` and the command palette (`palette.go`).
-- `view.go`, `layout.go`, `columns.go`, `styles.go`: shared presentation; `plain.go` reshapes
-  the finished frame for `ROLECALL_PLAIN`.
+- `view.go` (`View` and the list screen), `chrome.go` (tabs, top bar, breadcrumb, view row),
+  `list_blocks.go` (dividers, blocks, scrolling and right-hand slots), `row.go` (a list row and
+  its meta line), `preview.go` (the card beside the list), `layout.go`, `columns.go`,
+  `styles.go`: shared presentation; `plain.go` reshapes the finished frame for `ROLECALL_PLAIN`.
 - `settings*.go`, `profile.go`, `stats.go`, `detail.go`, `form.go`: screens and their forms.
 - `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and their
   completion messages; every process start goes through `internal/process`.
