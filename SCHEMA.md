@@ -51,7 +51,8 @@ defined in `GLOSSARY.md`.
 
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
 `[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
-date. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
+date. Each character is lowercased on its own (`İ` is `i`, `K` (Kelvin) is `k`); when the
+first 61 characters hold no `-`, the cut keeps the first 60. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
 `-3`, and so on. The name is only an identifier; never parse meaning out of it.
 
 ## Application folder
@@ -211,6 +212,13 @@ Each entry is a flow map on one line:
 - **Applied date** = `at` of the first `Applied` entry. It is never stored separately.
 - **Last change** = `at` of the last entry. Follow-up due is measured from it, or from
   `followed_up` when that day is later.
+- Follow-up due, exactly: an undone move is left out first (an entry that restores the
+  Status before the previous entry, both timestamped and no more than 15 minutes apart,
+  cancels that entry and itself; date-only entries never do). The day it counts from is the
+  later of the last remaining entry's day and `followed_up`, the entry winning a tie. A
+  timestamp's day is its date in the Owner's time zone; a date-only entry and `followed_up`
+  keep the day written. It is due `follow_up_days` after that day and on every day after,
+  for Applied and Interviewing only, except while `next_step` is on or after today.
 - `approx: true` marks a date rebuilt by migration. Readers show it with a `~` prefix.
 
 ### Who may change what
@@ -238,6 +246,11 @@ patch it without reformatting.
    write atomically (temp file in the same folder, then rename).
 6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
    and its path. Writers refuse to touch it.
+7. A line that is empty or holds only spaces and tabs is blank, and a line starting with `#`
+   is a comment; both are skipped anywhere, inside `status_log` and `contacts` too. Any other
+   line, an indented `# …` included, must follow the rules above. A whole number (`schema`,
+   `applicants`, `term_months`) is ASCII digits only, with no sign, and fits a signed 64-bit
+   integer. A timestamp's offset is at most `23:59`.
 
 ## Profile
 
@@ -339,7 +352,7 @@ that rule a role out, so none of them lives in prose:
 | Field | Type | Meaning |
 |---|---|---|
 | `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired |
-| `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5 |
+| `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5. N is the limit minus the age in whole days (today minus `posted`), so the last day before expiry reads "expires in 1 day" |
 | `ambiguous_age_labels` | object | label → `discard` or `keep`, for a label that may be either side of the limit (`"1mo ago"` is 28 to 61 days). Matched ignoring case and spacing. Unlisted, a borderline Lead is kept and flagged for the Owner |
 | `max_applicants` | object | Source name → the most applicants a role may have there |
 | `max_contract_months` | int ≥ 1 | a longer contract is flagged, never dismissed |
@@ -483,6 +496,11 @@ the Plugin default for the rest, and names the overrides it used.
 no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malformed
 `meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py`
 tests both load it. Any change to this file updates the fixtures in the same commit.
+
+`fixtures/conformance.json` holds this file's rules as vectors that the Go and Python tests
+both assert: `meta.yml` lines and whole texts (malformed or not), folder names, Follow-up due
+and posting age. The expected values follow this file, not either implementation; a side
+that does not meet one yet lists it, by audit finding, in its test's known-drift table.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed
 tables, jd front matter, legacy keys, bulk-stamped logs and an unmappable Fit. It is used by
