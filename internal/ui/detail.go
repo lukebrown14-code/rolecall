@@ -21,6 +21,13 @@ type detailTab string
 
 const coverLetterFile = "cover-letter.md"
 
+// o in the detail view opens the current tab's file, or the Docs tab's selected
+// Document, in the Editor; e edits the fields there as on a row.
+const (
+	keyOpenFile  = "o"
+	descOpenFile = "open in editor"
+)
+
 const (
 	tabLetter detailTab = docCoverLetter
 	tabGaps   detailTab = "Gaps"
@@ -212,6 +219,31 @@ func (m model) stepDetail(step int) model {
 	return m
 }
 
+// dismissFromDetail is x in the detail view: it dismisses the open Lead or Draft, as x on
+// its row does (u puts it back), then opens the next row of the view on the same tab, or
+// goes back to the list when it was the last.
+func (m *model) dismissFromDetail(a store.Application) tea.Cmd {
+	rows := m.rows()
+	next := ""
+	if at := slices.IndexFunc(rows, func(r store.Application) bool { return r.Folder == a.Folder }); at >= 0 && at+1 < len(rows) {
+		next = rows[at+1].Folder
+	}
+	undos := len(m.undo)
+	cmd := m.move(a, store.StatusDismissed, false)
+	if len(m.undo) == undos {
+		return cmd // not moved: the error or note says why, and the detail stays
+	}
+	if next == "" {
+		*m = m.closeDetail()
+		m.cursor = max(0, min(m.cursor, len(m.rows())-1))
+		return cmd
+	}
+	m.lastTab = m.detail.tab
+	m.keepCursor(next)
+	m.openDetail(next)
+	return cmd
+}
+
 func (m model) closeDetail() model {
 	if m.detail == nil {
 		return m
@@ -391,16 +423,16 @@ func (m model) markdownBody(a store.Application, tab detailTab, name string) str
 func (m model) emptyDocument(a store.Application, tab detailTab, name string) string {
 	switch tab {
 	case tabJD:
-		return "No JD saved · e to open " + name
+		return "No JD saved · " + keyOpenFile + " to open " + name
 	case tabFit:
 		if m.harness != "" {
 			return "f to assess fit"
 		}
 		return ""
 	case tabNotes:
-		return "No notes yet · e to write some"
+		return "No notes yet · n to write some"
 	}
-	return "No " + docName(name) + " yet · e to open " + name
+	return "No " + docName(name) + " yet · " + keyOpenFile + " to open " + name
 }
 
 // fitSummary is the Fit with where it comes from when the two sources disagree: the
@@ -431,8 +463,9 @@ func (m model) renderMarkdown(text string, width int) string {
 }
 
 // detailKey handles keys specific to the detail view. Keys it does not handle fall
-// through to the shared actions (m, n, u, r, quit); every other key is consumed so
-// the table underneath is not driven by accident.
+// through to the shared actions (m, e, n, x, u, r, quit); every other key is consumed so
+// the table underneath is not driven by accident. e edits the fields, as on a row; o
+// opens the current tab's file in the Editor.
 func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 	a, ok := m.application(m.detail.folder)
 	if !ok {
@@ -465,11 +498,10 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 			step = -1
 		}
 		return m.stepDetail(step), nil, true
-	case "m", "n", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "ctrl+c":
+	case "m", "n", "x", "d", "u", "r", "F", "b", "f", "p", "w", "c", keyFollowedUp, "?", "ctrl+c":
 		return m, nil, false
-	case "x", "s", "o":
-		// Row and view keys the detail does not run: the shared dispatcher says why in a
-		// note, the same one a list row gives, rather than do nothing.
+	case "s":
+		// A view key the detail does not run: the shared dispatcher says why in a note.
 		return m, nil, false
 	}
 	if isScreenKey(key) {
@@ -481,11 +513,11 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		}
 		return m, nil, true
 	}
+	if key == "e" {
+		return m, nil, false // the shared edit key opens the Edit form, on every tab
+	}
 	if d.tab == tabDocs {
 		return m.docsKey(a, &d, key)
-	}
-	if d.tab == tabOverview && key == "e" {
-		return m, nil, false // the shared edit key opens the Application's meta.yml
 	}
 	switch key {
 	case "down", "j":
@@ -500,12 +532,14 @@ func (m model) detailKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		d.body.GotoTop()
 	case "G":
 		d.body.GotoBottom()
-	case "e":
-		name := markdownTabFiles[d.tab]
-		if d.tab == tabNotes {
+	case keyOpenFile:
+		name, ok := markdownTabFiles[d.tab]
+		switch {
+		case d.tab == tabNotes:
 			return m, m.editNotes(a.Folder), true
+		case ok:
+			return m, m.editFile(a.Folder, name), true
 		}
-		return m, m.editFile(a.Folder, name), true
 	}
 	return m, nil, true
 }
@@ -521,7 +555,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 		d.docs = 0
 	case "G":
 		d.docs = len(entries) - 1
-	case "enter", "e":
+	case "enter", keyOpenFile:
 		e := entries[d.docs]
 		switch {
 		case e.pdf() && key == "enter":
@@ -536,7 +570,7 @@ func (m model) docsKey(a store.Application, d *detailState, key string) (model, 
 				}
 			}
 		case e.markdown():
-			// e on any document, and Enter on one not written yet, open it in the Editor:
+			// o on any document, and Enter on one not written yet, open it in the Editor:
 			// writing a missing document is the normal next step, not an error.
 			return m, m.editFile(a.Folder, e.name), true
 		}
@@ -846,7 +880,7 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		if !ready {
 			mark, nameC = p.Text(p.Dim).Render("○ "), p.Dim
 		}
-		// The name, then its state, then the file it lives in, muted: what e opens.
+		// The name, then its state, then the file it lives in, muted: what o opens.
 		name := e.title()
 		file := ""
 		if e.markdown() {

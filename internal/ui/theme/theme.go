@@ -228,7 +228,8 @@ func ASCIIMode() bool {
 // PlainMode reports whether ROLECALL_PLAIN=1 asks for a plainer frame, for screen readers
 // and braille displays: no mouse capture, so the terminal's own selection and review
 // cursor work; no decorative sparkline in the tab bar; one pane, no rules, Status words
-// for lone Status glyphs, and the terminal cursor on the selection (internal/ui/plain.go).
+// for lone Status glyphs, words for flags and marks, pop-ups as screens of their own, and
+// the terminal cursor on the selection (internal/ui/plain.go).
 func PlainMode() bool { return os.Getenv("ROLECALL_PLAIN") == "1" }
 
 // utf8Capable reports whether the environment's locale can draw UTF-8. POSIX gives LC_ALL
@@ -384,6 +385,11 @@ func (p Palette) SelGutter(filled bool) string {
 	}
 	return p.SelBase(filled).Foreground(p.Accent).Bold(true).Render("▌ ")
 }
+
+// MarkFill is the ground of a row marked for a bulk action, off the cursor: the panel
+// tint, subtler than the selection fill, which every text Role clears 4.5:1 on. The ◉
+// carries the mark where the fill is absent (the terminal's own colours, NO_COLOR).
+func (p Palette) MarkFill() color.Color { return p.Panel }
 
 // OnSel is the palette for what sits on the selection fill. Coloured words there (close
 // dates, warnings, document states) take the secondary colour, which clears the 4.5:1

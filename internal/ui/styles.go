@@ -94,6 +94,11 @@ const fitLabel = "fit "
 // wordmark is rolecall's own mark, kept apart from every Status glyph (ASCII "R").
 const wordmark = "▞"
 
+// rowGutter is the cells before a row's Status glyph: the selection bar, the mark column
+// (◉ on a row marked for a bulk action) and a space. A group header's glyph sits in the
+// same column.
+const rowGutter = 3
+
 // statusMarkWidth is a Status glyph and the space after it, before a row's title.
 const statusMarkWidth = 2
 
@@ -125,7 +130,7 @@ func (p pal) GroupHeader(label, status string, n int, rollup string, w int) stri
 		glyph = p.ClosedGroupGlyph()
 	}
 	s := p.Text(c)
-	head := xansi.Truncate("  "+glyph+" "+label+" · "+fmt.Sprint(n)+rollup, max(0, w-1), "…") + " "
+	head := xansi.Truncate(strings.Repeat(" ", rowGutter)+glyph+" "+label+" · "+fmt.Sprint(n)+rollup, max(0, w-1), "…") + " "
 	return s.Bold(!closedStatus(status) && status != "").Render(head) + s.Render(strings.Repeat("─", max(0, w-xansi.StringWidth(head))))
 }
 

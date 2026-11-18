@@ -174,9 +174,9 @@ func TestDetailMissingFilesShowEmptyState(t *testing.T) {
 		tabs  int
 		wants []string
 	}{
-		{"jd", 0, []string{"No JD saved · e to open jd.md"}},
+		{"jd", 0, []string{"No JD saved · o to open jd.md"}},
 		{"fit", 1, []string{"fit not assessed · no reasoning saved"}},
-		{"notes", 2, []string{"No notes yet · e to write some"}},
+		{"notes", 2, []string{"No notes yet · n to write some"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newDetailHarness(t, nil)
@@ -214,7 +214,7 @@ func TestDetailNotesAndFitTabsRenderTheirFiles(t *testing.T) {
 	back.show("Docs") // wraps from JD to the last tab
 }
 
-func TestDetailEditOpensCurrentTabFile(t *testing.T) {
+func TestDetailOpenFileOpensCurrentTabFile(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		tabs int
@@ -226,7 +226,7 @@ func TestDetailEditOpensCurrentTabFile(t *testing.T) {
 			for i := 0; i < tc.tabs; i++ {
 				h.key(tea.KeyRight)
 			}
-			h.tm.Type("e")
+			h.tm.Type("o")
 			run := h.lastRun()
 			if got, want := run[len(run)-1], filepath.Join(h.folder("fern"), tc.file); got != want {
 				t.Fatalf("edited %q, want %q (args %q)", got, want, run)
@@ -260,14 +260,14 @@ func TestDetailDocsTabOmitsSentWhenAbsent(t *testing.T) {
 	}
 }
 
-func TestDetailDocsEditOpensMarkdownInEditor(t *testing.T) {
+func TestDetailDocsOpenFileOpensMarkdownInEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("e")
+	h.tm.Type("o")
 	run := h.lastRun()
 	if got, want := run[len(run)-1], filepath.Join(h.folder("docs-ready"), "jd.md"); got != want || !strings.Contains(strings.Join(run, " "), "myeditor") {
-		t.Fatalf("e on .md: %q", run)
+		t.Fatalf("o on .md: %q", run)
 	}
 	h.finalView()
 }
@@ -385,9 +385,9 @@ func TestDetailKeepsScrollPositionWhenEditorReturns(t *testing.T) {
 	h := newDetailHarness(t, longJD)
 	h.open("1", 0, "Fern")
 	h.tm.Type("G")
-	h.tm.Type("e")
+	h.tm.Type("o")
 	h.lastRun()
-	h.tm.Type("x") // consumed by the detail view; also ensures the rescan message was handled
+	h.tm.Type("Z") // consumed by the detail view; also ensures the rescan message was handled
 	if v := h.show("Requirement number 100"); strings.Contains(v, "Requirement number 1\n") {
 		t.Fatalf("scroll position lost after the editor returned:\n%s", v)
 	}
@@ -416,7 +416,7 @@ func TestResumeReader(t *testing.T) {
 	h.key(tea.KeyRight)
 	h.key(tea.KeyRight)
 	h.show("[Resume]", "Morgan Example")
-	h.tm.Type("e")
+	h.tm.Type("o")
 	if got := h.lastRun(); !strings.Contains(strings.Join(got, " "), "myeditor") || !strings.HasSuffix(got[len(got)-1], "resume.md") {
 		t.Fatalf("editor command: %v", got)
 	}
@@ -450,7 +450,7 @@ func TestResumeReaderScrollAndRefresh(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(h.folder("docs-written"), "resume.md"), []byte("# New start\n\n"+strings.Repeat("Updated fictional experience.\n\n", 50)+"Updated end\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	h.tm.Type("e")
+	h.tm.Type("o")
 	h.show("[Resume]", "Updated end")
 	h.tm.Type("g")
 	h.show("New start")

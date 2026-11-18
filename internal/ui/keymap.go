@@ -170,8 +170,11 @@ var listActions = []listAction{
 		},
 		group: groupAction,
 		prio: func(m model) int {
-			if a, ok := m.current(); ok && a.Malformed != nil {
+			switch a, ok := m.current(); {
+			case ok && a.Malformed != nil:
 				return prioCore
+			case m.detail != nil:
+				return prioDetailEdit
 			}
 			return prioMain
 		},
@@ -190,9 +193,15 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return onRow(m) && usable(m) },
 		enabled: onRow,
 		run: func(m *model, _ string) tea.Cmd {
-			if marked := m.markedHere(); len(marked) > 0 {
-				// Marked rows move together: the pop-up names the count, then asks once.
+			switch marked := m.markedHere(); {
+			case len(marked) > 1:
+				// Marked rows move together: the pop-up names the count, and the pick moves them.
 				m.overlay = &moveMode{app: marked[0], options: bulkOptions(marked), bulk: marked}
+				return nil
+			case len(marked) == 1:
+				// One marked row moves as a plain m on it would.
+				a := marked[0]
+				m.overlay = &moveMode{app: a, options: MoveOptions(a.Status, statusBeforeDismissed(a.StatusLog))}
 				return nil
 			}
 			a, ok := m.current()
@@ -220,32 +229,33 @@ var listActions = []listAction{
 		run:     func(m *model, _ string) tea.Cmd { return m.undoLast() },
 	},
 	{
-		// On the lean key line wherever it applies: triage is mostly x.
+		// On the lean key line wherever it applies: triage is mostly x. In the detail view it
+		// dismisses the open Lead or Draft and opens the next row, so reading then dismissing
+		// is one key; marks are the list's.
 		keys: []string{"x"}, keyLabel: "x", desc: text("dismiss"),
 		group: groupAction, prio: fixed(prioLean),
-		// Not in the detail view, where a reader's stray x would close what they are
-		// reading: there it points to m, as on a row it does not apply to.
-		listed:  func(m model) bool { return m.detail == nil && ((usable(m) && leadOrDraft(m)) || m.markCount() > 0) },
-		enabled: func(m model) bool { return m.detail == nil && (leadOrDraft(m) || m.markCount() > 0) },
-		why: onRowWhy(func(m model) string {
-			if m.detail != nil && leadOrDraft(m) {
-				return "x: dismisses from the list only · m to move"
-			}
-			return "x: only Leads and Drafts can be dismissed · m to move"
-		}),
+		listed:  func(m model) bool { return (usable(m) && leadOrDraft(m)) || (m.detail == nil && m.markCount() > 0) },
+		enabled: func(m model) bool { return leadOrDraft(m) || (m.detail == nil && m.markCount() > 0) },
+		why:     onRowWhy(func(model) string { return "x: only Leads and Drafts can be dismissed · m to move" }),
 		run: func(m *model, _ string) tea.Cmd {
-			if m.markCount() > 0 {
-				m.overlay = m.bulkAction(store.StatusDismissed)
+			if m.detail == nil && m.markCount() > 0 {
+				var cmd tea.Cmd
+				m.overlay, cmd = m.bulkDismiss()
+				return cmd
+			}
+			a, ok := m.current()
+			switch {
+			case !ok || !a.Unsent():
 				return nil
+			case m.detail != nil:
+				return m.dismissFromDetail(a)
 			}
-			if a, ok := m.current(); ok && a.Unsent() {
-				return m.move(a, store.StatusDismissed, false)
-			}
-			return nil
+			return m.move(a, store.StatusDismissed, false)
 		},
 	},
 	{
-		// Marks several rows for one x or m. * is free on every list; space, v and tab are not.
+		// Marks several rows for one x or m, and steps down so * * * marks three in a row.
+		// * is free on every list; space, v and tab are not.
 		keys: []string{keyMark}, keyLabel: keyMark,
 		desc: func(m model) string {
 			if a, ok := m.current(); ok && m.isMarked(a.Folder) {
@@ -262,11 +272,29 @@ var listActions = []listAction{
 		},
 	},
 	{
+		// Marks every row in the view. V (vim's whole-line select) is free on every list:
+		// ctrl+a is GNU screen's prefix and a text field's start of line, and a is add.
+		keys: []string{keyMarkAll}, keyLabel: keyMarkAll,
+		desc: func(m model) string {
+			if m.allMarked() {
+				return "unmark all"
+			}
+			return "mark all"
+		},
+		group: groupAction, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		enabled: func(m model) bool { return m.detail == nil && onRow(m) && usable(m) },
+		run: func(m *model, _ string) tea.Cmd {
+			m.markAll()
+			return nil
+		},
+	},
+	{
 		keys: []string{"n"}, keyLabel: "n", desc: text(descNotes),
 		group: groupAction,
 		prio: func(m model) int {
 			if m.detail != nil {
-				return prioMinor // the reader's navigation outlasts it
+				return prioDetailNote
 			}
 			return prioMain
 		},

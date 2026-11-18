@@ -2,31 +2,31 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s [All 9] Applied 1  Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 9] SWE 5  Unknown 4                       
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
-   ● Applied · 1 ─────────────────────────────────────────────── │ Software Engineer                                    
- ▌ ● Software Engineer                                           │ Orbit Labs · SWE                                     
- ▌   Orbit Labs · SWE · applied 6d ago                           │                                                      
+    ● Applied · 1 ────────────────────────────────────────────── │ Software Engineer                                    
+ ▌  ● Software Engineer                                          │ Orbit Labs · SWE                                     
+ ▌    Orbit Labs · SWE · applied 6d ago                          │                                                      
                                                                  │ ● Applied · 6d in Applied          fit not assessed  
-   ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ NEXT         wait to hear back               m move  
-   ◆ Engineer #1                                ⚑ 9mo  Good      │                                                      
-     Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │ DOCS         □□□□ 0/4 ready                          
-   ◆ docs-written                                                │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
-     Fictional Labs · SWE · interviewing ~7d ago                 │                                                      
+    ◆ Interviewing · 2 · 1 follow-up due ─────────────────────── │ NEXT         wait to hear back               m move  
+    ◆ Engineer #1                               ⚑ 9mo  Good      │                                                      
+      Example · Unknown · applied ~Jan 2025 · interviewing ~Jan… │ DOCS         □□□□ 0/4 ready                          
+    ◆ docs-written                                               │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
+      Fictional Labs · SWE · interviewing ~7d ago                │                                                      
                                                                  │ TIMELINE                                             
-   ★ Offer · 2 ───────────────────────────────────────────────── │   ◌ Lead                                     24 Sep  
-   ★ Engineer #1                                       Good      │   ● Applied                                  25 Sep  
-     Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │   ◆ Interviewing                               next  
-   ★ docs-partial                                                │                                                      
-     Fictional Labs · SWE · offer ~7d ago                        │ NOTES        none yet                       n notes  
+    ★ Offer · 2 ──────────────────────────────────────────────── │   ◌ Lead                                     24 Sep  
+    ★ Engineer #1                                      Good      │   ● Applied                                  25 Sep  
+      Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026    │   ◆ Interviewing                               next  
+    ★ docs-partial                                               │                                                      
+      Fictional Labs · SWE · offer ~7d ago                       │ NOTES        none yet                       n notes  
                                                                  │                                                      
-   ✕ Closed · 4 ──────────────────────────────────────────────── │                                                      
-   ✕ Engineer #1                                       Good      │                                                      
-     Example · Unknown · rejected ~Jan 2026                      │                                                      
-   ↩ Engineer #1                                       Good      │                                                      
-     Example · Unknown · withdrawn ~Jan 2026                     │                                                      
-   ✕ docs-ready                                                  │                                                      
-     Fictional Labs · SWE · rejected ~7d ago                     │                                                      
-   ↩ docs-resume-only                                            │                                                      
-     Fictional Labs · SWE · withdrawn ~7d ago                    │                                                      
+    ✕ Closed · 4 ─────────────────────────────────────────────── │                                                      
+    ✕ Engineer #1                                      Good      │                                                      
+      Example · Unknown · rejected ~Jan 2026                     │                                                      
+    ↩ Engineer #1                                      Good      │                                                      
+      Example · Unknown · withdrawn ~Jan 2026                    │                                                      
+    ✕ docs-ready                                                 │                                                      
+      Fictional Labs · SWE · rejected ~7d ago                    │                                                      
+    ↩ docs-resume-only                                           │                                                      
+      Fictional Labs · SWE · withdrawn ~7d ago                   │                                                      
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      

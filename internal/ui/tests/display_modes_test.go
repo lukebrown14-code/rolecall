@@ -205,6 +205,8 @@ func TestPlainModeIsOneRegionWithTheCursorOnTheSelection(t *testing.T) {
 	}
 	if row := lines[v.Cursor.Y]; !strings.Contains(row, "▌") || !strings.Contains(row, "Engineer #1") {
 		t.Errorf("the cursor is on %q, not the selected row", row)
+	} else if at := string([]rune(row)[v.Cursor.X:]); !strings.HasPrefix(at, "Interviewing Engineer #1") {
+		t.Errorf("the cursor is at %q, not the row's first word", at)
 	}
 }
 

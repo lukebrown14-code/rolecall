@@ -75,7 +75,7 @@ func TestNextActionLine(t *testing.T) {
 		{"applied", []string{"3"}, "NEXT         wait to hear back", "m move"},
 		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP    due · no change in 9mo", "l followed up"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT         decide on the offer", "m move"},
-		{"detail on the JD tab", []string{"1", "enter"}, "NEXT         add the JD", "e edit jd.md"},
+		{"detail on the JD tab", []string{"1", "enter"}, "NEXT         add the JD", "o open jd.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := chipped(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))

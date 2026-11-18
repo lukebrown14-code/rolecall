@@ -24,7 +24,7 @@ func (m *model) openEdit(a store.Application) tea.Cmd {
 	}
 	v := addValues{
 		title: a.Title, company: a.Company, track: a.Track, url: a.URL, closes: a.Closes, fit: a.Fit,
-		resumeOnly: boolText(a.ResumeOnly),
+		resumeOnly: boolText(a.ResumeOnly), ended: endedStatus(a.Status), closeReason: a.CloseReason,
 	}
 	if a.NextStep != nil {
 		v.nextAt, v.nextWhat = a.NextStep.At, a.NextStep.What
@@ -53,12 +53,16 @@ const (
 	fieldContactReach = "Email / URL"
 )
 
-// validReach accepts an email address or a web link; blank is left to editProblem.
+// validReach accepts an email address or a web link; blank is left to editProblem. A
+// value with an @ is meant as an email, so it is checked as one, in the same words as
+// the Contact form's Email.
 func validReach(s string) error {
 	s = strings.TrimSpace(s)
-	if s == "" || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://") ||
-		(strings.Contains(s, "@") && !strings.ContainsAny(s, " \t")) {
+	switch {
+	case s == "" || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://"):
 		return nil
+	case strings.Contains(s, "@"):
+		return validEmail(s)
 	}
 	return errors.New("Use an email address or a link starting https://")
 }
@@ -134,7 +138,8 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 		wasContact = a.Contacts[0]
 	}
 	contactChanged := contact != wasContact
-	if len(changed) == 0 && !stepChanged && !contactChanged {
+	reasonChanged := endedStatus(a.Status) && v.closeReason != a.CloseReason
+	if len(changed) == 0 && !stepChanged && !contactChanged && !reasonChanged {
 		m.toast = "Nothing changed · " + appName(a.Title)
 		return nil
 	}
@@ -163,6 +168,13 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 			list = append(list, a.Contacts[1:]...)
 		}
 		if err := m.store.SetContacts(a.Folder, list); err != nil {
+			m.err = err
+			return nil
+		}
+	}
+	if reasonChanged {
+		// none removes the key, as skipping the question after the move does.
+		if err := m.store.SetCloseReason(a.Folder, v.closeReason); err != nil {
 			m.err = err
 			return nil
 		}

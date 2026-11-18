@@ -74,7 +74,7 @@ var markGlyphs = []Glyph{
 	{GlyphWarn, "!", GroupFlags, "needs attention"},
 	{GlyphUrgent, "^", GroupFlags, "closes within 2 days"},
 	{GlyphFollowUp, "}", GroupFlags, "follow-up due"},
-	{GlyphMarked, "]", GroupFlags, "marked for x or m"},
+	{GlyphMarked, "[", GroupFlags, "marked for x or m"},
 	{GlyphChanged, "&", GroupForms, "changed, not saved"},
 }
 

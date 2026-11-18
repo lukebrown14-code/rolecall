@@ -139,8 +139,6 @@ func TestDetailKeysThatDoNotApplySayWhy(t *testing.T) {
 		want string
 	}{
 		{[]string{"3", "enter", "x"}, "x: only Leads and Drafts can be dismissed · m to move"},
-		{[]string{"1", "enter", "x"}, "x: dismisses from the list only · m to move"},
-		{[]string{"1", "enter", "o"}, "o: sorts the Leads view only"},
 		{[]string{"1", "enter", "s"}, "s: changes the view from the list only"},
 		{[]string{"1", "enter", "l"}, "l: only on Applied and Interviewing Applications"},
 		{[]string{"3", "enter", "F"}, "F: only on a Follow-up due Application"},
@@ -149,8 +147,8 @@ func TestDetailKeysThatDoNotApplySayWhy(t *testing.T) {
 			t.Errorf("%v: no %q:\n%s", tc.keys, tc.want, v)
 		}
 	}
-	if v := chipped(runKeys(t, root, 120, "1", "enter", "x")); strings.Contains(v, "Dismissed") {
-		t.Errorf("x dismissed from the detail view:\n%s", v)
+	if v := chipped(runKeys(t, root, 120, "3", "enter", "x")); strings.Contains(v, "Dismissed") {
+		t.Errorf("x dismissed an Applied Application from the detail view:\n%s", v)
 	}
 	if base, got := chipped(runKeys(t, root, 120, "3", "enter")), chipped(runKeys(t, root, 120, "3", "enter", "Z")); got != base {
 		t.Errorf("an unknown key changed the detail view:\n%s", got)

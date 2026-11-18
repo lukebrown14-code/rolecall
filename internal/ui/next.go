@@ -42,7 +42,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 			case m.detail == nil:
 				return nextStep{what: stepAddJD, key: "enter", desc: descOpen}, true
 			case m.detail.tab == tabJD:
-				return nextStep{what: stepAddJD, key: "e", desc: descEdit + " " + jdFile}, true
+				return nextStep{what: stepAddJD, key: keyOpenFile, desc: descOpen + " " + jdFile}, true
 			}
 			return nextStep{what: stepAddJD, why: "on the JD tab"}, true
 		case a.Fit == "" && harness:

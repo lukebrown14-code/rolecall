@@ -94,11 +94,9 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 func (m model) View() tea.View {
 	p := m.pal()
 	plain := plainMode()
-	// ROLECALL_PLAIN strips each layer before a pop-up is set over the frame, so a word
-	// put in place of a glyph never shifts the pop-up's border.
-	strip := func(s string, box bool) string {
+	strip := func(s string) string {
 		if plain {
-			return plainFrame(s, m.viewWidth(), box)
+			return plainFrame(s, m.viewWidth())
 		}
 		return s
 	}
@@ -107,15 +105,17 @@ func (m model) View() tea.View {
 	case m.tooSmall():
 		body = m.tooSmallView(p)
 	case box != "" && m.helpScreenOpen():
-		body = strip(box, false) // the full-screen help is the whole frame
+		body = strip(box) // the full-screen help is the whole frame
+	case box != "" && plain:
+		body = m.plainPopUp(p, box) // read alone: nothing of the frame shares its lines
 	case box != "":
 		behind := m.screenView(m.dimmedPal())
 		if noColor() {
 			behind = appearance.StripBold(behind) // without the dimmed colours, weight sets the pop-up apart
 		}
-		body = m.overlayBody(p, strip(behind, false), strip(box, true))
+		body = m.overlayBody(p, behind, box)
 	default:
-		body = strip(m.screenView(p), false)
+		body = strip(m.screenView(p))
 	}
 	v := tea.NewView(asciiFold(body, m.ascii))
 	if !plain {
@@ -1028,36 +1028,45 @@ func (m model) slotText(a store.Application) (flag, fit string) {
 // selected row is a full-width bar; text on it is never dimmed.
 func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []string {
 	line := lipgloss.NewStyle().Width(w).MaxWidth(w)
-	bar := "  "
 	titleC, dimC := p.Fg, p.Dim
 	if m.expired(a) {
 		titleC = p.Dim
 	}
+	marked := m.isMarked(a.Folder)
 	fill := sel
+	// A marked row off the cursor takes the subtle mark fill; the cursor row keeps the
+	// selection fill, and its ◉ says it is marked too.
+	var ground color.Color
+	switch {
+	case fill:
+		ground = p.Sel
+	case marked:
+		ground = p.MarkFill()
+	}
 	st := func(c color.Color) lipgloss.Style {
 		s := lipgloss.NewStyle().Foreground(c)
-		if fill {
-			s = s.Background(p.Sel)
+		if ground != nil {
+			s = s.Background(ground)
 		}
 		return s
 	}
-	if sel {
-		if fill {
-			line = line.Background(p.Sel)
-		}
-		bar = p.SelGutter(fill)
-		titleC, dimC = p.Fg, p.Sub
+	if ground != nil {
+		line = line.Background(ground)
 	}
-	bar2 := bar // the second line carries the selection bar only: the mark sits on the first
-	if m.isMarked(a.Folder) {
-		// A marked row shows ◉ in the gutter, so it reads without colour: where the ▌ would
-		// be, or beside it on the cursor row, which keeps its ▌.
-		mark := st(p.Fg).Bold(true).Render(glyphMarked)
-		if sel {
-			bar = xansi.Cut(bar, 0, 1) + mark
-		} else {
-			bar = mark + st(p.Fg).Render(" ")
-		}
+	// The gutter is three cells: the selection bar, the mark column, a space. The mark has
+	// its own column, so the Status glyph sits in the same cell on every row, marked or
+	// not, under the cursor or not, and the ◉ never touches the ▌ or the glyph.
+	cursor := st(p.Fg).Render(" ")
+	if sel {
+		titleC, dimC = p.Fg, p.Sub
+		cursor = xansi.Cut(p.SelGutter(fill), 0, 1)
+	}
+	space := st(p.Fg).Render(" ")
+	bar2 := cursor + space + space // the second line carries the selection bar only: the mark sits on the first
+	bar := bar2
+	if marked {
+		// ◉ reads without colour (ASCII: [), beside the ▌ on the cursor row.
+		bar = cursor + st(p.Fg).Bold(true).Render(glyphMarked) + space
 	}
 	if a.Malformed != nil {
 		title := st(p.Bad).Bold(true).Render("⚠ ") + st(p.Bad).Bold(true).Render(m.malformedTitle(a))
@@ -1110,7 +1119,11 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	room := max(1, w-xansi.StringWidth(bar)-xansi.StringWidth(mark)-xansi.StringWidth(right)-1)
 	sep := st(dimC).Render(" · ")
 	if m.compactShown() {
-		left := bar + mark + m.compactColumns(a, show, room, st, titleC, dimC, sel, strings.Join(m.metaDates(rp, a, st, dimC), sep))
+		dates := m.metaDates(rp, a, st, dimC)
+		if text, s := m.rowNextStep(a); s != closeNone {
+			dates = append([]string{rp.CloseStyle(s, st, dimC).Render(text)}, dates...)
+		}
+		left := bar + mark + m.compactColumns(a, show, room, st, titleC, dimC, sel, strings.Join(dates, sep))
 		gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 		lines := []string{line.Render(left + gap + right)}
 		if m.flash != "" && a.Folder == m.flash {
@@ -1163,6 +1176,11 @@ func (m model) meta(p pal, a store.Application, st func(color.Color) lipgloss.St
 	var out []string
 	if strings.TrimSpace(a.CompanyLabel()) != "" {
 		out = append(out, dim.Render(a.CompanyLabel()))
+	}
+	// A booked next step comes straight after the Company, so a narrow row cuts the
+	// softer facts first.
+	if text, s := m.rowNextStep(a); s != closeNone {
+		out = append(out, p.CloseStyle(s, st, dimC).Render(text))
 	}
 	out = append(out, dim.Render(a.Track))
 	return append(out, m.metaDates(p, a, st, dimC)...)
@@ -1239,11 +1257,6 @@ func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipglo
 		}
 		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
 			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
-		}
-		if t == tableInterviewing || t == tableOffer {
-			if text, s := m.nextStepInfo(a.NextStep); s != closeNone {
-				out = append(out, p.CloseStyle(s, st, dimC).Render("next "+text))
-			}
 		}
 	}
 	return out

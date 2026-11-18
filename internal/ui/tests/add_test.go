@@ -137,7 +137,8 @@ func selectedRow(t *testing.T, view string) string {
 	t.Helper()
 	for _, line := range strings.Split(chipped(view), "\n") {
 		if _, rest, ok := strings.Cut(line, "▌ "); ok {
-			// The title follows its Status glyph.
+			// The title follows its Status glyph, after the mark column.
+			rest = strings.TrimLeft(rest, " ")
 			for _, g := range statusGlyphs {
 				rest = strings.TrimPrefix(rest, g+" ")
 			}

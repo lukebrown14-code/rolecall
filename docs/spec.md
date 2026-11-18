@@ -134,20 +134,21 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, the command finder and an empty view all say `s change view`) |
 | `Tab` / `Shift-Tab` | screen | next / previous pane on Profile, the only screen where it is listed; elsewhere an unlisted alias of `→` / `←` (views, detail tabs, Settings groups) |
 | `↑↓` / `j` `k`, `g` `G` | table | move cursor, top / bottom. In the detail view: scroll (`pgup` `pgdn` page) |
-| `J` / `K` | detail view | next / previous row's detail, on the same tab (help and palette only, not the key line). In Settings › Tracking they reorder Tracks |
+| `J` / `K` | detail view | next / previous row's detail, on the same tab (`J/K next/prev` on the detail's key line). In Settings › Tracking they reorder Tracks |
 | `a` | table screen, Stats | Add form |
 | `v` / `Enter` | row | detail view. On the Docs tab: open the selected document |
-| `e` | row | Edit form (fields). On a malformed row: open `meta.yml` at the failing line (`e fix in editor`). In the detail view: open the current tab's file in the Editor (`e edit jd.md`). `e` always means edit; picking an Editor lives in Settings › This machine (`6`) |
+| `e` | row | Edit form (fields). On a malformed row: open `meta.yml` at the failing line (`e fix in editor`). The same in the detail view, on every tab; there `o` opens the current tab's file in the Editor (`o open in editor`). `e` always means edit; picking an Editor lives in Settings › This machine (`6`) |
 | `n` | row | open `notes.md` in the Editor (created if missing); labelled `n notes` on every key line, card row, help page and command finder entry |
 | `m` | row | Move popup. On a malformed row it shows the parse error instead, as `x` does |
 | `u` | global | undo the last move or recorded follow-up made in this session (on the key line while there is one, after the toast has cleared; with none it says `Nothing to undo`). In Settings: put back the last Settings change |
-| `x` | row (Lead, Draft) | Dismiss. Same as Move → Dismissed. On the key line on a Lead or Draft row; elsewhere it says `x: only Leads and Drafts can be dismissed · m to move` |
-| `*` | row (table) | mark / unmark the row under the cursor (`◉` in its gutter, ASCII `]`; the breadcrumb counts them, `◉ 3 marked`). With rows marked, `x` dismisses and `m` moves all of them: `x` skips any marked row that is not a Lead or Draft, `m` offers every Status some marked row is not already at. Either asks once, naming the count and who is left out (`Dismiss 3 Applications?`, `y` confirms; moving to Applied also says how many lack Ready Documents, and one `y` covers them all). The toast counts them (`Dismissed · 3 Applications`) and one `u` puts every one back (`Undone · 3 Applications moved back`). `Esc` clears the marks first, then a search. Marks belong to the view they were made in: another screen or view drops them. `*` was free; `space`, `v`, `tab` and `s` are taken |
+| `x` | row (Lead, Draft) | Dismiss. Same as Move → Dismissed. On the key line on a Lead or Draft row; elsewhere it says `x: only Leads and Drafts can be dismissed · m to move`. In the detail view it dismisses the open Lead or Draft and opens the next row's detail on the same tab, or goes back to the list after the last; `u` puts it back |
+| `*` | row (table) | mark / unmark the row under the cursor and step to the next row, so `* * *` marks three rows in a row (`◉` in a gutter column of its own between the selection bar and the Status glyph, ASCII `[`; a marked row off the cursor takes a subtle fill; the breadcrumb alone counts them, `◉ 3 marked`). With rows marked, `x` dismisses and `m` moves all of them: `x` skips any marked row that is not a Lead or Draft, `m` offers every Status some marked row is not already at. With one row marked, `x` and `m` act on it as on a plain row (no confirmation). With several, `x` asks once, naming the count and who is left out (`Dismiss 3 Applications?`, `y` confirms); for `m` the Move pop-up is the one confirmation and the pick moves them, except that moving to Applied rows without Ready Documents asks once more, as a single move does. The toast counts them (`Dismissed · 3 Applications`) and one `u` puts every one back (`Undone · 3 Applications moved back`). `Esc` clears the marks first, then a search. Marks belong to the view they were made in: another screen, view, Track or search drops them and says `Marks cleared`. `*` was free; `space`, `v`, `tab` and `s` are taken |
+| `V` | row (table) | mark every row in the view (with all of them marked, unmark them). `V` was free; `ctrl+a` is GNU screen's prefix and a text field's start of line |
 | `l` | row (Applied, Interviewing) | record that you followed up today (`followed_up` in `meta.yml`), without a Status change: the `⚑` clears and returns `follow_up_days` later. `u` takes it back. Elsewhere it says `l: only on Applied and Interviewing Applications` |
 | `d` | row with PDFs | Download |
 | `w` / `c` | row with a `url` (table, detail) | open the job ad's link in the browser / copy it to the clipboard |
 | `t` / `T` | tables, Stats | next / previous Track filter: All → each `workspace.json` Track → any other Track a row is on |
-| `o` | Leads view | sort by deadline, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
+| `o` | Leads view | in the detail view: open the current tab's file in the Editor (see Detail view). On the Leads view: sort by deadline, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `z` | tables, wide sizes | compact rows: one line per row (title, company and track in aligned columns, then the dates) ↔ two-line rows. Saved to `config.toml` as `compact_rows`. `z` is free on every list and is vim's view-adjusting prefix |
 | `/` | table | text filter on Title + Company. `Esc` clears it on any screen (on Stats and Profile it says `Cleared search "/fe"`) |
 | `enter` | table with no rows, a search on | when the search has no match here but has matches on another view or screen (`No match for "orbit" in Leads · 1 in Pipeline`), jump to the first of them, keeping the search (`enter go to Applied`) |
@@ -161,14 +162,14 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 - `4` (Stats), `f`, `p`, `F` and `b` are described under [Harness, Build, Fetch and Stats](#harness-build-fetch-and-stats).
 - The key line shows only the keys valid for the current row (e.g. `d` hidden when nothing is built), and
   is lean: the core keys (`enter`, `m`, `a`, `/`), `x dismiss` on a Lead or Draft, `u undo` while a move
-  can be undone, then `esc` and `? help`; every other key is in `?` and the command finder. Key
+  can be undone, then `esc` and `? help` (the detail view adds `e edit`, `n notes` and `J/K next/prev`);
+  every other key is in `?` and the command finder. Key
   names are lower case everywhere (`enter`, `esc`), drawn bare in the accent colour on the key line, in
   `?` and the command finder (brackets mean "active" only), and each key has one name on all three.
 - A known row key that does not apply on this row says why in a note instead of doing nothing (`o: sorts
   the Leads view only`, `d: no PDFs built for this Application yet`, `F: only on a Follow-up due
   Application`); an unknown key stays silent. The detail view gives the same notes, from the same
-  table, for the row and view keys it does not run (`x` on an Applied row, `o`, `s`, `l`), and `x` on
-  a Lead or Draft there says `x: dismisses from the list only · m to move`.
+  table, for the row and view keys it does not run (`x` on an Applied row, `s`, `l`).
 - Settings keys never shadow a global key with another meaning: `t` stays the Track filter
   and `r` rescan, so a Source is checked with `c` and a Track renamed with `Enter`.
 - While no Harness is set, `?` and the palette still list `f` and `p` (and `F` on a Follow-up due row),
@@ -204,12 +205,15 @@ Side effects when moving to Applied:
 2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
 
 Moving to Rejected or Withdrawn asks a second, optional question once the move is done: a
-`Why did it end?` pop-up with one field cycling `skip` · `no-response` · `after-screen` ·
-`after-interview` · `salary` · `role-closed` · `other` (`←` `→`; `enter` saves, `esc` or `skip`
-leaves it as it is). The answer is `close_reason` (SCHEMA); free text can be typed into `meta.yml`.
-The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
+`Moved to Rejected · why did it end?` pop-up listing the reasons in words, each with a number key:
+`1` No response · `2` After screen · `3` After interview · `4` Salary · `5` Role closed · `6` Other
+(stored as `no-response` · `after-screen` · `after-interview` · `salary` · `role-closed` · `other`).
+The cursor starts on the first; a number or `enter` saves, `esc skip` writes nothing and asks nothing
+more. The move's toast and its `u undo` come back when the pop-up closes. The answer is `close_reason`
+(SCHEMA); free text can be typed into `meta.yml`, and the screen shows any value in words (hyphens as
+spaces). The Edit form sets or changes it later. The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
 Status travels with the entry that made it, and goes when the Application leaves that Status (the
-undo of the move included). The card's `CLOSED` row shows it.
+undo of the move included). The card's `CLOSED` row shows it in words, with `e edit`.
 
 Undo (`u`): a session stack of `(folder, previous Status)`. Undo appends the previous
 Status (the log stays append-only) and says so on the feedback line (`Undone · back to Applied · Title (Company)`). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`.
@@ -262,7 +266,8 @@ On save:
 
 The same fields as Add, in the same order, plus Resume only (yes/no), Next step (a date,
 `YYYY-MM-DD` with an optional `THH:MM`, under the Closes rules: it must be a real date), What (the next step in
-words), and the first Contact (Contact, Role, Email / URL). A What needs a date, a Role needs a name or
+words), and the first Contact (Contact, Role, Email / URL); on a Rejected or Withdrawn Application, last, Closed
+(the close reason: none or one of the reasons in words, `none` removing `close_reason`). A What needs a date, a Role needs a name or
 address, and a Contact's address is an email or an `https://` link; the form stays open with the reason under the
 field. Clearing the date removes `next_step`. Only the first Contact is edited here; the rest of `contacts` is kept
 as it is, and saving a list drops the legacy `contact` key (its value is read into the list first). Saving patches
@@ -300,22 +305,24 @@ stays Fit from one Lead to the next), otherwise on its first tab. `J` / `K` show
 previous row of the current view without leaving the detail, on the same tab; they stop at
 either end.
 
-| Tab | Shows | `e` |
+| Tab | Shows | `o` |
 |---|---|---|
 | JD | `jd.md` rendered with Glamour, scrollable | `$EDITOR` on `jd.md` |
 | Notes | `notes.md` rendered | `$EDITOR` on `notes.md` |
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
-| Docs | list, under Inputs · not counted: JD and Gaps (`✓ ready` or `○ missing`; the DOCS meter leaves them out); under Documents: Resume and Cover letter (`✓ written` or `○ not written`); under PDFs · out/ each PDF, then `○ Resume PDF  not built yet` for each Document not built, so the tab lists every step the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
+| Docs | list, under Inputs · not counted: JD and Gaps (`✓ ready` or `○ missing`; the DOCS meter leaves them out); under Documents: Resume and Cover letter (`✓ written` or `○ not written`); under PDFs · out/ each PDF, then `○ Resume PDF  not built yet` for each Document not built, so the tab lists every step the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, `o` (or `Enter` on one not written yet) opens `$EDITOR` |
 
-`Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the Harness keys (`f`, `p`, `F`, `b`) work in the
-detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
+`Esc` and `q` go back to the table (the detail's help says `q back`). `m`, `e`, `n`, `x` (on a Lead or Draft), `d`, `u`, `r`, `w`, `c`, `l` and the Harness keys (`f`, `p`, `F`, `b`) work in the
+detail view too; `s` does not, and says so in a note (`s: changes the view from the list only`). The detail's key line is
+`m move · e edit · n notes · J/K next/prev · x dismiss` (`x` on a Lead or Draft), dropping from the right as it narrows.
 
 ### Next step, contacts and exports
 
 Added in 0.7.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
 
-- Next step (`next_step: {at, what}`): shown as `next 4 Oct 10:30 · Phone screen` on Interviewing and Offer
-  rows (amber within 7 days, `▲` within 2, `was …` struck through once past), as a `NEXT STEP` row in the card and
+- Next step (`next_step: {at, what}`): shown as `next 4 Oct 10:30, Phone screen` on Applied, Interviewing and
+  Offer rows, right after the Company so a narrow row cuts the other facts first (`today` and `tomorrow` in
+  words, amber within 7 days, a leading `▲` within 2, `next was …` struck through once past), as a `NEXT STEP` row in the card and
   Overview, and in Stats → Now. Edited with `e`.
 - Contacts (`contacts:`): a `CONTACTS` card row, one line each (`Sam Lee, Recruiter · sam@…`), below the
   timeline. `e` edits the first. The `draft-follow-up` skill addresses the first. The old `contact` key still
@@ -386,11 +393,17 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   screen reader's review cursor work) and the tab bar's sparkline, draws one pane at every
   width (no preview; the detail opens full-screen on `enter`), draws no rules or dividers
   (a line of rules is blank; a section header's trailing rule is spaces), says a Status
-  glyph that stands without its word as the word (`Applied Software Engineer`), and puts
-  the terminal cursor on the selected row (or the pop-up's selection). Its limits: the
-  Profile screen keeps its section list beside the Markdown at 72 columns and up, the
-  filter row keeps its ` │ ` between VIEW and TRACK, pop-up borders stay, and a row that
-  had no spare cells for a Status word loses cells at its right end. Without colour
+  glyph that stands without its word as the word (`Applied Software Engineer`), says the
+  flags and Document marks as words (`follow-up due 9mo`, `missing Resume`, `warning`,
+  `closes soon`, `marked`, `changed`; a ready meter is `2 of 3 ready`), draws Stats' bars
+  as their numbers alone (the Applied / week chart as one count a week), lays out `?` in
+  one column (the key sections one under another, the glyph legend one item to a line),
+  draws every pop-up as a screen of its own without its border (nothing of the frame
+  behind shares its lines), and puts the terminal cursor on the selected row (or the
+  pop-up's selection). Its limits: the Profile screen keeps its section list beside the
+  Markdown at 72 columns and up, the filter row keeps its ` │ ` between VIEW and TRACK,
+  `✓` stays a glyph, and a row that had no spare cells for a word loses cells at its
+  right end. Without colour
   (`NO_COLOR`) a pop-up is set apart by weight and space instead: the frame behind it
   drops its bold, and two cells either side and a row above and below are cleared. Text keeps a 4.5:1 contrast floor on either theme's background, pop-up
   fill and selection bar (coloured words on the bar take the secondary colour), and rules,
@@ -566,7 +579,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   `enter open` (the `.md` opens in the Editor) instead of `p`.
 - Timeline: one track of Status glyphs everywhere: the preview, the detail strip, and
   the detail card, where it flows onto more lines. An empty log reads `Not moved yet · m
-  to move`. Empty tabs say what fills them (`No JD saved · e to open jd.md`); the Fit tab
+  to move`. Empty tabs say what fills them (`No JD saved · o to open jd.md`, `No notes yet · n to write some`); the Fit tab
   is one line, `fit Good · no reasoning saved` (`fit not assessed · …` before one is assessed, with
   `f to assess fit` when a Harness is set).
 - Card (the preview, the detail card and the Overview tab): the title, then `Company ·
@@ -729,7 +742,7 @@ Insights follows, full width.
    Withdrawn, as on the Pipeline screen) and, on its own line, `⊘ Dismissed 3, let go before
    applying`, never counted as Closed. Under it,
    once any closed Application has a `close_reason`, a `Dropped off` line counts them by reason,
-   most first (`no-response 4 · after-screen 2 · no reason 1`).
+   most first, in words (`no response 4 · after screen 2 · no reason 1`).
 2. Response rate (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
    leaving out Applications whose Applied date (an implied one takes the date of the Status
    implying it) is within `follow_up_days`, on the funnel's bar (`36% · 4 of 11`). A line

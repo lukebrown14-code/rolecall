@@ -33,7 +33,7 @@ func rowLines(view string) []string {
 	for _, line := range strings.Split(view, "\n") {
 		pane := strings.TrimRight(listPane(line), " ")
 		trim := strings.TrimLeft(pane, " ▌")
-		if pane == "" || strings.Contains(pane, "⚑1") || strings.Contains(pane, "Drafts ") || strings.Contains(pane, "✎2 ") || len(pane)-len(trim) > 5 || len(pane)-len(trim) < 2 {
+		if pane == "" || strings.Contains(pane, "⚑1") || strings.Contains(pane, "Drafts ") || strings.Contains(pane, "✎2 ") || len(pane)-len(trim) > 6 || len(pane)-len(trim) < 2 {
 			continue
 		}
 		for _, g := range []string{"●", "◆", "★", "✕", "↩", "◌", "✎", "⊘"} {

@@ -103,8 +103,8 @@ A Harness is optional. Without one, rolecall is a tracker you fill in yourself:
 - Press `a` to add a Lead (Title and Company required). The first Lead asks for a Track, a kind
   of role such as Nursing or Marketing. Paste the job ad into `jd.md` or add a URL.
 - Move Applications with `m`. Moving to Rejected or Withdrawn asks why (optional).
-- `e` also sets a next step (date and what it is) and a contact. Next steps show on Interviewing
-  and Offer rows and in Stats.
+- `e` also sets a next step (date and what it is) and a contact. Next steps show on Applied,
+  Interviewing and Offer rows and in Stats.
 - On Drafts (`2`), `→` shows Deadlines: open Leads and Drafts by closing date.
 - An Application with no news for 14 days (set in Settings) shows `⚑` Follow-up due. Press `l`
   once you have followed up.

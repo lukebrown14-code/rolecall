@@ -387,7 +387,8 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 		// Where closed Applications ended, by the reason the Owner gave when they moved it.
 		parts := make([]string, 0, len(r.DropOff)+1)
 		for _, d := range r.DropOff {
-			parts = append(parts, fmt.Sprintf("%s %d", d.Reason, d.Count))
+			// In words, lower case mid-line: "no response 2 · salary 1 · no reason 1".
+			parts = append(parts, fmt.Sprintf("%s %d", strings.ToLower(closeReasonLabel(d.Reason)), d.Count))
 		}
 		if r.Unrecorded > 0 {
 			parts = append(parts, fmt.Sprintf("no reason %d", r.Unrecorded))
@@ -474,7 +475,16 @@ func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
 		peak = max(peak, week.Count)
 	}
 	first, last := r.Weeks[0], r.Weeks[len(r.Weeks)-1]
-	chartW := len(r.Weeks) * statsWeekCells
+	chart := sparkline(p, r.Weeks, statsWeekCells, p.Info)
+	if plainMode() {
+		// A screen reader reads the weeks' counts, not bar heights.
+		counts := make([]string, len(r.Weeks))
+		for i, week := range r.Weeks {
+			counts[i] = fmt.Sprint(week.Count)
+		}
+		chart = p.Text(p.Fg).Render(strings.Join(counts, " "))
+	}
+	chartW := xansi.StringWidth(chart)
 	from, to := first.Start.Format("2 Jan"), last.Start.Format("2 Jan")
 	dates := p.Text(p.Dim).Render(padRight(from, max(len(from)+1, chartW-len(to))) + to)
 	phrases := []string{
@@ -491,7 +501,7 @@ func statsWeekly(p pal, r reporting.StatsReport, w int) []string {
 			break
 		}
 	}
-	rows := []string{sparkline(p, r.Weeks, statsWeekCells, p.Info), dates}
+	rows := []string{chart, dates}
 	switch {
 	case len(beside) <= len(rows):
 		for i, b := range beside {
@@ -546,8 +556,12 @@ func (m model) statsTracks(p pal, r reporting.StatsReport, w int) (lines, note [
 
 // statsBar is the one bar Stats draws: count of most as a solid run in colour c on a
 // faint track, statsBarWidth cells in all ("████░░░░"). A non-zero count fills at least
-// one cell, so "some" never reads as none; an empty one is the bare track.
+// one cell, so "some" never reads as none; an empty one is the bare track. ROLECALL_PLAIN
+// draws no bar: the count beside it says the same, without a run of blocks read aloud.
 func statsBar(p pal, c color.Color, count, most int) string {
+	if plainMode() {
+		return ""
+	}
 	n := 0
 	if count > 0 && most > 0 {
 		n = min(statsBarWidth, max(1, int(math.Round(float64(count)*statsBarWidth/float64(most)))))
