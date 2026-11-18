@@ -88,3 +88,42 @@ def test_new_job_fetch_only_fails_in_one_clean_line(url):
     assert "Traceback" not in result.stderr
     assert result.stdout == ""
     assert f"Could not fetch {url} -- not a web address" in result.stderr
+
+
+class _FakeResponse:
+    """A urlopen response whose server declares ``content_type``; no socket involved."""
+
+    def __init__(self, body, content_type):
+        import email.message
+
+        self._body = body
+        self.headers = email.message.Message()
+        self.headers["Content-Type"] = content_type
+
+    def read(self, size=-1):
+        chunk, self._body = self._body[:size], self._body[size:]
+        return chunk
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.mark.parametrize("charset", ["x-bogus", "utf-8\x00"])
+def test_fetch_falls_back_to_utf8_for_an_unknown_charset(charset, monkeypatch):
+    body = "<h1>Café data role</h1>".encode()
+    monkeypatch.setattr(
+        httpfetch.urllib.request, "urlopen",
+        lambda *a, **k: _FakeResponse(body, f"text/html; charset={charset}"),
+    )
+    assert httpfetch.fetch("https://jobs.example/ad") == "<h1>Café data role</h1>"
+
+
+def test_fetch_still_honours_a_known_charset(monkeypatch):
+    monkeypatch.setattr(
+        httpfetch.urllib.request, "urlopen",
+        lambda *a, **k: _FakeResponse("Café".encode("latin-1"), "text/html; charset=latin-1"),
+    )
+    assert httpfetch.fetch("https://jobs.example/ad") == "Café"

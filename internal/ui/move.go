@@ -36,10 +36,13 @@ func MoveOptions(from, previous string) []string {
 // Status the move left it at (an undo is refused once it is elsewhere), and
 // whether the move created sent/, which the undo then sets aside. filterReason and
 // filterNote are the Search rule a restore overruled, which the undo puts back.
+// closeReason is the close_reason a Rejected or Withdrawn Application had before the
+// move (a reopen removes it), which the undo puts back too.
 type undoMove struct {
 	folder, status, target   string
 	sent                     bool
 	filterReason, filterNote string
+	closeReason              string
 	// followUp marks a recorded follow-up (l), not a move: the undo puts back followedUp,
 	// the followed_up day it replaced ("" removes the key).
 	followUp   bool
@@ -111,6 +114,9 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: madeSent}
 	if a.Filtered() && status != store.StatusDismissed {
 		u.filterReason, u.filterNote = a.FilterReason, a.FilterNote
+	}
+	if endedStatus(a.Status) {
+		u.closeReason = a.CloseReason
 	}
 	m.undo = append(m.undo, u)
 	m.toast, m.toastHint, m.movedTo = where+" · "+name, undoHint, status
@@ -287,6 +293,13 @@ func (m *model) undoLast() tea.Cmd {
 	m.undo = m.undo[:len(m.undo)-1]
 	if last.filterReason != "" {
 		if err := m.store.SetFilter(a.Folder, last.filterReason, last.filterNote); err != nil {
+			m.err = err
+			return cmd
+		}
+		m.reload(m.cursorFolder())
+	}
+	if last.closeReason != "" {
+		if err := m.store.SetCloseReason(a.Folder, last.closeReason); err != nil {
 			m.err = err
 			return cmd
 		}

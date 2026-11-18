@@ -220,7 +220,8 @@ more. The move's toast and its `u undo` come back when the pop-up closes. The an
 (SCHEMA); free text can be typed into `meta.yml`, and the screen shows any value in words (hyphens as
 spaces). The Edit form sets or changes it later. The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
 Status travels with the entry that made it, and goes when the Application leaves that Status (the
-undo of the move included). The card's `CLOSED` row shows it in words, with `e edit`.
+undo of the move included); `u` after a move out of Rejected or Withdrawn puts the reason back with the
+Status. The card's `CLOSED` row shows it in words, with `e edit`.
 
 Undo (`u`): a session stack of `(folder, previous Status)`. Undo appends the previous
 Status (the log stays append-only) and says so on the feedback line (`Undone · back to Draft · on Drafts · Title (Company)`, where it is now in screen and view terms, with `i go to it` when that is somewhere else). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`; the toast says only `its sent copy set aside`, never a folder or file name. The stack lasts for the session (the help says `u undo (this session)`): nothing is undoable after a restart.

@@ -109,8 +109,9 @@ func checkRemote(root string, lookup VisibilityLookup) ([]string, error) {
 		return nil, fmt.Errorf("read Workspace git remotes: %w", err)
 	}
 	var warnings []string
-	for _, remoteURL := range urls {
-		owner, repo, github := parseGitHubRemote(remoteURL)
+	for _, rawURL := range urls {
+		owner, repo, github := parseGitHubRemote(rawURL)
+		remoteURL := redactRemote(rawURL)
 		if !github {
 			warnings = append(warnings, fmt.Sprintf("git remote %s: visibility unknown (not a GitHub remote)", remoteURL))
 			continue
@@ -129,6 +130,45 @@ func checkRemote(root string, lookup VisibilityLookup) ([]string, error) {
 		}
 	}
 	return warnings, nil
+}
+
+// redactRemote is remote as doctor may print it: any credentials git would send are
+// replaced with ***, because doctor output is what a bug report asks the Owner to paste
+// (ADR-0005). An ssh username alone is not a secret and stays; in an http(s) URL even a
+// lone username can be a token, so the whole userinfo goes. The rest of the URL is
+// kept as written, so the Owner still recognises the remote.
+func redactRemote(remote string) string {
+	if scheme, rest, ok := strings.Cut(remote, "://"); ok {
+		end := strings.IndexAny(rest, "/?#")
+		if end < 0 {
+			end = len(rest)
+		}
+		at := strings.LastIndex(rest[:end], "@")
+		if at < 0 || isSSHUser(scheme, rest[:at]) {
+			return remote
+		}
+		return scheme + "://***@" + rest[at+1:]
+	}
+	// scp-like user@host:path. ssh takes no password here, but a "user:secret@" prefix
+	// is still redacted rather than trusted to be harmless.
+	end := strings.Index(remote, "/")
+	if end < 0 {
+		end = len(remote)
+	}
+	at := strings.LastIndex(remote[:end], "@")
+	if at < 0 || !strings.Contains(remote[:at], ":") {
+		return remote
+	}
+	return "***@" + remote[at+1:]
+}
+
+// isSSHUser reports whether userinfo is a bare ssh login name, which carries no secret.
+func isSSHUser(scheme, userinfo string) bool {
+	switch strings.ToLower(scheme) {
+	case "ssh", "git+ssh", "ssh+git":
+		return !strings.Contains(userinfo, ":")
+	}
+	return false
 }
 
 func remoteURLs(configPath string) ([]string, error) {
