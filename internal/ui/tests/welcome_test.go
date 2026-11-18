@@ -25,8 +25,8 @@ func contactOnly(t *testing.T) string {
 func TestWelcomeListsSetupStepsNotDone(t *testing.T) {
 	d := newDriver(t, contactOnly(t), fixtureClock, 120, 36, ui.WithEditorSource("default"))
 	v := d.plain()
-	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "e  pick an Editor",
-		"h  connect a Harness", "5  set up your Profile: fill in your Contact, then write the rest in your Editor", "?  see every key"} {
+	for _, want := range []string{"▞ rolecall · no Applications yet", "a  add your first Lead", "6  pick an Editor in Settings",
+		"h  connect a Harness, the AI coding tool you already use", "5  set up your Profile: fill in your Contact, then write the rest in your Editor", "?  see every key"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("welcome lacks %q:\n%s", want, v)
 		}
@@ -46,10 +46,10 @@ func TestWelcomeListsSetupStepsNotDone(t *testing.T) {
 	}
 }
 
-// e and h open Settings › This machine on the Editor and Harness rows: Enter there edits
+// 6 and h open Settings › This machine on the Editor and Harness rows: Enter there edits
 // that very setting. Esc goes back to the welcome.
 func TestWelcomeKeysLandOnTheirSettingsRow(t *testing.T) {
-	for key, label := range map[string]string{"e": "Editor", "h": "Harness"} {
+	for key, label := range map[string]string{"6": "Editor", "h": "Harness"} {
 		t.Run(key, func(t *testing.T) {
 			d := newDriver(t, contactOnly(t), fixtureClock, 120, 36, ui.WithEditorSource("default"), ui.WithConfigHome(t.TempDir()))
 			d.Type(key)

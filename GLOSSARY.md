@@ -23,6 +23,33 @@ _Avoid_: text editor, IDE
 A kind of role the Owner is pursuing (e.g. SWE, Platform). Every Application belongs to one, and a Sweep searches each one.
 _Avoid_: category, stream, career path
 
+### Screens
+
+**Leads** (`1`):
+The screen of Leads, with views for Dismissed and Filtered Applications.
+
+**Drafts** (`2`):
+The screen of Drafts, with a Deadlines view.
+
+**Pipeline** (`3`):
+The screen of sent Applications: views All, Applied, Interviewing, Offer and Closed. The screen is Pipeline so that Applied names only the Status: "Pipeline › Applied" is the Applied view.
+_Avoid_: Applied (for the screen)
+
+**Stats** (`4`), **Profile** (`5`), **Settings** (`6`):
+The report on every Application, the Owner's fact set, and the Owner's preferences.
+
+### Status groups
+
+**Closed**:
+Rejected plus Withdrawn: a sent Application that ended. The Pipeline screen's Closed view and Stats count the same two Statuses. Dismissed is never Closed.
+_Avoid_: ended, over (for these)
+
+**Active**:
+Every readable Application that is not Closed, Dismissed or Filtered. The tab bar's readiness share counts active Applications only.
+
+**Ever reached / currently at**:
+How a count reads a Status. The Stats funnel counts the Applications that ever reached a Status ("Ever reached each Status"); a tab or view counts the Applications at it now. So a funnel rung is never below its tab.
+
 ### Profile
 
 **Profile**:
@@ -123,20 +150,31 @@ The verdict on how well an Application matches the Profile: Strong, Good, Margin
 _Avoid_: score, match
 
 **Resume**:
-The resume tailored for one Application, written from the Profile. It is one of the Application's documents, beside the cover letter.
+The resume tailored for one Application, written from the Profile. It is one of the Application's two Documents, beside the Cover letter.
 The Owner's general, untailored resume is a CV, not a Resume.
+
+**Cover letter**:
+The letter tailored for one Application, written from the Profile: its second Document, not needed when the Application is Resume only.
+_Avoid_: letter, cover (for these)
 
 **CV**:
 A resume written from the Profile for no Application: the Owner's everyday one (`cv/general.md`) or another kept in `cv/`, such as a long master version. It is built and downloaded from the Profile screen, has no Status and is never one of an Application's documents.
 _Avoid_: general resume, master resume (as names for the file)
 
 **Document**:
-One of an Application's JD, Resume, Cover letter, Gaps and PDF, always called by that name. A document is ready (its file has text; the PDF once the build has made every PDF the Application needs) or missing; an empty file is missing. Its file name (resume.md) shows only where it is opened, muted.
-_Avoid_: letter, cover, present, absent, written, empty (as a document's state) (for these)
+The Resume or the Cover letter of one Application, always called by that name. Each is Written, then Built: the Resume and, unless the Application is Resume only, the Cover letter, so four steps or two. The DOCS meter, the Docs tab and Draft rows all count that one set ("○ 2/4 ready"). Its file name (resume.md) shows only where it is opened, muted.
+_Avoid_: letter, cover, present, absent, empty (as a Document's state) (for these)
+
+**Input**:
+A file a Document is written from that is never counted as one: the JD (`jd.md`, the ad's text) and Gaps (`gaps.md`, what the Profile lacks for the role). Each has its own tab and is ready (it has text) or missing; the Docs tab lists them under Inputs, not counted.
+_Avoid_: document (for these)
 
 **Written**:
-The documents have text in them; the build has not produced the required PDFs yet. It does not mean a PDF exists. The TUI does not show the word: it counts ready documents instead, "○ 2/4 ready".
+A Document's first step: its file has text. It does not mean a PDF exists; an empty file is not written.
 _Avoid_: done
+
+**Built**:
+A Document's second step: its PDF is in `out/`, drawn as "✓ PDF" beside the Document's name ("✓ Resume ○ PDF"). Every needed Document Built is Ready.
 
 **Template**:
 The design every document is built with. The Plugin ships a default; a Workspace can override it with its own.
@@ -147,7 +185,7 @@ The Plugin's script that turns an Application's documents into PDFs. The verb is
 _Avoid_: compile, render
 
 **Ready**:
-The documents can be sent: the resume PDF exists, and the cover letter PDF too unless the Application is deliberately Resume only.
+The Documents can be sent: the Resume is Built, and the Cover letter too unless the Application is deliberately Resume only (ADR-0004). The list says "✓ ready"; until then it counts the Document steps done, "○ 2/4 ready".
 _Avoid_: Stage (retired: Prepared, Assessed, Written, Ready as one pipeline)
 
 **Resume only**:
@@ -156,7 +194,7 @@ An Application sent without a cover letter, by choice. It is Ready with the resu
 ### Agent work
 
 **Harness**:
-The AI coding tool the Owner already uses (Claude Code, Codex, Gemini CLI, opencode…). It does all AI work using the Owner's own credentials and model.
+The AI coding tool the Owner already uses (Claude Code, Codex, Gemini CLI, opencode…). It does all AI work using the Owner's own credentials and model. First-run copy explains it in those words: "connect a Harness, the AI coding tool you already use".
 _Avoid_: provider (for the harness), AI connection
 
 **Handoff**:

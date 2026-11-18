@@ -25,7 +25,7 @@ func TestFilteredNavigationKeepsScreenNames(t *testing.T) {
 				if keys[0] == "t" && !strings.Contains(view, "[SWE") && !strings.Contains(view, "t:SWE") {
 					t.Errorf("missing track context: %s", view)
 				}
-				if i := strings.Index(line, "3 Applied "); i < 0 || !strings.Contains(line[i:], " of 9") {
+				if i := strings.Index(line, "3 Pipeline "); i < 0 || !strings.Contains(line[i:], " of 9") {
 					t.Errorf("active tab lost its name or count: %s", line)
 				}
 				for _, digit := range []string{"1", "2", "4", "5", "6"} {

@@ -84,6 +84,11 @@ Worked out from files, never stored:
 | **Written** | not Ready, and `resume.md` has non-whitespace text |
 | *(none)* | otherwise |
 
+The Documents are the Resume and, unless `resume_only: true`, the Cover letter (GLOSSARY →
+Document). Each has two steps the TUI counts, "○ 2/4 ready": Written (`resume.md` /
+`cover-letter.md` has non-whitespace text) and Built (its PDF is in `out/`). Every needed
+Document Built is Ready. `jd.md` and `gaps.md` are inputs and never counted.
+
 PDF names come from `build.py`: `<Owner name> Resume <label>.pdf` and
 `<Owner name> <label> Cover Letter.pdf`. To classify a file, readers match `Resume` /
 `Cover Letter` in the name.

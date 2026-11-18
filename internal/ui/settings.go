@@ -635,7 +635,7 @@ func (m model) settingsRows(group int) []settingRow {
 }
 
 // trackBreakdown explains each Track's count so the numbers add up: how many of its
-// Applications are active, how many closed (Rejected or Withdrawn, as the Applied screen's
+// Applications are active, how many closed (Rejected or Withdrawn, as the Pipeline screen's
 // Closed view holds) and how many dismissed.
 func (m model) trackBreakdown(st settingsState) map[string]string {
 	closed, dismissed := map[string]int{}, map[string]int{}

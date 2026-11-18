@@ -54,6 +54,7 @@
     "PDFs": [
       "Owner Resume Role.pdf"
     ],
+    "ResumeBuilt": true,
     "Documents": "Written",
     "Schema": 1,
     "StatusLog": [
@@ -84,6 +85,8 @@
       "Owner Resume Role.pdf",
       "Owner Role Cover Letter.pdf"
     ],
+    "ResumeBuilt": true,
+    "CoverLetterBuilt": true,
     "Documents": "Ready",
     "Schema": 1,
     "StatusLog": [
@@ -113,6 +116,7 @@
     "PDFs": [
       "Owner Resume Role.pdf"
     ],
+    "ResumeBuilt": true,
     "Documents": "Ready",
     "Schema": 1,
     "StatusLog": [

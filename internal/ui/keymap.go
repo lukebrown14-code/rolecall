@@ -262,7 +262,7 @@ var listActions = []listAction{
 		},
 	},
 	{
-		keys: []string{"n"}, keyLabel: "n", desc: text("notes"),
+		keys: []string{"n"}, keyLabel: "n", desc: text(descNotes),
 		group: groupAction,
 		prio: func(m model) int {
 			if m.detail != nil {

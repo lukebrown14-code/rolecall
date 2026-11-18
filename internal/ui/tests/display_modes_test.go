@@ -12,15 +12,15 @@ import (
 // (NO_COLOR, ROLECALL_PLAIN, the light theme) from the design review.
 
 // One rule sheds the tab bar by width: other screens' counts, then the gap between tabs,
-// then other screens' names. From 60 columns every screen stays named; the active chip never
+// then other screens' names. From 61 columns every screen stays named; the active chip never
 // touches the tab before it.
-func TestNarrowTabBarKeepsNamesFrom60Columns(t *testing.T) {
+func TestNarrowTabBarKeepsNamesFrom61Columns(t *testing.T) {
 	for screen, want := range map[string]string{
-		"4": "1 Leads 2 Drafts 3 Applied [4 Stats] 5 Profile 6 Settings",
-		"5": "1 Leads 2 Drafts 3 Applied 4 Stats [5 Profile] 6 Settings",
-		"6": "1 Leads 2 Drafts 3 Applied 4 Stats 5 Profile [6 Settings]",
+		"4": "1 Leads 2 Drafts 3 Pipeline [4 Stats] 5 Profile 6 Settings",
+		"5": "1 Leads 2 Drafts 3 Pipeline 4 Stats [5 Profile] 6 Settings",
+		"6": "1 Leads 2 Drafts 3 Pipeline 4 Stats 5 Profile [6 Settings]",
 	} {
-		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 60, 24, screen)), "\n")[0])
+		bar := strings.TrimSpace(strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 61, 24, screen)), "\n")[0])
 		if bar != want {
 			t.Errorf("screen %s: tab bar %q, want %q", screen, bar, want)
 		}
@@ -43,7 +43,7 @@ func TestTabBarDetailDoesNotDependOnTheScreen(t *testing.T) {
 			bar := chipped(runKeysSized(t, fixtureCopy(t, nil), w, 24, screen))
 			bar = strings.Split(bar, "\n")[0]
 			n := 0
-			for _, name := range []string{"Leads", "Drafts", "Applied", "Stats", "Profile", "Settings"} {
+			for _, name := range []string{"Leads", "Drafts", "Pipeline", "Stats", "Profile", "Settings"} {
 				if strings.Contains(bar, name) {
 					n++
 				}
@@ -112,7 +112,7 @@ func TestStatsUsesTheWidth(t *testing.T) {
 	if !strings.Contains(lineWith(view, "FUNNEL"), "APPLIED / WEEK") {
 		t.Errorf("wide Stats does not set the weekly chart beside the funnel:\n%s", view)
 	}
-	if now := lineWith(view, "NOW"); !strings.Contains(now, "follow-up") || !strings.Contains(now, "→ 3 Applied") {
+	if now := lineWith(view, "NOW"); !strings.Contains(now, "follow-up") || !strings.Contains(now, "→ 3 Pipeline") {
 		t.Errorf("NOW = %q, want the follow-ups due and the key to them", now)
 	}
 	if !strings.Contains(view, "INSIGHTS") || strings.Contains(view, "COMMON GAPS") {

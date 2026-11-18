@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The Applied screen opens on All: every Application past Draft, one section per table.
+// The Pipeline screen opens on All: every Application past Draft, one section per table.
 func TestAllViewGroupsApplicationsByTable(t *testing.T) {
 	view := chipped(finalView(t, "3"))
 	var at []int

@@ -66,16 +66,21 @@ and never sends. Once you have sent it, `l` records that you followed up today
 (`followed_up: YYYY-MM-DD` in `meta.yml`): the `⚑` clears and comes back `follow_up_days` after
 that day, and `u` takes it back. A Status change restarts the count too.
 
+**Documents** are the Resume and the Cover letter (no Cover letter when the Application is
+Resume only), each written (`resume.md` has text) then built (its PDF in `out/`). The DOCS
+meter and a Draft row's `○ 2/4 ready` count those steps; Ready means every needed PDF is built.
+The JD and Gaps are inputs on their own tabs and are not counted.
+
 ## Screens and keys
 
 | Key | Does |
 | --- | --- |
-| `1`–`6` | Leads (and Dismissed, Filtered), Drafts (and Deadlines: `s` on Drafts), Applied (Interviewing, Offer, Closed), Stats, Profile, Settings |
+| `1`–`6` | Leads (and Dismissed, Filtered), Drafts (and Deadlines: `s` on Drafts), Pipeline (Applied, Interviewing, Offer, Closed: Rejected and Withdrawn), Stats, Profile, Settings |
 | `←`/`→` or `s` · `j`/`k` | change view within a screen (`Tab` is an unlisted alias of `→`, except on Profile where it switches pane) · move between rows |
 | `Enter` / `v` | open the Application's details |
 | `a` · `e` · `m` · `x` | add · edit · move to another Status · dismiss |
 | `*` | mark or unmark the row; with rows marked, `x` and `m` act on all of them (`Esc` clears) |
-| `n` | the Application's notes |
+| `n` | notes: the Application's `notes.md` |
 | `f` · `p` | Handoff to the Harness: assess-fit (any row) · prepare-documents (Lead or Draft) |
 | `F` · `l` | on a Follow-up due row, Handoff to draft-follow-up · record that you followed up today (Applied, Interviewing) |
 | `r` | re-read the Workspace |

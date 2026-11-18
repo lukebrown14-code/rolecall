@@ -29,38 +29,42 @@ func TestRowsCarryNoMeter(t *testing.T) {
 	}
 }
 
-// The detail lists each Document with ✓ ready or ○ missing, and a meter with the count.
+// The detail lists each Document, the Resume and the Cover letter, with its two steps
+// marked ✓ done or ○ still to do, and a meter with the count. The JD is an input and is
+// not on the DOCS line.
 func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 	root := fixtureCopy(t, nil)
 	view := chipped(runKeysSized(t, root, 120, 36, "3", "/docs-written", "enter"))
-	for _, want := range []string{"○ JD", "✓ Resume", "✓ Cover letter", "○ PDF", "■■□□ 2/4 ready"} {
+	for _, want := range []string{"✓ Resume ○ PDF   ✓ Cover letter ○ PDF", "■■□□ 2/4 ready"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}
 	}
+	if strings.Contains(lineAfter(view, "DOCS"), "JD") {
+		t.Errorf("the DOCS line counts the JD:\n%s", view)
+	}
 }
 
-// ASCII mode draws the meter as # and :, and keeps the ready/missing marks apart.
+// ASCII mode draws the meter as # and :, and keeps the done/to-do marks apart.
 func TestMeterFoldsToASCII(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
-	if !strings.Contains(view, "##::") || !strings.Contains(view, "_ JD") || !strings.Contains(view, "+ Resume") {
+	if !strings.Contains(view, "##::") || !strings.Contains(view, "+ Resume _ PDF") {
 		t.Errorf("no ASCII meter:\n%s", view)
 	}
 }
 
-// The TUI says "ready" and "missing" for a Document, never present, written or empty.
-func TestDocumentWordingIsReadyOrMissing(t *testing.T) {
-	banned := regexp.MustCompile(`\b(present|written|empty)\b`)
+// The TUI words a Document's state as done or still to do, never present or empty.
+func TestDocumentWordingIsWrittenThenBuilt(t *testing.T) {
+	banned := regexp.MustCompile(`\b(present|empty)\b`)
 	for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"3", "/docs-written", "enter"}, {"3", "/docs-ready", "enter"}, {"2", "enter"}, {"?"}} {
 		view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, keys...))
 		for _, line := range strings.Split(view, "\n") {
-			// The fixture's docs-written folder names a row; the card can share its line.
-			low := strings.ReplaceAll(strings.ToLower(line), "docs-written", "")
+			low := strings.ToLower(line)
 			if !strings.Contains(low, "pdf") && !strings.Contains(low, "resume") && !strings.Contains(low, " jd") && !strings.Contains(low, "cover letter") {
 				continue
 			}
-			if m := banned.FindString(low); m != "" && !strings.Contains(low, "agent writing") {
+			if m := banned.FindString(low); m != "" {
 				t.Errorf("keys %q: Document state worded %q: %q", keys, m, line)
 			}
 		}

@@ -32,11 +32,11 @@ func detailPane(t *testing.T, screen, name string, w, h int, edit func(string)) 
 }
 
 // The pane leads with the Status, its age and the Fit on one line, then the next step and
-// labelled sections that each end in at most one bare key: "NEXT … n note", "DOCS … p
-// prepare docs", "NOTES … n add". A key the next step offers shows on NEXT alone.
+// labelled sections that each end in at most one bare key: "NEXT … n notes", "DOCS … p
+// prepare docs", "NOTES … n notes". A key the next step offers shows on NEXT alone.
 func TestDetailPaneSectionsEndInOneKey(t *testing.T) {
 	view := detailPane(t, "3", "docs-written", 120, 36, nil)
-	for _, want := range []string{"◆ Interviewing · ~7d", "fit not assessed", "DOCS", "NEXT", "TIMELINE", "NOTES", "n note"} {
+	for _, want := range []string{"◆ Interviewing · ~7d", "fit not assessed", "DOCS", "NEXT", "TIMELINE", "NOTES", "n notes"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("detail lacks %q:\n%s", want, view)
 		}
@@ -142,7 +142,7 @@ func TestDetailMissingDocumentsShowFixingKeys(t *testing.T) {
 	if strings.Contains(view, "p prepare docs") {
 		t.Errorf("an Interviewing Application is offered prepare docs:\n%s", view)
 	}
-	if docs := lineWith(view, "○ PDF"); !strings.Contains(docs, "JD   ✓ Resume   ✓ Cover letter") {
+	if docs := lineWith(view, "✓ Resume ○ PDF"); !strings.Contains(docs, "✓ Resume ○ PDF   ✓ Cover letter ○ PDF") {
 		t.Errorf("the Documents are not side by side on one line: %q:\n%s", docs, view)
 	}
 }

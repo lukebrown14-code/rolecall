@@ -70,14 +70,14 @@ opens the command palette and `?` shows full help for the current screen.
 
 | Key | Action |
 | --- | --- |
-| `1` to `6` | Leads, Drafts, Applied (through Closed), Stats, Profile, Settings (also `,`) |
+| `1` to `6` | Leads, Drafts, Pipeline (Applied through Closed), Stats, Profile, Settings (also `,`) |
 | `a` | Add an Application |
 | `v` / `Enter` | Open the selected Application's details |
 | `m` | Move to another Status |
 | `x` | Dismiss a Lead or Draft |
 | `*` | Mark rows so `x` and `m` act on all of them |
 | `u` | Undo the last move or recorded follow-up |
-| `e` / `n` | Edit the row or current document / open notes |
+| `e` / `n` | Edit (the row's details, or the file on the current tab) / notes |
 | `l` | Record that you followed up today |
 | `f` / `p` / `F` | Ask the Harness to assess fit, prepare documents, or draft a follow-up |
 | `b` / `d` | Build PDFs / copy them to your Downloads folder |
@@ -108,7 +108,9 @@ A Harness is optional. Without one, rolecall is a tracker you fill in yourself:
 - On Drafts (`2`), `→` shows Deadlines: open Leads and Drafts by closing date.
 - An Application with no news for 14 days (set in Settings) shows `⚑` Follow-up due. Press `l`
   once you have followed up.
-- Stats (`4`) shows your funnel, Response rate and applications per week.
+- Stats (`4`) shows your funnel (how many ever reached each Status; the tabs count where they
+  are now), Response rate and applications per week. Closed means Rejected or Withdrawn;
+  Dismissed is counted on its own.
 - Write your Profile by hand in `profile/master-profile.md`, which `init` creates with a how-to
   under each heading. On Profile (`5`), `c` edits your Contact and `e` the rest.
 - To build PDFs, install the Plugin with `typst`, `pandoc` and `python3` on your `PATH`. Write

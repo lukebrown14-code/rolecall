@@ -306,7 +306,7 @@ func statsCaption(p pal, label, text string, w int) []string {
 var statsIndent = strings.Repeat(" ", statsLabelWidth)
 
 // statsNow is what wants doing today, each count with the key that goes there: the
-// Follow-up due Applications (3 Applied) and the Leads and Drafts closing within soonDays
+// Follow-up due Applications (3 Pipeline) and the Leads and Drafts closing within soonDays
 // (2 Drafts, whose Deadlines view lists them). Nothing due draws nothing.
 func (m model) statsNow(p pal, w int) []string {
 	due := NowFor(m.statsApps(), m.now(), m.followUpDays, soonDays)
@@ -315,10 +315,10 @@ func (m model) statsNow(p pal, w int) []string {
 	}
 	var phrases []string
 	if n := len(due.FollowUps); n > 0 {
-		phrases = append(phrases, goes(plural(n, "follow-up due", "follow-ups due"), "3", screenApplied))
+		phrases = append(phrases, goes(plural(n, "follow-up due", "follow-ups due"), "3", screenPipeline))
 	}
 	if n := len(due.NextSteps); n > 0 {
-		phrases = append(phrases, goes(fmt.Sprintf("%s within %d days", plural(n, "next step", "next steps"), soonDays), "3", screenApplied))
+		phrases = append(phrases, goes(fmt.Sprintf("%s within %d days", plural(n, "next step", "next steps"), soonDays), "3", screenPipeline))
 	}
 	if n := len(due.Closing); n > 0 {
 		phrases = append(phrases, goes(fmt.Sprintf("%d closing within %d days", n, soonDays), "2", tableDeadlines))
@@ -338,16 +338,20 @@ func (m model) statsNow(p pal, w int) []string {
 // right-aligned, and beside each rung after the first how it relates to the previous rung
 // (see funnelNote). Lead and Draft are optional starts, so where a rung holds
 // Applications that skipped the one before, a caption says a bar can outgrow the one
-// above. Then the closed Statuses, muted.
+// above. Then Closed (Rejected and Withdrawn) and, on its own line, Dismissed, muted.
+// funnelCaption says what the funnel counts: every Application that ever reached a
+// Status, where the tab counts are the ones at it now.
+const funnelCaption = "Ever reached each Status; tabs count where they are now"
+
 func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
-	caption := "Applications that ever reached each Status"
+	caption := funnelCaption
 	most, notes := 0, make([]string, len(r.Funnel))
 	for i, step := range r.Funnel {
 		most = max(most, step.Count)
 		if i > 0 {
 			notes[i] = funnelNote(step, r.Funnel[i-1].Status, i == 1)
 			if step.Skipped > 0 {
-				caption = "Applications that ever reached each Status. They can start at any Status, so a bar can outgrow the one above"
+				caption = funnelCaption + ". Any Status can be a start, so a bar can outgrow the one above"
 			}
 		}
 	}
@@ -370,13 +374,15 @@ func (m model) statsFunnel(p pal, r reporting.StatsReport, w int) []string {
 		}
 		lines = append(append(lines, xansi.Truncate(line, w, "…")), under...)
 	}
-	// Closed is Rejected and Withdrawn, as the Applied screen's Closed view is; Dismissed
-	// (a Lead let go before applying) stands apart from them.
+	// Closed is Rejected and Withdrawn, as the Pipeline screen's Closed view is; Dismissed
+	// (an Application let go before it was sent) is never Closed, so it has its own line.
 	mark := func(status string, n int) string { return fmt.Sprintf("%s %s %d", p.StatusGlyph(status), status, n) }
-	closed := "closed  " + mark(store.StatusRejected, r.Rejected) + " · " + mark(store.StatusWithdrawn, r.Withdrawn)
-	for _, l := range strings.Split(keepTogether(w, "   ", closed, mark(store.StatusDismissed, r.Dismissed)), "\n") {
+	closed := fmt.Sprintf("Closed %d: ", r.Rejected+r.Withdrawn)
+	dismissed := mark(store.StatusDismissed, r.Dismissed) + ", let go before applying"
+	for _, l := range strings.Split(keepTogether(w, " · ", closed+mark(store.StatusRejected, r.Rejected), mark(store.StatusWithdrawn, r.Withdrawn)), "\n") {
 		lines = append(lines, p.Text(p.Dim).Render(l))
 	}
+	lines = append(lines, p.Text(p.Dim).Render(xansi.Truncate(dismissed, w, "…")))
 	if len(r.DropOff) > 0 {
 		// Where closed Applications ended, by the reason the Owner gave when they moved it.
 		parts := make([]string, 0, len(r.DropOff)+1)

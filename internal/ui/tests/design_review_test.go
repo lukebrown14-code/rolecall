@@ -19,11 +19,11 @@ func TestRowMovedTodayKeepsItsStage(t *testing.T) {
 	}
 }
 
-// A status filter named like its screen still shows in the breadcrumb: Applied › Applied
-// is filtered, Applied › All is not.
+// A status filter named like its screen still shows in the breadcrumb: Pipeline › Applied
+// is filtered, Pipeline › All is not.
 func TestBreadcrumbShowsAStatusFilterNamedLikeItsScreen(t *testing.T) {
 	view := chipped(runKeys(t, fixtureCopy(t, nil), 120, "3", "s"))
-	if !strings.Contains(view, "Applied › Applied · All tracks") {
+	if !strings.Contains(view, "Pipeline › Applied · All tracks") {
 		t.Errorf("breadcrumb drops the Applied filter:\n%s", view)
 	}
 }

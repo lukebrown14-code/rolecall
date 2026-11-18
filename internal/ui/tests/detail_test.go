@@ -276,7 +276,7 @@ func TestDetailDocsEnterOpensPDFInSystemViewer(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("jjjj") // JD, Resume, Cover letter, Gaps → the built Resume PDF
+	h.tm.Type("jjjj") // JD, Gaps, Resume, Cover letter → the built Resume PDF
 	h.key(tea.KeyEnter)
 	got := h.lastRun()
 	want := expectedOpen(filepath.Join(h.folder("docs-ready"), "out", "Owner Resume Role.pdf"), false)
@@ -292,7 +292,7 @@ func TestDetailDocsEnterOnAbsentMarkdownOpensEditor(t *testing.T) {
 	h := newDetailHarness(t, nil)
 	h.open("3", 4, "docs-ready")
 	docsTab(h)
-	h.tm.Type("jjj") // JD, Resume, Cover letter → gaps.md is absent
+	h.tm.Type("j") // JD → gaps.md, an input, is absent
 	h.key(tea.KeyEnter)
 	if len(h.runs) != 1 || !strings.Contains(strings.Join(h.runs[0], " "), "gaps.md") {
 		t.Fatalf("ran %q, want the Editor on gaps.md", h.runs)

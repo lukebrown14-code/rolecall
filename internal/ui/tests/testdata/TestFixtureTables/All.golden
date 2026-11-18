@@ -1,4 +1,4 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Pipeline 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings       space commands  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s [All 9] Applied 1  Interviewing 2  Offer 2  Closed 4 │ TRACK t [All 9] SWE 5  Unknown 4                       
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
@@ -9,14 +9,14 @@
    ◆ Interviewing · 2 · 1 follow-up due ──────────────────────── │ NEXT         wait to hear back               m move  
    ◆ Engineer #1                                ⚑ 9mo  Good      │                                                      
      Example · Unknown · applied ~Jan 2025 · interviewing ~Jan … │ DOCS         □□□□ 0/4 ready                          
-   ◆ docs-written                                                │   ○ JD   ○ Resume   ○ Cover letter   ○ PDF           
+   ◆ docs-written                                                │   ○ Resume ○ PDF   ○ Cover letter ○ PDF              
      Fictional Labs · SWE · interviewing ~7d ago                 │                                                      
                                                                  │ TIMELINE                                             
    ★ Offer · 2 ───────────────────────────────────────────────── │   ◌ Lead                                     24 Sep  
    ★ Engineer #1                                       Good      │   ● Applied                                  25 Sep  
      Example · Unknown · applied ~Jan 2025 · offer ~Jan 2026     │   ◆ Interviewing                               next  
    ★ docs-partial                                                │                                                      
-     Fictional Labs · SWE · offer ~7d ago                        │ NOTES        none yet                         n add  
+     Fictional Labs · SWE · offer ~7d ago                        │ NOTES        none yet                       n notes  
                                                                  │                                                      
    ✕ Closed · 4 ──────────────────────────────────────────────── │                                                      
    ✕ Engineer #1                                       Good      │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › All · All tracks · row 1 of 9                                                                              
+   Pipeline › All · All tracks · row 1 of 9                                                                             
  enter open  m move  a add  / search                                                                             ? help 

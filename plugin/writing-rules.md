@@ -231,7 +231,7 @@ whole string renders as the title.
 
 `build.py` refuses to produce a document that breaks a hard rule, rather than warning:
 
-- **Cover letter over the configured word cap** (default 350), closing note included. Hard
+- **Cover letter over the configured maximum word count** (default 350), closing note included. Hard
   failure.
 - **Empty cover letter without Resume only** — hard failure, naming `cover-letter.md`. With
   `resume_only: true` in `meta.yml` the letter is skipped and the resume still builds.
@@ -259,7 +259,7 @@ described above. The two things that matter most:
 **Cover letter voice.** The letter is an offer of help, not a request for consideration. Open
 on the employer's problem, answer it with one concrete piece of evidence, repeat for their
 second and third priority, and close on what the Owner would take on first. Never open with
-wanting the job. Never close with gratitude. Respect the configured word cap, which is hard.
+wanting the job. Never close with gratitude. Respect the configured maximum word count, which is hard.
 
 **Tailoring is selection, not invention.** Reorder bullets, drop what does not serve the JD,
 reword using `profile/phrasing-bank.md` — which holds the Owner's own phrasing for each fact, so

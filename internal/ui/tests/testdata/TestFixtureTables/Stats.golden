@@ -1,17 +1,18 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2  3 Applied 9 [4 Stats] ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2  3 Pipeline 9 [4 Stats] ▁▁▁▁▁▁█▁  5 Profile  6 Settings       space commands  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    STATS │ TRACK t [All 20] SWE 13  Platform 1  Unknown 6                                                               
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   NOW             1 follow-up due → 3 Applied                                                                          
+   NOW             1 follow-up due → 3 Pipeline                                                                         
                                                                                                                         
-   FUNNEL          Applications that ever reached each Status. They can start at any Status, so a bar can outgrow the   
-                   one above                                                                                            
+   FUNNEL          Ever reached each Status; tabs count where they are now. Any Status can be a start, so a bar can     
+                   outgrow the one above                                                                                
    ◌ Lead          ███████████████░░░░░░░░░  7                                                                          
    ✎ Draft         ████░░░░░░░░░░░░░░░░░░░░  2  2 started at Draft                                                      
    ● Applied       ████████████████████████ 11  11 never a Draft                                                        
    ◆ Interviewing  █████████░░░░░░░░░░░░░░░  4  36% of Applied                                                          
    ★ Offer         ████░░░░░░░░░░░░░░░░░░░░  2  50% of Interviewing                                                     
-   closed  ✕ Rejected 2 · ↩ Withdrawn 2   ⊘ Dismissed 3                                                                 
+   Closed 4: ✕ Rejected 2 · ↩ Withdrawn 2                                                                               
+   ⊘ Dismissed 3, let go before applying                                                                                
                                                                                                                         
    RESPONSE RATE   ████████░░░░░░░░░░░░░░░░ 33% · 2 of 6                                                                
                    Not counted: 5 applied in the last 14 days (too new)                                                 
@@ -30,7 +31,6 @@
                    terraform           3 · would unlock 3 Applications                                                  
                    kafka               2 · would unlock 2 Applications                                                  
                    on-call rotations   1 · would unlock 1 Application                                                   
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

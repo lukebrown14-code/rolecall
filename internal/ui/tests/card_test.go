@@ -232,8 +232,9 @@ func TestNarrowOverviewDoesNotRepeatTheStrip(t *testing.T) {
 	}
 }
 
-// The Docs tab lists the Documents the DOCS meter counts, under that name, with the PDF
-// row standing while out/ is empty; Gaps, which the meter leaves out, says so.
+// The Docs tab lists the Documents the DOCS meter counts, under that name, with a PDF row
+// for each one not built yet; the JD and Gaps, which the meter leaves out, sit under
+// Inputs, which says so.
 func TestDocsTabListsTheMetersDocuments(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40)
 	v := plain(driveModel(t, m, "3", "/docs-written", "enter", "enter", "left"))
@@ -248,7 +249,8 @@ func TestDocsTabListsTheMetersDocuments(t *testing.T) {
 	if !strings.Contains(v, "DOCUMENTS") {
 		t.Errorf("Docs tab heading is not Documents:\n%s", v)
 	}
-	if !hasLineWith(v, "PDF", "not built yet") || !hasLineWith(v, "Gaps", "not counted") {
+	if !hasLineWith(v, "Resume PDF", "not built yet") || !hasLineWith(v, "Cover letter PDF", "not built yet") ||
+		!strings.Contains(v, "INPUTS · NOT COUNTED") || !hasLineWith(v, "Resume", " written") {
 		t.Errorf("Docs tab does not list the meter's Documents:\n%s", v)
 	}
 	built := plain(driveModel(t, driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 40), "3", "/docs-ready", "enter", "enter", "left"))

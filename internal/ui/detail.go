@@ -80,16 +80,23 @@ func (e docEntry) markdown() bool { return strings.HasSuffix(e.name, ".md") }
 func (e docEntry) group() string {
 	switch {
 	case strings.HasPrefix(e.name, "out/"):
-		return "PDFs · out/"
+		return groupPDFs
 	case strings.HasPrefix(e.name, "sent/"):
 		return "Sent"
+	case e.name == jdFile || e.name == gapsFile:
+		return groupInputs
 	}
 	return groupDocuments
 }
 
-// groupDocuments is the Docs tab's heading over the source Documents, the DOCS meter's name
-// for them.
-const groupDocuments = "Documents"
+// The Docs tab's headings: the inputs the Documents are written from, which the DOCS
+// meter never counts, then the Documents it counts (Resume and Cover letter, written) and
+// their built PDFs.
+const (
+	groupDocuments = "Documents"
+	groupPDFs      = "PDFs · out/"
+	groupInputs    = "Inputs · not counted"
+)
 
 func (e docEntry) pdf() bool { return strings.HasSuffix(e.name, ".pdf") }
 
@@ -111,33 +118,39 @@ const resumeOnlyNote = notNeeded + " · Resume only"
 // notNeeded is the state of a Document the Application does not need.
 const notNeeded = "not needed"
 
-// displayStatus is a source document's state, ready or missing (an empty file is
-// missing), and whether it is ready. Built and sent files are ready by being there.
+// The Docs tab's states for a Document's first step.
+const (
+	docWritten    = stepWritten
+	docNotWritten = "not written"
+)
+
+// displayStatus is a source file's state and whether it is done: a Document is written
+// or not written, an input ready or missing (an empty file is missing or not written).
+// Built and sent files are done by being there.
 func (e docEntry) displayStatus(a store.Application) (string, bool) {
 	switch {
 	case !e.markdown():
 		return "", true
 	case e.name == coverLetterFile && a.ResumeOnly && !e.hasText:
 		return resumeOnlyNote, false
-	case e.name == gapsFile && !e.hasText:
-		return docMissing + " · " + notCounted, false
-	case e.name == gapsFile:
-		return docReady + " · " + notCounted, true
-	case !e.hasText:
+	case e.group() == groupInputs && !e.hasText:
 		return docMissing, false
+	case e.group() == groupInputs:
+		return docReady, true
+	case !e.hasText:
+		return docNotWritten, false
 	}
-	return docReady, true
+	return docWritten, true
 }
 
-// notCounted marks the Docs tab's Gaps, which the DOCS meter does not count toward ready.
-const notCounted = "not counted"
-
-// pdfNotBuilt is the Docs tab's PDF row while out/ holds none, so the tab lists every
-// Document the DOCS meter counts.
+// pdfNotBuilt is the Docs tab's row for a Document whose PDF is not in out/ yet, so the
+// tab lists every step the DOCS meter counts.
 const pdfNotBuilt = "not built yet"
 
+// docEntries is the Docs tab's entries in order: the inputs, the Documents, their built
+// PDFs, then the sent copy.
 func docEntries(a store.Application) []docEntry {
-	entries := []docEntry{{jdFile, a.JDHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}, {gapsFile, a.GapsHasText}}
+	entries := []docEntry{{jdFile, a.JDHasText}, {gapsFile, a.GapsHasText}, {resumeFile, a.ResumeHasText}, {coverLetterFile, a.CoverLetterHasText}}
 	for _, pdf := range a.PDFs {
 		entries = append(entries, docEntry{"out/" + pdf, false})
 	}
@@ -219,7 +232,7 @@ const (
 	maxReadWidth  = 80 // long text wraps at or before this
 	minWrapWidth  = 20
 	paneMargin    = 4
-	docColumn     = 14 // the Docs tab's name and state columns
+	docColumn     = 18 // the Docs tab's name and state columns
 	stripLines    = 2  // the strip that stands in for the card: timeline track, then documents
 )
 
@@ -804,17 +817,28 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		group = g
 		lines = append(lines, p.Heading(g))
 	}
-	// With nothing in out/ yet, the PDF the DOCS meter counts still has its row, after the
-	// source Documents. It is not an entry: there is nothing to open.
-	notBuilt := func() {
-		if group == groupDocuments && len(a.PDFs) == 0 {
-			heading("PDFs · out/")
-			lines = append(lines, "  "+p.Text(p.Dim).Render("○ "+padRight(docPDF, docColumn)+pdfNotBuilt))
+	// A Document whose PDF is not in out/ yet still has its row under the PDFs, so the tab
+	// lists every step the DOCS meter counts. It is not an entry: there is nothing to open.
+	unbuilt := func() {
+		var rows []string
+		for _, c := range docChips(a) {
+			if c.step == stepBuilt && !c.ready {
+				rows = append(rows, "  "+p.Text(p.Dim).Render(glyphMissing+" "+padRight(c.doc+" PDF", docColumn)+pdfNotBuilt))
+			}
 		}
+		if len(rows) == 0 {
+			return
+		}
+		if group != groupPDFs {
+			heading(groupPDFs)
+		}
+		lines = append(lines, rows...)
 	}
 	for i, e := range docEntries(a) {
 		if g := e.group(); g != group {
-			notBuilt()
+			if group == groupDocuments || group == groupPDFs {
+				unbuilt()
+			}
 			heading(g)
 		}
 		status, ready := e.displayStatus(a)
@@ -836,7 +860,9 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 		}
 		lines = append(lines, row)
 	}
-	notBuilt()
+	if group == groupDocuments || group == groupPDFs {
+		unbuilt()
+	}
 	return strings.Join(lines, "\n")
 }
 

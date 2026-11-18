@@ -25,7 +25,7 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	m.screen = 1 // Drafts, where docs-none is the second row: Engineer #1 has a Fit
 	m.cursor = 1
 	view := xansi.Strip(m.View().Content)
-	if !strings.Contains(view, "Resume writing…") || !strings.Contains(view, "1/4") {
+	if !strings.Contains(lineWith(view, "writing…"), "Resume") || !strings.Contains(view, "1/4") {
 		t.Fatalf("no writing mark:\n%s", view)
 	}
 	first := m.writing[key]
@@ -33,7 +33,7 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	m = next.(model)
 	next, _ = m.Update(writingDone{key, first}) // the first mark's tick is stale
 	m = next.(model)
-	if !strings.Contains(xansi.Strip(m.View().Content), "Resume writing…") {
+	if !strings.Contains(xansi.Strip(m.View().Content), "writing…") {
 		t.Fatal("a stale tick put out a renewed mark")
 	}
 	next, _ = m.Update(writingDone{key, m.writing[key]})
@@ -41,4 +41,14 @@ func TestWrittenDocumentShowsWritingUntilItsTick(t *testing.T) {
 	if view := xansi.Strip(m.View().Content); strings.Contains(view, "writing…") || !strings.Contains(view, "✓ Resume") {
 		t.Fatalf("mark not put out:\n%s", view)
 	}
+}
+
+// lineWith is the first line of view holding s, or "".
+func lineWith(view, s string) string {
+	for _, l := range strings.Split(view, "\n") {
+		if strings.Contains(l, s) {
+			return l
+		}
+	}
+	return ""
 }

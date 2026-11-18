@@ -108,12 +108,13 @@ type setupStep struct {
 	done  func(model) bool
 }
 
-// setupSteps is the checklist in order. Editor and Harness keys open Settings › This
-// machine on their own row; 5 is the Profile screen, whose missing-Profile notice gives
+// setupSteps is the checklist in order. 6 is Settings, which the welcome opens on This
+// machine's Editor row, and h opens the same group on the Harness row; e stays edit
+// everywhere. 5 is the Profile screen, whose missing-Profile notice gives
 // the same instruction (profileSetupWords), so the two never disagree.
 var setupSteps = []setupStep{
-	{"e", text("pick an Editor"), editorChosen},
-	{"h", text("connect a Harness"), func(m model) bool { return m.harness != "" }},
+	{"6", text("pick an Editor in Settings"), editorChosen},
+	{"h", text("connect a Harness, the AI coding tool you already use (Claude Code, Codex…)"), func(m model) bool { return m.harness != "" }},
 	{"5", func(m model) string { return "set up your Profile: " + m.profileSetupWords() }, func(m model) bool { return m.profileStarted }},
 }
 
@@ -155,11 +156,10 @@ func (m model) setupPending(key string) bool {
 	return false
 }
 
-// welcomeActions are the welcome's own keys: e and h open Settings on the Editor and
-// Harness rows. They are enabled only while the welcome lists them, so e still edits a
-// row everywhere else.
+// welcomeActions are the welcome's own keys: h opens Settings on the Harness row. It is
+// enabled only while the welcome lists it. The Editor step's 6 is the screen key, which
+// screenKey points at the Editor row while the welcome lists it.
 var welcomeActions = []listAction{
-	welcomeAction("e", "pick an Editor", settings.LabelEditor),
 	welcomeAction("h", "connect a Harness", settings.LabelHarness),
 }
 

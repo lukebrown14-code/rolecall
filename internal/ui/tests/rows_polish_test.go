@@ -75,7 +75,7 @@ func TestNextActionLine(t *testing.T) {
 		{"applied", []string{"3"}, "NEXT         wait to hear back", "m move"},
 		{"follow-up due", []string{"3", "/Example", "enter"}, "FOLLOW-UP    due · no change in 9mo", "l followed up"},
 		{"offer", []string{"3", "tab", "tab", "tab"}, "NEXT         decide on the offer", "m move"},
-		{"detail on the JD tab", []string{"1", "enter"}, "NEXT         add the JD", "e open jd.md"},
+		{"detail on the JD tab", []string{"1", "enter"}, "NEXT         add the JD", "e edit jd.md"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := chipped(runKeys(t, fixtureCopy(t, nil), 120, tc.keys...))
@@ -93,10 +93,10 @@ func TestOfferCelebration(t *testing.T) {
 	// The move lands on the Application's new home: the Offer view, with its row selected,
 	// and the celebration as one toast (not a body banner over an empty list).
 	v := chipped(runKeys(t, root, 120, "3", "tab", "m", "o"))
-	if !strings.Contains(v, "★ OFFER · Orbit Labs ★  7 applied · 6 days") {
+	if !strings.Contains(v, "★ OFFER · Orbit Labs ★  6 days after applying, 7 sent") {
 		t.Fatalf("no celebration:\n%s", v)
 	}
-	if !strings.Contains(v, "Applied › Offer") {
+	if !strings.Contains(v, "Pipeline › Offer") {
 		t.Fatalf("did not land on the Offer view:\n%s", v)
 	}
 	if strings.Contains(v, "to follow it") {

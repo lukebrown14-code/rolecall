@@ -773,7 +773,7 @@ func (m model) profileListRule(p pal, listW int, label string) string {
 // the narrow context row keep the heading as written.
 var shortHeadings = map[string]string{
 	"Key Skills keyword pool":      "Key Skills",
-	"Facts that are NOT available": "Facts NOT available",
+	"Facts that are NOT available": "Never claim",
 }
 
 // shortHeading is a section's name in the list: without a trailing "(…)" aside, and

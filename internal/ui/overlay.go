@@ -103,12 +103,12 @@ func (m model) confirmBox(p pal, cm *confirmMode) string {
 	var missing []string
 	for _, c := range docChips(a) {
 		if !c.ready {
-			missing = append(missing, c.name)
+			missing = append(missing, c.todo())
 		}
 	}
-	state := fmt.Sprintf("%d of %d documents ready", n, total)
+	state := fmt.Sprintf("%d of %d Document steps finished", n, total)
 	if len(missing) > 0 {
-		state += ". Missing: " + strings.Join(missing, ", ")
+		state += ". Still to do: " + strings.Join(missing, ", ")
 	}
 	name := appName(a.Title)
 	if c := strings.TrimSpace(a.Company); c != "" {

@@ -8,9 +8,11 @@ import (
 )
 
 type Application struct {
-	Folder, Title, Company, Track, Status                                string
-	Documents                                                            string
-	PDFs                                                                 []string
+	Folder, Title, Company, Track, Status string
+	Documents                             string
+	PDFs                                  []string
+	// ResumeBuilt and CoverLetterBuilt report a built PDF of each Document in out/.
+	ResumeBuilt, CoverLetterBuilt                                        bool
 	JDHasText, ResumeHasText, CoverLetterHasText, GapsHasText            bool
 	HasJD, HasNotes, HasFit, HasGaps, HasResume, HasCoverLetter, HasSent bool
 	Schema                                                               int

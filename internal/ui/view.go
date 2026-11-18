@@ -313,7 +313,7 @@ func (m model) screenCountLabel(si int) string {
 // width, so nothing shifts. The detail level is the one every screen's bar fits at, so
 // switching screens never sheds or restores a count or a name. One rule sheds by width:
 // other screens' counts, the word "rolecall", the gap between tabs (two cells to one), then
-// other screens' names, which keeps every screen named from 60 columns.
+// other screens' names, which keeps every screen named from 61 columns.
 func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	if r := m.barKeys(p); r != "" {
@@ -384,7 +384,7 @@ func (m model) tabs(p pal) (string, []int) {
 			if level >= shedGap {
 				sep = "" // one cell between tabs: the leading space alone
 				if si+1 == active {
-					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Applied 9]"
+					sep = " " // …but the active chip after it never touches it: "2 Drafts [3 Pipeline 9]"
 				}
 			}
 			if name == "" && count == "" {
@@ -479,7 +479,7 @@ func (m model) trackName() string {
 }
 
 // breadcrumbLine is the footer's first line on every screen: where the Owner is, as
-// "Applied › All · All tracks · row 1 of 9", and at the right what just happened, a toast
+// "Pipeline › All · All tracks · row 1 of 9", and at the right what just happened, a toast
 // or an error with its keys. The breadcrumb gives way first: its focus, then the Track.
 // When the message cannot sit whole beside it, the message takes the whole line: what
 // just happened matters more than where the cursor is.
@@ -539,7 +539,7 @@ func joinNonEmpty(sep string, parts ...string) string {
 	return strings.Join(keep, sep)
 }
 
-// breadcrumb is "Applied › All · All tracks · row 1 of 9 · detail", the Track abbreviated
+// breadcrumb is "Pipeline › All · All tracks · row 1 of 9 · detail", the Track abbreviated
 // when short and the focus, shown only while a detail is open, left off when noFocus. A
 // screen without tables names its own place: "Stats › All tracks", "Settings › Tracking".
 func (m model) breadcrumb(p pal, short, noFocus bool) string {
@@ -582,7 +582,7 @@ func (m model) breadcrumb(p pal, short, noFocus bool) string {
 	}
 	parts := []string{track, where}
 	// The screen's own first view (Leads › Leads) says nothing twice; a status filter named
-	// like its screen (Applied › Applied) is still a filter, so it shows.
+	// like its screen (Pipeline › Applied) is still a filter, so it shows.
 	if v := m.views()[m.table]; m.table > 0 || v != screenDefs[m.screen].name {
 		parts = append([]string{v}, parts...)
 	}
@@ -1404,14 +1404,11 @@ func (m model) previewMeta(p pal, a store.Application, w int) string {
 	return p.Text(p.Dim).Render(xansi.Truncate(strings.Join(parts, " · "), w, "…"))
 }
 
-// fileMarks is the one-line document set, "✓ JD  ○ Resume  ○ Cover letter  ○ PDF":
-// ✓ ready, ○ missing. A source document is ready when it has text, not merely a file.
+// fileMarks is the one-line Document set, each Written then Built, "✓ Resume ○ PDF
+// ○ Cover letter ○ PDF": ✓ done, ○ still to do. Written means the file has text, not
+// merely that it exists.
 func (m model) fileMarks(p pal, a store.Application) string {
-	parts := make([]string, 0, len(docChips(a)))
-	for _, c := range docChips(a) {
-		parts = append(parts, m.chipText(p, a, c))
-	}
-	return strings.Join(parts, "  ")
+	return strings.Join(m.docMarks(p, a), "   ")
 }
 
 // docText is a document's text with Markdown headings and list markers dropped, for
