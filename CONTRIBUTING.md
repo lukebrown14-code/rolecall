@@ -8,7 +8,7 @@ what you expect and what you have tried. Small fixes can go straight to a pull r
 Install Go (the version is declared in `go.mod`) and Python 3, then run:
 
 ```sh
-python3 scripts/check-personal-data.py .      # personal-data scan of tracked files
+python3 scripts/check-personal-data.py .      # personal-data guard: Workspace paths and generic patterns
 scripts/test-pre-commit.sh                    # the pre-commit hook's own tests
 scripts/check-go.sh              # gofmt, architecture rules, go vet, golangci-lint if installed
 go test -race ./...
@@ -19,6 +19,14 @@ python3 -m pytest plugin/tests
 
 CI runs these on every push and pull request, plus a macOS job (`scripts/check-go.sh` and
 `go test ./...`) and `govulncheck`.
+
+### Personal data
+
+Never commit Workspace data (`workspace.json`, `config.toml`, `jobs/`, `profile/`, `cv/`,
+`sent/`, `meta.yml`, PDFs). The guard fails on those paths outside `fixtures/` and `examples/`,
+and inside them every value must be fictional (emails only at `example.test` or `example.com`).
+To also catch your own name or employers locally, put one term per line in the gitignored
+`.rolecall-personal-data-terms`; the pre-commit hook uses it.
 
 ### Enable the pre-commit hook
 

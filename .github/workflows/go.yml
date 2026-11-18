@@ -15,20 +15,6 @@ jobs:
         with:
           python-version: "3.x"
       - run: python3 scripts/check-personal-data.py .
-      # The Owner-terms guard belongs to the public repository, where the
-      # ROLECALL_PERSONAL_DATA_TERMS secret is configured (ADR-0005 and the
-      # public-repo cut checklist). The private archive and forks run the
-      # generic scan above and skip this step.
-      - name: Check Owner-specific terms
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.private
-        env:
-          ROLECALL_PERSONAL_DATA_TERMS: ${{ secrets.ROLECALL_PERSONAL_DATA_TERMS }}
-        run: |
-          if [ -z "$ROLECALL_PERSONAL_DATA_TERMS" ]; then
-            echo "::notice title=Owner-terms guard skipped::ROLECALL_PERSONAL_DATA_TERMS is not set, so the Owner-specific scan did not run."
-            exit 0
-          fi
-          python3 scripts/check-personal-data.py .
       - run: scripts/test-pre-commit.sh
       # The action installs and runs golangci-lint; scripts/check-go.sh skips
       # its own lint pass when CI is set, so lint runs once.

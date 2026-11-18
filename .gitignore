@@ -6,4 +6,11 @@ __pycache__/
 .DS_Store
 .env
 /.rolecall-personal-data-terms
+# Workspace data never belongs in this repo; fixtures/ holds the fictional kind.
+/workspace.json
+/config.toml
+/jobs/
+/profile/
+/cv/
+/sent/
 /.claude/worktrees/

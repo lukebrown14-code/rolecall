@@ -24,27 +24,18 @@ throughout.
   links.
 - [ ] Review the staged diff and confirm the documentation cleanup is complete.
 
-## 3. Run the personal-data scanner with Owner terms
+## 3. Run the personal-data guard
 
-The scanner examines tracked text files in the repository. Put one Owner-specific term per
-line in the gitignored `.rolecall-personal-data-terms` file at the repository root. Include the
-Owner's name and known identifying terms such as former employers, locations, and visa terms;
-do not add those terms to repository files.
+The guard works by Workspace structure: it fails when Workspace data (`workspace.json`,
+`config.toml`, `jobs/`, `profile/`, `cv/`, `sent/`, `meta.yml`, PDFs, `.rolecall-*`) is tracked
+outside `fixtures/` and `examples/`, and it requires fictional values inside them. It also
+scans for emails, phone numbers, profile URLs and street addresses.
 
-- [ ] Confirm `.rolecall-personal-data-terms` contains the complete Owner-specific term list and
-  is not tracked (`git check-ignore .rolecall-personal-data-terms`).
-- [ ] From the repository root, run:
-
-  ```sh
-  python3 scripts/check-personal-data.py .
-  ```
-
-  The scanner reads the default terms file automatically. To store the terms file elsewhere,
-  set `ROLECALL_PERSONAL_DATA_TERMS_FILE=/absolute/path/to/terms` for this command. Alternatively,
-  provide newline-separated terms with `ROLECALL_PERSONAL_DATA_TERMS`; the scanner adds these to
-  the terms in the file. The command must exit zero with no findings. If it reports a
-  finding, fix the source and rerun; do not add Owner terms to the allowlist.
-- [ ] Run the scanner again after any cleanup and confirm the final tracked tree passes.
+- [ ] From the repository root, run `python3 scripts/check-personal-data.py .`. It must exit
+  zero with no findings. Fix the source and rerun; do not widen the allowlist for real data.
+- [ ] Optional extra: put your own name and former employers, one per line, in the gitignored
+  `.rolecall-personal-data-terms` (check `git check-ignore .rolecall-personal-data-terms`) and
+  run the command again. Do not add those terms to repository files.
 
 ## 4. Read the publishable content by hand
 
@@ -87,23 +78,16 @@ git push -u origin main
   single initial commit.
 - [ ] Verify the public repository has exactly one commit on `main`, contains the reviewed tree,
   and has no branches or tags copied from the private archive.
-- [ ] Confirm the Owner-terms file was not included in the export.
+- [ ] Confirm no `.rolecall-personal-data-terms` file was included in the export.
 
 ## 7. Configure CI and repository settings
 
-- [ ] In the new repository's **Settings → Secrets and variables → Actions**, create the
-  repository secret `ROLECALL_PERSONAL_DATA_TERMS`. Set its value to the Owner-specific terms,
-  one per line. Keep this value out of commits, issues, and logs.
-- [ ] Confirm the workflow's Owner-terms step runs for pushes to `main` of the public repository
-  and scans with the configured terms. If the secret is unset it prints a notice and passes
-  without scanning, so check that the run's log shows no `Owner-terms guard skipped` notice.
-  Generic scanning also runs on pushes and pull requests.
 - [ ] Protect `main`: require pull requests before merging, require the status checks `CI / go`
   and `CI / python` to pass, and prevent force pushes and branch deletion. Also require
   `CI / macos` once it has run green on the public repository.
 - [ ] Add repository topics that describe the project, such as `job-search`, `terminal`, and
   `privacy`.
-- [ ] Confirm a push to `main` runs CI successfully with the Owner-terms secret configured.
+- [ ] Confirm a push to `main` runs CI successfully; the personal-data guard needs no secret.
 
 ## 8. Tag v1.0
 
