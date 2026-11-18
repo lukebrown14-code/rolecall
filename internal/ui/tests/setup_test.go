@@ -57,7 +57,7 @@ func TestFirstRunFormRequiresAnEmail(t *testing.T) {
 	d.Type("enter")
 	d.Type("not-an-email")
 	d.Type("ctrl+s")
-	requireAll(t, d.plain(), "✘ Enter an email like", "name@example.com") // the pop-up wraps it
+	requireAll(t, d.plain(), "✘ Enter an email like", "you@example.com") // the pop-up wraps it
 	if strings.Contains(masterProfile(t, root), "Alex") {
 		t.Fatal("an invalid form was written")
 	}

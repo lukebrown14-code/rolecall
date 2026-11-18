@@ -7,7 +7,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
-const emailHint = "Enter an email like name@example.com"
+const emailHint = "Enter an email like you@example.com"
 
 var partialEmails = []string{"ada@", "@x.com", "ada@x"}
 
@@ -20,7 +20,7 @@ func TestContactFormRefusesPartialEmails(t *testing.T) {
 		d.Type("enter")
 		d.Type(bad)
 		d.Type("ctrl+s")
-		requireAll(t, d.plain(), "✘ Enter an email like", "name@example.com") // the pop-up wraps it
+		requireAll(t, d.plain(), "✘ Enter an email like", "you@example.com") // the pop-up wraps it
 		if strings.Contains(masterProfile(t, root), "Ada") {
 			t.Errorf("%q was written to the Profile", bad)
 		}
@@ -29,9 +29,9 @@ func TestContactFormRefusesPartialEmails(t *testing.T) {
 	d := newDriver(t, root, setupNow, 120, 40, ui.WithFirstRunSetup())
 	d.Type("Ada Example")
 	d.Type("enter")
-	d.Type("ada@example.com")
+	d.Type("jo@example.test")
 	d.Type("ctrl+s")
-	requireAll(t, masterProfile(t, root), "| Email | ada@example.com |")
+	requireAll(t, masterProfile(t, root), "| Email | jo@example.test |")
 }
 
 // The Application contact refuses the same partial addresses in the same words, and a
@@ -58,7 +58,7 @@ func TestApplicationContactRefusesPartialEmails(t *testing.T) {
 			t.Errorf("%q was saved:\n%s", bad, meta)
 		}
 	}
-	for _, good := range []string{"ada@example.com", "https://example.com/jo"} {
+	for _, good := range []string{"jo@example.test", "https://example.com/jo"} {
 		if _, meta := fill(good); !strings.Contains(meta, good) {
 			t.Errorf("%q was not saved:\n%s", good, meta)
 		}
