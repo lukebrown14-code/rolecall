@@ -20,6 +20,7 @@ const (
 	descMove      = "move"
 	descOpen      = "open"
 	descEdit      = "edit"
+	descNotes     = "notes"
 	stepAddJD     = "add the JD"
 )
 
@@ -41,7 +42,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 			case m.detail == nil:
 				return nextStep{what: stepAddJD, key: "enter", desc: descOpen}, true
 			case m.detail.tab == tabJD:
-				return nextStep{what: stepAddJD, key: "e", desc: "open " + jdFile}, true
+				return nextStep{what: stepAddJD, key: "e", desc: descEdit + " " + jdFile}, true
 			}
 			return nextStep{what: stepAddJD, why: "on the JD tab"}, true
 		case a.Fit == "" && harness:
@@ -68,7 +69,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 			return step, true
 		}
 		if a.Status == store.StatusInterviewing {
-			return nextStep{what: "prepare for the interview", key: "n", desc: "note"}, true
+			return nextStep{what: "prepare for the interview", key: "n", desc: descNotes}, true
 		}
 		return nextStep{what: "wait to hear back", key: "m", desc: descMove}, true
 	case store.StatusOffer:

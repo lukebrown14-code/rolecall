@@ -8,17 +8,19 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
 
-// An Application's documents, each with one name everywhere (GLOSSARY): JD, Resume,
-// Cover letter, Gaps and PDF. A document is ready or missing, nothing in between; the
-// file it lives in is shown, muted, only where the Owner may want to open it.
+// An Application's files, each with one name everywhere (GLOSSARY). The Documents are the
+// Resume and the Cover letter, each Written then Built; the JD and Gaps are inputs on
+// their own tabs, never counted. The file a name lives in is shown, muted, only where the
+// Owner may want to open it.
 const (
 	docJD          = "JD"
 	docResume      = "Resume"
 	docCoverLetter = "Cover letter"
 	docGaps        = "Gaps"
-	docPDF         = "PDF"
+	docPDF         = "PDF" // a Document's Built step, the PDF in out/
 	docNotes       = "Notes"
 	docFit         = "Fit"
 )
@@ -64,24 +66,45 @@ func docName(file string) string {
 	return file
 }
 
-// docChip is one document in the set that makes an Application sendable.
+// The two steps of a Document: Written (its Markdown has text), then Built (its PDF is
+// in out/).
+const (
+	stepWritten = "written"
+	stepBuilt   = "built"
+)
+
+// docChip is one step of one Document in the set that makes an Application sendable.
 type docChip struct {
-	name, file string
-	ready      bool
+	doc, step, file string
+	ready           bool
 }
 
-// docChips is the set that makes an Application sendable: JD, Resume, Cover letter
-// (unless it is Resume only) and PDF. The PDF is ready once the build has made every
-// PDF the Application needs (SCHEMA Ready).
-func docChips(a store.Application) []docChip {
-	chips := []docChip{{docJD, jdFile, a.JDHasText}, {docResume, resumeFile, a.ResumeHasText}}
-	if !a.ResumeOnly {
-		chips = append(chips, docChip{docCoverLetter, coverLetterFile, a.CoverLetterHasText})
+// todo is what the step still wants, as the Docs-not-Ready prompt names it: "write the
+// Resume", "build the Cover letter".
+func (c docChip) todo() string {
+	if c.step == stepBuilt {
+		return "build the " + c.doc
 	}
-	return append(chips, docChip{docPDF, "out/", a.Documents == store.DocsReady})
+	return "write the " + c.doc
 }
 
-// readyCount is how many of the Application's documents are ready, of how many.
+// docChips is the set that makes an Application sendable: the Resume and, unless it is
+// Resume only, the Cover letter, each Written then Built (SCHEMA Ready). The JD and Gaps
+// are inputs, shown on their own tabs and never counted.
+func docChips(a store.Application) []docChip {
+	chips := []docChip{
+		{docResume, stepWritten, resumeFile, a.ResumeHasText},
+		{docResume, stepBuilt, watch.PDFDocument, a.ResumeBuilt},
+	}
+	if !a.ResumeOnly {
+		chips = append(chips,
+			docChip{docCoverLetter, stepWritten, coverLetterFile, a.CoverLetterHasText},
+			docChip{docCoverLetter, stepBuilt, watch.PDFDocument, a.CoverLetterBuilt})
+	}
+	return chips
+}
+
+// readyCount is how many of the Application's Document steps are done, of how many.
 func readyCount(a store.Application) (int, int) {
 	chips := docChips(a)
 	n := 0
@@ -93,9 +116,10 @@ func readyCount(a store.Application) (int, int) {
 	return n, len(chips)
 }
 
-// docsLabel is the list's one-slot document state: "✓ ready" once the Application can be
-// sent, otherwise how many documents are ready, "○ 2/4 ready", amber once the Resume has
-// text and only the build is wanting.
+// docsLabel is the list's one-slot Document state: "✓ ready" once the Application can be
+// sent, otherwise how many Document steps are done, "○ 2/4 ready" (Resume and Cover
+// letter, each Written then Built), amber once the Resume has text and only the build is
+// wanting.
 func (p pal) DocsLabel(a store.Application) (string, color.Color) {
 	n, total := readyCount(a)
 	switch a.Documents {
@@ -113,7 +137,7 @@ const (
 	meterOff = glyphMeterOff
 )
 
-// meterCells is the meter's cells, one per needed document: ■■□□ for two ready of four.
+// meterCells is the meter's cells, one per Document step: ■■□□ for two done of four.
 // st styles each run, so a selected row keeps its fill under the cells.
 func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style) string {
 	n, total := readyCount(a)
@@ -124,7 +148,7 @@ func (p pal) meterCells(a store.Application, st func(color.Color) lipgloss.Style
 	return st(c).Render(strings.Repeat(meterOn, n)) + st(p.Faint).Render(strings.Repeat(meterOff, total-n))
 }
 
-// DocsMeter is the detail's "■■■□ 3/4 ready": the cells, then how many documents are ready.
+// DocsMeter is the detail's "■■■□ 3/4 ready": the cells, then how many Document steps are done.
 func (p pal) DocsMeter(a store.Application) string {
 	n, total := readyCount(a)
 	c := p.Dim
@@ -134,7 +158,7 @@ func (p pal) DocsMeter(a store.Application) string {
 	return p.meterCells(a, p.Text) + p.Text(c).Render(fmt.Sprintf(" %d/%d %s", n, total, docReady))
 }
 
-// readyTotals is the documents ready of the documents needed across the Workspace's
+// readyTotals is the Document steps done of the steps needed across the Workspace's
 // active Applications: those still live (not Dismissed, Rejected or Withdrawn, and
 // readable). It is the share the pipeline strip shows.
 func readyTotals(apps []store.Application) (ready, needed int) {

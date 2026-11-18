@@ -9,9 +9,9 @@ each other directly: files are the only link.
   in each folder), ADR-0003 (files are the only harness contract).
 - Data contract: [`SCHEMA.md`](../SCHEMA.md). Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 - Status of this doc: v0.1 and v0.2 were agreed in grilling sessions on 2026-11-11 and v1.0 on
-  2026-11-12. Written as the current behaviour of the app: v0.1 to v0.6 are built (0.6.0 is the latest
-  release), the v1.0 readiness work of 2026-11-17 is merged but not yet released, and what v1.0 still
-  needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
+  2026-11-12. Written as the current behaviour of the app: v0.1 to v0.7 are built. 0.7.0 is the release
+  that ships the v1.0 readiness work of 2026-11-17 (0.6.0 merged but was never tagged, so its
+  changes ship in 0.7.0 too), and what v1.0 still needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
   the per-version acceptance lists are in [`history.md`](history.md).
 
 ## Roadmap
@@ -25,7 +25,7 @@ each other directly: files are the only link.
 | v0.4 | search rules and Sources | `search_rules` and the Source registry in `workspace.json`, Settings → Rules and Sources, posting age on Leads, Filtered view, `rules.py` dry run, coverage report (ADR-0007) |
 | v0.5 | follow-up and review polish | Follow-up due, `l` to record a follow-up, `F` and the `draft-follow-up` skill, lean rows, fit words, full-screen help |
 | v0.6 | documents and checks | Template overrides and ATS-safe templates, the ATS check (dates, headings, Key Skills order, characters, hyphens, fonts), CVs built from the Profile screen, drift and URL checks on unsent drafts, `rolecall move`, capture that follows aggregators to the employer's ad |
-| v1.0 readiness (merged after 0.6.0) | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills |
+| v0.7 | first run, navigation, data | first-run fixes (no `vi` fallback, example Track placeholder, `doctor` summary, Profile skeleton from `init`), full-screen detail at 80x24, one command palette, `*` marks rows for bulk `x` and `m`, flexible date input, `next_step`, `contacts`, `close_reason`, `rolecall now`, `rolecall export`, structured fetch failures, the `import-applications`, `interview-prep` and `answer-questions` skills, the one-vocabulary pass (#188: the Pipeline screen, Closed, one Document set, one label per key), Homebrew moved to 1.x, the structural personal-data guard |
 | v1.0 | public, anyone can use it | see [v1.0](#v10-public) |
 
 ## Repositories
@@ -95,7 +95,7 @@ dismissed too. Only a newer `schema` stops it.
 |---|---|---|---|
 | `1` | Leads | Leads │ Dismissed | Lead │ Dismissed |
 | `2` | Drafts | none | Draft |
-| `3` | Applied | All │ Applied │ Interviewing │ Offer │ Closed | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Rejected + Withdrawn |
+| `3` | Pipeline | All │ Applied │ Interviewing │ Offer │ Closed | All = every Status below, one section each · Applied │ Interviewing │ Offer │ Closed (Rejected + Withdrawn; Dismissed is never Closed) |
 | `4` | Stats | none | none |
 | `5` | Profile | none | none |
 | `6` | Settings | groups, `←` `→` | none |
@@ -111,9 +111,9 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | Dismissed | Title · Company · Track · Dismissed (date) | newest first |
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first. In Applied and Interviewing, Follow-ups due come first, most overdue first |
 
-- Docs: `✓ ready` once SCHEMA Ready, else how many are ready, `○ 2/4 ready` (SCHEMA → Documents state).
+- Docs: `✓ ready` once SCHEMA Ready, else how many Document steps are done, `○ 2/4 ready`: the Resume and the Cover letter, each Written then Built, so 4, or 2 when Resume only (SCHEMA → Documents state). The JD and Gaps are inputs and never count.
 - v0.1.1 shows these as two-line rows with relative dates; see [v0.1.1 look](#v011-look-built). There,
-  Docs shows on Draft only (the Applied screen's rows show Fit and the follow-up flag, and
+  Docs shows on Draft only (the Pipeline screen's rows show Fit and the follow-up flag, and
   Closed rows name the outcome on the second line, `rejected ~7d ago` / `withdrawn ~7d ago`,
   under the Status glyph `✕` / `↩`).
 - Follow-up: `⚑` when the Status is Applied or Interviewing and the later of the last change and the last recorded follow-up (`l`, `followed_up`) is more than `follow_up_days` old.
@@ -129,7 +129,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 
 | Key | Scope | Action |
 |---|---|---|
-| `1` to `6` | global | switch screen: Leads, Drafts, Applied, Stats, Profile, Settings |
+| `1` to `6` | global | switch screen: Leads, Drafts, Pipeline, Stats, Profile, Settings |
 | `←` `→` | screen | previous / next view; in the detail view, previous / next tab; in Settings, previous / next group |
 | `s` | table screen | next view, the same cycle as `→` (listed where a screen has more than one view; help, the command finder and an empty view all say `s change view`) |
 | `Tab` / `Shift-Tab` | screen | next / previous pane on Profile, the only screen where it is listed; elsewhere an unlisted alias of `→` / `←` (views, detail tabs, Settings groups) |
@@ -137,8 +137,8 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `J` / `K` | detail view | next / previous row's detail, on the same tab (help and palette only, not the key line). In Settings › Tracking they reorder Tracks |
 | `a` | table screen, Stats | Add form |
 | `v` / `Enter` | row | detail view. On the Docs tab: open the selected document |
-| `e` | row | Edit form (fields). On a malformed row: open `meta.yml` at the failing line (`e fix in editor`). In the detail view: open the current tab's file in the Editor |
-| `n` | row | open `notes.md` in the Editor (created if missing) |
+| `e` | row | Edit form (fields). On a malformed row: open `meta.yml` at the failing line (`e fix in editor`). In the detail view: open the current tab's file in the Editor (`e edit jd.md`). `e` always means edit; picking an Editor lives in Settings › This machine (`6`) |
+| `n` | row | open `notes.md` in the Editor (created if missing); labelled `n notes` on every key line, card row, help page and command finder entry |
 | `m` | row | Move popup. On a malformed row it shows the parse error instead, as `x` does |
 | `u` | global | undo the last move or recorded follow-up made in this session (on the key line while there is one, after the toast has cleared; with none it says `Nothing to undo`). In Settings: put back the last Settings change |
 | `x` | row (Lead, Draft) | Dismiss. Same as Move → Dismissed. On the key line on a Lead or Draft row; elsewhere it says `x: only Leads and Drafts can be dismissed · m to move` |
@@ -150,7 +150,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 | `o` | Leads view | sort by deadline, soonest first (the default) ↔ newest added first, which mixes expired Leads back in |
 | `z` | tables, wide sizes | compact rows: one line per row (title, company and track in aligned columns, then the dates) ↔ two-line rows. Saved to `config.toml` as `compact_rows`. `z` is free on every list and is vim's view-adjusting prefix |
 | `/` | table | text filter on Title + Company. `Esc` clears it on any screen (on Stats and Profile it says `Cleared search "/fe"`) |
-| `enter` | table with no rows, a search on | when the search has no match here but has matches on another view or screen (`No match for "orbit" in Leads · 1 in Applied`), jump to the first of them, keeping the search (`enter go to Applied`) |
+| `enter` | table with no rows, a search on | when the search has no match here but has matches on another view or screen (`No match for "orbit" in Leads · 1 in Pipeline`), jump to the first of them, keeping the search (`enter go to Applied`) |
 | `r` | global | rescan the Workspace, on every screen (Settings › Tracking renames a Track with `Enter`, so `r` keeps this one meaning) |
 | `,` | global | open Settings (screen 6); `Esc` returns |
 | `h` | global, while no Harness is set | connect a Harness: Settings › This machine on the Harness row (every screen but Settings, with or without Applications). The no-Harness error offers it |
@@ -305,14 +305,14 @@ either end.
 | JD | `jd.md` rendered with Glamour, scrollable | `$EDITOR` on `jd.md` |
 | Notes | `notes.md` rendered | `$EDITOR` on `notes.md` |
 | Fit | the `fit` value + `fit.md` rendered | `$EDITOR` on `fit.md` |
-| Docs | list, under Documents: JD, Resume, Cover letter (`✓` ready or `○` missing) and Gaps (`ready · not counted`: the DOCS meter leaves it out); under PDFs · out/ each PDF, or `○ PDF  not built yet` while `out/` is empty, so the tab lists every Document the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
+| Docs | list, under Inputs · not counted: JD and Gaps (`✓ ready` or `○ missing`; the DOCS meter leaves them out); under Documents: Resume and Cover letter (`✓ written` or `○ not written`); under PDFs · out/ each PDF, then `○ Resume PDF  not built yet` for each Document not built, so the tab lists every step the meter counts; then `sent/` if it exists | `Enter` on a PDF opens it in the system viewer. On a `.md`, opens `$EDITOR` |
 
 `Esc` and `q` go back to the table. `m`, `n`, `d`, `u`, `r`, `w`, `c`, `l` and the Harness keys (`f`, `p`, `F`, `b`) work in the
 detail view too; `x`, `s` and `o` do not, and say so in a note (`x: dismisses from the list only · m to move`).
 
 ### Next step, contacts and exports
 
-Added after 0.6.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
+Added in 0.7.0 (SCHEMA: `next_step`, `contacts`, `close_reason`).
 
 - Next step (`next_step: {at, what}`): shown as `next 4 Oct 10:30 · Phone screen` on Interviewing and Offer
   rows (amber within 7 days, `▲` within 2, `was …` struck through once past), as a `NEXT STEP` row in the card and
@@ -439,10 +439,12 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
 - Other colours: Fit Strong green · Good blue · Marginal yellow (its own role, apart
   from the urgency amber) · Poor grey. Close dates by urgency: `closes in 6d (soon)` amber (the word `(soon)` carries the urgency without colour) and
   bold within 7 days, `closes in 2d ▲` red and bold within 2 (and today), `expired 3 Sep` struck through and muted once past. These show in rows, the preview and the
-  detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. Documents are named JD · Resume ·
-  Cover letter · Gaps · PDF everywhere, each `✓ ready` or `○ missing`; a Draft row reads
-  `✓ ready` once SCHEMA Ready, else how many are ready (`○ 2/4 ready`), and the preview and
-  detail card add a meter, `■■□□ 2/4 ready` (GLOSSARY avoids "built").
+  detail view. Follow-up due is `⚑ 9mo` orange, bold once more than a week overdue. The Documents are the Resume and
+  the Cover letter, each Written then Built, drawn `✓ Resume ○ PDF   ✓ Cover letter ○ PDF`
+  (`✓` done, `○` still to do); the JD and Gaps are inputs on their own tabs and never
+  counted. A Draft row reads `✓ ready` once SCHEMA Ready, else how many of those steps are
+  done (`○ 2/4 ready`, `○ 1/2 ready` when Resume only), and the preview and detail card add a
+  meter over the same set, `■■□□ 2/4 ready`.
 - Size classes (`internal/ui/layout.go`): wide ≥ 100 columns, medium 72 to 99, narrow < 72; short
   ≤ 20 rows; below 56×14 a resize notice. Wide has the preview beside the list, the card beside
   the detail, the wordmark, the sparkline and `space commands  ? help` in the tab bar. Medium has
@@ -468,15 +470,15 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   this order: other screens' counts (and the sparkline with them), the word "rolecall", the gap
   between tabs (two cells to one), then other screens' names (their digits stay), then the
   mark. The active screen keeps its name and count, and a space always parts its chip from the
-  tab before it. So every screen is still named from 60 columns (`1 Leads 2 Drafts [3 Applied 9] 4
-  Stats 5 Profile 6 Settings`); only the 56-59 column sizes fall back to digits
+  tab before it. So every screen is still named from 61 columns (`1 Leads 2 Drafts [3 Pipeline 9] 4
+  Stats 5 Profile 6 Settings`); only the 56-60 column sizes fall back to digits
   (`1 2 3 [4 Stats] 5 6`). It sheds to the level every screen's bar fits at, so switching
   screens never sheds or restores a count or a name. The sparkline is the same series Stats draws, over 8 weeks, drawn muted
   on a faint baseline, so an empty week shows as `▁` rather than a gap, and labelled
   `applied/wk` while the bar has room (the label goes before the counts); it is hidden when
   no week has an Applied and under `ROLECALL_PLAIN`. Below 72 columns Settings, which then
   has no group list, pins `←→ section` on the key line.
-- Track filter: on the context row of the screens it changes (Leads, Draft, Applied,
+- Track filter: on the context row of the screens it changes (Leads, Draft, Pipeline,
   Stats), read once by its key: `TRACK t [All 4] SWE 3  Platform 1`, or `t [All 4]▸` when short
   of room. A Track with no rows in the current view is left out unless chosen, and `t`/`T`
   pass over it, so the cycle never lands on an empty list (All always has its turn).
@@ -485,7 +487,7 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   number that looks like a total (so other tabs shed their counts sooner). The view chips
   beside it show the filtered counts.
 - Footer: two lines on every screen, so the bottom rule never moves: a breadcrumb
-  (`Applied › All · All tracks · row 2 of 9`, `· detail` while a detail is open, `no rows` on an
+  (`Pipeline › All · All tracks · row 2 of 9`, `· detail` while a detail is open, `no rows` on an
   empty view; `Stats › All tracks`, `Profile › Contact`, `Settings › Search`), then the key
   line. Every position reads `N of M` (rows, tabs, Profile and Settings, `page 1 of 7` in
   help); only the documents meter keeps `2/4 ready`.
@@ -496,11 +498,11 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   a moved row is lit for 600 ms so the eye can follow it.
   A toast (successes clear on the next key) or an error (stays until `Esc`)
   shows on the breadcrumb line; it never replaces the bottom rule. Paths read relative to the
-  Workspace. A move to Offer celebrates once, in gold: `★ OFFER · Orbit Labs ★  12
-  applied · 41 days · first offer`; a rejection stays quiet.
-- Agent writing: when the file watcher sees a document's file written (`jd.md`,
-  `resume.md`, `cover-letter.md`, a PDF in `out/`), its chip reads `⠹ Resume writing…`
-  for 4 s after the last write, beside the `■□□□ 1/4 ready` meter. That is all the TUI can
+  Workspace. A move to Offer celebrates once, in gold: `★ OFFER · Orbit Labs ★  first
+  offer, 41 days after applying, 12 sent`; a rejection stays quiet.
+- Agent writing: when the file watcher sees a Document's file written (`resume.md`,
+  `cover-letter.md`, a PDF in `out/`), its step reads `⠹ Resume writing…` (`⠹ PDF
+  building…`) for 4 s after the last write, beside the `■□□□ 1/4 ready` meter. That is all the TUI can
   see of a Harness working in another terminal; a Handoff run hands the terminal
   over, so nothing is drawn during it.
 - First run: while the Profile's Contact lacks Name or Email the app opens on the Contact
@@ -513,8 +515,9 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
   goes in a field (`your full name`, `your email address`), never a plausible person's details.
   A Workspace with no Applications shows a centred welcome instead of
   empty panes: `▞ rolecall · no Applications yet`, then `a` add your first Lead, a short
-  "Set up" checklist of the steps not yet done (`e` pick an Editor and `h` connect a
-  Harness, each opening Settings › This machine on that row; `5` set up your Profile, until
+  "Set up" checklist of the steps not yet done (`6` pick an Editor in Settings and `h`
+  connect a Harness, the AI coding tool you already use (Claude Code, Codex…), each opening
+  Settings › This machine on that row, so `e` keeps its one meaning, edit; `5` set up your Profile, until
   the Profile has a section besides Contact, worded as the Profile screen words it: `fill in
   your Contact, then run create-profile in your Harness`, or without a Harness `fill in your
   Contact, then write the rest in your Editor`), then
@@ -525,8 +528,8 @@ context-free review. Shared colours and terminal appearance live in `internal/ui
 - Search: while a text filter is on, a chip (`/pl ×`) shows on every screen, beside the detail title too;
   `Esc` clears it. While typing, the search input takes the key line; after `Enter` the scope
   line shows the chip and the count. A search with no match here says where it does match:
-  `No match for "orbit" in Leads · 1 in Applied`, with the key that goes there (`3 go to
-  Applied`, or `s` when the next view holds it).
+  `No match for "orbit" in Leads · 1 in Pipeline`, with the key that goes there (`3 go to
+  Pipeline`, or `s` when the next view holds it).
 - Rows: two lines (title + right-hand columns, then company · track · dates), always
   dense: rows in a section sit together, and only a section's header has a blank line above
   it. A blank Company is left out rather than
@@ -708,19 +711,23 @@ Response rate on the left, the weekly chart and By track on the right; Now leads
 Insights follows, full width.
 
 0. Now: what wants doing today, each count with the key that goes there:
-   `3 follow-ups due → 3 Applied · 1 next step within 7 days → 3 Applied · 1 closing within 7
+   `3 follow-ups due → 3 Pipeline · 1 next step within 7 days → 3 Pipeline · 1 closing within 7
    days → 2 Deadlines`. A next step counts from today to 7 days ahead on an Application that is not
    Rejected, Withdrawn or Dismissed. Hidden when nothing is due. `rolecall now` prints the same
    counts (see [Next step, contacts and exports](#next-step-contacts-and-exports)).
 1. Funnel: Applications that ever reached each Status: Lead → Draft → Applied →
-   Interviewing → Offer, one bar per Status in its glyph and colour. Lead and Draft are
+   Interviewing → Offer, one bar per Status in its glyph and colour, captioned `Ever
+   reached each Status; tabs count where they are now` (a tab's count is the Applications at
+   that Status now, so a rung is never below its tab; a test checks both on the fixture). Lead and Draft are
    optional starts, so a rung can be higher than the one before and there is no drop-off;
-   where one is, the caption says so (`They can start at any Status, so a bar can outgrow
-   the one above`). A rung that all came through the previous one says what share of it
+   where one is, the caption says so (`Any Status can be a start, so a bar can outgrow the
+   one above`). A rung that all came through the previous one says what share of it
    reached it (`29% of Applied`); a rung with Applications that never were on the previous
    one says how they arrived, as counts (`1 from Leads · 2 started at Draft`, `3 via Draft
    · 8 never a Draft`, `11 never a Draft`), never `0% of` or `none`. Nothing when the
-   previous rung is empty. Rejected, Withdrawn and Dismissed on a muted `closed` line. Under it,
+   previous rung is empty. Then a muted `Closed 4: ✕ Rejected 2 · ↩ Withdrawn 2` line (Closed is Rejected plus
+   Withdrawn, as on the Pipeline screen) and, on its own line, `⊘ Dismissed 3, let go before
+   applying`, never counted as Closed. Under it,
    once any closed Application has a `close_reason`, a `Dropped off` line counts them by reason,
    most first (`no-response 4 · after-screen 2 · no reason 1`).
 2. Response rate (GLOSSARY → Response): reached Interviewing or Offer ÷ ever Applied,
@@ -833,7 +840,9 @@ prose, so the 1.x edit form covers the Contact only.
 - Screen 5, after Stats. A section list on the left, built from the `##` headings of
   `profile/master-profile.md`, then a divider and the other Profile files (`projects.md`,
   `writing-preferences.md`, `phrasing-bank.md`). The selected section renders as Markdown on
-  the right.
+  the right. The list shortens two long template headings in plain words: `Key Skills` and
+  `Never claim` (for `Facts that are NOT available`); the content pane keeps the heading as
+  written.
 - Counts beside each section: entries for `###` sections, rows for tables, bullets for
   lists, items for comma lists, none for prose. Contact shows ✓, or ○ (missing) with the reason
   in the content pane when Name or Email is missing (builds would fail).
@@ -876,7 +885,7 @@ below are built.
 - Values shown, each from the file that owns it:
   - Search: Places and Remote rule (`workspace.json` → `search_area`), then `Sources · N` and
     `Blockers · N` count rows.
-  - Documents: cover letter word cap and minimum, Key Skills minimum and maximum
+  - Documents: cover letter maximum and minimum words, Key Skills minimum and maximum
     (`workspace.json`; the Build defaults 350, 150, 8 and 12 when unset).
   - Tracking: Tracks (`workspace.json`), then any Track Applications use that
     `workspace.json` does not list (`Unknown · 6 applications · not listed`; Enter adds it, after

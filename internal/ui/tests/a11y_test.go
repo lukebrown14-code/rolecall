@@ -219,7 +219,7 @@ func TestStatusGlyphsShowEverywhere(t *testing.T) {
 	for _, want := range []string{"● Applied · 1", "◆ Interviewing · 2", "★ Offer · 2", "▌ ● Software Engineer",
 		"● Applied", "◌ Lead", "★ docs-partial", "✕ docs-ready", "↩ docs-resume-only"} {
 		if !strings.Contains(list, want) {
-			t.Fatalf("Applied screen lacks %q:\n%s", want, list)
+			t.Fatalf("Pipeline screen lacks %q:\n%s", want, list)
 		}
 	}
 	move := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "1", "m"))
@@ -236,7 +236,7 @@ func TestClosedGroupHeaderHasAGlyph(t *testing.T) {
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
 	for _, want := range []string{"✕ Closed · 4", "↩ docs-resume-only"} {
 		if !strings.Contains(view, want) {
-			t.Fatalf("Applied screen lacks %q:\n%s", want, view)
+			t.Fatalf("Pipeline screen lacks %q:\n%s", want, view)
 		}
 	}
 	t.Setenv("ROLECALL_ASCII", "1")

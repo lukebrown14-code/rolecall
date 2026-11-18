@@ -122,7 +122,7 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 			m.toast += hiddenNote
 		}
 		// Land on the Application's new home so the celebration sits over its row, not
-		// an empty list left behind. A view that still shows it (Applied › All) is kept:
+		// an empty list left behind. A view that still shows it (Pipeline › All) is kept:
 		// reload has put the cursor on the row's new place.
 		if !hidden && !m.shown(a.Folder) {
 			m.followAfterMove(a.Folder)

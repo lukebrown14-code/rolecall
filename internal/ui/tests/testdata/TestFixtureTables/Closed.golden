@@ -1,4 +1,4 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Applied 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings        space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2 [3 Pipeline 9] 4 Stats  ▁▁▁▁▁▁█▁  5 Profile  6 Settings       space commands  ? help 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    VIEW s All 9  Applied 1  Interviewing 2  Offer 2 [Closed 4] │ TRACK t [All 4] SWE 2  Unknown 2                       
 ─────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────
@@ -7,8 +7,8 @@
  ▌   Example · Unknown · rejected ~Jan 2026                      │                                                      
    ↩ Engineer #1                                       Good      │ ✕ Rejected · ~Jan 2026                     fit Good  
      Example · Unknown · withdrawn ~Jan 2026                     │                                                      
-   ✕ docs-ready                                                  │ DOCS         □□□ 0/3 ready                           
-     Fictional Labs · SWE · rejected ~7d ago                     │   ○ JD   ○ Resume   ○ PDF   — Cover letter           
+   ✕ docs-ready                                                  │ DOCS         □□ 0/2 ready                            
+     Fictional Labs · SWE · rejected ~7d ago                     │   ○ Resume ○ PDF   — Cover letter                    
    ↩ docs-resume-only                                            │                                                      
      Fictional Labs · SWE · withdrawn ~7d ago                    │ TIMELINE                                             
                                                                  │   ● Applied                             ~1 Jan 2025  
@@ -16,7 +16,7 @@
                                                                  │                                                      
                                                                  │ CONTACTS     Someone                                 
                                                                  │                                                      
-                                                                 │ NOTES        none yet                         n add  
+                                                                 │ NOTES        none yet                       n notes  
                                                                  │                                                      
                                                                  │                                                      
                                                                  │                                                      
@@ -36,5 +36,5 @@
                                                                  │                                                      
                                                                  │                                                      
 ─────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────
-   Applied › Closed · All tracks · row 1 of 4                                                                           
+   Pipeline › Closed · All tracks · row 1 of 4                                                                          
  enter open  m move  a add  / search                                                                             ? help 

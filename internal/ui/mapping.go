@@ -3,13 +3,14 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
 
 // Screens, numbered 1-6.
 const (
 	screenLeads    = "Leads"
 	screenDraft    = "Drafts"
-	screenApplied  = "Applied"
+	screenPipeline = "Pipeline"
 	screenStats    = "Stats"
 	screenProfile  = "Profile"
 	screenSettings = "Settings"
@@ -62,7 +63,7 @@ func init() {
 	screenDefs = []screenDef{
 		{name: screenLeads, tables: []string{tableLeads, tableDismissed, tableFiltered}, hasTables: true},
 		{name: screenDraft, tables: []string{tableDraft, tableDeadlines}, hasTables: true},
-		{name: screenApplied, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
+		{name: screenPipeline, tables: []string{allView, tableApplied, tableInterviewing, tableOffer, tableClosed}, hasTables: true},
 		{name: screenStats, hasTables: false, render: model.statsView, key: model.statsKey, help: model.statsHelpKeys},
 		{name: screenProfile, hasTables: false, render: model.profileView, key: model.profileKey, help: model.profileHelpKeys, enter: model.loadProfile},
 		{name: screenSettings, hasTables: false, render: model.settingsView, key: model.settingsKey, help: model.settingsHelpKeys},
@@ -79,6 +80,10 @@ func (m model) screenKey(k tea.KeyPressMsg) (model, bool) {
 	target := int(key[0] - '1')
 	if target == settingsScreen && m.screen != settingsScreen {
 		// Settings reached with 6 returns on Esc too, as it does when opened with ",".
+		// While the welcome asks for an Editor, 6 lands on the Editor row.
+		if m.welcoming() && m.setupPending(key) {
+			return m.openSettingsAt(settings.LabelEditor), true
+		}
 		return m.openSettings(), true
 	}
 	m.screen, m.table, m.cursor = target, 0, 0
@@ -125,9 +130,9 @@ func StatusLocation(status string) (screen, table string) {
 	case store.StatusDraft:
 		return screenDraft, tableDraft
 	case store.StatusApplied, store.StatusInterviewing, store.StatusOffer:
-		return screenApplied, status
+		return screenPipeline, status
 	case store.StatusRejected, store.StatusWithdrawn:
-		return screenApplied, tableClosed
+		return screenPipeline, tableClosed
 	default: // Lead, and anything unreadable
 		return screenLeads, tableLeads
 	}

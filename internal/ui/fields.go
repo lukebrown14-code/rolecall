@@ -97,13 +97,13 @@ var markdownMarks = strings.NewReplacer("**", "", "*", "", "`", "")
 // only a Lead or Draft with a JD is offered, and only with a Harness set: a key is offered
 // only where it works.
 func (m model) needsPrepare(a store.Application, c docChip) bool {
-	return m.harness != "" && a.JDHasText && !c.ready && c.name != docPDF && m.handoffAllowed(a, skillPrepareDocuments)
+	return m.harness != "" && a.JDHasText && !c.ready && c.step == stepWritten && m.handoffAllowed(a, skillPrepareDocuments)
 }
 
 // needsBuild reports whether a missing PDF can be built now: b works (buildable), with a
 // Plugin set.
 func (m model) needsBuild(a store.Application, c docChip) bool {
-	return m.plugin != "" && !c.ready && c.name == docPDF && buildable(a)
+	return m.plugin != "" && !c.ready && c.step == stepBuilt && buildable(a)
 }
 
 // logDate is a Status entry's date as the timeline words it, "~" for an approximate one.
@@ -382,10 +382,7 @@ func (m model) docsBlock(p pal, a store.Application, w int, keep func(string) bo
 	if !keep(key) {
 		key, action = "", ""
 	}
-	docs := make([]string, 0, len(docChips(a))+1)
-	for _, c := range docChips(a) {
-		docs = append(docs, m.chipText(p, a, c))
-	}
+	docs := m.docMarks(p, a)
 	if a.ResumeOnly && !a.CoverLetterHasText {
 		// Marked like the other Documents: neither ready nor missing, but not needed.
 		docs = append(docs, p.Text(p.Dim).Render(m.glyph(notNeededMark)+" "+docCoverLetter))
@@ -407,12 +404,12 @@ func (m model) docsBlock(p pal, a store.Application, w int, keep func(string) bo
 	return append(rows, xansi.Truncate(line, w, "…"))
 }
 
-// notesRow is the Notes' first line, or "none yet" with the key that adds them, unless
-// NEXT already offers it.
+// notesRow is the Notes' first line, or "none yet", with n, which reads "notes"
+// everywhere, unless NEXT already offers it.
 func (m model) notesRow(p pal, a store.Application, w int, keep func(string) bool) string {
-	key, value, action := "n", p.Text(p.Dim).Render("none yet"), "add"
+	key, value, action := "n", p.Text(p.Dim).Render("none yet"), descNotes
 	if t := m.docText(a, notesFile); t != "" {
-		value, action = p.Text(p.Fg).Render(markdownMarks.Replace(t)), "notes"
+		value = p.Text(p.Fg).Render(markdownMarks.Replace(t))
 	}
 	if !keep(key) {
 		key, action = "", ""

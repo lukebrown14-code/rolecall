@@ -198,10 +198,14 @@ func helpLists(view, pair string) bool {
 
 func TestHelpBarOnlyOffersKeysValidInContext(t *testing.T) {
 	rowKeys := []string{"e edit", "m move", "u undo", "x dismiss", "n notes"}
+	// Only the key line is checked: the card behind an overlay names n notes on its NOTES
+	// row and e edit on NEXT, which are the card's words, not offered keys.
 	assertHidden := func(t *testing.T, context, view string) {
 		t.Helper()
+		lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+		keyLine := lines[len(lines)-1]
 		for _, k := range rowKeys {
-			if strings.Contains(view, k) {
+			if strings.Contains(keyLine, k) {
 				t.Errorf("%s: help offers %q:\n%s", context, k, view)
 			}
 		}

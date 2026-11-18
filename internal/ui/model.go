@@ -16,7 +16,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
 
-// allView is the Applied screen's first view: every Application past Draft, one
+// allView is the Pipeline screen's first view: every Application past Draft, one
 // section per table in appliedGroups order.
 const allView = "All"
 
@@ -172,7 +172,7 @@ func (m model) rows() []store.Application {
 	return m.rowsOf(m.screen, m.views()[m.table])
 }
 
-// rowsOf lists one view of a screen. All groups the Applied screen's tables in
+// rowsOf lists one view of a screen. All groups the Pipeline screen's tables in
 // appliedGroups order; Leads and Draft put expired close dates last.
 func (m model) rowsOf(screen int, table string) []store.Application {
 	if table == allView {

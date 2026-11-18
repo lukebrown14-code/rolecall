@@ -1,4 +1,4 @@
- R rolecall  1 Leads 7  2 Drafts 2  3 Applied 9  4 Stats  ______#_ [5 Profile] 6 Settings        space commands  ? help 
+ R rolecall  1 Leads 7  2 Drafts 2  3 Pipeline 9  4 Stats  ______#_ [5 Profile] 6 Settings       space commands  ? help 
 ------------------------------------------------------------------------------------------------------------------------
   [SECTIONS]  CONTENT                                                                         profile/master-profile.md 
 ---------------------------------+--------------------------------------------------------------------------------------
@@ -7,7 +7,7 @@
    Experience                 2  |  NAME         Alex Quinn                                                             
    Key Skills                 8  |  EMAIL        alex.quinn@example.test                                                
    Summary                       |  PHONE        +61 400 000 000                                                        
-   Facts NOT available        2  |  LOCATION     Brisbane, QLD                                                          
+   Never claim                2  |  LOCATION     Brisbane, QLD                                                          
    files ----------------------  |  LINKEDIN     linkedin.com/in/alexquinn                                              
    projects.md                   |  GITHUB       github.com/alexquinn                                                   
                                  |  WORK RIGHTS  Full working rights in Australia (the subclass never appears)          

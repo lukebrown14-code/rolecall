@@ -54,7 +54,9 @@
     "JDHasText",
     "ResumeHasText",
     "CoverLetterHasText",
-    "GapsHasText"
+    "GapsHasText",
+    "ResumeBuilt",
+    "CoverLetterBuilt"
   ],
   "scanOnly": [
     "Malformed",

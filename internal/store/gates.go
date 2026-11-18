@@ -34,14 +34,14 @@ func (s *Store) SetGate(key, text string) error {
 	switch key {
 	case GateLetterCap:
 		if n <= 0 {
-			return errors.New("word cap must be above 0")
+			return errors.New("the maximum words must be above 0")
 		}
 		if n <= ws.LetterWordMin {
-			return fmt.Errorf("word cap must be above the minimum (%d)", ws.LetterWordMin)
+			return fmt.Errorf("the maximum words must be above the minimum (%d)", ws.LetterWordMin)
 		}
 	case GateLetterMin:
 		if n >= ws.LetterWordCap {
-			return fmt.Errorf("minimum must be below the cap (%d)", ws.LetterWordCap)
+			return fmt.Errorf("the minimum words must be below the maximum (%d)", ws.LetterWordCap)
 		}
 	case GateSkillsMin:
 		if n > ws.KeySkillsMax {

@@ -162,7 +162,7 @@ func TestOfferMoveHiddenByFilterKeepsTheNote(t *testing.T) {
 
 // A message on the footer never changes the breadcrumb's form: with room both show whole,
 // otherwise the message takes the line alone (it does not shorten the breadcrumb to
-// "Applied › All · All · 1 of 9" and back).
+// "Pipeline › All · All · 1 of 9" and back).
 func TestFeedbackNeverShortensTheBreadcrumb(t *testing.T) {
 	for _, w := range []int{120, 100, 80, 70, 60} {
 		bare := breadcrumbLine(runKeysSized(t, fixtureCopy(t, nil), w, 24, "3"))
