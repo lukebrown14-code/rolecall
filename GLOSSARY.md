@@ -136,7 +136,7 @@ The Stats panel that counts the gaps recorded across every Fit write-up, to show
 _Avoid_: analytics
 
 **Follow-up due**:
-A sent Application (Applied or Interviewing) that has gone the follow-up period without a Status change or a recorded follow-up. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again. A next step booked for today or later holds it until that day has passed.
+A sent Application (Applied or Interviewing) that has gone the follow-up period (`follow_up_days`, due on the day it ends) without a Status change or a recorded follow-up; a move undone within 15 minutes is no change. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again. A next step booked for today or later holds it until that day has passed.
 _Avoid_: stale, reminder
 
 **Next step**:

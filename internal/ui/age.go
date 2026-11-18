@@ -22,28 +22,38 @@ func postedAge(a store.Application, now time.Time) string {
 	return strconv.Itoa(max(d, 0)) + "d"
 }
 
-// ageWarning is what max_posting_age_days says of a Lead: "past the age limit" once its
-// ad is older, "expires in N days" within expiry_warning_days of it, or "".
-func ageWarning(a store.Application, rules store.SearchRules, now time.Time) string {
-	if rules.MaxPostingAgeDays <= 0 || a.Status != store.StatusLead {
-		return ""
+// postingDaysLeft is a Lead's max_posting_age_days (its Source's own, else the global
+// one) minus its ad's age in days: SCHEMA's days_left, so 0 or less is expired (an ad
+// exactly at the limit is too old, as rules.py check reads it). ok is false when the
+// Application is not a Lead, no limit applies or the ad has no date.
+func postingDaysLeft(a store.Application, rules store.SearchRules, now time.Time) (int, bool) {
+	limit := rules.AgeLimit(a.Source)
+	if limit <= 0 || a.Status != store.StatusLead {
+		return 0, false
 	}
 	d, ok := postedDays(a, now)
 	if !ok {
-		return ""
+		return 0, false
 	}
-	left := rules.MaxPostingAgeDays - d
+	return limit - d, true
+}
+
+// ageWarning is what max_posting_age_days says of a Lead: "past the age limit" once its
+// ad reaches it, "expires in N days" within expiry_warning_days of it ("expires in 1 day"
+// on its last day), or "".
+func ageWarning(a store.Application, rules store.SearchRules, now time.Time) string {
+	left, ok := postingDaysLeft(a, rules, now)
 	switch {
-	case left < 0:
+	case !ok:
+		return ""
+	case left <= 0:
 		return "past the age limit"
-	case left == 0:
-		return "expires today"
+	case left > rules.ExpiryWarningDays:
+		return ""
 	case left == 1:
 		return "expires in 1 day"
-	case d >= rules.MaxPostingAgeDays-rules.ExpiryWarningDays:
-		return "expires in " + strconv.Itoa(left) + " days"
 	}
-	return ""
+	return "expires in " + strconv.Itoa(left) + " days"
 }
 
 // filterReasonLabel is a filter_reason as the Owner reads it.

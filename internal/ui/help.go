@@ -762,7 +762,7 @@ func rowWords(p pal, followUpDays, inner int) helpBlock {
 	block := fg.Bold(true)
 	rows := [][2]string{
 		{fg.Render("posted 12d"), "how old the ad is"},
-		{warn.Render(glyphWarn + " past the age limit"), "older than Rules › Max posting age"},
+		{warn.Render(glyphWarn + " past the age limit"), "as old as Rules › Max posting age, or older"},
 		{p.Text(p.Dim).Render("ad summary only"), "the saved ad is only a summary"},
 		{ok.Render("contract fits visa cap"), "contract within your visa's limit"},
 		{block.Render(glyphWarn + " 12-mo contract > 6-mo visa cap"), "contract runs past your visa's limit"},

@@ -752,14 +752,63 @@ def _day(value):
     return datetime.strptime(text, "%Y-%m-%d").date() if _valid_date(text) else None
 
 
+# How soon after a move an entry restoring the Status before it reads as an undo of that
+# move (SCHEMA status_log; reporting.UndoWindow in Go).
+UNDO_WINDOW = timedelta(minutes=15)
+
+
+def _undoes(move, entry):
+    """Whether entry undoes move: both timestamped, entry no more than UNDO_WINDOW after."""
+    if not (RFC3339.fullmatch(move.at) and RFC3339.fullmatch(entry.at)):
+        return False
+    gap = _parse_moment(entry.at) - _parse_moment(move.at)
+    return timedelta(0) <= gap <= UNDO_WINDOW
+
+
+def effective_log(log):
+    """A status_log with each undone move taken out, as Go's reporting.EffectiveLog.
+
+    An entry that restores the Status before the previous entry, within UNDO_WINDOW of it,
+    is an undo: it and the move it undid are both dropped. Undoing a first move back to
+    Lead empties the log. Date-only entries never read as an undo.
+    """
+    out = []
+    for entry in log:
+        if len(out) >= 2 and out[-2].status == entry.status and _undoes(out[-1], entry):
+            out.pop()
+        elif (
+            len(out) == 1
+            and entry.status == "Lead"
+            and out[0].status != "Lead"
+            and _undoes(out[0], entry)
+        ):
+            out.clear()
+        else:
+            out.append(entry)
+    return out
+
+
+def _last_change(app):
+    """When the Application reached its current Status, ignoring undone moves, as the TUI's
+    lastChange: the effective log's last entry, None when an undo emptied a Lead's log, and
+    the raw last entry if the effective log disagrees with the current Status."""
+    log = effective_log(app.status_log)
+    if not log and app.status == "Lead":
+        return None
+    if not log or log[-1].status != app.status:
+        return app.last_change
+    return log[-1]
+
+
 def follow_up_from(app):
     """The day Follow-up due counts from, and what it is, mirroring the Go TUI.
 
-    It is the later of the last Status change and ``followed_up`` (a follow-up the Owner
-    recorded with ``l``); on the same day the Status change wins. Returns
-    ``(day, "followed_up" | "last change")``, or ``(None, "")`` when neither reads.
+    It is the later of the last Status change, ignoring undone moves, and ``followed_up``
+    (a follow-up the Owner recorded with ``l``); on the same day the Status change wins.
+    Returns ``(day, "followed_up" | "last change")``, or ``(None, "")`` when neither reads.
     """
-    changed = _day(app.last_change.at) if app.last_change else None
+    last = _last_change(app)
+    changed = _day(last.at) if last else None
     followed = _day(app.followed_up)
     if followed is not None and (changed is None or followed > changed):
         return followed, "followed_up"
@@ -772,22 +821,28 @@ def follow_up_status(app, today=None, days=DEFAULT_FOLLOW_UP_DAYS):
     """Follow-up due for one Application, as the TUI's ⚑ flag reckons it.
 
     Only Applied and Interviewing can be due. The Application is due ``days`` after
-    ``follow_up_from``; ``days_past`` is whole days past that (0 on the day, negative
-    before it).
+    ``follow_up_from``; ``DaysPast`` is whole days past that (0 on the day, negative
+    before it). A ``next_step`` on or after today holds it: ``HeldBy`` is that step's
+    ``at``, and ``DueOn`` and ``DaysPast`` stay unset.
     """
     today = today or date.today()
     start, since = follow_up_from(app)
+    step = _day(app.next_step["At"]) if app.next_step else None
     result = {
         "Status": app.status,
         "FollowedUp": app.followed_up,
         "From": start.isoformat() if start else "",
         "Since": since,
         "Days": days,
+        "HeldBy": "",
         "DueOn": "",
         "DaysPast": None,
         "Due": False,
     }
     if app.malformed or app.status not in FOLLOW_UP_STATUSES or start is None:
+        return result
+    if step is not None and step >= today:
+        result["HeldBy"] = app.next_step["At"]
         return result
     due_on = start + timedelta(days=days)
     result["DueOn"] = due_on.isoformat()

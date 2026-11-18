@@ -41,6 +41,37 @@ type SearchRules struct {
 	MaxContractMonths int
 	// Set names the keys search_rules sets itself.
 	Set map[string]bool
+	// SourceAge maps a Source name, lower case, to its own rules.max_posting_age_days,
+	// which wins over MaxPostingAgeDays for Leads from it (WithSources fills it).
+	SourceAge map[string]int
+}
+
+// WithSources is r with each Source's own max_posting_age_days, as rules.py reads the
+// registry. A value under 1 is not a limit and is left out.
+func (r SearchRules) WithSources(sources []Source) SearchRules {
+	r.SourceAge = map[string]int{}
+	for _, s := range sources {
+		if days := s.Rules[RuleMaxPostingAge]; days >= 1 {
+			r.SourceAge[sourceKey(s.Name)] = days
+		}
+	}
+	return r
+}
+
+// AgeLimit is the max_posting_age_days for a Lead whose meta.yml source is source: its
+// Source's own limit, matched by name ignoring case, else the global one. 0 is no limit.
+func (r SearchRules) AgeLimit(source string) int {
+	if days, ok := r.SourceAge[sourceKey(source)]; ok {
+		return days
+	}
+	return r.MaxPostingAgeDays
+}
+
+// sourceKey is the registry name a source string refers to, as rules.py source_key:
+// "Greenhouse:canva" is "greenhouse".
+func sourceKey(source string) string {
+	name, _, _ := strings.Cut(source, ":")
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 // The Source types a sources entry can name.

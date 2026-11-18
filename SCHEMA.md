@@ -351,7 +351,7 @@ that rule a role out, so none of them lives in prose:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired |
+| `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired. A Source's own `rules.max_posting_age_days` replaces it for roles whose `source` names that Source (ignoring case), in the TUI and `rules.py` alike |
 | `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5. N is the limit minus the age in whole days (today minus `posted`), so the last day before expiry reads "expires in 1 day" |
 | `ambiguous_age_labels` | object | label → `discard` or `keep`, for a label that may be either side of the limit (`"1mo ago"` is 28 to 61 days). Matched ignoring case and spacing. Unlisted, a borderline Lead is kept and flagged for the Owner |
 | `max_applicants` | object | Source name → the most applicants a role may have there |

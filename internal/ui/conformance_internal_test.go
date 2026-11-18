@@ -29,17 +29,6 @@ var knownDrift = map[string]struct {
 			"follow_up/west of UTC: a timestamp counts on its local day",
 		},
 	},
-	"C10": {
-		reason: "ageWarning says 'expires today' at the limit, where SCHEMA says expired, and reads only the global limit, never a Source's own",
-		vectors: []string{
-			"posting_age/at the limit",
-			"posting_age/a Source limit, a day under it",
-			"posting_age/a Source limit, at it",
-			"posting_age/a Source limit, a day over it",
-			"posting_age/a Source limit longer than the global one",
-			"posting_age/a Source limit with no global one",
-		},
-	},
 }
 
 func driftFor(vector string) string {
@@ -99,6 +88,7 @@ type derivedConformance struct {
 		Posted            string
 		Today             string
 		Source            string
+		Sources           []store.Source
 		MaxPostingAgeDays *int `json:"max_posting_age_days"`
 		ExpiryWarningDays int  `json:"expiry_warning_days"`
 		Want              struct {
@@ -231,22 +221,24 @@ func TestPostingAgeMatchesTheSharedConformanceFixture(t *testing.T) {
 				return []string{err.Error()}
 			}
 			now = now.Add(12 * time.Hour)
-			// The TUI reads only the global limit; a Source's own rules.max_posting_age_days
-			// (the vector's sources) has nowhere to go yet (C10).
 			rules := store.SearchRules{ExpiryWarningDays: v.ExpiryWarningDays}
 			if v.MaxPostingAgeDays != nil {
 				rules.MaxPostingAgeDays = *v.MaxPostingAgeDays
 			}
+			rules = rules.WithSources(v.Sources)
 			a := store.Application{Status: store.StatusLead, Posted: v.Posted, Source: v.Source}
 			warning := ageWarning(a, rules, now)
 			expired := warning == "past the age limit"
 			var left *int
-			if expiry, ok := postingExpiry(a, rules); ok && !expired {
-				n := int(expiry.Sub(day(now)).Hours() / hoursPerDay)
+			if n, ok := postingDaysLeft(a, rules, now); ok && !expired {
 				left = &n
 			}
 			warn := strings.HasPrefix(warning, "expires")
 			var problems []string
+			// The deadline (sorting, the Expired section) passes on the same day.
+			if expiry, ok := postingExpiry(a, rules); ok && expiry.Before(day(now)) != expired {
+				problems = append(problems, fmt.Sprintf("deadline %s disagrees with expired %v", expiry.Format(time.DateOnly), expired))
+			}
 			if expired != v.Want.Expired {
 				problems = append(problems, fmt.Sprintf("expired %v (%q), want %v", expired, warning, v.Want.Expired))
 			}

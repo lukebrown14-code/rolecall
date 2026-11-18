@@ -38,8 +38,8 @@ func sortNewest(rows []store.Application) {
 }
 
 // deadline is the last day a Lead or Draft is worth sending: its close date, or for a
-// Lead the day its ad reaches max_posting_age_days (the day ageWarning reads "expires
-// today"), whichever is sooner. ok is false when it has neither.
+// Lead the last day its ad is under max_posting_age_days (the day ageWarning reads
+// "expires in 1 day"), whichever is sooner. ok is false when it has neither.
 func deadline(a store.Application, rules store.SearchRules) (time.Time, bool) {
 	closes, hasCloses := parseDay(a.Closes)
 	expires, hasExpiry := postingExpiry(a, rules)
@@ -55,17 +55,20 @@ func deadline(a store.Application, rules store.SearchRules) (time.Time, bool) {
 	return closes, hasCloses
 }
 
-// postingExpiry is the day a Lead's ad reaches max_posting_age_days, when the rule is set
-// and the ad says when it was posted. Only a Lead has one, as only a Lead is warned of it.
+// postingExpiry is the last day a Lead's ad is under its max_posting_age_days (its
+// Source's own, else the global one): the day before it reaches the limit, when it is
+// expired. ok is false when no limit applies or the ad does not say when it was posted.
+// Only a Lead has one, as only a Lead is warned of it.
 func postingExpiry(a store.Application, rules store.SearchRules) (time.Time, bool) {
-	if rules.MaxPostingAgeDays <= 0 || a.Status != store.StatusLead {
+	limit := rules.AgeLimit(a.Source)
+	if limit <= 0 || a.Status != store.StatusLead {
 		return time.Time{}, false
 	}
 	posted, ok := parseDay(a.Posted)
 	if !ok {
 		return time.Time{}, false
 	}
-	return posted.AddDate(0, 0, rules.MaxPostingAgeDays), true
+	return posted.AddDate(0, 0, limit-1), true
 }
 
 // span is a distance in days as the list words it: "4d", "3w", "2mo", and from two
@@ -114,7 +117,7 @@ func daysFrom(date string, now time.Time) (time.Time, int, bool) {
 	return t, int(t.Sub(day(now)).Hours() / hoursPerDay), true
 }
 
-// followUpDue reports whether a sent Application's last change is older than the
+// followUpDue reports whether a sent Application's last change is at least the
 // follow-up period: the whole-day rule the row's ⚑ flag and the Stats screen share, so
 // the flag and the reasoning can never disagree. The time of day never matters.
 func followUpDue(a store.Application, now time.Time, days int) bool {

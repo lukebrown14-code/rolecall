@@ -487,7 +487,7 @@ type Rule struct{ Key, Label, Unit, Example, About string }
 // Rules are the Rules rows in display order.
 var Rules = []Rule{
 	{store.RuleMaxPostingAge, "Max posting age", unitDays, "30",
-		"The Sweep dismisses a Lead whose ad is older than this. Leave it empty to keep every age."},
+		"The Sweep dismisses a Lead whose ad is this many days old or older. Leave it empty to keep every age."},
 	{store.RuleExpiryWarning, "Expiry warning", unitDays, "5",
 		"A Lead this close to the max posting age says how many days it has left."},
 	{store.RuleMaxApplicants, "Applicant caps", "", "linkedin 100, seek 50",

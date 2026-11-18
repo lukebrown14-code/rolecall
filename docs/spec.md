@@ -107,7 +107,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 
 | Table | Columns | Sort |
 |---|---|---|
-| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | by deadline, soonest first: the close date, or for a Lead the day its ad reaches `max_posting_age_days` (`posted` + the rule), whichever is sooner. No deadline goes after every dated row. Ties go by Fit (Strong, Good, Marginal, Poor, not assessed), then `posted`, newest first. A passed deadline (`expired 1 Sep`, or `⚠ past the age limit`) sorts under an Expired section. `o` on Leads switches to newest added first, which mixes expired Leads back in; the Leads header names the order in force (`◌ Leads · 23 · by deadline`, `· newest first`) |
+| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | by deadline, soonest first: the close date, or for a Lead the last day before its ad reaches `max_posting_age_days` (`posted` + the rule − 1; its Source's own `rules.max_posting_age_days` when the Lead's `source` names one), whichever is sooner. An ad exactly at the limit is past it, as `rules.py check` reads it. No deadline goes after every dated row. Ties go by Fit (Strong, Good, Marginal, Poor, not assessed), then `posted`, newest first. A passed deadline (`expired 1 Sep`, or `⚠ past the age limit`) sorts under an Expired section. `o` on Leads switches to newest added first, which mixes expired Leads back in; the Leads header names the order in force (`◌ Leads · 23 · by deadline`, `· newest first`) |
 | Dismissed | Title · Company · Track · Dismissed (date) | newest first |
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first. In Applied and Interviewing, Follow-ups due come first, most overdue first |
 
@@ -116,7 +116,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
   Docs shows on Draft only (the Pipeline screen's rows show Fit and the follow-up flag, and
   Closed rows name the outcome on the second line, `rejected ~7d ago` / `withdrawn ~7d ago`,
   under the Status glyph `✕` / `↩`).
-- Follow-up: `⚑` when the Status is Applied or Interviewing and the later of the last change and the last recorded follow-up (`l`, `followed_up`) is more than `follow_up_days` old, unless a next step is booked for today or later (the row, sorting, `NEXT` and Stats → Now share the rule).
+- Follow-up: `⚑` when the Status is Applied or Interviewing and the later of the last change and the last recorded follow-up (`l`, `followed_up`) is `follow_up_days` old or older (due on the day the period ends, as SCHEMA.md words it; a move undone within 15 minutes does not count as a change), unless a next step is booked for today or later (the row, sorting, `NEXT`, Stats → Now and `meta.py follow-up` share the rule).
 - Fit: in list rows the enum word alone (`Good`), in its own colour, left-aligned in a column as wide as `Marginal`, and blank when not assessed. The preview, card and detail keep the label (`fit Good`, `fit not assessed`).
 - Malformed `meta.yml`: the row reads `⚠ Can't read SWE/malformed`, then the failing line and how to fix it
   (`meta.yml line 4: indented lines must be status_log entries: …`). The detail view says the same at full width, with the path

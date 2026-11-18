@@ -265,14 +265,10 @@ func (m model) deadlineGroupOf(a store.Application) (deadlineGroup, bool) {
 }
 
 // postingExpiring reports a Lead whose ad is within expiry_warning_days of
-// max_posting_age_days, today included: the rows that read "expires in N days".
+// max_posting_age_days and not yet at it: the rows that read "expires in N days".
 func (m model) postingExpiring(a store.Application) bool {
-	t, ok := postingExpiry(a, m.rules)
-	if !ok {
-		return false
-	}
-	left := int(t.Sub(day(m.now())).Hours() / hoursPerDay)
-	return left >= 0 && left <= m.rules.ExpiryWarningDays
+	left, ok := postingDaysLeft(a, m.rules, m.now())
+	return ok && left >= 1 && left <= m.rules.ExpiryWarningDays
 }
 
 // beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.

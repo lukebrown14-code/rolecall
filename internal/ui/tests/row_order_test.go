@@ -41,7 +41,7 @@ func leadOrder(view string, names ...string) []string {
 // dated ones. Leads with no deadline follow, best Fit first, then newest posted.
 func TestLeadsSortByDeadlineThenFitThenPosted(t *testing.T) {
 	root := fixtureCopy(t, func(root string) {
-		writeLead(t, root, "Aging", "posted: 2026-09-02") // ages out 2 Oct, the day after tomorrow
+		writeLead(t, root, "Aging", "posted: 2026-09-02") // 29 days old: expired from tomorrow, 2 Oct
 		writeLead(t, root, "GoodOld", "fit: Good", "closes: 2026-10-10", "posted: 2026-09-20")
 		writeLead(t, root, "GoodNew", "fit: Good", "closes: 2026-10-10", "posted: 2026-09-28")
 		writeLead(t, root, "Dated", "closes: 2026-10-20")
@@ -66,6 +66,52 @@ func TestLeadPastTheAgeLimitIsExpired(t *testing.T) {
 	expired := strings.Index(v, "Expired · 1")
 	if expired < 0 || strings.Index(v, "Stale") < expired || !strings.Contains(v, "past the age limit") {
 		t.Fatalf("a Lead past the age limit is not under Expired:\n%s", v)
+	}
+}
+
+// An ad exactly max_posting_age_days old is expired, as rules.py check reads it, and a
+// Lead from a Source with its own rules.max_posting_age_days is held to that limit, matched
+// by name ignoring case. Another Source's Lead keeps the global 30.
+func TestPostingAgeLimitIsInclusiveAndPerSource(t *testing.T) {
+	root := fixtureCopy(t, func(root string) {
+		path := filepath.Join(root, "workspace.json")
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ws := strings.Replace(string(b), `"name":"linkedin",`, `"name":"linkedin","rules":{"max_posting_age_days":20},`, 1)
+		writeFile(t, path, ws)
+		writeLead(t, root, "AtLimit", "posted: 2026-09-01")                        // 30 days, global 30
+		writeLead(t, root, "SourceAt", "posted: 2026-09-11", "source: LinkedIn")   // 20 days, LinkedIn 20
+		writeLead(t, root, "SourceNear", "posted: 2026-09-12", "source: linkedin") // 19 days
+		writeLead(t, root, "OtherSource", "posted: 2026-09-11", "source: greenhouse")
+	})
+	v := chipped(runKeysSized(t, root, 160, 60, "1"))
+	expired := strings.Index(v, "Expired · 2")
+	if expired < 0 {
+		t.Fatalf("want AtLimit and SourceAt under Expired · 2:\n%s", v)
+	}
+	for _, n := range []string{"AtLimit", "SourceAt"} {
+		if strings.Index(v, "◌ "+n) < expired {
+			t.Errorf("%s is not under Expired:\n%s", n, v)
+		}
+	}
+	for _, n := range []string{"SourceNear", "OtherSource"} {
+		if i := strings.Index(v, "◌ "+n); i < 0 || i > expired {
+			t.Errorf("%s should be live, above Expired:\n%s", n, v)
+		}
+	}
+	// row is a Lead's row and the row words under it, up to the next row.
+	row := func(name string) string {
+		_, after, _ := strings.Cut(v, "◌ "+name)
+		r, _, _ := strings.Cut(after, "◌ ")
+		return r
+	}
+	if r := row("SourceNear"); !strings.Contains(r, "expires in 1 day") {
+		t.Errorf("SourceNear row = %q, want it to expire in 1 day", r)
+	}
+	if r := row("OtherSource"); strings.Contains(r, "expires") || strings.Contains(r, "past the age limit") {
+		t.Errorf("OtherSource row = %q, want no age warning under the global 30", r)
 	}
 }
 

@@ -27,8 +27,10 @@ message, edits it and sends it themselves.
   follow-up (`l` in rolecall).
 - When it is due: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py --data <workspace> follow-up --folder <application folder>`
   (add `--days <n>` when the Owner changed `follow_up_days` in Settings). It prints `FollowedUp`,
-  `From` (the later of the last Status change and `followed_up`), `Since` (which of the two),
-  `DueOn` and `Due`, reckoned as the app's `⚑` flag is.
+  `From` (the later of the last Status change and `followed_up`; a move undone within 15
+  minutes does not count), `Since` (which of the two), `HeldBy`, `DueOn` and `Due`, reckoned
+  as the app's `⚑` flag is. `HeldBy` is the `next_step` date when one is booked today or
+  later: nothing is due while it stands.
 - `<application folder>/jd.md` — the role, so the message names it correctly.
 - `profile/master-profile.md` in the Workspace, only for the Owner's name and one fact worth
   repeating. The only facts you may use are in the Profile.
@@ -39,8 +41,8 @@ Every script takes the Workspace from `--data <path>` or `ROLECALL_WORKSPACE`. R
 running anything, and do not guess a path.
 
 Before drafting, tell the Owner when they last followed up, if `FollowedUp` is set. When `Due`
-is false, the follow-up is not due yet: say so, give `DueOn`, and draft only if the Owner still
-wants a message now.
+is false, the follow-up is not due yet: say so, give `DueOn` (or, when `HeldBy` is set, the
+booked next step that holds it), and draft only if the Owner still wants a message now.
 
 ## 2. Write `follow-up.md`
 

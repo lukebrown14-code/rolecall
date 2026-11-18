@@ -12,7 +12,7 @@ import (
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// followUpFlag marks an Applied or Interviewing row whose last change is older than follow_up_days.
+// followUpFlag marks an Applied or Interviewing row whose last change is follow_up_days old or older.
 const followUpFlag = glyphFollowUp
 
 func entryDate(e *store.StatusEntry) string {

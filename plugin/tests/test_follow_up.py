@@ -103,6 +103,32 @@ def test_only_sent_applications_are_due(tmp_path):
     assert not got["Due"] and got["DueOn"] == "" and got["DaysPast"] is None
 
 
+def test_a_booked_next_step_holds_it_and_says_so(tmp_path):
+    folder = write_app(tmp_path, [("Applied", "2026-09-01T10:00:00Z")])
+    text = (folder / "meta.yml").read_text().replace(
+        "status_log:", "next_step: {at: 2026-11-16T15:00, what: Screen}\nstatus_log:"
+    )
+    (folder / "meta.yml").write_text(text)
+    got = meta.follow_up_status(meta.rescan(folder), TODAY, 14)
+    assert got["HeldBy"] == "2026-11-16T15:00"
+    assert not got["Due"] and got["DaysPast"] is None and got["DueOn"] == ""
+    lapsed = meta.follow_up_status(meta.rescan(folder), date(2026, 11, 17), 14)
+    assert lapsed["HeldBy"] == "" and lapsed["Due"]
+
+
+def test_an_undone_move_does_not_restart_the_count(tmp_path):
+    folder = write_app(
+        tmp_path,
+        [
+            ("Applied", "2026-10-01T10:00:00Z"),
+            ("Interviewing", "2026-11-10T10:00:00Z"),
+            ("Applied", "2026-11-10T10:15:00Z"),
+        ],
+    )
+    got = meta.follow_up_status(meta.rescan(folder), TODAY, 14)
+    assert got["From"] == "2026-10-01" and got["Due"]
+
+
 def test_follow_up_command_prints_the_reckoning(tmp_path):
     workspace = copy_fixture_workspace(tmp_path)
     folder = write_app(

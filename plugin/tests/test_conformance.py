@@ -35,18 +35,6 @@ KNOWN_DRIFT = {
             "follow_up/west of UTC: a timestamp counts on its local day",
         },
     },
-    "C09": {
-        "reason": "follow_up_status reads the raw last entry (no undone-move rule) and has no next-step hold",
-        "vectors": {
-            "follow_up/an undone move is ignored",
-            "follow_up/an undo at exactly 15 minutes is still an undo",
-            "follow_up/an undone Applied leaves a Draft that is never due",
-            "follow_up/a next step booked today holds it",
-            "follow_up/a next step with a time later today holds it",
-            "follow_up/a future next step holds it",
-            "follow_up/east of UTC: a next step today holds it before UTC reaches today",
-        },
-    },
 }
 
 
