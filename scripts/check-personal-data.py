@@ -11,16 +11,23 @@
    .rolecall-personal-data-terms (gitignored). ROLECALL_PERSONAL_DATA_TERMS_FILE
    selects another file, and ROLECALL_PERSONAL_DATA_TERMS supplies additional
    newline-separated terms. Nothing needs to be set for the checks above.
+
+--history also checks every file version and commit message on any branch,
+tag or remote ref (paths by rule 1, text by rules 2 and 3). --github OWNER/REPO also scans
+that repository's issue and pull request titles, bodies, comments and reviews,
+fetched with the gh CLI.
 """
 
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 PATTERNS = (
@@ -142,52 +149,186 @@ def load_owner_terms(root: Path) -> set[str]:
     return terms
 
 
-def scan(root: Path, terms: set[str] | None = None) -> list[str]:
+def scan_text(
+    label: str,
+    relative: str | None,
+    text: str,
+    owner_terms: tuple[str, ...],
+    allowlist: set[str],
+) -> list[str]:
+    """Check one text; relative is its repo path, or None for text with no path."""
+    fictional_only = relative is not None and relative.startswith(FICTIONAL_PREFIXES)
+    findings: list[str] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if any(term in line.casefold() for term in owner_terms):
+            findings.append(f"{label}:{line_number}: Owner-specific term")
+        if fictional_only and any(
+            real_looking_email(m.group(0)) for m in EMAIL_PATTERN.finditer(line)
+        ):
+            findings.append(
+                f"{label}:{line_number}: email outside a fictional domain "
+                "(fixtures/ and examples/ allow only example.test, example.com, "
+                "example.org, example.net)"
+            )
+        for name, pattern in PATTERNS:
+            if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
+                if name == "email" and fictional_only:
+                    continue  # fictional-domain rule above already covers emails here
+                findings.append(f"{label}:{line_number}: {name}")
+    return findings
+
+
+# A source yields (label, repo path or None, text or None). Text None means the
+# file is not readable text, so only its path is checked.
+Source = Iterable[tuple[str, "str | None", "str | None"]]
+
+
+def tracked_texts(root: Path) -> Iterator[tuple[str, str | None, str | None]]:
+    for relative in tracked_files(root):
+        try:
+            text: str | None = (root / relative).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            text = None
+        yield relative, relative, text
+
+
+# Refs that can be published; local refs such as refs/stash are left out.
+REFS = ("--branches", "--tags", "--remotes")
+
+
+def git(root: Path, *args: str, stdin: bytes | None = None) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(root), *args], check=True, capture_output=True, input=stdin
+    ).stdout
+
+
+def history_texts(root: Path) -> Iterator[tuple[str, str | None, str | None]]:
+    """Yield every commit message and distinct file version on any branch, tag or remote ref."""
+    log = git(root, "log", *REFS, "--format=%H%x00%B%x00")
+    fields = log.split(b"\0")
+    for sha, message in zip(fields[0::2], fields[1::2]):
+        sha = sha.strip()
+        if sha:
+            label = f"commit {sha[:12].decode()} message"
+            yield label, None, message.decode("utf-8", "replace")
+
+    # rev-list names each blob once, at one of its paths, so every path ever
+    # committed comes from the log instead and gets the path rules on its own.
+    changed = git(root, "log", *REFS, "-m", "--no-renames", "--format=", "--name-only")
+    for path in sorted(set(changed.decode("utf-8", "surrogateescape").splitlines())):
+        if path:
+            yield f"history:{path}", path, None
+
+    blobs: dict[str, str] = {}
+    objects = git(root, "rev-list", *REFS, "--objects").decode("utf-8", "surrogateescape")
+    for entry in objects.splitlines():
+        sha, _, path = entry.partition(" ")
+        if path:
+            blobs.setdefault(sha, path)
+    if not blobs:
+        return
+    batch = git(
+        root, "cat-file", "--batch", stdin="".join(f"{sha}\n" for sha in blobs).encode()
+    )
+    offset = 0
+    while offset < len(batch):
+        header_end = batch.index(b"\n", offset)
+        sha, kind, size = batch[offset:header_end].decode().split()
+        start = header_end + 1
+        contents = batch[start : start + int(size)]
+        offset = start + int(size) + 1
+        if kind != "blob":
+            continue
+        try:
+            text: str | None = contents.decode("utf-8")
+        except UnicodeDecodeError:
+            text = None
+        yield f"{sha[:12]}:{blobs[sha]}", blobs[sha], text
+
+
+def gh_json_lines(path: str, jq: str) -> list[dict]:
+    output = subprocess.run(
+        ["gh", "api", "--paginate", path, "--jq", jq],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return [json.loads(line) for line in output.splitlines() if line.strip()]
+
+
+def github_texts(
+    repo: str, fetch: Callable[[str, str], list[dict]] = gh_json_lines
+) -> Iterator[tuple[str, str | None, str | None]]:
+    """Yield the text of every issue and pull request in repo, with its comments and reviews."""
+    pulls: list[int] = []
+    items = fetch(
+        f"repos/{repo}/issues?state=all&per_page=100",
+        ".[] | {number, title, body, pr: (.pull_request != null)}",
+    )
+    for item in items:
+        kind = "pr" if item["pr"] else "issue"
+        if item["pr"]:
+            pulls.append(item["number"])
+        yield f"{kind} #{item['number']} title", None, item["title"] or ""
+        yield f"{kind} #{item['number']} body", None, item["body"] or ""
+    for comment in fetch(
+        f"repos/{repo}/issues/comments?per_page=100", ".[] | {id, issue_url, body}"
+    ):
+        number = comment["issue_url"].rsplit("/", 1)[-1]
+        yield f"#{number} comment {comment['id']}", None, comment["body"] or ""
+    for comment in fetch(
+        f"repos/{repo}/pulls/comments?per_page=100", ".[] | {id, pull_request_url, body}"
+    ):
+        number = comment["pull_request_url"].rsplit("/", 1)[-1]
+        yield f"pr #{number} review comment {comment['id']}", None, comment["body"] or ""
+    for number in pulls:
+        for review in fetch(
+            f"repos/{repo}/pulls/{number}/reviews?per_page=100", ".[] | {id, body}"
+        ):
+            yield f"pr #{number} review {review['id']}", None, review["body"] or ""
+
+
+def scan(root: Path, terms: set[str] | None = None, sources: Source | None = None) -> list[str]:
     allowlist = load_allowlist(root)
     configured_terms = terms if terms is not None else load_owner_terms(root)
     owner_terms = tuple(term.casefold() for term in configured_terms)
     findings: list[str] = []
-    for relative in tracked_files(root):
-        rule = workspace_rule(relative)
+    for label, relative, text in sources if sources is not None else tracked_texts(root):
+        rule = workspace_rule(relative) if relative is not None else None
         if rule:
             findings.append(
-                f"{relative}: {rule} is tracked outside fixtures/ and examples/ "
+                f"{label}: {rule} is tracked outside fixtures/ and examples/ "
                 "(Workspace data stays in the Workspace)"
             )
             continue
-        fictional_only = relative.startswith(FICTIONAL_PREFIXES)
-        path = root / relative
-        try:
-            contents = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        for line_number, line in enumerate(contents.splitlines(), start=1):
-            if any(term in line.casefold() for term in owner_terms):
-                findings.append(f"{relative}:{line_number}: Owner-specific term")
-            if fictional_only and any(
-                real_looking_email(m.group(0)) for m in EMAIL_PATTERN.finditer(line)
-            ):
-                findings.append(
-                    f"{relative}:{line_number}: email outside a fictional domain "
-                    "(fixtures/ and examples/ allow only example.test, example.com, "
-                    "example.org, example.net)"
-                )
-            for label, pattern in PATTERNS:
-                if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
-                    if label == "email" and fictional_only:
-                        continue  # fictional-domain rule above already covers emails here
-                    findings.append(f"{relative}:{line_number}: {label}")
+        if text is not None:
+            findings.extend(scan_text(label, relative, text, owner_terms, allowlist))
     return findings
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path, help="repository root to scan")
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="also check every file version and commit message on any branch, tag or remote",
+    )
+    parser.add_argument(
+        "--github",
+        metavar="OWNER/REPO",
+        help="also scan the repository's issues, pull requests, comments and reviews (needs gh)",
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     try:
         terms = load_owner_terms(root)
-        findings = scan(root, terms)
+        sources: Source = tracked_texts(root)
+        if args.history:
+            sources = itertools.chain(sources, history_texts(root))
+        if args.github:
+            sources = itertools.chain(sources, github_texts(args.github))
+        findings = scan(root, terms, sources)
         if not terms:
             print(
                 "No local Owner-specific terms; structural and generic checks only.",
