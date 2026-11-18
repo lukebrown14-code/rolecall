@@ -70,28 +70,24 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 // move appends a Status and says so in a toast. It returns the command that ends the
 // moved row's flash.
 func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
-	wrote, err := m.store.AppendStatus(a.Folder, status, m.now())
+	var r store.MoveResult
+	var err error
+	if undo {
+		// An undo only appends: the sent/ the move made is set aside by undoLast, and a
+		// move back to Applied freezes nothing new.
+		r.Wrote, err = m.store.AppendStatus(a.Folder, status, m.now())
+	} else {
+		// store.Move freezes sent/ before it appends, so a failed copy moves nothing.
+		r, err = m.store.Move(a.Folder, status, m.now())
+	}
 	if err != nil {
 		m.err = err
 		return nil
 	}
-	if !wrote {
-		// The Application was already there (the rows were stale): nothing to undo.
-		m.reload(a.Folder)
-		m.toast, m.toastHint, m.toastKind = "Already "+status+" · "+moveName(a), "", toastNote
-		return nil
-	}
-	var sentErr error
-	madeSent := false
-	if status == store.StatusApplied && !undo {
-		madeSent = !a.HasSent
-		sentErr = m.store.RecordSent(a.Folder)
-	}
-	// The append is final even when the copy failed, so the rows are refreshed either way.
 	m.reload(a.Folder)
-	if sentErr != nil {
-		// Not a clean move: no success toast and nothing to undo, only the error.
-		m.err, m.toast = sentErr, ""
+	if !r.Wrote {
+		// The Application was already there (the rows were stale): nothing to undo.
+		m.toast, m.toastHint, m.toastKind = "Already "+status+" · "+moveName(a), "", toastNote
 		return nil
 	}
 	// Each toast leads with where the Application went, then which one it was, so a
@@ -111,7 +107,7 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.toastKind = toastUndo
 		return m.startFlash(a.Folder)
 	}
-	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: madeSent}
+	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: r.MadeSent}
 	if a.Filtered() && status != store.StatusDismissed {
 		u.filterReason, u.filterNote = a.FilterReason, a.FilterNote
 	}

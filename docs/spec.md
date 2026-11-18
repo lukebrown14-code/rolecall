@@ -209,7 +209,9 @@ table, and the feedback line says `Moved to Interviewing · <Title> (<Company>)`
 
 Side effects when moving to Applied:
 1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, keys `y yes · n / esc no` (`y` marks it Applied; `enter` does not answer it and the pop-up says `Press y to confirm, or n to cancel.`).
-2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
+2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it: regular files only (a symlink is skipped), in a private folder. The copy is made in a `sent.tmp-*` folder and renamed to `sent/` once whole, before Applied is appended, so a failed copy shows the error and moves nothing (no partial `sent/`, nothing to undo). Never overwrite an existing `sent/`.
+
+`rolecall move FOLDER applied` makes the same move (one store function for both). Where the TUI asks, it refuses a not-Ready Application with what is missing (`… is not Ready (Resume PDF not built); build its PDFs first, or pass --force to mark it Applied anyway`) and writes nothing; `--force` is the `y`.
 
 Moving to Rejected or Withdrawn asks a second, optional question once the move is done: a
 `Moved to Rejected · why did it end?` pop-up listing the reasons in words, each with a number key:
@@ -224,7 +226,7 @@ undo of the move included); `u` after a move out of Rejected or Withdrawn puts t
 Status. The card's `CLOSED` row shows it in words, with `e edit`.
 
 Undo (`u`): a session stack of `(folder, previous Status)`. Undo appends the previous
-Status (the log stays append-only) and says so on the feedback line (`Undone · back to Draft · on Drafts · Title (Company)`, where it is now in screen and view terms, with `i go to it` when that is somewhere else). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`; the toast says only `its sent copy set aside`, never a folder or file name. The stack lasts for the session (the help says `u undo (this session)`): nothing is undoable after a restart.
+Status (the log stays append-only) and says so on the feedback line (`Undone · back to Draft · on Drafts · Title (Company)`, where it is now in screen and view terms, with `i go to it` when that is somewhere else). It deletes nothing: when the undone move to Applied created `sent/` (as the move itself reports, not the rows, which can lag), the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`; the toast says only `its sent copy set aside`, never a folder or file name. The stack lasts for the session (the help says `u undo (this session)`): nothing is undoable after a restart.
 Undoing an Application's first move back to Lead leaves it as it was: the card says `Not moved
 yet` and the row gains no age (an empty effective log reads as never moved). A recorded
 follow-up (`l`) sits on the same stack: its undo puts back the `followed_up` day it replaced, or

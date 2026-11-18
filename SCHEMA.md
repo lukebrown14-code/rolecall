@@ -69,7 +69,8 @@ date. When nothing is left (a CJK or symbol-only name) it is `application`. If t
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
-| `sent/` | — | TUI (on → Applied) | frozen copy of what was sent. Never overwritten |
+| `sent/` | — | TUI and `rolecall move` (on → Applied) | frozen copy of what was sent: the regular files among the docs above and `out/*.pdf` (a symlink is not copied), private (`0700`). Built in a `sent.tmp-*` folder and renamed into place whole, so a failed copy leaves no `sent/` and moves nothing. Never overwritten |
+| `sent.tmp-*/` | — | TUI and `rolecall move` (on → Applied) | `sent/` while it is being copied. Only a crash leaves one; never read, safe to delete |
 | `sent.undone-<YYYY-MM-DD>/` | — | TUI (undo of → Applied) | a `sent/` renamed aside when the move that made it is undone, so the next real Applied freezes a fresh `sent/`. `-2`, `-3`… when taken. Not read |
 
 `jd.md` has no front matter. Older folders may still have it, and readers ignore it.
@@ -218,7 +219,7 @@ Each entry is a flow map on one line:
 |---|---|---|
 | TUI | creates folders. Writes any key through Add / Edit (`next_step` and the first of `contacts` included), `followed_up` through `l`, and `close_reason` from the Move pop-up or Edit. Appends any Status | touch docs, `fit.md`, `out/` |
 | `rolecall now`, `rolecall export` | nothing in the Workspace. Read-only. `export` writes only where the Owner's `--out` names | any file under the Workspace |
-| `rolecall move` | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
+| `rolecall move` | appends any Status as the TUI does; on Applied also freezes `sent/`, and refuses an Application whose documents are not Ready unless `--force` is given (the TUI asks). Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
 | Agent (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
 | `rules.py check --apply` | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | `build.py` | `out/`. Appends `Draft` only when the current Status is `Lead` and the build produced PDFs | any other key or Status |

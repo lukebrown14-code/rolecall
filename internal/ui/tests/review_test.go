@@ -133,10 +133,11 @@ func TestRestoreAfterDismissRestoreUndoReturnsToEarlierStatus(t *testing.T) {
 	h.finish()
 }
 
-// When the sent/ copy fails after Applied is appended, the Owner sees the error, not a success
-// toast, and u has nothing to undo.
+// When the sent/ copy fails, the move does not happen: the Owner sees the error, not a
+// success toast, no Applied is appended and no part-made sent/ is left, and u has nothing
+// to undo. (It used to append Applied first and keep it with a partial sent/: C04.)
 func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
-	h := newReviewHarness(t, entry("Draft", "01"), map[string]string{"resume.md": "written"})
+	h := newReviewHarness(t, entry("Draft", "01"), map[string]string{"resume.md": "written", "jd.md": "jd"})
 	if err := os.Chmod(filepath.Join(h.folder, "resume.md"), 0); err != nil {
 		t.Fatal(err)
 	}
@@ -146,14 +147,18 @@ func TestFailedSentCopyShowsErrorWithoutToastOrUndo(t *testing.T) {
 	h.tm.Type("ma")
 	h.waitOutput("Docs not Ready")
 	h.tm.Type("y")
-	h.waitForLogLength(2)
-	h.tm.Type("u")
 	view := h.finish()
 	if !strings.Contains(view, "permission denied") || strings.Contains(view, "Moved to Applied") {
 		t.Fatalf("want the copy error and no toast, got:\n%s", view)
 	}
-	if got := h.lastStatus(); got != "Applied" {
-		t.Fatalf("u undid a move that was never confirmed; last Status %s:\n%s", got, h.meta())
+	h.waitForLogLength(1)
+	if _, err := os.Lstat(filepath.Join(h.folder, "sent")); !os.IsNotExist(err) {
+		t.Fatalf("sent/ left by a failed copy: %v", err)
+	}
+	h.tm.Type("u")
+	h.waitForLogLength(1)
+	if got := h.lastStatus(); got != "Draft" {
+		t.Fatalf("last Status %s, want Draft:\n%s", got, h.meta())
 	}
 }
 

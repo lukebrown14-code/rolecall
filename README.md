@@ -136,7 +136,8 @@ set -g status-right '#(rolecall now) %H:%M'   # tmux
 ```
 
 `rolecall move FOLDER STATUS` (for example `rolecall move jobs/SWE/acme applied`) moves an
-Application from a script, as the app does.
+Application from a script, as the app does. Applied is refused while its PDFs are not built,
+unless you add `--force`.
 
 ## Your CV
 
