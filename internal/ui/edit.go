@@ -215,7 +215,7 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 			return nil
 		}
 	}
-	if m.reload(a.Folder) {
+	if m.reload(a.Folder, a.Folder) {
 		m.toast = "Saved · " + titleLabel(now["title"])
 		return m.startFlash(a.Folder)
 	}

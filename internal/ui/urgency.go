@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"sort"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -29,11 +28,11 @@ func sortNewest(rows []store.Application) {
 		}
 		return log[0].At
 	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		if a, b := added(rows[i]), added(rows[j]); a != b {
-			return a > b
+	sortStableBy(rows, func(a store.Application) datedRow { return datedRow{added(a), a.Folder} }, func(a, b datedRow) bool {
+		if a.date != b.date {
+			return a.date > b.date
 		}
-		return rows[i].Folder < rows[j].Folder
+		return a.folder < b.folder
 	})
 }
 

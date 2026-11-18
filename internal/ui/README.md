@@ -17,6 +17,8 @@ The root model adapts those modules to the application. Files are grouped by nam
 listed here one by one (`ls internal/ui` is the inventory):
 
 - `model.go`, `refresh.go`, `mapping.go`: state, updates and the one `reload` helper.
+- `rows.go`: the list rows derived once per model state and shared by every widget that
+  reads them; any new input to the filtering or sorting must join its key.
 - `keymap.go` (row actions) and `help.go` (the registry): every key is declared once and read
   by the key line, `?` and the command palette (`palette.go`).
 - `view.go`, `layout.go`, `columns.go`, `styles.go`: shared presentation; `plain.go` reshapes
@@ -31,4 +33,7 @@ exposing debounce to other application packages.
 
 Run all UI checks with `go test ./internal/ui/...`, report tests with
 `go test ./internal/reporting/...`, and the full suite with `go test ./...`.
+Benchmarks for a frame, a keypress, a watcher batch and a bulk move on generated Workspaces
+of 100, 1000 and 3000 Applications run only on request:
+`go test -run '^$' -bench . ./internal/ui`.
 Regenerate UI goldens with `go test ./internal/ui/tests -update` only for intended changes.

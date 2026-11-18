@@ -237,15 +237,35 @@ func (bm *bulkMode) apply(m *model) (mode, tea.Cmd) {
 // what moved before it stays one undoable group.
 func (m *model) moveMany(apps []store.Application, status string) (tea.Cmd, []store.Application) {
 	start := len(m.undo)
+	// Write every move first, then reload the written folders once: a reload per row
+	// makes a Sweep's worth of rows slow in a large Workspace.
+	var written []store.Application
+	var results []store.MoveResult
+	var failed error
+	for _, a := range apps {
+		// A move to Applied was asked for once, for all of them: no per-row prompt.
+		r, err := m.writeMove(a, status, false)
+		if err != nil {
+			failed = err
+			break
+		}
+		written, results = append(written, a), append(results, r)
+	}
+	if len(written) > 0 {
+		folders := make([]string, len(written))
+		for i, a := range written {
+			folders[i] = a.Folder
+		}
+		m.reload(folders[len(folders)-1], folders...)
+	}
+	if failed != nil {
+		m.err = failed // the first failure stays on the feedback line
+	}
 	var cmds []tea.Cmd
 	done := 0
 	var moved []store.Application
-	for _, a := range apps {
-		// A move to Applied was asked for once, for all of them: no per-row prompt.
-		cmd := m.move(a, status, false)
-		if m.err != nil {
-			break
-		}
+	for i, a := range written {
+		cmd := m.moved(a, status, false, results[i])
 		if len(m.undo) > start+done { // moved (not "already there")
 			done++
 			moved = append(moved, a)
@@ -273,13 +293,27 @@ func (m *model) undoBatch(group []undoMove) tea.Cmd {
 	m.undo = append(m.undo, group...)
 	var cmds []tea.Cmd
 	back := 0
-	for range group {
+	// The rows reload once, after the last undo, rather than once per Application: until
+	// then each undo's own toast reads rows not yet reloaded, so the batch's toast below
+	// replaces them all, and an error puts back the toast the last undo would have shown.
+	flush := m.deferReloads()
+	var last *undoMove
+	for i := range group {
+		u := group[len(group)-1-i] // undoLast takes them newest first
 		cmds = append(cmds, m.undoLast())
 		if m.err != nil {
 			break
 		}
 		if m.toastKind == toastUndo {
 			back++
+			last = &u
+		}
+	}
+	flush()
+	if m.err != nil && last != nil {
+		if a, ok := m.application(last.folder); ok {
+			m.toast, m.toastHint = m.undoToast(a, *last), ""
+			m.offerFollow(a.Folder)
 		}
 	}
 	if m.err == nil {

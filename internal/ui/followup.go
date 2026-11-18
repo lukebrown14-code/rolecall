@@ -41,7 +41,7 @@ func (m *model) recordFollowUp(a store.Application) tea.Cmd {
 		m.err = err
 		return nil
 	}
-	m.reload(a.Folder)
+	m.reload(a.Folder, a.Folder)
 	m.undo = append(m.undo, undoMove{folder: a.Folder, followUp: true, followedUp: a.FollowedUp})
 	next := store.Today(m.now()).AddDate(0, 0, m.followUpDays)
 	m.toast, m.toastHint = "Followed up · "+moveName(a)+" · next due "+shortDate(next, m.now()), undoHint
@@ -55,7 +55,7 @@ func (m *model) undoFollowUp(a store.Application, was string) tea.Cmd {
 		return nil
 	}
 	m.undo = m.undo[:len(m.undo)-1]
-	m.reload(a.Folder)
+	m.reload(a.Folder, a.Folder)
 	m.toast, m.toastKind = "Undone · follow-up not recorded · "+moveName(a), toastUndo
 	return m.startFlash(a.Folder)
 }

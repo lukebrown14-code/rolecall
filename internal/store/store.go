@@ -123,18 +123,24 @@ func (s *Store) Scan() ([]Application, error) {
 			if !folder.IsDir() {
 				continue
 			}
-			dir := filepath.Join(s.root, "jobs", track.Name(), folder.Name())
-			a, err := s.Rescan(dir)
-			if err != nil {
-				// One unreadable folder is one Malformed Application, not an empty Workspace.
-				a = &Application{Folder: dir, Schema: 1, Status: StatusLead, Malformed: &ParseError{Path: dir, Reason: err}}
-			}
-			if a != nil {
+			if a := s.ScanFolder(filepath.Join(s.root, "jobs", track.Name(), folder.Name())); a != nil {
 				apps = append(apps, *a)
 			}
 		}
 	}
 	return apps, nil
+}
+
+// ScanFolder reads one Application folder as Scan does: nil when it holds no meta.yml, and
+// a folder that fails to read comes back Malformed with the I/O error. A rescan after a
+// write uses it, so the rows it gives match a full Scan's.
+func (s *Store) ScanFolder(dir string) *Application {
+	a, err := s.Rescan(dir)
+	if err != nil {
+		// One unreadable folder is one Malformed Application, not an empty Workspace.
+		return &Application{Folder: dir, Schema: 1, Status: StatusLead, Malformed: &ParseError{Path: dir, Reason: err}}
+	}
+	return a
 }
 
 // application is the one gate for folder-scoped methods: a folder is an Application

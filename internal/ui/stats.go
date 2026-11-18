@@ -15,20 +15,48 @@ import (
 )
 
 // statsApps is the scanned Applications after the track filter. Malformed
-// Applications are dropped by Stats too; this keeps the screen's input honest.
+// Applications are dropped by Stats too; this keeps the screen's input honest. Like the
+// list rows it is worked out once per state (rowCache).
 func (m model) statsApps() []store.Application {
-	var out []store.Application
-	track, on := m.selectedTrack()
-	for _, a := range m.apps {
-		if a.Malformed != nil {
-			continue
+	return m.memoRows(rowKey{screen: statsKey, track: m.track}, func() []store.Application {
+		var out []store.Application
+		track, on := m.selectedTrack()
+		for _, a := range m.apps {
+			if a.Malformed != nil {
+				continue
+			}
+			if on && a.Track != track {
+				continue
+			}
+			out = append(out, a)
 		}
-		if on && a.Track != track {
-			continue
-		}
-		out = append(out, a)
+		return out
+	})
+}
+
+// statsKey is the rowKey screen statsApps is cached under: no list screen has it.
+const statsKey = -2
+
+// commonGaps reads the gaps fit.md names; a var so a test can count the reads.
+var commonGaps = (*store.Store).CommonGaps
+
+// statsCommonGaps is the gaps fit.md names across statsApps, read once per Workspace
+// state and Track rather than once per interaction: it reads every fit.md, and a
+// changed fit.md comes in through a rescan, which starts a new state.
+func (m model) statsCommonGaps() []store.GapCount {
+	c := m.cache()
+	if c == nil {
+		return commonGaps(m.store, m.statsApps())
 	}
-	return out
+	if gaps, ok := c.gaps[m.track]; ok {
+		return gaps
+	}
+	gaps := commonGaps(m.store, m.statsApps())
+	if c.gaps == nil {
+		c.gaps = map[int][]store.GapCount{}
+	}
+	c.gaps[m.track] = gaps
+	return gaps
 }
 
 // statsEmptyMessage and statsEmptyHints are Stats with nothing to report. Both keys are
@@ -125,7 +153,7 @@ func (m model) statsReport() reporting.StatsReport {
 	}
 	if !m.stats.built {
 		m.stats.report = buildStatsReport(m.statsApps(), m.now(), m.followUpDays)
-		m.stats.gaps = m.store.CommonGaps(m.statsApps())
+		m.stats.gaps = m.statsCommonGaps()
 		m.stats.built = true
 	}
 	return m.stats.report
@@ -134,7 +162,7 @@ func (m model) statsReport() reporting.StatsReport {
 // statsGaps is the gaps fit.md names across the Applications, cached with the report.
 func (m model) statsGaps() []store.GapCount {
 	if m.stats == nil {
-		return m.store.CommonGaps(m.statsApps())
+		return m.statsCommonGaps()
 	}
 	m.statsReport()
 	return m.stats.gaps

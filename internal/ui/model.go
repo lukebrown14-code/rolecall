@@ -72,6 +72,9 @@ type model struct {
 	watch                 *watch.Watcher
 	downloads             string
 	md                    *mdCache
+	rowMemo               *rowCache    // the list rows derived from this state; see rowsOf
+	reloadLater           *batchReload // set during a batch: targeted reloads wait for its end
+	rulesGen              int          // bumps when the Search rules are loaded; part of rowCache's key
 	plugin                string
 	harness               string
 	captured              CapturedRunner
@@ -100,7 +103,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		now = time.Now
 	}
 	th, _ := themeFromEnv()
-	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}, stats: &statsCache{}, theme: th,
+	m := model{store: s, now: now, followUpDays: defaultFollowUpDays, md: &mdCache{}, rowMemo: &rowCache{}, stats: &statsCache{}, theme: th,
 		spinner: spinner.New(spinner.WithSpinner(spinner.MiniDot))}
 	for _, option := range options {
 		option(&m)
@@ -178,8 +181,16 @@ func (m model) rows() []store.Application {
 }
 
 // rowsOf lists one view of a screen. All groups the Pipeline screen's tables in
-// appliedGroups order; Leads and Draft put expired close dates last.
+// appliedGroups order; Leads and Draft put expired close dates last. The rows are derived
+// once per model state (rowCache); callers must not change them in place.
 func (m model) rowsOf(screen int, table string) []store.Application {
+	return m.memoRows(rowKey{screen: screen, table: table, track: m.track}, func() []store.Application {
+		return m.deriveRows(screen, table)
+	})
+}
+
+// deriveRows is rowsOf without the cache.
+func (m model) deriveRows(screen int, table string) []store.Application {
 	if table == allView {
 		var out []store.Application
 		for _, g := range appliedGroups {
@@ -191,9 +202,10 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 		return m.deadlineRows(true)
 	}
 	var out []store.Application
-	for _, a := range m.apps {
+	match := m.matcher()
+	for i, a := range m.apps {
 		s, t := appLocation(a)
-		if s == screenDefs[screen].name && t == table && m.matches(a) {
+		if s == screenDefs[screen].name && t == table && match(i, a) {
 			out = append(out, a)
 		}
 	}
@@ -221,9 +233,19 @@ func (m model) rowsOf(screen int, table string) []store.Application {
 // soonest first; then those whose close date has passed; then those whose ad left the
 // close date unclear. filter applies the Track and text filters.
 func (m model) deadlineRows(filter bool) []store.Application {
+	k := rowKey{screen: -1, table: tableDeadlines, track: m.track, all: !filter}
+	if !filter {
+		k.track = 0
+	}
+	return m.memoRows(k, func() []store.Application { return m.deriveDeadlineRows(filter) })
+}
+
+// deriveDeadlineRows is deadlineRows without the cache.
+func (m model) deriveDeadlineRows(filter bool) []store.Application {
 	groups := map[deadlineGroup][]store.Application{}
-	for _, a := range m.apps {
-		if a.Malformed != nil || !beforeApplied(tableOf(a)) || (filter && !m.matches(a)) {
+	match := m.matcher()
+	for i, a := range m.apps {
+		if a.Malformed != nil || !beforeApplied(tableOf(a)) || (filter && !match(i, a)) {
 			continue
 		}
 		if g, ok := m.deadlineGroupOf(a); ok {
@@ -279,25 +301,29 @@ func (m model) count(screen int, table string) int { return len(m.rowsOf(screen,
 // totalCount is the Applications in a view ignoring the track and text filters, so the
 // header and tab counts stay totals; the scope line shows the filtered number beside them.
 func (m model) totalCount(screen int, table string) int {
-	if table == allView {
+	return m.memoTotal(rowKey{screen: screen, table: table, total: true}, func() int {
+		if table == allView {
+			n := 0
+			for _, g := range appliedGroups {
+				n += m.totalCount(screen, g)
+			}
+			return n
+		}
+		if table == tableDeadlines {
+			return len(m.deadlineRows(false))
+		}
 		n := 0
-		for _, g := range appliedGroups {
-			n += m.totalCount(screen, g)
+		for _, a := range m.apps {
+			s, t := appLocation(a)
+			if s == screenDefs[screen].name && t == table {
+				n++
+			}
 		}
 		return n
-	}
-	if table == tableDeadlines {
-		return len(m.deadlineRows(false))
-	}
-	n := 0
-	for _, a := range m.apps {
-		s, t := appLocation(a)
-		if s == screenDefs[screen].name && t == table {
-			n++
-		}
-	}
-	return n
+	})
 }
+
+// matches reports whether a passes the Track and text filters.
 func (m model) matches(a store.Application) bool {
 	track, on := m.selectedTrack()
 	return (!on || a.Track == track) && strings.Contains(strings.ToLower(m.searchText(a)), strings.ToLower(m.text))
@@ -611,24 +637,65 @@ func (m *model) keepCursor(folder string) {
 // a new path cannot forget it.
 func (m *model) dropBodies() { m.gen++ }
 
-// reload rescans the whole Workspace and keeps the cursor on folder when it is still shown.
-// A failed scan is reported through m.err and leaves the rows as they were.
-func (m *model) reload(folder string) bool {
-	apps, err := m.store.Scan()
-	if err != nil {
-		m.err = err
-		return false
+// reload rescans after a write and keeps the cursor on keep when it is still shown. With
+// changed folders it re-reads only those, as a full scan would read them (a write touches
+// its own folder only, and the watcher brings in everyone else's); with none it rescans
+// the whole Workspace. A failed scan is reported through m.err and leaves the rows as
+// they were.
+func (m *model) reload(keep string, changed ...string) bool {
+	if p := m.reloadLater; p != nil && len(changed) > 0 {
+		// A batch (undoBatch) reloads once at its end; a targeted reload cannot fail.
+		p.keep, p.folders, m.err = keep, append(p.folders, changed...), nil
+		return true
+	}
+	var apps []store.Application
+	if len(changed) > 0 {
+		apps = rescanPaths(m.apps, changed, func(folder string, _ *store.Application) *store.Application {
+			return m.store.ScanFolder(folder)
+		})
+	} else {
+		var err error
+		if apps, err = m.store.Scan(); err != nil {
+			m.err = err
+			return false
+		}
 	}
 	m.apps, m.err = apps, nil
 	m.loadRules()
 	m.dropBodies()
-	m.keepCursor(folder)
+	m.keepCursor(keep)
 	return true
+}
+
+// batchReload is the targeted reloads a batch put off: every folder written, and the
+// cursor folder the last of them asked to keep.
+type batchReload struct {
+	keep    string
+	folders []string
+}
+
+// deferReloads starts putting targeted reloads off; the returned func does them all as
+// one, keeping whatever error the batch left on the feedback line.
+func (m *model) deferReloads() (flush func()) {
+	p := &batchReload{}
+	m.reloadLater = p
+	return func() {
+		m.reloadLater = nil
+		if len(p.folders) == 0 {
+			return
+		}
+		err := m.err
+		m.reload(p.keep, p.folders...)
+		if err != nil {
+			m.err = err
+		}
+	}
 }
 
 // loadRules re-reads the Search rules. A workspace.json that does not read leaves the
 // rules unset: Settings reports the file, and no age warning is better than a wrong one.
 func (m *model) loadRules() {
+	m.rulesGen++
 	m.rules, m.visa, m.payFX = store.SearchRules{}, store.Visa{}, nil
 	if ws, err := m.store.Settings(); err == nil && ws.Err == nil {
 		m.rules, m.visa, m.payFX = ws.Rules, ws.Visa, ws.PayFX
@@ -650,5 +717,5 @@ func (m *model) rescanAll() {
 	if i := slices.Index(m.filterTracks(), chosen); on && i >= 0 {
 		m.track = i + 1
 	}
-	m.reload(folder)
+	m.reload(folder) // r: everything, as another program may have changed anything
 }

@@ -69,21 +69,31 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 // move appends a Status and says so in a toast. It returns the command that ends the
 // moved row's flash.
 func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
-	var r store.MoveResult
-	var err error
-	if undo {
-		// An undo only appends: the sent/ the move made is set aside by undoLast, and a
-		// move back to Applied freezes nothing new.
-		r.Wrote, err = m.store.AppendStatus(a.Folder, status, m.now())
-	} else {
-		// store.Move freezes sent/ before it appends, so a failed copy moves nothing.
-		r, err = m.store.Move(a.Folder, status, m.now())
-	}
+	r, err := m.writeMove(a, status, undo)
 	if err != nil {
 		m.err = err
 		return nil
 	}
-	m.reload(a.Folder)
+	m.reload(a.Folder, a.Folder)
+	return m.moved(a, status, undo, r)
+}
+
+// writeMove writes a move to the Application's folder and nothing else: move and
+// moveMany reload after it.
+func (m *model) writeMove(a store.Application, status string, undo bool) (r store.MoveResult, err error) {
+	if undo {
+		// An undo only appends: the sent/ the move made is set aside by undoLast, and a
+		// move back to Applied freezes nothing new.
+		r.Wrote, err = m.store.AppendStatus(a.Folder, status, m.now())
+		return r, err
+	}
+	// store.Move freezes sent/ before it appends, so a failed copy moves nothing.
+	return m.store.Move(a.Folder, status, m.now())
+}
+
+// moved is what follows a written move once the rows are reloaded: the toast, the undo
+// entry, the offer to follow the row and its flash.
+func (m *model) moved(a store.Application, status string, undo bool, r store.MoveResult) tea.Cmd {
 	if !r.Wrote {
 		// The Application was already there (the rows were stale): nothing to undo.
 		m.toast, m.toastHint, m.toastKind = "Already "+status+" · "+moveName(a), "", toastNote
@@ -232,7 +242,7 @@ func (m *model) undoLast() tea.Cmd {
 	// Read the file itself: the rows can lag behind another writer.
 	if now, err := m.store.Rescan(a.Folder); err == nil && now != nil && now.Status != last.target {
 		m.undo = m.undo[:len(m.undo)-1]
-		m.reload(a.Folder)
+		m.reload(a.Folder, a.Folder)
 		m.toast, m.toastHint, m.toastKind = "Not undone · "+moveName(a)+" changed since the move", "", toastNote
 		return nil
 	}
@@ -246,21 +256,21 @@ func (m *model) undoLast() tea.Cmd {
 			m.err = err
 			return cmd
 		}
-		m.reload(m.cursorFolder())
+		m.reload(m.cursorFolder(), a.Folder)
 	}
 	if last.closeReason != "" {
 		if err := m.store.SetCloseReason(a.Folder, last.closeReason); err != nil {
 			m.err = err
 			return cmd
 		}
-		m.reload(m.cursorFolder())
+		m.reload(m.cursorFolder(), a.Folder)
 	}
 	if last.sent {
 		if _, err := m.store.SetAsideSent(a.Folder, m.now()); err != nil {
 			m.err = err
 			return cmd
 		}
-		m.reload(m.cursorFolder())
+		m.reload(m.cursorFolder(), a.Folder)
 	}
 	m.toast, m.toastHint = m.undoToast(a, last), ""
 	m.offerFollow(a.Folder)
