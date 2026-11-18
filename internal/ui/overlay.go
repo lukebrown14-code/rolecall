@@ -89,6 +89,9 @@ func (m model) bulkBox(p pal, bm *bulkMode) string {
 		lines = append(lines, "", p.Text(p.Warn).Render(fmt.Sprintf("⚠ %d without Ready Documents.", bm.notRdy)))
 	}
 	lines = append(lines, "", p.Text(p.Dim).Render("u undoes them all at once."))
+	if bm.askedY {
+		lines = append(lines, "", p.Text(p.Warn).Bold(true).Render(pressY))
+	}
 	title := "Move"
 	if bm.status == store.StatusDismissed {
 		title = "Dismiss"
@@ -116,6 +119,9 @@ func (m model) confirmBox(p pal, cm *confirmMode) string {
 	}
 	body := lipgloss.NewStyle().Foreground(p.Fg).Width(popSmall-popInset).Render(lipgloss.NewStyle().Bold(true).Render(name)+": "+state+".") +
 		"\n\n" + p.Text(p.Sub).Render("Mark it Applied anyway?")
+	if cm.askedY {
+		body += "\n\n" + p.Text(p.Warn).Bold(true).Render(pressY)
+	}
 	return popup(p, "Docs not Ready", true, popSmall, m.viewWidth(), body, p.Keys(cm.Keys()))
 }
 

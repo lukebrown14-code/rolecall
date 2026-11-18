@@ -110,7 +110,7 @@ func TestToastGlyphsFoldToASCII(t *testing.T) {
 		t.Fatalf("ASCII toast lacks +:\n%s", plain)
 	}
 	m = driveModel(t, m, "u")
-	if plain := chipped(m.View().Content); !strings.Contains(plain, "+ Undone . back to ") {
+	if plain := chipped(m.View().Content); !strings.Contains(plain, "+ Undone | back to ") {
 		t.Fatalf("ASCII undo toast lacks +:\n%s", plain)
 	}
 }
@@ -126,12 +126,13 @@ func TestMoveOutOfFilteredViewSaysHiddenByFilter(t *testing.T) {
 	}
 }
 
-// Dismiss confirms like a move: the company, and u undo, with the key line still last.
+// Dismiss confirms like a move: the company, u undo and i go to it (the row left the
+// view), with the key line still last.
 func TestDismissToastOffersUndo(t *testing.T) {
 	m := driveStart(t, fixtureCopy(t, nil), fixtureClock, 120, 36)
 	m = driveModel(t, m, "x")
 	plain := chipped(m.View().Content)
-	if !strings.Contains(plain, "✓ Dismissed ") || !strings.Contains(plain, "u undo  esc hide") {
+	if !strings.Contains(plain, "✓ Dismissed ") || !strings.Contains(plain, "u undo  i go to it") {
 		t.Fatalf("dismiss toast lacks undo:\n%s", plain)
 	}
 	lines := strings.Split(strings.TrimRight(plain, "\n"), "\n")

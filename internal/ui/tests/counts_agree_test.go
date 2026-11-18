@@ -22,7 +22,14 @@ func TestUnreadableRowsAreCountedApart(t *testing.T) {
 	}
 
 	tracking := chipped(runKeys(t, fixtureCopy(t, nil), 160, "6", "]", "]", "]", "]"))
-	if swe := lineWith(tracking, "14 applications"); !strings.Contains(swe, "14 applications") || !strings.Contains(swe, "1 unreadable") ||
+	// The breakdown wraps under itself beside the about pane, so the row is its two lines.
+	swe, rows := "", strings.Split(tracking, "\n")
+	for i, l := range rows {
+		if strings.Contains(l, "14 applications") && i+1 < len(rows) {
+			swe = l + " " + rows[i+1]
+		}
+	}
+	if !strings.Contains(swe, "14 applications") || !strings.Contains(swe, "1 unreadable") ||
 		!strings.Contains(swe, "9 active") {
 		t.Errorf("Settings › Tracking SWE = %q, want 14 applications · 9 active … · 1 unreadable", swe)
 	}

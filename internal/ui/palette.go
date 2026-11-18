@@ -45,7 +45,7 @@ func (m model) openPalette() *paletteMode {
 }
 
 // editFieldItems are the palette's ways into one field of the Edit form, which e opens on
-// its first field: the next step, the first Contact and, on a Rejected or Withdrawn
+// its first field: the next step, the first Person and, on a Rejected or Withdrawn
 // Application, the close reason. They have no key of their own, so the key column is
 // blank: e opens the same form, under its own one name, edit.
 func (m model) editFieldItems() []helpKey {
@@ -53,9 +53,9 @@ func (m model) editFieldItems() []helpKey {
 	if !m.hasTables() || !ok || a.Malformed != nil {
 		return nil
 	}
-	contact := "add contact"
+	contact := "add person"
 	if len(a.Contacts) > 0 {
-		contact = "edit contact"
+		contact = "edit person"
 	}
 	fields := [][2]string{{fieldNextStep, "edit next step"}, {fieldContact, contact}}
 	if endedStatus(a.Status) {

@@ -79,11 +79,12 @@ const (
 	fieldContactReach = "Email/link"
 )
 
-// The Edit form's groups, named as the card's sections they edit.
+// The Edit form's groups, named as the card's sections they edit. An Application's contacts
+// are People (Person here), never Contact, which is the Owner's own (GLOSSARY.md).
 const (
 	groupRole     = "Role"
 	groupNextStep = "Next step"
-	groupContact  = "Contact"
+	groupContact  = "Person"
 	groupClosed   = "Closed"
 )
 

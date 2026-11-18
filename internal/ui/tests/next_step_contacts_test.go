@@ -447,7 +447,7 @@ func TestFullScreenDetailShowsNextStepAndContactAt80x24(t *testing.T) {
 	d.Type("enter")
 	d.Type("enter")
 	v := d.plain()
-	for _, want := range []string{"NEXT STEP", "Phone screen", "CONTACTS", "Sam Lee"} {
+	for _, want := range []string{"NEXT STEP", "Phone screen", "PEOPLE", "Sam Lee"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("80x24 detail lacks %q:\n%s", want, v)
 		}

@@ -210,7 +210,7 @@ func TestUndoAfterAppliedSetsSentAside(t *testing.T) {
 	wait("Moved to Applied")
 	tm.Type("u")
 	wait("Undone · back to ")
-	wait("sent/ kept as sent.undone-2026-02-01/")
+	wait("its sent copy set aside")
 
 	aside, err := os.ReadFile(filepath.Join(folder, "sent.undone-2026-02-01", "resume.md"))
 	if err != nil || string(aside) != "original" {

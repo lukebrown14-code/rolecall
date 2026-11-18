@@ -20,6 +20,16 @@ const errorMark = "✘"
 // line offers h, which opens Settings › This machine on the Harness row.
 var errNoHarness = errors.New(unsetMachineSetting(labelHarness))
 
+// errNoPlugin is the error a build or a source check gives while no Plugin is set.
+var errNoPlugin = errors.New(unsetMachineSetting(labelPlugin))
+
+// setupNeeded reports an error that is optional setup not yet done (no Harness, no
+// Plugin) rather than a failure: the feedback line draws it as needing attention (⚠ in
+// the warning colour), keeping ✘ and the error red for things that went wrong.
+func setupNeeded(err error) bool {
+	return errors.Is(err, errNoHarness) || errors.Is(err, errNoPlugin)
+}
+
 // parseFixes says how to fix each reason the store refuses a meta.yml, in place of the
 // parser's own words.
 var parseFixes = map[string]string{
@@ -170,6 +180,9 @@ func (m model) feedbackMsg(p pal) (string, string) {
 			msg = strings.Replace(msg, fixHint, "e to fix it", 1)
 		}
 		icon, c, hint = errorMark, p.Bad, "esc hide"
+		if setupNeeded(m.err) {
+			icon, c = glyphWarn, p.Warn
+		}
 		if _, ok := parseError(m.err); ok {
 			hint = "e fix in editor · esc hide"
 		}

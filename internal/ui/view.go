@@ -29,7 +29,7 @@ const (
 	docLines       = 4 // lines of fit.md / notes.md shown in the preview
 	titleLines     = 2 // a long title wraps to at most this in the preview
 	minBody        = 4
-	shedSparkLabel = 1 // topBar detail levels: drop the sparkline's "applied/wk" label…
+	shedSparkLabel = 1 // topBar detail levels: drop the sparkline with its "applied/wk" label…
 	shedCounts     = 2 // …then other screens' counts…
 	shedWordmark   = 3 // …then the word "rolecall"…
 	shedGap        = 4 // …then the gap between tabs narrows to one cell…
@@ -322,7 +322,8 @@ func (m model) tabs(p pal) (string, []int) {
 	room := m.layout().w - rightMargin
 	wide := m.layout().wide()
 	// The Applied-per-week sparkline, the same series Stats draws over its last weeks, sits
-	// beside the Stats tab at wide sizes, until the bar is short of room.
+	// beside the Stats tab at wide sizes with its "applied/wk" label, until the bar is short
+	// of room for both, when it goes: the line never shows unlabelled.
 	// It sits outside the tab's own cell, a space either side, so it stays in the same
 	// column whether or not Stats is the active tab.
 	spark, sparkLabel := "", ""
@@ -361,11 +362,9 @@ func (m model) tabs(p pal) (string, []int) {
 				warn = glyphWarn
 			}
 			tail := ""
-			if wide && level < shedCounts && d.name == screenStats && spark != "" {
-				tail = spark + " "
-				if level < shedSparkLabel {
-					tail = spark + sparkLabel + " "
-				}
+			if wide && level < shedSparkLabel && d.name == screenStats && spark != "" {
+				// Only with its label: a bare row of bars reads as a glitch or a loading bar.
+				tail = spark + sparkLabel + " "
 			}
 			if si == active {
 				chip := digit + name + count
@@ -1147,7 +1146,9 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 		}
 		return lines
 	}
-	left := bar + mark + st(titleC).Bold(sel).Render(xansi.Truncate(titleLabel(a.Title), room, "…"))
+	// Without colour the title and its meta line would draw alike; the title takes bold
+	// there, so the two-line rhythm survives.
+	left := bar + mark + st(titleC).Bold(sel || noColor()).Render(xansi.Truncate(titleLabel(a.Title), room, "…"))
 	gap := st(p.Fg).Render(strings.Repeat(" ", max(1, w-xansi.StringWidth(left)-xansi.StringWidth(right))))
 	meta := strings.Join(m.meta(rp, a, st, dimC), sep)
 	// The bar spans both lines, so the selected row reads as one block.

@@ -122,7 +122,7 @@ func TestNavBrandMarkAndActivitySparkline(t *testing.T) {
 			t.Fatalf("ASCII tab bar has non-ASCII %q: %q", r, bar)
 		}
 	}
-	if !strings.Contains(bar, "Stats  ______#_ ") {
+	if !strings.Contains(bar, "Stats  ......|. ") {
 		t.Errorf("ASCII tab bar lacks the sparkline: %q", bar)
 	}
 }

@@ -94,20 +94,18 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 	// Each toast leads with where the Application went, then which one it was, so a
 	// short footer cuts the Company first and never the Status.
 	name := moveName(a)
-	const hiddenNote = " (hidden by filter)"
 	hidden := m.hiddenByFilter(a.Folder)
 	where := "Moved to " + status
-	switch {
-	case undo:
-		where = "Undone · back to " + status
-	case status == store.StatusDismissed:
+	if status == store.StatusDismissed {
 		where = "Dismissed"
 	}
 	if hidden {
 		where += hiddenNote
 	}
 	if undo {
-		m.toast, m.toastKind = where+" · "+name, toastUndo
+		// undoLast words the toast once the undo is whole (a Search rule put back, sent
+		// set aside).
+		m.toastKind = toastUndo
 		return m.startFlash(a.Folder)
 	}
 	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: madeSent}
@@ -127,8 +125,57 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		if !hidden && !m.shown(a.Folder) {
 			m.followAfterMove(a.Folder)
 		}
+	} else {
+		m.offerFollow(a.Folder)
 	}
 	return m.startFlash(a.Folder)
+}
+
+// keyFollow goes to the Application a move or an undo just took off the screen: its new
+// screen and view, the cursor on its row. The toast offers it for the one next key. g is
+// taken (the top of a list and of the detail), and i is free on both.
+const keyFollow = "i"
+
+// descFollow is keyFollow's words in the toast.
+const descFollow = "go to it"
+
+// offerFollow offers keyFollow in the toast when the Application folder is now somewhere
+// the Owner is not: not when the view on screen still lists it, nor when a filter would
+// hide it at its new home (following would find no row).
+func (m *model) offerFollow(folder string) {
+	m.follow = ""
+	if m.detail == nil && m.hasTables() && m.shown(folder) {
+		return
+	}
+	probe := *m
+	probe.followAfterMove(folder)
+	if a, ok := probe.current(); !ok || a.Folder != folder {
+		return
+	}
+	m.follow = folder
+	offer := keyFollow + " " + descFollow
+	switch {
+	case m.toastHint == "":
+		m.toastHint = offer
+	case strings.HasPrefix(m.toastHint, "u undo"):
+		m.toastHint = strings.Replace(m.toastHint, "u undo", "u undo · "+offer, 1)
+	default:
+		m.toastHint = offer + " · " + m.toastHint
+	}
+}
+
+// whereNow is where an Application is listed, as the Owner finds it: "Drafts",
+// "Pipeline › Applied", "Leads › Dismissed". A screen's own view is the screen alone.
+func (m model) whereNow(folder string) string {
+	a, ok := m.application(folder)
+	if !ok {
+		return ""
+	}
+	screen, table := appLocation(a)
+	if table == screen || table == tableLeads {
+		return screen
+	}
+	return screen + " › " + table
 }
 
 // toastKind says how the feedback line draws a success toast, so the drawing does not
@@ -144,6 +191,9 @@ const (
 
 // undoHint is the keys shown with the toast of every reversible action.
 const undoHint = "u undo · esc hide"
+
+// hiddenNote follows where a toast says the Application went when a filter hides it there.
+const hiddenNote = " (hidden by filter)"
 
 // moveName is the Application as a toast names it, "Platform Engineer (Fern Systems)":
 // the title says which one, as several can share a Company.
@@ -243,15 +293,33 @@ func (m *model) undoLast() tea.Cmd {
 		m.reload(m.cursorFolder())
 	}
 	if last.sent {
-		name, err := m.store.SetAsideSent(a.Folder, m.now())
-		if err != nil {
+		if _, err := m.store.SetAsideSent(a.Folder, m.now()); err != nil {
 			m.err = err
 			return cmd
 		}
 		m.reload(m.cursorFolder())
-		m.toast += " · sent/ kept as " + name + "/"
 	}
+	m.toast, m.toastHint = m.undoToast(a, last), ""
+	m.offerFollow(a.Folder)
 	return cmd
+}
+
+// undoToast says what an undo did in the Owner's words, where the Application went first
+// so a short footer cuts the name: "Undone · back to Draft · on Drafts · Backend
+// Engineer (Numbat Health)". A set-aside sent copy is named as such, never by its folder.
+func (m model) undoToast(a store.Application, u undoMove) string {
+	toast := "Undone · back to " + u.status
+	if where := m.whereNow(a.Folder); where != "" {
+		toast += " · on " + where
+	}
+	if m.hiddenByFilter(a.Folder) {
+		toast += hiddenNote
+	}
+	toast += " · " + moveName(a)
+	if u.sent {
+		toast += " · its sent copy set aside"
+	}
+	return toast
 }
 
 // hiddenByFilter reports that a track or text filter is in force and the row is not among

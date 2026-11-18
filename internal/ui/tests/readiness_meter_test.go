@@ -45,11 +45,12 @@ func TestDetailListsEachDocumentReadyOrMissing(t *testing.T) {
 	}
 }
 
-// ASCII mode draws the meter as # and :, and keeps the done/to-do marks apart.
+// ASCII mode draws the meter's cells as the ready and missing marks, + and _, which mean
+// the same, and keeps the done/to-do marks apart.
 func TestMeterFoldsToASCII(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 120, 36, "3", "/docs-written", "enter"))
-	if !strings.Contains(view, "##::") || !strings.Contains(view, "+ Resume _ PDF") {
+	if !strings.Contains(view, "++__ 2/4 ready") || !strings.Contains(view, "+ Resume _ PDF") {
 		t.Errorf("no ASCII meter:\n%s", view)
 	}
 }

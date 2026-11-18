@@ -280,7 +280,11 @@ func (m model) cardRows(p pal, a store.Application, w int, mode cardMode, lean b
 	if line := m.followedUpRow(p, a, w); line != "" {
 		section(line)
 	}
-	section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	if mode != cardFull || !m.trackWhole(p, a) {
+		// The narrow detail's strip already draws the whole timeline as a track; the
+		// Overview repeats it only where the track had to shed stops or dates.
+		section(append([]string{p.blockLabel("TIMELINE")}, m.verticalTimeline(p, a, w)...)...)
+	}
 	section(m.contactRows(p, a, w)...)
 	section(m.notesRow(p, a, w, keep))
 	return rows

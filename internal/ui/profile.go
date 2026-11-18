@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -313,7 +314,7 @@ func (m model) profileMarkdown(st profileState) string {
 			}
 			rendered, ok := m.fieldTable(body, width)
 			if !ok {
-				rendered = strings.Split(m.renderMarkdown(body, width), "\n")
+				rendered = strings.Split(m.renderProfile(body, width), "\n")
 			}
 			// The first line of text sits level with the first section in the list.
 			for len(rendered) > 0 && strings.TrimSpace(xansi.Strip(rendered[0])) == "" {
@@ -803,13 +804,14 @@ func shortHeading(h string) string {
 }
 
 // profileSectionSuffix is the right-aligned mark on a section row: Contact's ✓ or ○ in
-// place of a count, the count itself, or nothing for prose.
+// place of a count, the count itself, or nothing for prose. A Contact still missing a
+// field is setup to finish, not a failure: ○ in the warning colour, not the error red.
 func (m model) profileSectionSuffix(p pal, section store.ProfileSection) (string, color.Color) {
 	if section.Heading == "Contact" {
 		if len(m.profile.profile.Missing) == 0 {
 			return contactOK, p.Ok
 		}
-		return contactBad, p.Bad
+		return contactBad, p.Warn
 	}
 	if section.Kind != "" {
 		return strconv.Itoa(section.Count), p.Dim
@@ -842,3 +844,93 @@ func profileListRow(p pal, listW int, name, suffix string, colour color.Color, s
 	}
 	return left + strings.Repeat(" ", max(1, gap)) + p.Text(colour).Render(suffix)
 }
+
+// factLine is a source line that states one fact under a bold label, as "**Dates:** 2023"
+// or "**Dates**: 2023", outside a list item's marker.
+var factLine = regexp.MustCompile(`^\s*\*\*[^*]+(:\*\*|\*\*:)`)
+
+// lineBreak marks, through Glamour, where a rendered line must break: Glamour joins a
+// paragraph's lines with a space, hard breaks included. A private-use rune, so it never
+// clashes with the Owner's text.
+var lineBreak = string(rune(privateUseStart))
+
+// privateUseStart is the first rune of Unicode's Private Use Area.
+const privateUseStart = 0xe000
+
+// renderProfile draws a Profile section's Markdown, keeping its fact lines and hard
+// breaks on lines of their own.
+func (m model) renderProfile(md string, width int) string {
+	return splitBreaks(m.renderMarkdown(markBreaks(md), width))
+}
+
+// markBreaks marks with lineBreak the end of each source line followed by a fact line,
+// and each hard break (two trailing spaces or a backslash). Markdown would otherwise join
+// "**Dates:** 2023" over "**Canonical title:** Developer" into one run-on line. Fenced
+// code, tables and headings are left alone.
+func markBreaks(md string) string {
+	lines := strings.Split(md, "\n")
+	fenced := false
+	for i, l := range lines {
+		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fenced = !fenced
+			continue
+		}
+		if fenced || i+1 >= len(lines) || t == "" || strings.HasPrefix(t, "|") || strings.HasPrefix(t, "#") ||
+			strings.TrimSpace(lines[i+1]) == "" {
+			continue
+		}
+		hard := strings.HasSuffix(l, "  ") || strings.HasSuffix(l, `\`)
+		if hard || factLine.MatchString(lines[i+1]) {
+			lines[i] = strings.TrimSuffix(strings.TrimRight(l, " "), `\`) + lineBreak
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// splitBreaks breaks rendered lines at each lineBreak mark, the text after it indented
+// as its line was, so a fact inside a list item stays under the item's text.
+func splitBreaks(rendered string) string {
+	if !strings.Contains(rendered, lineBreak) {
+		return rendered
+	}
+	var out []string
+	pending := "" // the indent owed to the next line, when Glamour broke the line itself
+	for _, l := range strings.Split(rendered, "\n") {
+		parts := strings.Split(l, lineBreak)
+		if pending != "" {
+			// The indent comes out of the line's padding, so it stays as wide as it was.
+			text := xansi.StringWidth(strings.TrimRight(xansi.Strip(parts[0]), " "))
+			parts[0] = xansi.Truncate(parts[0], max(text, xansi.StringWidth(parts[0])-len(pending)), "")
+		}
+		out = append(out, pending+parts[0])
+		if len(parts) == 1 {
+			pending = ""
+			continue
+		}
+		plain := xansi.Strip(pending + parts[0])
+		indent := strings.Repeat(" ", len(plain)-len(strings.TrimLeft(plain, " ")))
+		if item := listItemLead.FindString(plain); item != "" {
+			indent = strings.Repeat(" ", xansi.StringWidth(item))
+		}
+		pending = ""
+		for _, part := range parts[1:] {
+			text := xansi.Strip(part)
+			if strings.TrimSpace(text) == "" {
+				// Inside a list item Glamour keeps the source's lines, unindented: the next
+				// line is the fact, owed this line's indent.
+				pending = indent
+				continue
+			}
+			// The space Glamour set after the mark goes; the styling around it is kept.
+			if lead := len(text) - len(strings.TrimLeft(text, " ")); lead > 0 {
+				part = xansi.TruncateLeft(part, lead, "")
+			}
+			out = append(out, indent+part)
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+// listItemLead is a rendered list item's indent and marker, the column its text starts in.
+var listItemLead = regexp.MustCompile(`^\s*(?:[\x{2022}\x{25E6}\x{25AA}*-]|\d+\.)\s+`)

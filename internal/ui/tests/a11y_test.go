@@ -80,7 +80,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 			t.Fatalf("glyph %q survived ROLECALL_ASCII on Stats:\n%s", g, stats)
 		}
 	}
-	if !strings.Contains(stats, "FUNNEL") || !regexp.MustCompile(`RESPONSE RATE   #+\.+ 33%`).MatchString(stats) {
+	if !strings.Contains(stats, "FUNNEL") || !regexp.MustCompile(`RESPONSE RATE   \|+\.+ 33%`).MatchString(stats) {
 		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
 	}
 
@@ -206,7 +206,7 @@ func TestAsciiOnTheLinuxConsole(t *testing.T) {
 func TestAsciiKeepsStatusesApart(t *testing.T) {
 	t.Setenv("ROLECALL_ASCII", "1")
 	view := ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	for _, want := range []string{"* Applied . 1", "@ Interviewing . 2", "$ Offer . 2", `\ docs-ready`, "{ docs-resume-only"} {
+	for _, want := range []string{"# Applied | 1", "& Interviewing | 2", "$ Offer | 2", `\ docs-ready`, "` docs-resume-only"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("ASCII lost %q:\n%s", want, view)
 		}
@@ -243,7 +243,7 @@ func TestClosedGroupHeaderHasAGlyph(t *testing.T) {
 	}
 	t.Setenv("ROLECALL_ASCII", "1")
 	view = ansi.Strip(runKeys(t, fixtureCopy(t, nil), 120, "3"))
-	if !strings.Contains(view, `\ Closed . 4`) {
+	if !strings.Contains(view, `\ Closed | 4`) {
 		t.Fatalf("ASCII Closed header lost its glyph:\n%s", view)
 	}
 }
@@ -287,7 +287,7 @@ func TestPlainPopUpsReadAlone(t *testing.T) {
 	}{
 		{[]string{"3", "m"}, "Move", "esc cancel"},
 		{[]string{"3", "*", "j", "*", "m"}, "Move", "esc cancel"},
-		{[]string{"1", "m", "a"}, "Docs not Ready", "mark Applied"},
+		{[]string{"1", "m", "a"}, "Docs not Ready", "y yes"},
 		{[]string{"3", "m", "r"}, "why did it end?", "esc skip"},
 		{[]string{"1", "a"}, "Add a Lead", "esc cancel"},
 		{[]string{"1", "e"}, "Edit Platform Engineer", "esc cancel"},

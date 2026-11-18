@@ -69,11 +69,21 @@ func TestNarrowSettingsKeepsTheSectionKey(t *testing.T) {
 	}
 }
 
-// With room, the tab bar's sparkline says what it counts.
+// With room, the tab bar's sparkline says what it counts; at any width where the label
+// does not fit, the sparkline goes with it, so the bar never shows unexplained glyphs.
 func TestTabBarSparklineIsLabelled(t *testing.T) {
-	bar := strings.Split(chipped(runKeysSized(t, fixtureCopy(t, nil), 160, 40, "1")), "\n")[0]
+	root := fixtureCopy(t, nil)
+	bar := strings.Split(chipped(runKeysSized(t, root, 160, 40, "1")), "\n")[0]
 	if !strings.Contains(bar, "4 Stats  ▁▁▁▁▁▁█▁ applied/wk ") {
 		t.Errorf("wide tab bar sparkline lacks its label: %q", bar)
+	}
+	for w := 100; w <= 160; w += 4 {
+		for _, screen := range []string{"1", "4", "6"} {
+			bar := strings.Split(chipped(runKeysSized(t, root, w, 36, screen)), "\n")[0]
+			if strings.ContainsAny(bar, "▁▂▃▄▅▆▇█") && !strings.Contains(bar, "applied/wk") {
+				t.Errorf("%d wide, screen %s: sparkline without its label: %q", w, screen, bar)
+			}
+		}
 	}
 }
 
@@ -146,17 +156,33 @@ func TestStatsTracksBusiestFirstWithoutZeroRows(t *testing.T) {
 	}
 }
 
-// A pop-up leaves the frame beside it in view: the rows it covers keep their text left
-// and right of it.
+// A pop-up leaves the frame beside it in view: the rows it covers keep their whole
+// phrases left and right of it (one it would cut goes, see phraseEdges), so neither side
+// is blanked edge to edge.
 func TestPopUpKeepsTheFrameBesideIt(t *testing.T) {
 	view := chipped(runKeysSized(t, fixtureCopy(t, nil), 160, 44, "1", "m"))
-	row := lineWith(view, "╭─ Move")
-	left := strings.TrimSpace(row[:strings.Index(row, "╭")])
-	if left == "" {
-		t.Errorf("the rows behind the pop-up are blanked edge to edge: %q", row)
+	left, right, in := 0, 0, false
+	for _, row := range strings.Split(view, "\n") {
+		in = in || strings.Contains(row, "╭─ Move")
+		if !in {
+			continue
+		}
+		open, end := strings.IndexAny(row, "╭│╰"), strings.LastIndexAny(row, "╮│╯")
+		if strings.TrimSpace(row[:open]) != "" {
+			left++
+		}
+		if strings.Trim(row[end+len("│"):], " │") != "" {
+			right++
+		}
+		if strings.Contains(row, "╰─") {
+			break
+		}
 	}
-	if right := strings.TrimSpace(row[strings.LastIndex(row, "╮")+len("╮"):]); right == "" {
-		t.Errorf("the preview beside the pop-up is blanked: %q", row)
+	if left == 0 {
+		t.Errorf("the rows behind the pop-up are blanked edge to edge:\n%s", view)
+	}
+	if right == 0 {
+		t.Errorf("the preview beside the pop-up is blanked:\n%s", view)
 	}
 }
 

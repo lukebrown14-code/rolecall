@@ -57,7 +57,7 @@ The locked fact set every document is written from: career facts plus the rules 
 _Avoid_: personal details, master profile (for the whole set)
 
 **Contact**:
-The Owner's name and how to reach them, printed on every document: Name and Email are required; Phone, Location, LinkedIn, GitHub and Work rights are optional. Part of the Profile.
+The Owner's name and how to reach them, printed on every document: Name and Email are required; Phone, Location, LinkedIn, GitHub and Work rights are optional. Part of the Profile. Only ever the Owner's: someone the Owner writes to about an Application is a Person.
 _Avoid_: personal details, identity
 
 **Experience**:
@@ -119,6 +119,10 @@ _Avoid_: expired (as a Status), discarded
 The agency that posted an ad for a client. The client is the Application's company, the real employer, and is what Fit, duplicate checks and Search rules use.
 _Avoid_: agency (as a field), employer (for the recruiter)
 
+**Person**:
+Someone the Owner writes to about one Application, such as a recruiter, the hiring manager or a referrer: a name, their role, and an email or link (`contacts` in `meta.yml`). The card lists them under PEOPLE and the Edit form edits the first under Person. Never the Owner's Contact.
+_Avoid_: contact (for these)
+
 **Likely duplicate**:
 A saved Application that is probably the same role as a new one: the same employer and normalised title, or the same ad text. Refused unless the Owner says it is a different role.
 _Avoid_: dupe
@@ -132,7 +136,7 @@ The Stats panel that counts the gaps recorded across every Fit write-up, to show
 _Avoid_: analytics
 
 **Follow-up due**:
-A sent Application (Applied or Interviewing) that has gone the follow-up period without a Status change or a recorded follow-up. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again.
+A sent Application (Applied or Interviewing) that has gone the follow-up period without a Status change or a recorded follow-up. It is a reminder, not a Status. It clears when the Status changes or when the Owner records that they followed up (`l`, kept as `followed_up` in `meta.yml`), and comes back once the follow-up period passes again. A next step booked for today or later holds it until that day has passed.
 _Avoid_: stale, reminder
 
 **Next step**:

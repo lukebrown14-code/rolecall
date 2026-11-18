@@ -2,7 +2,6 @@ package ui
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -168,6 +167,7 @@ func (m model) addSourcePopup() mode {
 func (m model) editSourcePopup(old store.Source) mode {
 	f := sourceForm("Edit Source "+old.Name, old)
 	f.ShowDirty = true
+	f.SelectValue() // typing replaces the name, as on every Settings edit
 	return &formPopup{form: f, width: popSmall, save: func(m *model, f *form) (mode, error) {
 		if !f.Dirty() {
 			return nil, nil
@@ -219,7 +219,7 @@ func (m model) sourceCheckKey(k tea.KeyPressMsg) (model, tea.Cmd, bool) {
 		return m, nil, false
 	}
 	if m.plugin == "" {
-		m.err = errors.New(unsetMachineSetting(labelPlugin))
+		m.err = errNoPlugin
 		return m, nil, true
 	}
 	m.toast, m.toastHint, m.toastKind = "Checking "+src.Name+"…", "", toastNote
