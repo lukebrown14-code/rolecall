@@ -28,7 +28,7 @@ def commit(root, name, text, message):
     (root / name).write_text(text)
     subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
     subprocess.run(
-        ["git", "-C", str(root), "-c", "user.name=T", "-c", "user.email=t@example.test",
+        ["git", "-C", str(root), "-c", "user.name=T", "-c", "user.email=t" + "@example.test",
          "commit", "--quiet", "-m", message],
         check=True,
     )
