@@ -1,4 +1,4 @@
- ▞ rolecall  1 Leads 7  2 Drafts 2  3 Pipeline 9  4 Stats  ▁▁▁▁▁▁█▁ [5 Profile] 6 Settings       space commands  ? help 
+ ▞ rolecall  1 Leads 7  2 Drafts 2  3 Pipeline 9  4 Stats  ▁▁▁▁▁▁█▁ applied/wk [5 Profile] 6 Settings                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   [SECTIONS]  CONTENT                                                                         profile/master-profile.md 
 ─────────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────
@@ -37,4 +37,4 @@
                                  │                                                                                      
 ─────────────────────────────────┴──────────────────────────────────────────────────────────────────────────────────────
    Profile › Contact                                                                                                    
- e edit file                                                                                          tab focus  ? help 
+ e edit file  c edit Contact                                                          tab focus  space commands  ? help 

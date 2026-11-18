@@ -78,6 +78,7 @@ type model struct {
 	spinner               spinner.Model
 	profile               *profileState
 	profileStarted        bool // the Profile has more than Contact, so the welcome drops its Profile step
+	contactSaved          bool // the Contact has a Name and an Email, so the welcome ticks it off
 	settings              *settingsState
 	// rules are workspace.json's Search rules, re-read with every scan, for the age warning.
 	rules       store.SearchRules
@@ -119,6 +120,7 @@ func New(s *store.Store, now func() time.Time, options ...Option) (tea.Model, er
 		m.loadRules()
 		if p, err := s.Profile(); err == nil {
 			m.profileStarted = profileBeyondContact(p)
+			m.contactSaved = contactComplete(p)
 		}
 		if e != nil && (invalidWorkspaceFile(s) || badTrackList(e)) {
 			// An invalid workspace.json does not stop startup: the app opens with no Track
@@ -385,6 +387,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fm.finishFetch(&m, done)
 		return m, nil
 	}
+	if open, ok := msg.(editFieldMsg); ok && m.overlay == nil {
+		return m, m.openEditAt(open.field)
+	}
 	if done, ok := msg.(sourceChecked); ok {
 		return m.finishSourceCheck(done), nil
 	}
@@ -496,6 +501,10 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.text != "" {
 					m.text = ""
 					m.cursor = 0
+					if m.anyFilter() {
+						// A Track or view is still on: say so, and how to clear them too.
+						m.toast, m.toastHint = "Search cleared", keyBackspace+" "+descClearFilters
+					}
 				}
 			case "q", "ctrl+c":
 				return m, m.quit()

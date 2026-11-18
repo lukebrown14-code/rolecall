@@ -23,9 +23,11 @@ type writingDone struct {
 }
 
 // markWriting notes documents the watch.Watcher saw written and returns what keeps the marks
-// alive: the spinner's tick and, per document, the tick that puts its mark out.
+// alive: the spinner's tick and, per document, the tick that puts its mark out. With no
+// Harness set no agent can be writing, so a write (the Owner's own Editor, a Lead's new
+// empty jd.md) marks nothing: the mark never claims work that is not happening.
 func (m *model) markWriting(paths []string) tea.Cmd {
-	if len(paths) == 0 {
+	if len(paths) == 0 || m.harness == "" {
 		return nil
 	}
 	next := make(map[string]int, len(m.writing)+len(paths))

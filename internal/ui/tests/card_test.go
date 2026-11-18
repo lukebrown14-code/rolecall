@@ -147,7 +147,8 @@ func TestPreviewShowsTheFitThenTheJD(t *testing.T) {
 	jd := fileEdit("jobs", "SWE", "fern", "jd.md", "# Platform Engineer\n\nRun the build farm.\n")
 	card := previewCard(t, func(root string) { fit(root); jd(root) }, 120, 44, "1", "/Fern", "enter")
 	text := strings.Join(card, "\n")
-	at := slices.Index(card, "FIT")
+	// Fern has no Fit in meta.yml, so the block's label says its text is reasoning only.
+	at := slices.Index(card, "FIT · reasoning only, not assessed")
 	if at < 0 {
 		t.Fatalf("no FIT block:\n%s", text)
 	}

@@ -3,6 +3,7 @@ package ui_test
 import (
 	"fmt"
 	"image/color"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestAsciiGlyphsFallBack(t *testing.T) {
 			t.Fatalf("glyph %q survived ROLECALL_ASCII on Stats:\n%s", g, stats)
 		}
 	}
-	if !strings.Contains(stats, "FUNNEL") || !strings.Contains(stats, "RESPONSE RATE   ########................") {
+	if !strings.Contains(stats, "FUNNEL") || !regexp.MustCompile(`RESPONSE RATE   #+\.+ 33%`).MatchString(stats) {
 		t.Fatalf("ASCII fallback lost the Stats screen:\n%s", stats)
 	}
 

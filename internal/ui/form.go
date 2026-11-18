@@ -33,6 +33,14 @@ func (m model) formBox(p pal, f *form, w int) string {
 	rows := make([]string, 0, len(f.Fields))
 	for i := range f.Fields {
 		fld := &f.Fields[i]
+		if fld.Group != "" && (i == 0 || f.Fields[i-1].Group != fld.Group) {
+			// A group's heading, as the card labels its sections, with a blank line between
+			// groups.
+			if len(rows) > 0 {
+				rows = append(rows, "")
+			}
+			rows = append(rows, strings.Repeat(" ", formMark)+p.blockLabel(strings.ToUpper(fld.Group)))
+		}
 		required = required || fld.Required
 		focused := i == f.Focus && !f.Discarding
 		mark, label := "  ", p.Text(p.Sub).Width(lw).Align(lipgloss.Right).Render(fld.Label)

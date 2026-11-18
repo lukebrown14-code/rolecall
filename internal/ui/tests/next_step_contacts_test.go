@@ -126,10 +126,7 @@ func editStepper(d *driver) {
 func TestEditSavesNextStepAndFirstContact(t *testing.T) {
 	root := stepWorkspace(t, "contact: Old Name\n")
 	d := newDriver(t, root, fixtureClock, 120, 40)
-	editStepper(d)
-	for range 7 { // URL … Resume only
-		d.Type("enter")
-	}
+	editStepper(d) // an Interviewing Application's form opens on its next step
 	d.Type("2026-10-05T09:00")
 	d.Type("enter")
 	d.Type("Technical interview")
@@ -157,9 +154,6 @@ func TestEditRefusesABadNextStepDate(t *testing.T) {
 	root := stepWorkspace(t, "")
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	editStepper(d)
-	for range 7 {
-		d.Type("enter")
-	}
 	d.Type("2026-02-30")
 	d.Type("enter")
 	if v := d.plain(); !strings.Contains(v, "isn't a real date") {
@@ -174,9 +168,7 @@ func TestEditRefusesWhatWithoutADate(t *testing.T) {
 	root := stepWorkspace(t, "")
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	editStepper(d)
-	for range 8 { // past the date, which stays empty
-		d.Type("enter")
-	}
+	d.Type("enter") // past the date, which stays empty
 	d.Type("Call")
 	d.Type("ctrl+s")
 	if v := d.plain(); !strings.Contains(v, "Add a date, or clear What") {
@@ -264,11 +256,9 @@ func TestEditChangesTheCloseReason(t *testing.T) {
 	root := rejectedStepper(t, "close_reason: no-response\n")
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	editStepper(d)
-	if v := d.plain(); !strings.Contains(v, "Closed  ‹ No response ›") {
-		t.Fatalf("the Edit form lacks the close reason:\n%s", v)
-	}
-	for range 12 { // URL … Email / URL
-		d.Type("enter")
+	// The form opens on the reason, under its CLOSED heading.
+	if v := d.plain(); !strings.Contains(v, "CLOSED") || !strings.Contains(lineWith(v, "Reason  ‹ No response ›"), "▌") {
+		t.Fatalf("the Edit form lacks the close reason, or is not on it:\n%s", v)
 	}
 	d.Type("right") // No response → After screen
 	d.Type("ctrl+s")
@@ -280,9 +270,6 @@ func TestEditChangesTheCloseReason(t *testing.T) {
 	}
 	// none takes the key out.
 	d.Type("e")
-	for range 12 {
-		d.Type("enter")
-	}
 	d.Type("left")
 	d.Type("left") // After screen → No response → none
 	d.Type("ctrl+s")
@@ -313,7 +300,7 @@ func TestEditOfAnOpenApplicationHasNoCloseReason(t *testing.T) {
 	root := stepWorkspace(t, "")
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	editStepper(d)
-	if v := d.plain(); strings.Contains(v, "Closed  ‹") {
+	if v := d.plain(); strings.Contains(v, "Reason  ‹") || strings.Contains(v, "CLOSED") {
 		t.Fatalf("an Interviewing Edit form asks a close reason:\n%s", v)
 	}
 }
@@ -439,9 +426,6 @@ func TestEditNextStepTakesFlexibleDates(t *testing.T) {
 	root := stepWorkspace(t, "")
 	d := newDriver(t, root, fixtureClock, 120, 40)
 	editStepper(d)
-	for range 7 {
-		d.Type("enter")
-	}
 	d.Type("tomorrow 14:30")
 	if v := d.plain(); !strings.Contains(v, "→ Fri 2 Oct 2026 14:30") {
 		t.Fatalf("no echo of the parsed next step:\n%s", v)

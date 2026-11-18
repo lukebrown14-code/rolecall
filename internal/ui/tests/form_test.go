@@ -46,7 +46,7 @@ func TestFormChecksAFieldsFormatOnLeavingIt(t *testing.T) {
 	// From Title (where the form opens without a Plugin), Company, Track, then Closes: a bad
 	// date is flagged as soon as tab leaves it.
 	v := addForm(t, "tab", "tab", "tab", "someday", "tab")
-	requireAll(t, v, "✘ Closes: use YYYY-MM-DD,")
+	requireAll(t, v, "✘ tomorrow · fri · +7d · 30 Nov")
 	// Passing an empty required field is fine: only saving asks for it.
 	if strings.Contains(v, "Title is required") {
 		t.Fatalf("leaving an empty required field flagged it:\n%s", v)

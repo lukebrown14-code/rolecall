@@ -78,6 +78,9 @@ type helpKey struct {
 	// press is the one key the command palette sends to run this action, or "" when the
 	// label names several keys ("j k", "1-6") and the palette leaves it out.
 	press string
+	// field is the Edit form field a palette entry opens the form on, in place of a press
+	// ("edit next step"), or "".
+	field string
 	// dim draws the key and its words muted in the help and palette: a Handoff key while
 	// no Harness is set.
 	dim bool
@@ -176,7 +179,8 @@ func (m model) contextKeys() []helpKey {
 			vertical = "select"
 		}
 		// Reading is what the detail view is for, so its navigation outlasts the actions.
-		keys = append(keys, help(groupNav, "←→", "tab").at(prioCore), help(groupNav, "↑↓", vertical).at(prioMain),
+		// tab is the next tab, as → is: the detail has one pane (see tabKey).
+		keys = append(keys, help(groupNav, "←→", "tab").at(prioCore), tabKey("next tab"), help(groupNav, "↑↓", vertical).at(prioMain),
 			help(groupCursor, "g G", "top / bottom"), help(groupNav, "J", "next row").at(prioDetailStep),
 			help(groupNav, "K", "previous row").at(prioDetailStep))
 		if m.detail.tab != tabDocs {
@@ -189,10 +193,16 @@ func (m model) contextKeys() []helpKey {
 		return append(keys, help(groupNav, "esc", "back").at(prioPinned), help(groupNav, "q", "back").at(prioHelpOnly))
 	}
 	if len(m.views()) > 1 {
-		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly)) // s says it on the key line
+		keys = append(keys, help(groupNav, "←→", "view").at(prioHelpOnly), tabKey("view")) // s says it on the key line
 	}
 	return append(keys, help(groupCursor, "j k ↑↓", "cursor"), help(groupCursor, "g G", "top / bottom"))
 }
+
+// tabKey is tab in the help. tab has one meaning app-wide: the next pane. Where a screen
+// has one pane (a list, the detail, Settings) it does what → does there, so the help names
+// it beside ←→ ("←→ tab  view"); on Profile it moves focus between the section list and
+// the content, and the key line says so. shift+tab goes the other way.
+func tabKey(desc string) helpKey { return help(groupNav, "tab", desc).at(prioHelpOnly) }
 
 // descCommands is the command finder's one name: space, : and ctrl+k all open it.
 const descCommands = "commands"
@@ -233,14 +243,11 @@ func (m model) globalKeys(ctx []helpKey) []helpKey {
 		// the welcome has gone.
 		keys = append(keys, help(groupAction, "h", descConnectHarness).at(prioHelpOnly))
 	}
-	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, "?", "help").at(prioPinned))
-	// One command finder: space and : (ctrl+k is an unlisted alias). The tab bar shows space where it has room, so the key
-	// line leaves it to the help.
-	finder := help(groupGlobal, "space", descCommands).at(prioPinned)
-	if m.barKeys(m.pal()) != "" {
-		finder = finder.at(prioHelpOnly)
-	}
-	keys = append(keys, finder, help(groupGlobal, ":", descCommands).at(prioHelpOnly))
+	// One command finder: space and : (ctrl+k is an unlisted alias). space and ? end the key
+	// line at every width, ? last, so help is always in the same place. space is the first
+	// key a short line drops: the screen's own actions outrank it, and ? help lists it.
+	keys = append(keys, help(groupGlobal, "r", "rescan"), help(groupGlobal, spaceKey, descCommands).at(prioLean),
+		help(groupGlobal, ":", descCommands).at(prioHelpOnly), help(groupGlobal, "?", "help").at(prioPinned))
 	keys = append(keys, help(groupGlobal, "q", "quit"))
 	taken := map[string]bool{}
 	for _, k := range ctx {

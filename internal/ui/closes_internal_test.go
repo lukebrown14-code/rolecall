@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -75,6 +76,71 @@ func TestReadNextStepAt(t *testing.T) {
 	for _, in := range []string{"soon", "tomorrow 25:00", "2026-02-30T10:00", "10:30"} {
 		if got, ok, _ := readNextStepAt(in, now); ok {
 			t.Errorf("readNextStepAt(%q) = %q, want unreadable", in, got)
+		}
+	}
+}
+
+// A weekday name is the next such day, never today, with or without a time, in both the
+// Closes and the next step fields.
+func TestDatesTakeWeekdayNames(t *testing.T) {
+	wed := time.Date(2026, time.November, 18, 15, 30, 0, 0, time.UTC) // a Wednesday
+	for in, want := range map[string]string{
+		"fri":      "2026-11-20",
+		"Friday":   "2026-11-20",
+		"next fri": "2026-11-20",
+		"thurs":    "2026-11-19",
+		"tue":      "2026-11-24",
+		"wed":      "2026-11-25", // today is "today"
+		"sun":      "2026-11-22",
+	} {
+		if got, ok := parseCloses(in, wed); !ok || got != want {
+			t.Errorf("parseCloses(%q) = %q, %v; want %q", in, got, ok, want)
+		}
+	}
+	for _, in := range []string{"fr", "fridays", "frx"} {
+		if got, ok := parseCloses(in, wed); ok {
+			t.Errorf("parseCloses(%q) = %q, want unreadable", in, got)
+		}
+	}
+	if got, ok, _ := readNextStepAt("fri 9:00", wed); !ok || got != "2026-11-20T09:00" {
+		t.Errorf("readNextStepAt(fri 9:00) = %q, %v", got, ok)
+	}
+	if got := echoNextStepAt(func() time.Time { return wed })("fri 9:00"); got != "→ Fri 20 Nov 2026 09:00" {
+		t.Errorf("echo = %q", got)
+	}
+}
+
+// Closes and the next step show one list of date forms, and every form in it is one the
+// parsers read.
+func TestDateHintIsSharedAndTrue(t *testing.T) {
+	if !strings.HasPrefix(nextStepHelp, closesHelp) {
+		t.Errorf("the next step's help %q does not start with Closes' %q", nextStepHelp, closesHelp)
+	}
+	now := time.Date(2026, time.November, 18, 0, 0, 0, 0, time.UTC)
+	for _, form := range strings.Split(dateHint, " · ") {
+		if _, ok := parseCloses(form, now); !ok {
+			t.Errorf("the hint offers %q, which Closes refuses", form)
+		}
+	}
+}
+
+// A saved next step reopens as it would be typed, and reads back to the same date.
+func TestNextStepTextReadsBackTheSame(t *testing.T) {
+	now := time.Date(2026, time.November, 18, 10, 0, 0, 0, time.UTC)
+	for at, want := range map[string]string{
+		"2026-11-21T09:00": "21 Nov 09:00",
+		"2026-11-21":       "21 Nov",
+		"2027-01-04":       "4 Jan",
+		"2026-10-01T10:30": "1 Oct 2026 10:30", // past: "1 Oct" would be next year
+		"2028-03-01":       "1 Mar 2028",       // more than a year off
+		"someday":          "someday",
+	} {
+		got := nextStepText(at, now)
+		if got != want {
+			t.Errorf("nextStepText(%q) = %q, want %q", at, got, want)
+		}
+		if at != "someday" && normaliseNextStepAt(got, now) != at {
+			t.Errorf("%q reads back as %q, not %q", got, normaliseNextStepAt(got, now), at)
 		}
 	}
 }

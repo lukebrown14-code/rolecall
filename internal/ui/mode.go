@@ -314,9 +314,22 @@ func (hm *helpMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 }
 
 // searchMode is the `/` filter input. It has no box: the input shows on the status row.
-type searchMode struct{}
+// Reopened over a search, it starts with the old query selected, as a browser's find box
+// does: typing or pasting replaces it, backspace clears it, and enter or an arrow keeps it.
+type searchMode struct {
+	selected bool
+}
+
+// openSearch is / : the input, with any search already on selected.
+func (m *model) openSearch() {
+	m.overlay = &searchMode{selected: m.text != ""}
+}
 
 func (sm *searchMode) Keys() [][2]string {
+	if sm.selected {
+		// Says it in words too, for a terminal without the selection fill.
+		return [][2]string{{"type", "replace"}, {"enter", "keep"}, {"esc", "clear"}}
+	}
 	return [][2]string{{"enter", "apply"}, {"esc", "clear"}}
 }
 
@@ -325,6 +338,9 @@ func (sm *searchMode) View(m *model, p pal) string { return "" }
 func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
+		if sm.selected {
+			m.text = ""
+		}
 		m.text += pasted(msg.Content)
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -335,16 +351,27 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 		case "enter":
 			m.cursor = 0
 			return nil, nil
-		case "backspace":
+		case keyBackspace:
+			if sm.selected {
+				m.text = ""
+			}
 			m.text = dropLastGrapheme(m.text)
+		case "left", "right", "up", "down":
+			// The query stays, now to be added to rather than replaced.
+			sm.selected = false
+			return sm, nil
 		default:
 			if msg.Text != "" {
+				if sm.selected {
+					m.text = ""
+				}
 				m.text += msg.Text
 			}
 		}
 	default:
 		return sm, nil
 	}
+	sm.selected = false
 	m.cursor = 0
 	return sm, nil
 }

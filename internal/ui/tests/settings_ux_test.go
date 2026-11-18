@@ -3,6 +3,7 @@ package ui_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -107,8 +108,8 @@ func TestSettingsHelpNamesTheSectionKeysPlainly(t *testing.T) {
 	if strings.Contains(view, "[[") {
 		t.Fatalf("help nests brackets:\n%s", view)
 	}
-	if !helpLists(view, "←→ section") {
-		t.Fatalf("help lacks ←→ section:\n%s", view)
+	if !regexp.MustCompile(`←→ tab\s+section`).MatchString(view) {
+		t.Fatalf("help lacks ←→ tab section:\n%s", view)
 	}
 }
 

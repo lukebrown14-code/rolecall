@@ -12,8 +12,8 @@ import (
 )
 
 // fieldCloseReason is the Edit form's close reason field on a Rejected or Withdrawn
-// Application, labelled as the card's CLOSED row.
-const fieldCloseReason = "Closed"
+// Application. It sits under the form's Closed heading, as the card's CLOSED row.
+const fieldCloseReason = "Reason"
 
 // closeReasonNone is the Edit form's close reason choice that records none.
 const closeReasonNone = "none"

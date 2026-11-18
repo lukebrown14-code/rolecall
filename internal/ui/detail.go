@@ -598,7 +598,8 @@ func (m model) detailView(p pal) string {
 		title = pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case s != closeNone && beforeApplied(tableOf(a)):
 		when = p.CloseStyle(s, p.Text, p.Dim).Render(text)
-	case appliedDate(a) != nil:
+	case appliedDate(a) != nil && !beforeApplied(tableOf(a)):
+		// Only while the Status is Applied or later: moved back to Draft, it was not sent.
 		if m.futureDate(appliedDate(a)) {
 			when = p.Text(p.Warn).Render("applied " + futureFlag)
 		} else {
@@ -876,9 +877,13 @@ func (m model) detailContent(p pal, a store.Application, paneW int) string {
 			heading(g)
 		}
 		status, ready := e.displayStatus(a)
-		mark, nameC := p.Text(p.Ok).Render("✓ "), p.Fg
-		if !ready {
-			mark, nameC = p.Text(p.Dim).Render("○ "), p.Dim
+		// One glyph per state, as on the card: ✓ ready, ○ missing, — not needed.
+		mark, nameC := p.Text(p.Ok).Render(glyphReady+" "), p.Fg
+		switch {
+		case status == resumeOnlyNote:
+			mark, nameC = p.Text(p.Dim).Render(glyphNone+" "), p.Dim
+		case !ready:
+			mark, nameC = p.Text(p.Dim).Render(glyphMissing+" "), p.Dim
 		}
 		// The name, then its state, then the file it lives in, muted: what o opens.
 		name := e.title()

@@ -110,7 +110,7 @@ func TestLongFormValueShowsItsEndAndError(t *testing.T) {
 	if !strings.Contains(view, "here-xx▏") {
 		t.Fatalf("the end of the value is hidden:\n%s", view)
 	}
-	if !strings.Contains(view, "✘ Closes: use YYYY-MM-DD") {
+	if !strings.Contains(view, "✘ tomorrow · fri · +7d · 30 Nov · 2026-12-01") {
 		t.Fatalf("the error is cut off:\n%s", view)
 	}
 }

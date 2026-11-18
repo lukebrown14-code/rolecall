@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/store"
@@ -447,10 +448,51 @@ var listActions = []listAction{
 		listed:  func(m model) bool { return m.detail == nil && !m.welcoming() }, // nothing to search yet
 		enabled: always,
 		run: func(m *model, _ string) tea.Cmd {
-			m.overlay = &searchMode{}
+			m.openSearch()
 			return nil
 		},
 	},
+	{
+		// One key undoes every filter: the search, the Track and the view. backspace is free
+		// on every list; the search input has its own.
+		keys: []string{keyBackspace}, keyLabel: keyBackspace, desc: text(descClearFilters),
+		group: groupFilter, prio: fixed(prioMinor),
+		listed:  func(m model) bool { return m.detail == nil && m.anyFilter() },
+		enabled: func(m model) bool { return m.detail == nil },
+		run: func(m *model, _ string) tea.Cmd {
+			m.clearFilters()
+			return nil
+		},
+	},
+}
+
+// descClearFilters is backspace's one name, in the help, the palette and the hint esc
+// leaves when a Track or view is still on.
+const descClearFilters = "clear all filters"
+
+// anyFilter reports whether the list shows less than its screen's first view would: a
+// search, a Track or another view is on.
+func (m model) anyFilter() bool { return m.text != "" || m.track > 0 || m.table > 0 }
+
+// clearFilters is backspace on a list: the search, the Track and the view go back to
+// none, All and the screen's first view, and the toast names what went.
+func (m *model) clearFilters() {
+	var gone []string
+	if m.text != "" {
+		gone = append(gone, `search "/`+m.text+`"`)
+	}
+	if m.track > 0 {
+		gone = append(gone, "Track "+m.trackName())
+	}
+	if m.table > 0 {
+		gone = append(gone, "view "+m.views()[m.table])
+	}
+	if len(gone) == 0 {
+		m.toast, m.toastKind = "No filters on", toastNote
+		return
+	}
+	m.text, m.track, m.table, m.cursor = "", 0, 0, 0
+	m.toast = "Cleared " + strings.Join(gone, ", ")
 }
 
 // descChangeView is s's one name, in the help, the palette, the space menu and an empty
