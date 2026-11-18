@@ -9,8 +9,8 @@ Nothing enforced them, so the Harness had to remember each one, and it invented 
 `_discarded/` folder and a reason field when it applied them. They are now structured
 settings in `workspace.json` `search_rules`, and Sources of every kind share one registry in
 `workspace.json` `sources`. The Sweep, the Lead writer (`meta.py create`, which refuses a
-Lead that breaks a rule) and a `rules.py check`
-over saved Applications all apply the same rules.
+Lead that breaks a rule) and a `rules.py check` over saved Applications all apply the same
+rules.
 
 A rule-dismissed Application is not a new Status. It is `Dismissed` with `filter_reason` and
 `filter_note` in its `meta.yml`, so Status keeps its eight values (ADR-0002) and folders never
@@ -26,7 +26,7 @@ move. The TUI lists these apart from the Owner's own dismissals as **Filtered**.
 - The Harness may append a `Dismissed` entry only through `rules.py check --apply`, after
   the Owner confirms the dry run (SCHEMA.md, "Who may change what").
 - Restoring a Filtered Application writes `filter_overruled: true`, and no rule dismisses
-  it again. The Owner's decision wins over a rule.
+  it again, because the Owner's decision wins over a rule.
 - The new `meta.yml` keys are optional and readers ignore keys they do not know, so the
   schema stays 1. The older `sources` object, `additional_sources` and
   `manual_search_sources` keep working.

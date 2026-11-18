@@ -24,7 +24,7 @@ Other skills in `.agents/skills/` are dev tooling. Each repo keeps what it needs
 
 | Script | Change |
 |---|---|
-| `build.py` | **Stop** writing `TRACKER.md` rows and adding empty legacy keys. **Add**: append `Draft` when the current Status is `Lead` and PDFs were built. Read `resume_only` as now. Keep the gates. Remove the `sent/` snapshot (the TUI owns it). Takes the workspace path from `--data` or `ROLECALL_WORKSPACE` |
+| `build.py` | Stop writing `TRACKER.md` rows and adding empty legacy keys. Append `Draft` when the current Status is `Lead` and PDFs were built. Read `resume_only` as now. Keep the gates. Remove the `sent/` snapshot (the TUI owns it). Takes the workspace path from `--data` or `ROLECALL_WORKSPACE` |
 | `new-job.py` | Writes `meta.yml` (SCHEMA) + front-matter-free `jd.md` instead of jd front matter + tracker row |
 | `sweep.py` | Dedupe and skip by reading every `meta.yml` `url` (including Dismissed) instead of `SHORTLIST.md` / `DISMISSED.md` |
 | `migrate.py` | new, one-time. See Migration |
