@@ -400,8 +400,14 @@ func TestCLIDoctorCollapsesPermissionsAndWarnsOnViFallback(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// doctor warns on the vi fallback only when vi is installed, so the test brings its own
+	// stub vi and a PATH holding only that, whatever the machine has.
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "vi"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	cmd := exec.Command(binary, "doctor", "--dir", workspace)
-	cmd.Env = append(os.Environ(), "HOME="+home, "VISUAL=", "EDITOR=")
+	cmd.Env = append(os.Environ(), "HOME="+home, "VISUAL=", "EDITOR=", "PATH="+bin)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("doctor failed: %v\n%s", err, out)

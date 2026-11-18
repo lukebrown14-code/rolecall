@@ -1,19 +1,16 @@
 package config_test
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/testenv"
 )
 
-// TestMain clears XDG_CONFIG_HOME so config.toml resolves under each test's temp home and
-// never under the developer's real config directory.
-func TestMain(m *testing.M) {
-	os.Unsetenv("XDG_CONFIG_HOME")
-	os.Exit(m.Run())
-}
+// TestMain pins the environment (internal/testenv): config.toml resolves under each test's
+// temp home, never the developer's real config directory, and $VISUAL/$EDITOR are unset.
+func TestMain(m *testing.M) { testenv.Main(m) }
 
 func TestPathHonoursXDGConfigHome(t *testing.T) {
 	home, xdg := t.TempDir(), t.TempDir()
