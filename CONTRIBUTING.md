@@ -30,7 +30,9 @@ To also catch your own name or employers locally, put one term per line in the g
 
 ### Enable the pre-commit hook
 
-The hook runs `scripts/check-go.sh` before each commit. Enable it once per clone:
+Before each commit the hook runs the personal-data guard on the staged content
+(`check-personal-data.py --staged .`, so what it checks is what gets committed), then
+`scripts/check-go.sh`. Enable it once per clone:
 
 ```sh
 git config core.hooksPath .githooks

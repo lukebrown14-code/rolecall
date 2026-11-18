@@ -1,5 +1,6 @@
 import importlib.util
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -155,3 +156,74 @@ def test_history_finds_workspace_paths_removed_from_the_tree(tmp_path):
         "history:profile/master-profile.md: Workspace profile folder is tracked outside fixtures/ "
         "and examples/ (Workspace data stays in the Workspace)"
     )
+
+REAL_EMAIL = "jane.real" + "@private-domain.com"
+
+
+def git(root, *args):
+    subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True)
+
+
+def staged_repo(tmp_path, files):
+    """Stage each file's first bytes, then overwrite the working copy with its second."""
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    for name, (staged, working) in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(staged)
+        git(tmp_path, "add", "-f", name)
+        path.write_bytes(working)
+    return tmp_path
+
+
+def test_staged_mode_scans_the_staged_blob_not_the_clean_working_copy(tmp_path):
+    root = staged_repo(tmp_path, {"notes.md": (f"contact: {REAL_EMAIL}\n".encode(), b"clean\n")})
+    assert scanner.scan(root, set(), staged=True) == ["notes.md:1: email"]
+    assert scanner.scan(root, set()) == []  # the working tree alone misses it
+
+
+def test_staged_mode_passes_a_clean_stage_with_a_dirty_working_copy(tmp_path):
+    root = staged_repo(tmp_path, {"notes.md": (b"clean\n", f"contact: {REAL_EMAIL}\n".encode())})
+    assert scanner.scan(root, set(), staged=True) == []
+
+
+def test_staged_mode_cli_exits_non_zero_on_staged_personal_data(tmp_path):
+    root = staged_repo(tmp_path, {"notes.md": (f"contact: {REAL_EMAIL}\n".encode(), b"clean\n")})
+    staged = subprocess.run(
+        [sys.executable, str(SCRIPT), "--staged", str(root)], capture_output=True, text=True
+    )
+    assert staged.returncode == 1
+    assert "notes.md:1: email" in staged.stdout
+    working = subprocess.run([sys.executable, str(SCRIPT), str(root)], capture_output=True, text=True)
+    assert working.returncode == 0
+
+
+def test_staged_mode_applies_the_workspace_rule_to_renames_and_deletions(tmp_path):
+    root = staged_repo(tmp_path, {"notes.md": (b"x\n", b"x\n"), "workspace.json": (b"{}\n", b"{}\n")})
+    (root / "profile").mkdir()
+    git(root, "mv", "notes.md", "profile/notes.md")
+    git(root, "rm", "--cached", "--quiet", "workspace.json")
+    assert scanner.scan(root, set(), staged=True) == [
+        "profile/notes.md: Workspace profile folder is tracked outside fixtures/ and examples/ "
+        "(Workspace data stays in the Workspace)"
+    ]
+
+
+def test_staged_mode_reads_the_staged_allowlist(tmp_path):
+    allowlist = f'["{REAL_EMAIL}"]\n'.encode()
+    root = staged_repo(
+        tmp_path,
+        {
+            "notes.md": (f"{REAL_EMAIL}\n".encode(), f"{REAL_EMAIL}\n".encode()),
+            "scripts/personal-data-allowlist.json": (b"[]\n", allowlist),
+        },
+    )
+    assert scanner.scan(root, set(), staged=True) == ["notes.md:1: email"]
+    assert scanner.scan(root, set()) == []
+
+
+def test_non_utf8_files_are_scanned_in_both_modes(tmp_path):
+    latin1 = f"Caf\xe9 contact {REAL_EMAIL}\n".encode("latin-1")
+    root = staged_repo(tmp_path, {"export.csv": (latin1, latin1)})
+    assert scanner.scan(root, set()) == ["export.csv:1: email"]
+    assert scanner.scan(root, set(), staged=True) == ["export.csv:1: email"]
