@@ -756,7 +756,7 @@ func rowWords(p pal, followUpDays, inner int) helpBlock {
 	for _, f := range fitValues {
 		fits = append(fits, p.Text(p.FitColor(f)).Render(f))
 	}
-	// Each word drawn as the row draws it (view.go meta): time in amber, a blocker ⚠ and
+	// Each word drawn as the row draws it (row.go meta): time in amber, a blocker ⚠ and
 	// bold in the text colour, a visa fit green, a note muted.
 	ok, warn, fg := p.Text(p.Ok), p.Text(p.Warn), p.Text(p.Fg)
 	block := fg.Bold(true)

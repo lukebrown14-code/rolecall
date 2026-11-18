@@ -1,4 +1,6 @@
-// Package settings owns Settings screen data, navigation, and validation.
+// Package settings is the Settings screen as a Bubble Tea sub-model: its data, navigation,
+// keys, validation, pop-ups and rendering. It returns intents rather than writing, so
+// package ui applies every change through store and config.
 package settings
 
 import (
@@ -407,7 +409,10 @@ type Sources struct{ Workspace, FollowUpDays, Downloads, Plugin, Harness string 
 // Machine supplies effective values from the running application.
 type Machine struct {
 	Workspace, Editor, EditorSource, Downloads, Harness, Plugin string
-	EditorAvailable, ASCII, Inherit                             bool
+	// EditorSet is the Editor as config.toml sets it, before $VISUAL and $EDITOR; Editor
+	// is the one in effect.
+	EditorSet                       string
+	EditorAvailable, ASCII, Inherit bool
 	// HarnessWarning and PluginWarning name a problem with the value, or are empty. They
 	// never block a save.
 	HarnessWarning, PluginWarning string

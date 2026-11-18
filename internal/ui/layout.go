@@ -321,6 +321,14 @@ func keepTogether(w int, sep string, phrases ...string) string {
 	return strings.Join(append(lines, line), "\n")
 }
 
+// plural is a count with its noun: "1 Application", "3 Applications".
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+	return fmt.Sprintf("%d %s", n, many)
+}
+
 // tooSmall reports a terminal below the smallest size the layout honestly renders.
 // Before the first size message the fallback size applies, which is never too small.
 func (m model) tooSmall() bool {

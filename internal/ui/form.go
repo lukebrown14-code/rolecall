@@ -199,5 +199,34 @@ func (fp *formPopup) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	return next, nil
 }
 
+// quitHeld is ctrl+c while the Owner has typed into a Settings field or pop-up, or the Add
+// or Edit Application form: rather than drop the text, it asks "Discard changes?" as esc
+// on a form does. held is false when there is nothing typed to lose, or the question is
+// already up, and the quit goes ahead.
+func (m model) quitHeld() (next model, held bool) {
+	var f *form
+	switch o := m.overlay.(type) {
+	case *formPopup:
+		f = o.form
+	case *settingsPopup:
+		f = o.p.Form
+	case *formMode: // the Add and Edit Application forms
+		f = o.form
+	}
+	if f != nil {
+		if f.Discarding || !f.Dirty() {
+			return m, false
+		}
+		f.Discarding = true
+		return m, true
+	}
+	if !m.fieldOpen() {
+		return m, false
+	}
+	st, held := m.settings.HoldQuit()
+	m.settings = &st
+	return m, held
+}
+
 var pasted = forms.Pasted
 var dropLastGrapheme = forms.DropLastGrapheme
