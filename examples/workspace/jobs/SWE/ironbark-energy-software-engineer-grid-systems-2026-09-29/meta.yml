@@ -1,0 +1,23 @@
+schema: 1
+title: Software Engineer, Grid Systems
+company: Ironbark Energy
+track: SWE
+url: https://jobs.example.test/ironbark-energy/software-engineer-grid-systems
+fit: Strong
+source: greenhouse
+employment_type: permanent
+pay_min: 160000
+pay_max: 175000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: sweep
+next_step: {at: 2026-11-25, what: "Reply to the written offer"}
+contacts:
+  - {name: "Alana Brooks", role: "Engineering Manager", email: alana.brooks@example.test}
+status_log:
+  - {status: Lead, at: 2026-09-28T22:30:00Z}
+  - {status: Draft, at: 2026-09-30T07:10:00Z}
+  - {status: Applied, at: 2026-10-01T23:00:00Z}
+  - {status: Interviewing, at: 2026-10-13T03:30:00Z}
+  - {status: Offer, at: 2026-11-13T05:45:00Z}

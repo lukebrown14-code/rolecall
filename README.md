@@ -4,6 +4,8 @@ rolecall is a local, terminal job tracker. Move Applications through your job se
 details, and open their documents from one place. Your coding Harness can help capture roles,
 assess fit, and prepare documents through the rolecall Plugin.
 
+![rolecall moving between screens, reading a Draft's Resume and moving it to Applied](docs/demo.gif)
+
 ## Install
 
 macOS and Linux are supported. On Windows, use WSL.
@@ -57,10 +59,11 @@ Until you add a Lead, the app lists the setup steps left, with the key for each.
 Search area later under Settings (`6`). `rolecall doctor` checks your setup and `rolecall --help`
 lists every command.
 
-To try the fictional example Workspace from a source checkout:
+To try the fictional showcase Workspace (one Owner, Applications at every Status, built PDFs)
+from a source checkout:
 
 ```sh
-go run ./cmd/rolecall --dir ./fixtures/workspace
+go run ./cmd/rolecall --dir ./examples/workspace
 ```
 
 ## Screens and keys

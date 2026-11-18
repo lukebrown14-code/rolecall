@@ -13,7 +13,8 @@ personal information. Remove personal information from any logs or screenshots
 too.
 
 Please try to reproduce the problem with the example workspace at
-`fixtures/workspace` before filing the report.
+`examples/workspace` before filing the report:
+`go run ./cmd/rolecall --dir ./examples/workspace` from a source checkout.
 
 ## Describe the bug
 

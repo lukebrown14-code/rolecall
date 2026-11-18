@@ -497,6 +497,12 @@ no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malfor
 `meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py`
 tests both load it. Any change to this file updates the fixtures in the same commit.
 
+`examples/workspace/` is the showcase: a fictional Owner with a complete Profile and CV, and
+Applications at every Status with built PDFs (`examples/README.md`). The README, the demo GIF
+(`docs/demo.tape`) and bug reports use it; tests use `fixtures/workspace/`, apart from
+`TestShowcaseWorkspace`, which checks the showcase still covers what it promises. A change to
+this file updates it in the same commit too.
+
 `fixtures/conformance.json` holds this file's rules as vectors that the Go and Python tests
 both assert: `meta.yml` lines and whole texts (malformed or not), folder names, Follow-up due
 and posting age. The expected values follow this file, not either implementation; a side

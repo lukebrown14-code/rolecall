@@ -1,0 +1,13 @@
+schema: 1
+title: Senior Backend Engineer
+company: Glasswing Insurance
+track: SWE
+url: https://jobs.example.test/glasswing-insurance/senior-backend-engineer
+source: greenhouse
+jd_completeness: full
+added_by: sweep
+filter_reason: blocker
+filter_note: "requires Australian citizenship"
+status_log:
+  - {status: Lead, at: 2026-11-10T22:00:00Z}
+  - {status: Dismissed, at: 2026-11-10T22:05:00Z}

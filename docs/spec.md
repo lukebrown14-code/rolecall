@@ -46,6 +46,7 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 │  ├─ styles/au.md
 │  └─ writing-rules.md
 ├─ fixtures/workspace/
+├─ examples/workspace/   (showcase for the README, the demo GIF and bug reports)
 ├─ SCHEMA.md · GLOSSARY.md · docs/adr/
 └─ .github/workflows/  (go test, pytest, ruff)
 ```

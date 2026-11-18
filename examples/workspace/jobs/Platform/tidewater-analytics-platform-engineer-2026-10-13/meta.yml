@@ -1,0 +1,23 @@
+schema: 1
+title: Platform Engineer
+company: Tidewater Analytics
+track: Platform
+url: https://jobs.example.test/tidewater-analytics/platform-engineer
+fit: Strong
+source: linkedin
+employment_type: permanent
+pay_min: 160000
+pay_max: 180000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: agent
+next_step: {at: 2026-11-24T10:00, what: "Technical interview with the platform team"}
+contacts:
+  - {name: "Priya Natarajan", role: "Recruiter", email: priya.natarajan@example.test}
+  - {name: "Tom Hale", role: "Head of Platform"}
+status_log:
+  - {status: Lead, at: 2026-10-12T23:20:00Z}
+  - {status: Draft, at: 2026-10-14T08:05:00Z}
+  - {status: Applied, at: 2026-10-15T22:40:00Z}
+  - {status: Interviewing, at: 2026-10-29T04:15:00Z}

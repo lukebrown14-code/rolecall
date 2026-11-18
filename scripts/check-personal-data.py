@@ -7,7 +7,9 @@
 2. Tracked files are scanned for generic patterns (emails, phone numbers,
    LinkedIn URLs, street addresses). Inside fixtures/ and examples/ every
    email must also be at a reserved fictional domain. Files that are not valid
-   UTF-8 are decoded with replacement characters and still scanned.
+   UTF-8 are decoded with replacement characters and still scanned. In a PDF,
+   phone numbers are looked for only in its tel: links, because its other
+   numbers (offsets, font metrics) read as phone numbers.
 3. Optional local extra: Owner-specific terms, one per line, in
    .rolecall-personal-data-terms (gitignored). ROLECALL_PERSONAL_DATA_TERMS_FILE
    selects another file, and ROLECALL_PERSONAL_DATA_TERMS supplies additional
@@ -41,7 +43,10 @@ PATTERNS = (
         re.compile(
             r"(?<![\w.+-])[\w.+-]+@"
             r"[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?"
-            r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+(?![\w.-]|:)",
+            r"(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)*"
+            # A top-level domain is two or more letters, so stray bytes such as
+            # "4@C.D" in image data are not addresses.
+            r"\.[A-Z]{2,63}(?![\w.-]|:)",
             re.IGNORECASE,
         ),
     ),
@@ -72,6 +77,10 @@ PATTERNS = (
 FICTIONAL_PREFIXES = ("fixtures/", "examples/")
 FICTIONAL_EMAIL_DOMAINS = ("example.test", "example.com", "example.org", "example.net")
 EMAIL_PATTERN = PATTERNS[0][1]
+# A built PDF carries the Contact's phone as a tel: link annotation, which is not
+# compressed. Every other digit run in a PDF (cross-reference offsets, font metrics,
+# coordinates) reads as a phone number, so in a PDF the phone pattern checks only these.
+PDF_TEL_LINK = re.compile(r"tel:([^)>\s]+)")
 WORKSPACE_FILE_NAMES = {"workspace.json": "Workspace file", "config.toml": "Workspace config", "meta.yml": "Application meta file"}
 WORKSPACE_DIR_NAMES = {
     "jobs": "Workspace jobs folder",
@@ -226,6 +235,7 @@ def scan_text(
 ) -> list[str]:
     """Check one text; relative is its repo path, or None for text with no path."""
     fictional_only = relative is not None and relative.startswith(FICTIONAL_PREFIXES)
+    pdf = relative is not None and relative.lower().endswith(".pdf")
     findings: list[str] = []
     for line_number, line in enumerate(text.splitlines(), start=1):
         if any(term in line.casefold() for term in owner_terms):
@@ -239,7 +249,9 @@ def scan_text(
                 "example.org, example.net)"
             )
         for name, pattern in PATTERNS:
-            if any(match.group(0) not in allowlist for match in pattern.finditer(line)):
+            targets = PDF_TEL_LINK.findall(line) if pdf and name == "phone" else [line]
+            matches = (m.group(0) for target in targets for m in pattern.finditer(target))
+            if any(match not in allowlist for match in matches):
                 if name == "email" and fictional_only:
                     continue  # fictional-domain rule above already covers emails here
                 findings.append(f"{label}:{line_number}: {name}")

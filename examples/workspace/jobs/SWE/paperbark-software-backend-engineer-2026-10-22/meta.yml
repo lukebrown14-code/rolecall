@@ -1,0 +1,20 @@
+schema: 1
+title: Backend Engineer
+company: Paperbark Software
+track: SWE
+url: https://jobs.example.test/paperbark-software/backend-engineer
+fit: Strong
+source: greenhouse
+employment_type: permanent
+pay_min: 150000
+pay_max: 165000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: sweep
+contacts:
+  - {name: "Jamie Ward", role: "Talent Partner", email: jamie.ward@example.test}
+status_log:
+  - {status: Lead, at: 2026-10-21T22:00:00Z}
+  - {status: Draft, at: 2026-10-24T06:30:00Z}
+  - {status: Applied, at: 2026-10-26T23:10:00Z}

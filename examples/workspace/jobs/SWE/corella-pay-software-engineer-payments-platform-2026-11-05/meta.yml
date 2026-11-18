@@ -1,0 +1,19 @@
+schema: 1
+title: Software Engineer, Payments Platform
+company: Corella Pay
+track: SWE
+url: https://jobs.example.test/corella-pay/software-engineer-payments-platform
+closes: 2026-11-28
+fit: Strong
+posted: 2026-11-03
+source: seek
+employment_type: permanent
+pay_min: 155000
+pay_max: 175000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: agent
+status_log:
+  - {status: Lead, at: 2026-11-04T23:15:00Z}
+  - {status: Draft, at: 2026-11-09T08:20:00Z}
