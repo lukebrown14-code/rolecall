@@ -140,7 +140,7 @@ def _unquote(raw):
     text = raw.strip()
     if len(text) >= 2 and text[0] == '"' and text[-1] == '"':
         try:
-            return meta._decode_quoted(text)
+            return meta.decode_quoted(text)
         except meta.MetaError:
             return text[1:-1]
     if len(text) >= 2 and text[0] == "'" and text[-1] == "'":

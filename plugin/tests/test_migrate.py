@@ -308,13 +308,14 @@ def test_apply_writes_each_application_meta_once(tmp_path, monkeypatch):
     workspace = copy_fixture_workspace(tmp_path, FIXTURE)
     migrate = load_migrate()
     writes = Counter()
-    real = migrate.meta.atomic_write
+    writer = migrate.meta.metawrite  # the module whose atomic_write publishes meta.yml
+    real = writer.atomic_write
 
     def counting(path, data, mode):
         writes[Path(path)] += 1
         return real(path, data, mode)
 
-    monkeypatch.setattr(migrate.meta, "atomic_write", counting)
+    monkeypatch.setattr(writer, "atomic_write", counting)
     changes = migrate.plan(workspace)
     migrate.apply(workspace, changes)
 

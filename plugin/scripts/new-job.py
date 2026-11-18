@@ -514,13 +514,7 @@ def _one_line(value):
 
 def _valid_closes(value):
     """Only a plain YYYY-MM-DD is written; extraction can return a non-date."""
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value or ""):
-        return ""
-    try:
-        datetime.strptime(value, "%Y-%m-%d")
-    except ValueError:
-        return ""
-    return value
+    return value if meta_store.valid_date(value or "") else ""
 
 
 def _float(value):
@@ -686,7 +680,7 @@ def main(argv=None):
             listed = "\n  ".join(f"{app.folder} ({why})" for app, why in dupes)
             sys.exit("rolecall: not saved, it looks like a saved Application:\n  " + listed +
                      "\nUse that one, or pass --allow-duplicate if it is a different role")
-    if args.posted and not meta_store._valid_date(args.posted):
+    if args.posted and not meta_store.valid_date(args.posted):
         sys.exit(f"rolecall: --posted wants YYYY-MM-DD, not {args.posted!r}")
     if args.applicants and not args.applicants.isdigit():
         sys.exit(f"rolecall: --applicants wants a whole number, not {args.applicants!r}")
