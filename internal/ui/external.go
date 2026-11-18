@@ -105,9 +105,10 @@ func handoffError(err error) error {
 }
 
 // runHandoff is the interactive boundary for a Handoff: the TUI steps aside while
-// /bin/sh runs the Harness command, and the folder is rescanned when it exits. A
-// nonzero exit is named for the feedback line.
-func (m model) runHandoff(folder, command, toast string) tea.Cmd {
+// /bin/sh runs the Harness command with args from harnessArgs (the folder passed as a
+// positional parameter, never spliced into the script), and the folder is rescanned when
+// it exits. A nonzero exit is named for the feedback line.
+func (m model) runHandoff(folder string, args []string, toast string) tea.Cmd {
 	runner := m.external
 	if runner == nil {
 		runner = process.Exec
@@ -115,7 +116,7 @@ func (m model) runHandoff(folder, command, toast string) tea.Cmd {
 	// The Harness starts in the Workspace, wherever rolecall was launched: the skills
 	// read profile/ and write into jobs/, and a Harness treats its start folder as the
 	// project it may edit without asking.
-	c := process.Command("/bin/sh", "-c", command)
+	c := process.Command("/bin/sh", args...)
 	c.Dir = m.store.Root()
 	return runner(c, func(err error) tea.Msg {
 		return externalFinished{folder: folder, err: handoffError(err), toast: toast}

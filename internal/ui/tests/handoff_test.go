@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -87,9 +88,10 @@ func TestHandoffAssessFitWritesFitAndRescans(t *testing.T) {
 	if !strings.Contains(view, "1 Leads") {
 		t.Fatalf("screen changed across the Handoff:\n%s", view)
 	}
-	want := `claude "/assess-fit '` + folder + `'"`
-	if len(f.calls) != 1 || f.calls[0][0] != "/bin/sh" || f.calls[0][1] != "-c" || f.calls[0][2] != want {
-		t.Fatalf("harness command = %v, want /bin/sh -c %q", f.calls, want)
+	// The folder travels as a positional parameter, never inside the script text.
+	want := []string{"/bin/sh", "-c", `claude "/${2} ${1}"`, "rolecall-harness", folder, "assess-fit"}
+	if len(f.calls) != 1 || !slices.Equal(f.calls[0], want) {
+		t.Fatalf("harness command = %q, want %q", f.calls, want)
 	}
 	if f.dirs[0] != root {
 		t.Fatalf("Harness started in %q, want the Workspace %q", f.dirs[0], root)

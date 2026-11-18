@@ -693,7 +693,9 @@ Automated
 ### Config and the process seam
 
 - `harness`: one command template for every Handoff. `{skill}` is the Plugin skill name,
-  `{dir}` the absolute Application folder, shell-quoted. Runs through `/bin/sh -c`, like the editor.
+  `{dir}` the absolute Application folder. Runs as `/bin/sh -c SCRIPT rolecall-harness DIR SKILL`,
+  like the editor: the placeholders become `$1`/`$2` references quoted for their spot (bare,
+  inside double quotes, or inside single quotes), so the folder never enters the script text.
 - `plugin`: path to `rolecall/plugin`, else `$ROLECALL_PLUGIN`. No auto-detection.
 - `runExternal` runs in one of two modes:
   - interactive: suspend, run, resume, rescan. Used by `$EDITOR`, the viewer, Handoffs.
