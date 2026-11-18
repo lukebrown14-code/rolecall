@@ -546,6 +546,25 @@ func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
 				lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+tail))
 				continue
 			}
+			// Without room for both, the source stays beside its value and the warning goes
+			// under it, so a long warning never moves the source off the value's line.
+			if nw := xansi.StringWidth(xansi.Strip(note)); warn != "" && nw > 0 {
+				warnLines := strings.Split(xansi.Wrap(bg.Foreground(p.Warn).Render(strings.TrimLeft(warnSep, " ")+r.Warning), max(1, width-labelW), " "), "\n")
+				switch {
+				case width-labelW-colW-gutter >= nw:
+					lines = append(lines, fillLine(line+gap+note))
+				case width-labelW-ownW-gutter >= nw:
+					lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+note))
+				default:
+					warnLines = nil
+				}
+				if warnLines != nil {
+					for _, l := range warnLines {
+						under(l)
+					}
+					continue
+				}
+			}
 		}
 		lines = append(lines, fillLine(line))
 		for _, l := range more {
