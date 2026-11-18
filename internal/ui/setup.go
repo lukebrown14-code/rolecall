@@ -74,7 +74,7 @@ func newContactForm(title string, contact map[string]string, intro string) *form
 }
 
 // errEmail is the one wording every email field refuses an address with.
-var errEmail = errors.New("Enter an email like name@example.com")
+var errEmail = errors.New("Enter an email like you@example.com")
 
 // validEmail accepts a bare address with a local part, an @ and a domain with a dot,
 // so a typo such as "ada@" never reaches every Resume and Cover letter. Blank is left
