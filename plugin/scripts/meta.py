@@ -48,6 +48,20 @@ FILTER_REASONS = {
     "closed", "pulled", "duplicate",
 }
 NUMBER = re.compile(r"^[0-9]+(\.[0-9]+)?$")
+# The largest whole number SCHEMA allows: a signed 64-bit integer, as the Go store reads it.
+MAX_WHOLE = 2**63 - 1
+
+
+def _whole(value):
+    """SCHEMA's whole number: ASCII digits only, no sign, within 64 bits; else None."""
+    if not re.fullmatch(r"[0-9]+", value) or int(value) > MAX_WHOLE:
+        return None
+    return int(value)
+
+
+def _blank(text):
+    """SCHEMA's blank: empty or only spaces and tabs (str.strip() also eats \v and U+001C)."""
+    return not text.strip(" \t")
 
 # The ad facts (SCHEMA.md): key -> (attribute, JSON name, kind). A kind is a set of allowed
 # values, "text", "int" (whole number >= 1), "number", "bool", "date" or "currency".
@@ -83,9 +97,10 @@ def fact_value(key, value):
             raise MetaError(f"invalid {key}")
         return value
     if kind == "int":
-        if not re.fullmatch(r"[0-9]+", value) or int(value) < 1:
+        whole = _whole(value)
+        if whole is None or whole < 1:
             raise MetaError(f"invalid {key}")
-        return int(value)
+        return whole
     if kind == "number":
         if not NUMBER.fullmatch(value):
             raise MetaError(f"invalid {key}")
@@ -432,7 +447,7 @@ def _valid_next_step_at(value):
 
 def _read_next_step(raw):
     """next_step's value: ``{"At", "What"}`` (the Go store's shape), or None when empty."""
-    if not raw.strip():
+    if _blank(raw):
         return None
     pairs, _ = _flow_map(raw)
     at = pairs.get("at", "")
@@ -492,7 +507,7 @@ def _read_meta(folder, data):
     in_contacts = False
     legacy = ""
     for number, line in enumerate(text[:-1].split("\n"), start=1):
-        if not line.strip() or line.startswith("#"):
+        if _blank(line) or line.startswith("#"):
             continue
         if line.startswith((" ", "\t")):
             if in_contacts:
@@ -524,7 +539,7 @@ def _read_meta(folder, data):
         in_log = key == "status_log"
         in_contacts = key == "contacts"
         if in_contacts:
-            stripped = raw.strip()
+            stripped = raw.strip(" \t")
             if stripped and stripped != "[]":
                 return fail(number, "invalid contacts")
             in_contacts = not stripped
@@ -536,7 +551,7 @@ def _read_meta(folder, data):
                 return fail(number, str(error))
             continue
         if in_log:
-            stripped = raw.strip()
+            stripped = raw.strip(" \t")
             if stripped and stripped != "[]":
                 return fail(number, "invalid status_log")
             if stripped == "[]":
@@ -547,9 +562,9 @@ def _read_meta(folder, data):
         except MetaError as error:
             return fail(number, str(error))
         if key == "schema":
-            if not re.fullmatch(r"[0-9]+", value):
+            version = _whole(value)
+            if version is None:
                 return fail(number, "unsupported schema")
-            version = int(value)
             if version > 1:
                 return fail(
                     number,
@@ -581,9 +596,10 @@ def _read_meta(folder, data):
         elif key == "posted_label":
             app.posted_label = value
         elif key == "applicants":
-            if value and not re.fullmatch(r"[0-9]+", value):
+            applicants = _whole(value) if value else None
+            if value and applicants is None:
                 return fail(number, "invalid applicants")
-            app.applicants = int(value) if value else None
+            app.applicants = applicants
         elif key == "source":
             app.source = value
         elif key == "filter_reason":

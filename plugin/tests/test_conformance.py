@@ -35,20 +35,6 @@ KNOWN_DRIFT = {
             "follow_up/west of UTC: a timestamp counts on its local day",
         },
     },
-    "C08": {
-        "reason": "unique_folder has no 60-character cut, no 'application' fallback, and lower() maps "
-        "dotted capital I to two characters",
-        "vectors": {
-            "slugs/CJK only",
-            "slugs/emoji only",
-            "slugs/dotted capital I",
-            "slugs/a dash right after 60",
-            "slugs/cut back to a dash",
-            "slugs/a comma in the title",
-            "slugs/no dash in the first 61",
-            "slugs/a 400-character title",
-        },
-    },
     "C09": {
         "reason": "follow_up_status reads the raw last entry (no undone-move rule) and has no next-step hold",
         "vectors": {
@@ -59,15 +45,6 @@ KNOWN_DRIFT = {
             "follow_up/a next step with a time later today holds it",
             "follow_up/a future next step holds it",
             "follow_up/east of UTC: a next step today holds it before UTC reaches today",
-        },
-    },
-    "C22": {
-        "reason": "integers are not capped at 64 bits and str.strip() treats U+001C and \\v as blank",
-        "vectors": {
-            "malformed/line holding only U+001C",
-            "malformed/line holding only a vertical tab",
-            "malformed/applicants of 20 digits",
-            "malformed/term_months of 20 digits",
         },
     },
 }

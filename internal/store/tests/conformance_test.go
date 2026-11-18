@@ -21,17 +21,7 @@ import (
 var knownDrift = map[string]struct {
 	reason  string
 	vectors []string
-}{
-	"C22": {
-		reason: "strconv.Atoi accepts a leading + and RFC 3339 parsing accepts a +24:00 offset; only a space or tab line is blank",
-		vectors: []string{
-			"malformed/line holding only a vertical tab",
-			"malformed/applicants +5",
-			"malformed/schema +1",
-			"malformed/status offset +24:00",
-		},
-	},
-}
+}{}
 
 // driftFor is the finding that lists vector, or "".
 func driftFor(vector string) string {

@@ -280,6 +280,10 @@ def test_writers_refuse_malformed_files_and_leave_no_temp(tmp_path):
         ("Acme, Inc.", "Senior Engineer!", "acme-inc-senior-engineer-2026-11-11"),
         ("  Acme  ", "-- Engineer --", "acme-engineer-2026-11-11"),
         ("Café 東京", "Déveloper", "caf-d-veloper-2026-11-11"),
+        # SCHEMA's fallback and 60-character cut: no folder starts with "-", and a pasted
+        # headline cannot pass the file system's name limit (ENAMETOOLONG).
+        ("株式会社", "エンジニア", "application-2026-11-11"),
+        ("Acme", "Staff Engineer " * 30, "acme-staff-engineer-staff-engineer-staff-engineer-staff-2026-11-11"),
     ],
 )
 def test_create_slug_and_collision_suffixes(tmp_path, company, title, want):

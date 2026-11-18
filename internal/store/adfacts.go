@@ -129,8 +129,8 @@ func (a *Application) readAdFact(k, v string) (handled bool, err error) {
 		return enum(&f.Listing, ListingValues)
 	case keyTermMonths:
 		if v != "" {
-			n, err := strconv.Atoi(v)
-			if !wholePattern.MatchString(v) || err != nil || n < 1 {
+			n, ok := wholeNumber(v)
+			if !ok || n < 1 {
 				return true, fmt.Errorf("invalid term_months")
 			}
 			f.TermMonths = &n

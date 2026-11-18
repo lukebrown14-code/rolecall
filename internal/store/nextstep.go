@@ -48,7 +48,7 @@ func (n NextStep) Time() string {
 // readNextStep reads a next_step line's value (the text after "next_step:"). An empty
 // value reads as no next step.
 func readNextStep(raw string) (*NextStep, error) {
-	if strings.TrimSpace(raw) == "" {
+	if blank(raw) {
 		return nil, nil
 	}
 	m, _, err := parseFlow(raw)
