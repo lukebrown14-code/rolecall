@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -56,7 +57,7 @@ func editFocus(a store.Application) string {
 	case endedStatus(a.Status):
 		return fieldCloseReason
 	case a.Status == store.StatusApplied, a.Status == store.StatusInterviewing, a.Status == store.StatusOffer,
-		a.NextStep != nil && openStatus(a.Status):
+		a.NextStep != nil && schedule.OpenStatus(a.Status):
 		return fieldNextStep
 	}
 	return ""
@@ -214,7 +215,7 @@ func (m *model) saveEdit(a store.Application, v addValues) tea.Cmd {
 			return nil
 		}
 	}
-	if m.reload(a.Folder) {
+	if m.reload(a.Folder, a.Folder) {
 		m.toast = "Saved · " + titleLabel(now["title"])
 		return m.startFlash(a.Folder)
 	}

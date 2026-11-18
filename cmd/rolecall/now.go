@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
-	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
 // nowCommand is `rolecall now [--dir PATH] [--days N] [--list]`: the Stats "Now" panel as
@@ -21,7 +21,7 @@ func nowCommand(args []string, stdout, stderr io.Writer, clock func() time.Time)
 	flags := flag.NewFlagSet("now", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	dir := flags.String("dir", "", "Workspace path (default: workspace in config.toml)")
-	days := flags.Int("days", ui.SoonDays, "how many days ahead a next step or close date counts")
+	days := flags.Int("days", schedule.SoonDays, "how many days ahead a next step or close date counts")
 	list := flags.Bool("list", false, "one tab-separated line per item: kind, folder, when, title, company")
 	flags.Usage = func() {
 		_, _ = fmt.Fprintln(flags.Output(), "usage: rolecall now [--dir PATH] [--days N] [--list]\n\n"+
@@ -49,7 +49,7 @@ func nowCommand(args []string, stdout, stderr io.Writer, clock func() time.Time)
 	if err != nil {
 		return err
 	}
-	n := ui.NowFor(apps, clock(), cfg.FollowUpDays, *days)
+	n := schedule.NowFor(apps, clock(), cfg.FollowUpDays, *days)
 	if *list {
 		return printNowList(stdout, s.Root(), n)
 	}
@@ -78,7 +78,7 @@ func nowCommand(args []string, stdout, stderr io.Writer, clock func() time.Time)
 
 // printNowList is --list: each item on a line of tab-separated fields, so a script can
 // act on one Application.
-func printNowList(out io.Writer, root string, n ui.Now) error {
+func printNowList(out io.Writer, root string, n schedule.Now) error {
 	line := func(kind string, a store.Application, when string) error {
 		rel, err := filepath.Rel(root, a.Folder)
 		if err != nil {

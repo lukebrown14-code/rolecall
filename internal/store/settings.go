@@ -123,7 +123,8 @@ func (s *Store) Settings() (WorkspaceSettings, error) {
 		out.Err = fmt.Errorf("%s: pay_fx: %w", w.Path, err)
 		return out, nil
 	}
-	out.Rules, out.SourceList = rules, decodeSources(w.Values["sources"])
+	out.SourceList = decodeSources(w.Values["sources"])
+	out.Rules = rules.WithSources(out.SourceList)
 	out.Sources, out.Blockers = entryCount(w.Values["sources"]), entryCount(w.Values["blockers"])
 	return out, nil
 }

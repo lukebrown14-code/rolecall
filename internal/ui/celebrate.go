@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -34,7 +35,7 @@ func (m model) offerToast(a store.Application) string {
 		parts = append(parts, "first offer")
 	}
 	if a.AppliedDate != nil {
-		if _, days, ok := daysFrom(a.AppliedDate.At, m.now()); ok && days <= 0 {
+		if _, days, ok := schedule.DaysFrom(a.AppliedDate.At, m.now()); ok && days <= 0 {
 			parts = append(parts, plural(-days, "day", "days")+" after applying")
 		}
 	}

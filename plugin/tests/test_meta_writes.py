@@ -280,6 +280,10 @@ def test_writers_refuse_malformed_files_and_leave_no_temp(tmp_path):
         ("Acme, Inc.", "Senior Engineer!", "acme-inc-senior-engineer-2026-11-11"),
         ("  Acme  ", "-- Engineer --", "acme-engineer-2026-11-11"),
         ("Café 東京", "Déveloper", "caf-d-veloper-2026-11-11"),
+        # SCHEMA's fallback and 60-character cut: no folder starts with "-", and a pasted
+        # headline cannot pass the file system's name limit (ENAMETOOLONG).
+        ("株式会社", "エンジニア", "application-2026-11-11"),
+        ("Acme", "Staff Engineer " * 30, "acme-staff-engineer-staff-engineer-staff-engineer-staff-2026-11-11"),
     ],
 )
 def test_create_slug_and_collision_suffixes(tmp_path, company, title, want):
@@ -482,3 +486,19 @@ def test_duplicate_status_entries_names_each_repeat_once(tmp_path):
     assert meta.duplicate_status_entries(application.status_log) == [
         ("Applied", "2026-01-02T00:00:00Z")
     ]
+
+
+@pytest.mark.parametrize("hours,want", [(-12, "acme-engineer-2026-11-10"), (0, "acme-engineer-2026-11-11"),
+                                        (14, "acme-engineer-2026-11-11")])
+def test_create_names_the_folder_with_the_owners_local_date(tmp_path, owner_offset, hours, want):
+    # 04:28Z on 11 Nov is still 10 Nov at UTC-12: the folder carries the date the Owner
+    # sees, as the TUI's store.Create names it, while the status_log stamp stays UTC.
+    owner_offset(hours)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    result = run_script(workspace, META, "create", "--track", "SWE", "--company", "Acme", "--title", "Engineer",
+                        "--at", "2026-11-11T04:28:00Z")
+    assert result.returncode == 0, result.stderr
+    folder = workspace / "jobs" / "SWE" / want
+    assert folder.is_dir(), sorted(p.name for p in (workspace / "jobs" / "SWE").iterdir())
+    assert "at: 2026-11-11T04:28:00Z" in (folder / "meta.yml").read_text()

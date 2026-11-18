@@ -4,8 +4,10 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -113,7 +115,7 @@ func (m model) logDate(p pal, e store.StatusEntry, year bool) string {
 	if m.futureDate(&e) {
 		return p.Text(p.Warn).Render(futureFlag)
 	}
-	t, ok := parseDay(e.At)
+	t, ok := store.LocalDay(e.At, m.now().Location())
 	if !ok {
 		return ""
 	}
@@ -132,10 +134,10 @@ const fullDate = "2 Jan 2006"
 
 // fullEntryDate is a Status entry's date in full, "25 Sep 2026", or "~1 Jan 2025" when
 // approximate: the one date format the detail view uses.
-func fullEntryDate(e *store.StatusEntry) string {
-	t, ok := parseDay(e.At)
+func fullEntryDate(e *store.StatusEntry, loc *time.Location) string {
+	t, ok := store.LocalDay(e.At, loc)
 	if !ok {
-		return entryDate(e)
+		return entryDate(e, loc)
 	}
 	d := t.Format(fullDate)
 	if e.Approx {
@@ -148,7 +150,7 @@ func fullEntryDate(e *store.StatusEntry) string {
 // gives every date its year.
 func (m model) spansYears(log []store.StatusEntry) bool {
 	return slices.ContainsFunc(log, func(e store.StatusEntry) bool {
-		t, ok := parseDay(e.At)
+		t, ok := store.LocalDay(e.At, m.now().Location())
 		return ok && t.Year() != m.now().Year()
 	})
 }
@@ -169,7 +171,7 @@ func (m model) verticalTimeline(p pal, a store.Application, w int) []string {
 	stop := func(status, when string, current bool) {
 		line(p.StatusMark(status)+" "+p.Text(p.StatusColor(status)).Bold(current).Render(status), when)
 	}
-	log := effectiveLog(a) // an undone move leaves no stop
+	log := schedule.EffectiveLog(a) // an undone move leaves no stop
 	if len(log) == 0 {
 		// Nothing logged yet (or only an undone first move): say so, and how a first move logs it.
 		line(p.Text(p.Dim).Render("Not moved yet · ")+p.Key().Render("m")+p.Text(p.Dim).Render(" to move"), "")
@@ -326,14 +328,14 @@ func (m model) statusLine(p pal, a store.Application, w int, status bool) []stri
 // approximate date. Not long, an open one leaves off the Status, "6w", for a line that
 // already names it. The list rows leave the age to the card.
 func (m model) stageAge(p pal, a store.Application, long bool) string {
-	e := lastChange(a)
+	e := schedule.LastChange(a)
 	if e == nil {
 		return ""
 	}
 	if m.futureDate(e) {
 		return p.Text(p.Warn).Render(futureFlag)
 	}
-	_, days, ok := daysFrom(e.At, m.now())
+	_, days, ok := schedule.DaysFrom(e.At, m.now())
 	if !ok {
 		return ""
 	}
@@ -344,7 +346,7 @@ func (m model) stageAge(p pal, a store.Application, long bool) string {
 	rel, _ := ago(e.At, m.now())
 	var s string
 	switch t := tableOf(a); {
-	case a.Status == store.StatusLead && len(effectiveLog(a)) <= 1:
+	case a.Status == store.StatusLead && len(schedule.EffectiveLog(a)) <= 1:
 		s = "added " + approx + rel
 	case t == tableDismissed || t == tableFiltered || t == tableClosed:
 		s = approx + rel
@@ -437,7 +439,7 @@ func (m model) addedOn(a store.Application) string {
 	if len(a.StatusLog) == 0 {
 		return ""
 	}
-	t, ok := parseDay(a.StatusLog[0].At)
+	t, ok := store.LocalDay(a.StatusLog[0].At, m.now().Location())
 	if !ok {
 		return ""
 	}
@@ -505,8 +507,8 @@ func (m model) sweepRows(p pal, a store.Application, w int) []string {
 		if a.FilterNote != "" {
 			// The note was written when the rule dismissed the Lead: its ages are that day's.
 			note := a.FilterNote
-			if e := lastChange(a); e != nil {
-				if t, ok := parseDay(e.At); ok {
+			if e := schedule.LastChange(a); e != nil {
+				if t, ok := store.LocalDay(e.At, m.now().Location()); ok {
 					note = "as of " + shortDate(t, m.now()) + ": " + note
 				}
 			}

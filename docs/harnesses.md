@@ -19,6 +19,13 @@ Set Harness on the Settings screen (`6`), or `harness` in `~/.config/rolecall/co
 (`f`), `prepare-documents` (`p`) or `draft-follow-up` (`F`), and `{dir}` with the selected
 Application folder, then runs the command through `/bin/sh -c` from your Workspace.
 
+The folder never goes into the command text. rolecall passes it to the shell as `$1` (and the
+skill as `$2`), and writes each placeholder as a quoted reference to that value: `"${1}"`
+when the placeholder is bare, `${1}` inside double quotes, and `'"${1}"'` inside single
+quotes. A folder name with spaces, quotes, `$(...)` or backticks therefore reaches the
+Harness as written, and nothing in it runs. You can put `{dir}` bare or inside either kind
+of quotes; don't put it inside a `$(...)` or backtick substitution of your own.
+
 ## Claude Code
 
 ### Install the Plugin

@@ -177,3 +177,22 @@ func TestUpdateSourceKeepsOtherKeysAndPlace(t *testing.T) {
 		t.Error("updated a Source that is not listed")
 	}
 }
+
+// A Source's own rules.max_posting_age_days is the limit for Leads from it, matched by
+// name ignoring case and before any ":target", as rules.py age_limit reads it; other
+// Sources keep the global limit, and a value under 1 is no limit of its own.
+func TestSettingsReadsASourceAgeLimit(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeWorkspaceJSON(t, s.Root(), `{"tracks":["SWE"],"search_rules":{"max_posting_age_days":30},
+		"sources":[{"name":"LinkedIn","type":"browser","rules":{"max_posting_age_days":20}},
+		{"name":"seek","type":"browser","rules":{"max_posting_age_days":0}}]}`)
+	ws, err := s.Settings()
+	if err != nil || ws.Err != nil {
+		t.Fatal(err, ws.Err)
+	}
+	for source, want := range map[string]int{"linkedin": 20, " LINKEDIN:jobs ": 20, "seek": 30, "greenhouse": 30, "": 30} {
+		if got := ws.Rules.AgeLimit(source); got != want {
+			t.Errorf("AgeLimit(%q) = %d, want %d", source, got, want)
+		}
+	}
+}

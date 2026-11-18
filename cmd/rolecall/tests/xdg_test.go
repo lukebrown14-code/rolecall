@@ -1,14 +1,12 @@
 package main_test
 
 import (
-	"os"
 	"testing"
+
+	"github.com/lukebrown14-code/rolecall/internal/testenv"
 )
 
-// TestMain clears XDG_CONFIG_HOME so config.toml resolves under each test's temp HOME and
-// never under the developer's real config directory, in this process and in the binaries
-// it starts with os.Environ().
-func TestMain(m *testing.M) {
-	os.Unsetenv("XDG_CONFIG_HOME")
-	os.Exit(m.Run())
-}
+// TestMain pins the environment (internal/testenv) in this process and so in the binaries
+// it starts with os.Environ(): config.toml resolves under each test's temp HOME, and the
+// developer's NO_COLOR, ROLECALL_PLUGIN or $EDITOR never reach the binary under test.
+func TestMain(m *testing.M) { testenv.Main(m) }

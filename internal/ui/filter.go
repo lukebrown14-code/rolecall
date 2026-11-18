@@ -20,6 +20,19 @@ const noTrack = "No track"
 // renamed or removed from workspace.json) in name order, so the options add up to All.
 // m.track indexes it, 1-based.
 func (m model) filterTracks() []string {
+	c := m.cache()
+	if c != nil && c.tracksOK {
+		return c.tracks
+	}
+	all := m.deriveFilterTracks()
+	if c != nil {
+		c.tracks, c.tracksOK = all[:len(all):len(all)], true
+	}
+	return all
+}
+
+// deriveFilterTracks is filterTracks without the cache.
+func (m model) deriveFilterTracks() []string {
 	listed := make(map[string]bool, len(m.tracks))
 	for _, t := range m.tracks {
 		listed[t] = true

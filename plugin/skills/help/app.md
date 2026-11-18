@@ -9,7 +9,7 @@ authoritative; for the Owner's own paths, `rolecall doctor` is.
 rolecall init [DIR]   # creates the Workspace (default ./rolecall) and its local git repo; asks nothing
 rolecall              # opens the app; the first time, it asks for the Contact (Name, Email required)
 rolecall doctor       # checks the Workspace, typst, pandoc, Python, fonts, Plugin and Harness
-rolecall move FOLDER STATUS   # moves an Application to a Status as the app does; Applied also saves sent/
+rolecall move [--force] FOLDER STATUS   # moves an Application to a Status as the app does; Applied also saves sent/ (needs --force while its PDFs are not built)
 rolecall now [--days N] [--list]   # one plain line: Follow-up due items, next steps and closing dates within N days (7)
 rolecall export [--format csv|json | --ics] [--out FILE]   # every Application as CSV or JSON, or next steps and close dates as .ics
 ```

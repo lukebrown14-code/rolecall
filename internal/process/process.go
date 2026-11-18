@@ -98,3 +98,9 @@ func OnPath(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
 }
+
+// QuoteShellArgument wraps s in single quotes for /bin/sh so it stays one argument however
+// it is spelled: spaces stay inside, and an embedded quote is spliced to '\”.
+func QuoteShellArgument(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}

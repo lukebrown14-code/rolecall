@@ -1,5 +1,11 @@
 name: CI
-on: [push, pull_request]
+on:
+  # Branch pushes only: a tag push runs these same jobs through release.yml.
+  push:
+    branches: ["**"]
+  pull_request:
+  # release.yml calls this workflow as its gate, so a release runs every CI check.
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -23,6 +29,22 @@ jobs:
           version: v2.15.0
       - run: scripts/check-go.sh
       - run: go test -race ./...
+      # Tests pin their own environment (internal/testenv); a developer shell with these
+      # set must not change a result.
+      - name: Test under a hostile environment
+        run: go test ./...
+        env:
+          NO_COLOR: "1"
+          COLORFGBG: "15;0"
+          ROLECALL_THEME: light
+          ROLECALL_PLAIN: "1"
+          ROLECALL_ASCII: "1"
+          TERM: linux
+          LANG: C
+          EDITOR: nano
+          VISUAL: code
+          ROLECALL_PLUGIN: /nonexistent
+          TZ: Pacific/Kiritimati
       - name: Scan dependencies for known vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...
 

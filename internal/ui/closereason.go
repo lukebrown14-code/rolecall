@@ -113,13 +113,15 @@ func (cr *closeReasonMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 
 // pick writes reason to every Application that moved and closes the pop-up.
 func (cr *closeReasonMode) pick(m *model, reason string) (mode, tea.Cmd) {
+	var written []string
 	for _, a := range cr.apps {
 		if err := m.store.SetCloseReason(a.Folder, reason); err != nil {
 			m.err = err
 			break
 		}
+		written = append(written, a.Folder)
 	}
-	m.reload(m.cursorFolder())
+	m.reload(m.cursorFolder(), written...) // none written: a full rescan, as before
 	if m.err == nil {
 		cr.restoreToast(m)
 		if m.toast != "" {

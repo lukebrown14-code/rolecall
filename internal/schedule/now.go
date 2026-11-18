@@ -1,4 +1,4 @@
-package ui
+package schedule
 
 import (
 	"sort"
@@ -6,10 +6,6 @@ import (
 
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
-
-// SoonDays is how far ahead "now" looks: a close date or a next step within it is wanted
-// today. The rows' amber close date turns at the same distance.
-const SoonDays = soonDays
 
 // Now is what wants doing today: the Follow-up due Applications, the next steps coming
 // up, and the Leads and Drafts closing soon. Stats → Now draws it and `rolecall now`
@@ -23,8 +19,8 @@ type Now struct {
 // Empty reports that nothing is due.
 func (n Now) Empty() bool { return len(n.FollowUps)+len(n.NextSteps)+len(n.Closing) == 0 }
 
-// openStatus is a Status whose next step still matters: not closed, not dismissed.
-func openStatus(status string) bool {
+// OpenStatus is a Status whose next step still matters: not closed, not dismissed.
+func OpenStatus(status string) bool {
 	return status != store.StatusRejected && status != store.StatusWithdrawn && status != store.StatusDismissed
 }
 
@@ -37,16 +33,16 @@ func NowFor(apps []store.Application, now time.Time, followUpDays, within int) N
 		if a.Malformed != nil {
 			continue
 		}
-		if followUpDue(a, now, followUpDays) {
+		if FollowUpDue(a, now, followUpDays) {
 			n.FollowUps = append(n.FollowUps, a)
 		}
-		if a.NextStep != nil && openStatus(a.Status) {
-			if _, days, ok := daysFrom(a.NextStep.Day(), now); ok && days >= 0 && days <= within {
+		if a.NextStep != nil && OpenStatus(a.Status) {
+			if _, days, ok := DaysFrom(a.NextStep.Day(), now); ok && days >= 0 && days <= within {
 				n.NextSteps = append(n.NextSteps, a)
 			}
 		}
 		if a.Unsent() {
-			if _, days, ok := daysFrom(a.Closes, now); ok && days >= 0 && days <= within {
+			if _, days, ok := DaysFrom(a.Closes, now); ok && days >= 0 && days <= within {
 				n.Closing = append(n.Closing, a)
 			}
 		}

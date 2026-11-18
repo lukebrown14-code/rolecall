@@ -142,6 +142,61 @@ func workspaceWithRemote(t *testing.T, remote string) string {
 	return root
 }
 
+// TestCheckNeverPrintsRemoteCredentials covers every warning a remote can produce
+// (public, offline, non-GitHub): the secret in the URL never reaches doctor output.
+func TestCheckNeverPrintsRemoteCredentials(t *testing.T) {
+	const secret = "fake-s3cret-value"
+	lookups := map[string]VisibilityLookup{
+		"public":    func(string, string) (Visibility, error) { return VisibilityPublic, nil },
+		"offline":   func(string, string) (Visibility, error) { return "", errors.New("offline") },
+		"no lookup": nil,
+	}
+	tests := []struct {
+		remote, want string
+	}{
+		{"https://owner:" + secret + "@github.com/owner/repo.git", "https://***@github.com/owner/repo.git"},
+		{"https://" + secret + "@github.com/owner/repo.git", "https://***@github.com/owner/repo.git"},
+		{"http://owner:" + secret + "@gitlab.example/owner/repo.git", "http://***@gitlab.example/owner/repo.git"},
+		{"HTTPS://oauth2:" + secret + "@gitlab.example:8443/owner/repo", "HTTPS://***@gitlab.example:8443/owner/repo"},
+		{"ssh://git:" + secret + "@github.com/owner/repo.git", "ssh://***@github.com/owner/repo.git"},
+		{"git:" + secret + "@github.com:owner/repo.git", "***@github.com:owner/repo.git"},
+	}
+	for _, tt := range tests {
+		for name, lookup := range lookups {
+			t.Run(tt.want+"/"+name, func(t *testing.T) {
+				warnings, err := Check(workspaceWithRemote(t, tt.remote), lookup)
+				if err != nil {
+					t.Fatal(err)
+				}
+				out := strings.Join(warnings, "\n")
+				if strings.Contains(out, secret) {
+					t.Fatalf("doctor output leaks the remote's secret: %q", out)
+				}
+				if out == "" {
+					t.Fatalf("no warning for %q; the test cannot check what doctor prints", tt.remote)
+				}
+				if !strings.Contains(out, "git remote "+tt.want+":") {
+					t.Fatalf("warnings = %q, want the remote shown as %q", out, tt.want)
+				}
+			})
+		}
+	}
+}
+
+func TestRedactRemoteKeepsSSHUsernamesAndPlainURLs(t *testing.T) {
+	for _, remote := range []string{
+		"git@github.com:owner/repo.git",
+		"ssh://git@github.com/owner/repo.git",
+		"https://github.com/owner/repo.git",
+		"/srv/git/jobs.git",
+		"file:///srv/git/jobs.git",
+	} {
+		if got := redactRemote(remote); got != remote {
+			t.Errorf("redactRemote(%q) = %q, want it unchanged", remote, got)
+		}
+	}
+}
+
 func containsWarning(warnings []string, want string) bool {
 	for _, warning := range warnings {
 		if strings.Contains(warning, want) {

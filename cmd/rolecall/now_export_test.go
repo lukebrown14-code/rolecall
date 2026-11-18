@@ -170,6 +170,40 @@ func TestExportCSVAndJSON(t *testing.T) {
 	}
 }
 
+// The export dates a timestamp on its day in the Owner's zone (the clock's), as the rows
+// and Stats do; a date-only entry keeps the day written.
+func TestExportDatesAreTheOwnersLocalDay(t *testing.T) {
+	root := exportWorkspace(t)
+	west := func() time.Time { return testToday.In(time.FixedZone("PDT", -7*60*60)) }
+	var out bytes.Buffer
+	if err := exportCommand([]string{"--dir", root, "--format", "json"}, &out, &bytes.Buffer{}, west); err != nil {
+		t.Fatal(err)
+	}
+	var rows []exportRow
+	if err := json.Unmarshal(out.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range rows {
+		got[r.Folder] = r.Applied + " " + r.LastChange
+	}
+	for folder, want := range map[string]string{
+		"jobs/SWE/step": "2026-09-19 2026-09-27", // 00:00Z is the evening before in PDT
+		"jobs/SWE/gone": "2026-09-01 2026-09-15",
+	} {
+		if got[folder] != want {
+			t.Errorf("%s applied/last_change = %q, want %q", folder, got[folder], want)
+		}
+	}
+	out.Reset()
+	if err := exportCommand([]string{"--dir", root}, &out, &bytes.Buffer{}, west); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "Applied 2026-09-19; Interviewing 2026-09-27") {
+		t.Errorf("csv status_log not in the Owner's zone:\n%s", out.String())
+	}
+}
+
 func sameTree(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false

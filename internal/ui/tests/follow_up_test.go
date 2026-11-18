@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -118,8 +119,8 @@ func TestNudgeStartsHandoffAndNamesDraft(t *testing.T) {
 	m := driveStart(t, root, fixtureClock, 120, 40, ui.WithExternalRunner(f.runner), ui.WithHarness(`claude "/{skill} {dir}"`))
 	m = driveModel(t, m, "3", "/Highco", "enter", "F")
 	folder := filepath.Join(root, "jobs", "SWE", "heat-high")
-	want := `claude "/draft-follow-up '` + folder + `'"`
-	if len(f.calls) != 1 || f.calls[0][2] != want {
+	want := []string{"/bin/sh", "-c", `claude "/${2} ${1}"`, "rolecall-harness", folder, "draft-follow-up"}
+	if len(f.calls) != 1 || !slices.Equal(f.calls[0], want) {
 		t.Fatalf("calls = %v, want %q", f.calls, want)
 	}
 	if v := plain(m); !strings.Contains(v, "follow-up.md") {

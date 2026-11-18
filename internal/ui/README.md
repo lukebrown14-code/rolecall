@@ -5,23 +5,31 @@ and rendering. Its subpackages do not import it.
 
 | Location | Responsibility |
 | --- | --- |
-| `settings/` | Settings row descriptions and provenance, workspace snapshot, cursor and focus navigation, and input validation. |
+| `settings/` | The Settings screen as a Bubble Tea sub-model: its rows and their provenance, navigation, the group key table, inline editing, validation, its pop-ups and its rendering. It writes nothing: keys return intents (a `Save` of `SetRule`, `SetTracks`, `SetMachine`…, `RenameTrack`, `CheckSource`), and ui applies them. |
 | `forms/` | Form field editing, validation, focus, submission, and discard confirmation. |
 | `theme/` | Colour roles, dark and light palettes, the glyph table (`glyphs.go`: each glyph's meaning, ASCII stand-in and `?` legend row), status styling, Markdown styles, and terminal appearance fallbacks (NO_COLOR, inherit, ASCII, `ROLECALL_PLAIN`). |
 | `watch/` | Filesystem subscriptions, debounce windows, changed folders, document-write classification, and shutdown. |
 | `tests/` | Behaviour and rendering tests through the UI's public interface, with rendering goldens in `testdata/`. |
 | `../reporting/` | Pure funnel, response, weekly, and track calculations, independent of terminal UI. |
+| `../schedule/` | Pure rules derived from an Application's dates: Follow-up due and the next-step hold, close dates, posting expiry and Now (Stats → Now and `rolecall now`), independent of terminal UI. |
 
 The root model adapts those modules to the application. Files are grouped by name, not
 listed here one by one (`ls internal/ui` is the inventory):
 
 - `model.go`, `refresh.go`, `mapping.go`: state, updates and the one `reload` helper.
+- `rows.go`: the list rows derived once per model state and shared by every widget that
+  reads them; any new input to the filtering or sorting must join its key.
 - `keymap.go` (row actions) and `help.go` (the registry): every key is declared once and read
   by the key line, `?` and the command palette (`palette.go`).
-- `view.go`, `layout.go`, `columns.go`, `styles.go`: shared presentation; `plain.go` reshapes
-  the finished frame for `ROLECALL_PLAIN`.
-- `settings*.go`, `profile.go`, `stats.go`, `detail.go`, `form.go`: screens and their forms.
-- `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`: external actions and their
+- `view.go` (`View` and the list screen), `chrome.go` (tabs, top bar, breadcrumb, view row),
+  `list_blocks.go` (dividers, blocks, scrolling and right-hand slots), `row.go` (a list row and
+  its meta line), `preview.go` (the card beside the list), `layout.go`, `columns.go`,
+  `styles.go`: shared presentation; `plain.go` reshapes the finished frame for `ROLECALL_PLAIN`.
+- `settings.go`: the thin adapter for `settings/`: it hands the sub-model the running app
+  (`Env`) and the shared look (`Look`), applies its intents through `store` and `config`,
+  reloads, and reports on the feedback line. `config.go` loads and reports config.toml.
+- `profile.go`, `stats.go`, `detail.go`, `form.go`: screens and their forms.
+- `external.go`, `handoff.go`, `build.go`, `fetch.go`, `download.go`, `sourcecheck.go`: external actions and their
   completion messages; every process start goes through `internal/process`.
 
 Tests for extracted modules live in their own `tests/` directories. The watcher's
@@ -30,4 +38,7 @@ exposing debounce to other application packages.
 
 Run all UI checks with `go test ./internal/ui/...`, report tests with
 `go test ./internal/reporting/...`, and the full suite with `go test ./...`.
+Benchmarks for a frame, a keypress, a watcher batch and a bulk move on generated Workspaces
+of 100, 1000 and 3000 Applications run only on request:
+`go test -run '^$' -bench . ./internal/ui`.
 Regenerate UI goldens with `go test ./internal/ui/tests -update` only for intended changes.

@@ -18,15 +18,18 @@ import (
 // moveArgs is the folder and the Status move takes.
 const moveArgs = 2
 
-// moveCommand is `rolecall move [--dir PATH] <folder> <status>`: the TUI's move without the
-// TUI, so an agent or script can mark an Application Applied (or any other Status) and get
-// the same sent/ copy. It prints one line saying what moved.
+// moveCommand is `rolecall move [--dir PATH] [--force] <folder> <status>`: the TUI's move
+// without the TUI, so an agent or script can mark an Application Applied (or any other
+// Status) and get the same sent/ copy. Where the TUI asks before a not-Ready Application
+// goes to Applied (ADR-0004), this refuses unless --force says yes. It prints one line
+// saying what moved.
 func moveCommand(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("move", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	dir := flags.String("dir", "", "Workspace path (default: workspace in config.toml)")
+	force := flags.Bool("force", false, "move to Applied even when the documents are not Ready (PDFs not built)")
 	flags.Usage = func() {
-		_, _ = fmt.Fprintln(flags.Output(), "usage: rolecall move [--dir PATH] <folder> <status>\n\nMoves an Application to a Status as the app does; moving to Applied also saves sent/.\nfolder is an absolute path or relative to the Workspace; status is one of: "+strings.Join(store.Statuses, ", ")+".")
+		_, _ = fmt.Fprintln(flags.Output(), "usage: rolecall move [--dir PATH] [--force] <folder> <status>\n\nMoves an Application to a Status as the app does; moving to Applied also saves sent/,\nand is refused while its PDFs are not built unless --force is given.\nfolder is an absolute path or relative to the Workspace; status is one of: "+strings.Join(store.Statuses, ", ")+".")
 		flags.PrintDefaults()
 	}
 	if err := flags.Parse(args); err != nil {
@@ -52,7 +55,7 @@ func moveCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return moveApplication(s, folder, status, time.Now(), stdout)
+	return moveApplication(s, folder, status, time.Now(), *force, stdout)
 }
 
 // canonicalStatus maps a Status typed in any case to the name the file stores.
@@ -126,8 +129,9 @@ func resolveFolder(workspace, value string) (string, error) {
 	return "", fmt.Errorf("%q matches more than one folder (%s); give a path", value, strings.Join(found, ", "))
 }
 
-// moveApplication is the TUI's move: append the Status, and on Applied freeze sent/.
-func moveApplication(s *store.Store, folder, status string, at time.Time, out io.Writer) error {
+// moveApplication is the TUI's move through store.Move: append the Status, and on Applied
+// freeze sent/. A not-Ready Application is refused Applied unless force, as the TUI asks.
+func moveApplication(s *store.Store, folder, status string, at time.Time, force bool, out io.Writer) error {
 	a, err := s.Rescan(folder)
 	if err != nil {
 		return err
@@ -142,23 +146,33 @@ func moveApplication(s *store.Store, folder, status string, at time.Time, out io
 	if rel, err := filepath.Rel(s.Root(), folder); err == nil && !strings.HasPrefix(rel, "..") {
 		name = filepath.ToSlash(rel)
 	}
-	wrote, err := s.AppendStatus(folder, status, at)
-	if err != nil {
-		return err
+	if status == store.StatusApplied && a.Status != status && a.Documents != store.DocsReady && !force {
+		return fmt.Errorf("%s is not Ready (%s); build its PDFs first, or pass --force to mark it Applied anyway", name, notReadyReason(*a))
 	}
-	if !wrote {
-		_, err = fmt.Fprintf(out, "Already %s: %s\n", status, name)
-		return err
+	r, err := s.Move(folder, status, at)
+	if err != nil {
+		// store.Move undoes its own half: nothing was appended, no sent/ was left.
+		return fmt.Errorf("%s not moved: %w", name, err)
 	}
 	line := status + ": " + name
-	if status == store.StatusApplied {
-		if err := s.RecordSent(folder); err != nil {
-			return fmt.Errorf("%s moved to Applied but saving sent/ failed: %w", name, err)
-		}
-		if !a.HasSent {
-			line += " (sent/ saved)"
-		}
+	if !r.Wrote {
+		line = "Already " + line
+	}
+	if r.MadeSent {
+		line += " (sent/ saved)"
 	}
 	_, err = fmt.Fprintln(out, line)
 	return err
+}
+
+// notReadyReason names the PDFs a not-Ready Application still lacks.
+func notReadyReason(a store.Application) string {
+	var missing []string
+	if !a.ResumeBuilt {
+		missing = append(missing, "Resume PDF")
+	}
+	if !a.CoverLetterBuilt && !a.ResumeOnly {
+		missing = append(missing, "Cover Letter PDF")
+	}
+	return strings.Join(missing, " and ") + " not built"
 }

@@ -51,7 +51,8 @@ defined in `GLOSSARY.md`.
 
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
 `[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
-date. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
+date in the Owner's time zone. Each character is lowercased on its own (`İ` is `i`, `K` (Kelvin) is `k`); when the
+first 61 characters hold no `-`, the cut keeps the first 60. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
 `-3`, and so on. The name is only an identifier; never parse meaning out of it.
 
 ## Application folder
@@ -69,7 +70,8 @@ date. When nothing is left (a CJK or symbol-only name) it is `application`. If t
 | `resume.md` | — | agent | resume source (writing-rules Markdown format) |
 | `cover-letter.md` | — | agent | cover letter source |
 | `out/*.pdf` | — | `build.py` | built documents, upload-ready names |
-| `sent/` | — | TUI (on → Applied) | frozen copy of what was sent. Never overwritten |
+| `sent/` | — | TUI and `rolecall move` (on → Applied) | frozen copy of what was sent: the regular files among the docs above and `out/*.pdf` (a symlink is not copied), private (`0700`). Built in a `sent.tmp-*` folder and renamed into place whole, so a failed copy leaves no `sent/` and moves nothing. Never overwritten |
+| `sent.tmp-*/` | — | TUI and `rolecall move` (on → Applied) | `sent/` while it is being copied. Only a crash leaves one; never read, safe to delete |
 | `sent.undone-<YYYY-MM-DD>/` | — | TUI (undo of → Applied) | a `sent/` renamed aside when the move that made it is undone, so the next real Applied freezes a fresh `sent/`. `-2`, `-3`… when taken. Not read |
 
 `jd.md` has no front matter. Older folders may still have it, and readers ignore it.
@@ -152,7 +154,7 @@ status_log:
 | `followed_up` | date `YYYY-MM-DD` | — | the day the Owner last followed up on a sent Application without its Status changing. Written by the TUI (`l`, the Owner's action; its undo removes it or puts back the day before). Follow-up due counts from the later of this and the last change. A value that is not a date reads as unset (the file is not malformed). Not the legacy `followup` key |
 | `next_step` | flow map `{at, what}` | — | what the Owner does next and when. `at` is `YYYY-MM-DD` or `YYYY-MM-DDTHH:MM` (local time, no zone) and required; `what` is text, quoted when it holds a comma, brace or `#`. One line, as a `status_log` entry is. Empty or missing = none. A map without a valid `at` makes the file malformed. Shown on Applied, Interviewing and Offer rows, in Stats → Now and on the detail Overview; `rolecall now` and `rolecall export` read it |
 | `contacts` | list of flow maps | — | the people to write to, one `  - {name, role, email, url}` line each, indented two spaces below `contacts:` (as `status_log` is). Each needs a `name`, an `email` or a `url`; `role` is optional; other inner keys are ignored. `contacts: []` or no key = none. The first is who a follow-up addresses. The old single `contact` still reads, as the one Contact, until the Owner saves a list |
-| `close_reason` | string | — | why a Rejected or Withdrawn Application ended. Suggested values: `no-response` · `after-screen` · `after-interview` · `salary` · `role-closed` · `other`; free text is allowed. Set from the Move pop-up when the move is to Rejected or Withdrawn (optional, skippable), or later from Edit. Shown only while the Status is Rejected or Withdrawn; the TUI removes it when the Application leaves them (an undo included). Stats shows where Applications dropped off by it |
+| `close_reason` | string | — | why a Rejected or Withdrawn Application ended. Suggested values: `no-response` · `after-screen` · `after-interview` · `salary` · `role-closed` · `other`; free text is allowed. Set from the Move pop-up when the move is to Rejected or Withdrawn (optional, skippable), or later from Edit. Shown only while the Status is Rejected or Withdrawn; the TUI removes it when the Application leaves them (an undo included), and an undo of that move puts it back. Stats shows where Applications dropped off by it |
 | `status_log` | list | ✅ | append-only history (below). The current Status is the last entry |
 
 Readers estimate an annual AUD pay figure as pay × the unit's multiplier (hour 1976, day
@@ -210,6 +212,13 @@ Each entry is a flow map on one line:
 - **Applied date** = `at` of the first `Applied` entry. It is never stored separately.
 - **Last change** = `at` of the last entry. Follow-up due is measured from it, or from
   `followed_up` when that day is later.
+- Follow-up due, exactly: an undone move is left out first (an entry that restores the
+  Status before the previous entry, both timestamped and no more than 15 minutes apart,
+  cancels that entry and itself; date-only entries never do). The day it counts from is the
+  later of the last remaining entry's day and `followed_up`, the entry winning a tie. A
+  timestamp's day is its date in the Owner's time zone; a date-only entry and `followed_up`
+  keep the day written. It is due `follow_up_days` after that day and on every day after,
+  for Applied and Interviewing only, except while `next_step` is on or after today.
 - `approx: true` marks a date rebuilt by migration. Readers show it with a `~` prefix.
 
 ### Who may change what
@@ -218,7 +227,7 @@ Each entry is a flow map on one line:
 |---|---|---|
 | TUI | creates folders. Writes any key through Add / Edit (`next_step` and the first of `contacts` included), `followed_up` through `l`, and `close_reason` from the Move pop-up or Edit. Appends any Status | touch docs, `fit.md`, `out/` |
 | `rolecall now`, `rolecall export` | nothing in the Workspace. Read-only. `export` writes only where the Owner's `--out` names | any file under the Workspace |
-| `rolecall move` | appends any Status as the TUI does; on Applied also freezes `sent/`. Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
+| `rolecall move` | appends any Status as the TUI does; on Applied also freezes `sent/`, and refuses an Application whose documents are not Ready unless `--force` is given (the TUI asks). Run by the Owner or a script, or by an agent only when the Owner explicitly asks in that session | any key but `status_log`; docs, `fit.md`, `out/` |
 | Agent (skills) | creates folders (capture, find, and `import-applications` through `import_csv.py`) through the shared writer, never by hand. Writes `title` `company` `track` `url` `aggregator_url` `closes` `fit` `resume_only` `posted` `posted_label` `applicants` `source`, plus docs, `fit.md`, `follow-up.md`, `prep.md` and `answers.md` | append to `status_log`, except a new folder's first `Lead` entry (for `import-applications`, the entries of the Owner's own export, all `approx: true`), a rule dismissal the Owner confirmed after a `rules.py check` dry run, or when the Owner explicitly asks in that session; then it uses `rolecall move FOLDER STATUS` (which also freezes `sent/` on Applied) rather than `meta.py append-status` |
 | `rules.py check --apply` | appends `Dismissed` with `filter_reason` and `filter_note` to a Lead (a Draft only with `--include-drafts`) a Search rule rules out | an Application with `filter_overruled: true`; any other key; moving a folder |
 | `build.py` | `out/`. Appends `Draft` only when the current Status is `Lead` and the build produced PDFs | any other key or Status |
@@ -237,6 +246,11 @@ patch it without reformatting.
    write atomically (temp file in the same folder, then rename).
 6. A file that breaks these rules is **malformed**. Readers show the Application with a warning
    and its path. Writers refuse to touch it.
+7. A line that is empty or holds only spaces and tabs is blank, and a line starting with `#`
+   is a comment; both are skipped anywhere, inside `status_log` and `contacts` too. Any other
+   line, an indented `# …` included, must follow the rules above. A whole number (`schema`,
+   `applicants`, `term_months`) is ASCII digits only, with no sign, and fits a signed 64-bit
+   integer. A timestamp's offset is at most `23:59`.
 
 ## Profile
 
@@ -337,8 +351,8 @@ that rule a role out, so none of them lives in prose:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired |
-| `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5 |
+| `max_posting_age_days` | int ≥ 1 | a role this many days old or older is expired. A Source's own `rules.max_posting_age_days` replaces it for roles whose `source` names that Source (ignoring case), in the TUI and `rules.py` alike |
+| `expiry_warning_days` | int ≥ 0 | the TUI warns "expires in N days" this close to the limit. Default 5. N is the limit minus the age in whole days (today minus `posted`), so the last day before expiry reads "expires in 1 day" |
 | `ambiguous_age_labels` | object | label → `discard` or `keep`, for a label that may be either side of the limit (`"1mo ago"` is 28 to 61 days). Matched ignoring case and spacing. Unlisted, a borderline Lead is kept and flagged for the Owner |
 | `max_applicants` | object | Source name → the most applicants a role may have there |
 | `max_contract_months` | int ≥ 1 | a longer contract is flagged, never dismissed |
@@ -482,6 +496,11 @@ the Plugin default for the rest, and names the overrides it used.
 no docs; `resume_only`; unknown keys; `approx` entries; an empty log; one malformed
 `meta.yml`; and a Profile with a Contact table. The Go store tests and the Python `build.py`
 tests both load it. Any change to this file updates the fixtures in the same commit.
+
+`fixtures/conformance.json` holds this file's rules as vectors that the Go and Python tests
+both assert: `meta.yml` lines and whole texts (malformed or not), folder names, Follow-up due
+and posting age. The expected values follow this file, not either implementation; a side
+that does not meet one yet lists it, by audit finding, in its test's known-drift table.
 
 `fixtures/dashboard-era/` is the dashboard-era migration fixture: tracker, shortlist and dismissed
 tables, jd front matter, legacy keys, bulk-stamped logs and an unmappable Fit. It is used by

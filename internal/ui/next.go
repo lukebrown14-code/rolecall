@@ -2,6 +2,7 @@ package ui
 
 import (
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -59,7 +60,7 @@ func (m model) nextAction(a store.Application) (nextStep, bool) {
 		}
 		return nextStep{what: "send it, then mark it Applied", key: "m", desc: descMove}, true
 	case store.StatusApplied, store.StatusInterviewing:
-		if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+		if _, due := schedule.FollowUpDaysPast(a, m.now(), m.followUpDays); due {
 			// The flag runs from the last Status change or recorded follow-up, so a move or
 			// z clears it: a note would not, and NEXT does not suggest one.
 			// The l key and its action already say how to record it; with a Harness, F

@@ -21,7 +21,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -424,7 +424,7 @@ def main(argv=None):
             recheck(workspace)
         else:
             today = (datetime.strptime(args.today, "%Y-%m-%d").date() if args.today
-                     else datetime.now(timezone.utc).date())
+                     else date.today())
             check(workspace, args.apply, args.include_drafts, today)
     except RulesError as error:
         print(f"rolecall: {error}", file=sys.stderr)

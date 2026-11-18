@@ -7,6 +7,7 @@ is a ``FetchError`` with a one-line message; ``status`` and ``body`` carry an
 HTTP error's code and the start of its page for callers that classify it, and
 ``kind`` names the failure in one word (``bad_url``, ``timeout``, ``not_found``,
 ``blocked``, ``non_html``, ``unreachable``) so a caller never parses the message.
+A charset the server names but Python does not know is read as utf-8.
 """
 
 import time
@@ -82,7 +83,13 @@ def fetch(url, timeout=20, max_bytes=MAX_BYTES, user_agent=USER_AGENT, html_only
         raise FetchError(f"{url} -- {error}", kind=kind) from error
     if html_only and ctype and not _is_web_page(ctype):
         raise FetchError(f"{url} -- is {ctype}, not a web page", kind="non_html")
-    return b"".join(chunks).decode(charset, "replace")
+    body = b"".join(chunks)
+    try:
+        return body.decode(charset, "replace")
+    except (LookupError, ValueError):
+        # The charset label is the server's, so it can be misspelled, exotic or not a
+        # text codec at all; the page is still worth reading, so fall back to utf-8.
+        return body.decode("utf-8", "replace")
 
 
 def _is_web_page(content_type):

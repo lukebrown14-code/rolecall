@@ -149,7 +149,7 @@ func (m model) finishBuild(done buildFinished) (tea.Model, tea.Cmd) {
 	m.building = nil
 	// Rescan through the one reload helper. A failed scan is reported through m.err, but
 	// it must not swallow the build's own outcome.
-	m.reload(done.folder)
+	m.reload(done.folder, done.folder)
 	var a *store.Application
 	for i := range m.apps {
 		if m.apps[i].Folder == done.folder {

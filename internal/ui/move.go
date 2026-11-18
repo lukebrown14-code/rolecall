@@ -6,7 +6,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -36,10 +35,13 @@ func MoveOptions(from, previous string) []string {
 // Status the move left it at (an undo is refused once it is elsewhere), and
 // whether the move created sent/, which the undo then sets aside. filterReason and
 // filterNote are the Search rule a restore overruled, which the undo puts back.
+// closeReason is the close_reason a Rejected or Withdrawn Application had before the
+// move (a reopen removes it), which the undo puts back too.
 type undoMove struct {
 	folder, status, target   string
 	sent                     bool
 	filterReason, filterNote string
+	closeReason              string
 	// followUp marks a recorded follow-up (l), not a move: the undo puts back followedUp,
 	// the followed_up day it replaced ("" removes the key).
 	followUp   bool
@@ -67,28 +69,34 @@ func (m *model) requestMove(a store.Application, status string) (mode, tea.Cmd) 
 // move appends a Status and says so in a toast. It returns the command that ends the
 // moved row's flash.
 func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
-	wrote, err := m.store.AppendStatus(a.Folder, status, m.now())
+	r, err := m.writeMove(a, status, undo)
 	if err != nil {
 		m.err = err
 		return nil
 	}
-	if !wrote {
+	m.reload(a.Folder, a.Folder)
+	return m.moved(a, status, undo, r)
+}
+
+// writeMove writes a move to the Application's folder and nothing else: move and
+// moveMany reload after it.
+func (m *model) writeMove(a store.Application, status string, undo bool) (r store.MoveResult, err error) {
+	if undo {
+		// An undo only appends: the sent/ the move made is set aside by undoLast, and a
+		// move back to Applied freezes nothing new.
+		r.Wrote, err = m.store.AppendStatus(a.Folder, status, m.now())
+		return r, err
+	}
+	// store.Move freezes sent/ before it appends, so a failed copy moves nothing.
+	return m.store.Move(a.Folder, status, m.now())
+}
+
+// moved is what follows a written move once the rows are reloaded: the toast, the undo
+// entry, the offer to follow the row and its flash.
+func (m *model) moved(a store.Application, status string, undo bool, r store.MoveResult) tea.Cmd {
+	if !r.Wrote {
 		// The Application was already there (the rows were stale): nothing to undo.
-		m.reload(a.Folder)
 		m.toast, m.toastHint, m.toastKind = "Already "+status+" · "+moveName(a), "", toastNote
-		return nil
-	}
-	var sentErr error
-	madeSent := false
-	if status == store.StatusApplied && !undo {
-		madeSent = !a.HasSent
-		sentErr = m.store.RecordSent(a.Folder)
-	}
-	// The append is final even when the copy failed, so the rows are refreshed either way.
-	m.reload(a.Folder)
-	if sentErr != nil {
-		// Not a clean move: no success toast and nothing to undo, only the error.
-		m.err, m.toast = sentErr, ""
 		return nil
 	}
 	// Each toast leads with where the Application went, then which one it was, so a
@@ -108,9 +116,12 @@ func (m *model) move(a store.Application, status string, undo bool) tea.Cmd {
 		m.toastKind = toastUndo
 		return m.startFlash(a.Folder)
 	}
-	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: madeSent}
+	u := undoMove{folder: a.Folder, status: a.Status, target: status, sent: r.MadeSent}
 	if a.Filtered() && status != store.StatusDismissed {
 		u.filterReason, u.filterNote = a.FilterReason, a.FilterNote
+	}
+	if endedStatus(a.Status) {
+		u.closeReason = a.CloseReason
 	}
 	m.undo = append(m.undo, u)
 	m.toast, m.toastHint, m.movedTo = where+" · "+name, undoHint, status
@@ -205,51 +216,6 @@ func moveName(a store.Application) string {
 	return name
 }
 
-// effectiveLog is the Status log the rows, timeline and ages read: undone moves taken out
-// (reporting.EffectiveLog), as Stats reads it, so a fat-fingered move and its undo leave no
-// phantom stop and do not reset the age in Status. An undone first move of a Lead empties
-// it: the Lead reads as never moved, as it did before. Otherwise it falls back to the
-// whole log if the two ever disagree on the current Status.
-func effectiveLog(a store.Application) []store.StatusEntry {
-	log := reporting.EffectiveLog(a.StatusLog)
-	if len(log) == 0 && a.Status == store.StatusLead {
-		return nil
-	}
-	if len(log) == 0 || log[len(log)-1].Status != a.Status {
-		return a.StatusLog
-	}
-	return log
-}
-
-// lastChange is when the Application reached its current Status, ignoring undone moves:
-// the store's LastChange unless an undo took entries out.
-func lastChange(a store.Application) *store.StatusEntry {
-	log := effectiveLog(a)
-	if len(log) == len(a.StatusLog) {
-		return a.LastChange
-	}
-	if len(log) == 0 {
-		return nil
-	}
-	e := log[len(log)-1]
-	return &e
-}
-
-// appliedDate is the Application's first Applied entry that was not undone, or nil: the
-// store's AppliedDate unless an undo took entries out.
-func appliedDate(a store.Application) *store.StatusEntry {
-	log := effectiveLog(a)
-	if len(log) == len(a.StatusLog) {
-		return a.AppliedDate
-	}
-	for _, e := range log {
-		if e.Status == store.StatusApplied {
-			return &e
-		}
-	}
-	return nil
-}
-
 // shown reports whether the active view lists folder's row.
 func (m model) shown(folder string) bool {
 	return slices.ContainsFunc(m.rows(), func(r store.Application) bool { return r.Folder == folder })
@@ -276,7 +242,7 @@ func (m *model) undoLast() tea.Cmd {
 	// Read the file itself: the rows can lag behind another writer.
 	if now, err := m.store.Rescan(a.Folder); err == nil && now != nil && now.Status != last.target {
 		m.undo = m.undo[:len(m.undo)-1]
-		m.reload(a.Folder)
+		m.reload(a.Folder, a.Folder)
 		m.toast, m.toastHint, m.toastKind = "Not undone · "+moveName(a)+" changed since the move", "", toastNote
 		return nil
 	}
@@ -290,14 +256,21 @@ func (m *model) undoLast() tea.Cmd {
 			m.err = err
 			return cmd
 		}
-		m.reload(m.cursorFolder())
+		m.reload(m.cursorFolder(), a.Folder)
+	}
+	if last.closeReason != "" {
+		if err := m.store.SetCloseReason(a.Folder, last.closeReason); err != nil {
+			m.err = err
+			return cmd
+		}
+		m.reload(m.cursorFolder(), a.Folder)
 	}
 	if last.sent {
 		if _, err := m.store.SetAsideSent(a.Folder, m.now()); err != nil {
 			m.err = err
 			return cmd
 		}
-		m.reload(m.cursorFolder())
+		m.reload(m.cursorFolder(), a.Folder)
 	}
 	m.toast, m.toastHint = m.undoToast(a, last), ""
 	m.offerFollow(a.Folder)

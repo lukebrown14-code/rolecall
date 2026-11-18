@@ -44,6 +44,34 @@ var FilterReasons = []string{FilterExpired, FilterBlocker, FilterApplicantCap, F
 
 func validStatus(s string) bool { return slices.Contains(Statuses, s) }
 
+// blank is SCHEMA's blank line or value: empty or only spaces and tabs. strings.TrimSpace
+// would also take a vertical tab or form feed for one.
+func blank(s string) bool { return strings.Trim(s, " \t") == "" }
+
+// wholeNumber reads SCHEMA's whole number (schema, applicants, term_months): ASCII digits
+// only, no sign, within a signed 64-bit integer. strconv.Atoi alone accepts "+5".
+func wholeNumber(v string) (int, bool) {
+	if !wholePattern.MatchString(v) {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	return int(n), err == nil
+}
+
+// validTimestamp is a status_log at: RFC 3339 with an offset of at most 23:59, or a date.
+// time.Parse alone takes a +24:00 or +23:60 offset.
+func validTimestamp(s string) bool {
+	if _, err := time.Parse(time.RFC3339, s); err != nil {
+		_, err = time.Parse(time.DateOnly, s)
+		return err == nil
+	}
+	if strings.HasSuffix(s, "Z") {
+		return true
+	}
+	offset := s[len(s)-len("00:00"):]
+	return offset[:2] <= "23" && offset[3:] <= "59"
+}
+
 // ParseError is a meta.yml the store cannot read: the file, the first line it failed
 // on, and why. Its text is "path:line: reason".
 type ParseError struct {
@@ -70,7 +98,7 @@ func readApplication(dir string, b []byte) Application {
 	inLog, inContacts := false, false
 	legacy := ""
 	for n, line := range strings.Split(strings.TrimSuffix(string(b), "\n"), "\n") {
-		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
+		if blank(line) || strings.HasPrefix(line, "#") {
 			continue
 		}
 		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
@@ -89,10 +117,8 @@ func readApplication(dir string, b []byte) Application {
 			if !validStatus(m[1]) {
 				return fail(n+1, fmt.Errorf("unknown Status"))
 			}
-			if _, err := time.Parse(time.RFC3339, m[2]); err != nil {
-				if _, err = time.Parse("2006-01-02", m[2]); err != nil {
-					return fail(n+1, fmt.Errorf("invalid status timestamp"))
-				}
+			if !validTimestamp(m[2]) {
+				return fail(n+1, fmt.Errorf("invalid status timestamp"))
 			}
 			e := StatusEntry{Status: m[1], At: m[2], Approx: m[4] == "true"}
 			a.StatusLog = append(a.StatusLog, e)
@@ -111,10 +137,10 @@ func readApplication(dir string, b []byte) Application {
 		inLog = k == "status_log"
 		inContacts = k == keyContacts
 		if inContacts {
-			if t := strings.TrimSpace(raw); t != "" && t != "[]" {
+			if t := strings.Trim(raw, " \t"); t != "" && t != "[]" {
 				return fail(n+1, fmt.Errorf("invalid contacts"))
 			}
-			inContacts = strings.TrimSpace(raw) == ""
+			inContacts = blank(raw)
 			continue
 		}
 		if k == keyNextStep {
@@ -126,10 +152,10 @@ func readApplication(dir string, b []byte) Application {
 			continue
 		}
 		if inLog {
-			if strings.TrimSpace(raw) != "" && strings.TrimSpace(raw) != "[]" {
+			if t := strings.Trim(raw, " \t"); t != "" && t != "[]" {
 				return fail(n+1, fmt.Errorf("invalid status_log"))
 			}
-			if strings.TrimSpace(raw) == "[]" {
+			if strings.Trim(raw, " \t") == "[]" {
 				inLog = false
 			}
 			continue
@@ -146,11 +172,11 @@ func readApplication(dir string, b []byte) Application {
 		}
 		switch k {
 		case "schema":
-			version, err := strconv.Atoi(v)
-			if err == nil && version > 1 {
+			version, ok := wholeNumber(v)
+			if ok && version > 1 {
 				return fail(n+1, fmt.Errorf("schema %d is newer than this version; upgrade rolecall", version))
 			}
-			if err != nil || version != 1 {
+			if !ok || version != 1 {
 				return fail(n+1, fmt.Errorf("unsupported schema"))
 			}
 		// The strings the UI draws are cleaned once here, so no escape a scraped ad
@@ -190,8 +216,8 @@ func readApplication(dir string, b []byte) Application {
 			a.PostedLabel = DisplayText(v)
 		case keyApplicants:
 			if v != "" {
-				count, err := strconv.Atoi(v)
-				if err != nil || count < 0 {
+				count, ok := wholeNumber(v)
+				if !ok {
 					return fail(n+1, fmt.Errorf("invalid applicants"))
 				}
 				a.Applicants = &count

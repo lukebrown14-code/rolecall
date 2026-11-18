@@ -136,6 +136,21 @@ Every document layers three files; later files win on tone and convention:
 
 No file may override the facts-only rule in `plugin/writing-rules.md`.
 
+## Script modules
+
+The skills run only the CLIs. Each one puts `plugin/scripts/` on `sys.path`, so it imports
+the shared modules beside it from any working directory. A module name must be a valid
+Python identifier, which is why shared code never lives in `new-job.py` or `set-fit.py`.
+
+- `meta.py` is the meta.yml CLI and the one import other scripts use. It re-exports
+  `metayaml` (the line grammar), `metaread` (reading Applications), `metawrite` (the
+  validating writers) and `followup` (Follow-up due).
+- `sweep.py` is the Sweep CLI. Its parts are `boards` (the collectors), `sourceregistry`,
+  `rolecatalogue` (`jobs/roles.json`), `searcharea`, `captured` (what the Workspace holds)
+  and `sweepreport`.
+- `workspace`, `workspaceio`, `httpfetch`, `signals`, `adfacts`, `aggregator`, `contact`
+  and `urlcheck` are shared by several scripts.
+
 ## Tests
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md#run-the-checks). The Python tests stub `pandoc`,

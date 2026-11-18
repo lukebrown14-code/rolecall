@@ -3,11 +3,10 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"sort"
-	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -23,49 +22,18 @@ const (
 // entry's date, then folder.
 func sortNewest(rows []store.Application) {
 	added := func(a store.Application) string {
-		log := effectiveLog(a) // an undone first move does not make a Lead new
+		log := schedule.EffectiveLog(a) // an undone first move does not make a Lead new
 		if len(log) == 0 {
 			return ""
 		}
 		return log[0].At
 	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		if a, b := added(rows[i]), added(rows[j]); a != b {
-			return a > b
+	sortStableBy(rows, func(a store.Application) datedRow { return datedRow{added(a), a.Folder} }, func(a, b datedRow) bool {
+		if a.date != b.date {
+			return a.date > b.date
 		}
-		return rows[i].Folder < rows[j].Folder
+		return a.folder < b.folder
 	})
-}
-
-// deadline is the last day a Lead or Draft is worth sending: its close date, or for a
-// Lead the day its ad reaches max_posting_age_days (the day ageWarning reads "expires
-// today"), whichever is sooner. ok is false when it has neither.
-func deadline(a store.Application, rules store.SearchRules) (time.Time, bool) {
-	closes, hasCloses := parseDay(a.Closes)
-	expires, hasExpiry := postingExpiry(a, rules)
-	switch {
-	case hasCloses && hasExpiry:
-		if expires.Before(closes) {
-			return expires, true
-		}
-		return closes, true
-	case hasExpiry:
-		return expires, true
-	}
-	return closes, hasCloses
-}
-
-// postingExpiry is the day a Lead's ad reaches max_posting_age_days, when the rule is set
-// and the ad says when it was posted. Only a Lead has one, as only a Lead is warned of it.
-func postingExpiry(a store.Application, rules store.SearchRules) (time.Time, bool) {
-	if rules.MaxPostingAgeDays <= 0 || a.Status != store.StatusLead {
-		return time.Time{}, false
-	}
-	posted, ok := parseDay(a.Posted)
-	if !ok {
-		return time.Time{}, false
-	}
-	return posted.AddDate(0, 0, rules.MaxPostingAgeDays), true
 }
 
 // span is a distance in days as the list words it: "4d", "3w", "2mo", and from two
@@ -88,71 +56,9 @@ const (
 	yearsFrom   = 2 * daysPerYear
 )
 
-// parseDay reads the day of a status or close date: a YYYY-MM-DD value, or the date part
-// of an RFC 3339 timestamp. It is the one place a date is turned into a day.
-func parseDay(date string) (time.Time, bool) {
-	t, err := time.Parse("2006-01-02", strings.Split(date, "T")[0])
-	if err != nil {
-		return time.Time{}, false
-	}
-	return t, true
-}
-
-// day is now's date at midnight, so day differences ignore the time of day.
-func day(now time.Time) time.Time {
-	t, _ := time.Parse("2006-01-02", now.Format("2006-01-02"))
-	return t
-}
-
-// daysFrom is the whole days from today to date (negative in the past), and whether
-// date could be read.
-func daysFrom(date string, now time.Time) (time.Time, int, bool) {
-	t, ok := parseDay(date)
-	if !ok {
-		return time.Time{}, 0, false
-	}
-	return t, int(t.Sub(day(now)).Hours() / hoursPerDay), true
-}
-
-// followUpDue reports whether a sent Application's last change is older than the
-// follow-up period: the whole-day rule the row's ⚑ flag and the Stats screen share, so
-// the flag and the reasoning can never disagree. The time of day never matters.
-func followUpDue(a store.Application, now time.Time, days int) bool {
-	_, ok := followUpDaysPast(a, now, days)
-	return ok
-}
-
 // heatHighAfter is how many days past its follow-up date a Follow-up due flag turns
 // bold: the flag is always ⚑, and its weight, not another glyph, says it is long overdue.
 const heatHighAfter = 7
-
-// followUpDaysPast is how many whole days past its follow-up date a sent Application is
-// (0 on the day it falls due), and whether it is Follow-up due at all. The follow-up date
-// is follow_up_days after the later of the last Status change and the last recorded
-// follow-up (followed_up), so l clears the flag until it falls due again. A next step
-// booked for today or later holds the flag: something is already arranged, so nothing is
-// due until it passes. Every Follow-up due reader (the row's ⚑, sorting, NEXT, Stats → Now)
-// comes through here, so the hold is the same everywhere.
-func followUpDaysPast(a store.Application, now time.Time, days int) (int, bool) {
-	if !followUpStatus(a.Status) || nextStepBooked(a, now) {
-		return 0, false
-	}
-	t, ok := followUpFrom(a)
-	if !ok {
-		return 0, false
-	}
-	past := int(day(now).Sub(t.AddDate(0, 0, days)).Hours() / hoursPerDay)
-	return past, past >= 0
-}
-
-// nextStepBooked reports a next step on or after today's date.
-func nextStepBooked(a store.Application, now time.Time) bool {
-	if a.NextStep == nil {
-		return false
-	}
-	_, days, ok := daysFrom(a.NextStep.Day(), now)
-	return ok && days >= 0
-}
 
 // followUpLate reports a Follow-up due flag drawn bold: more than heatHighAfter days past.
 func followUpLate(past int) bool { return past > heatHighAfter }
@@ -161,7 +67,7 @@ func followUpLate(past int) bool { return past > heatHighAfter }
 // 9mo", or "due · followed up 3w ago" once a recorded follow-up is what it counts from. The
 // span is followUpQuiet, the row's "⚑ 9mo", so the two never disagree.
 func (m model) followUpWords(a store.Application) string {
-	if followedUpLater(a) {
+	if schedule.FollowedUpLater(a, m.now().Location()) {
 		return "due · followed up " + m.followUpQuiet(a) + " ago"
 	}
 	return "due · no change in " + m.followUpQuiet(a)
@@ -193,7 +99,7 @@ func closeInfo(closes string, now time.Time) (string, closeState) {
 	if closes == "" {
 		return "", closeNone
 	}
-	t, days, ok := daysFrom(closes, now)
+	t, days, ok := schedule.DaysFrom(closes, now)
 	switch {
 	case !ok:
 		return "closes " + closes, closeLater

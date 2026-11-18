@@ -254,6 +254,33 @@ func TestUndoKeepsASentItDidNotMake(t *testing.T) {
 	}
 }
 
+// Whether the move made sent/ comes from the move itself, not from rows that may lag: a
+// sent/ another writer froze after the rows were read is not the move's, and its undo
+// keeps it.
+func TestUndoKeepsASentMadeSinceTheRowsWereRead(t *testing.T) {
+	root, folder := appliedWorkspace(t, map[string]string{"resume.md": "original"})
+	tm, wait := appliedSession(t, root)
+	if err := os.MkdirAll(filepath.Join(folder, "sent"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "sent", "resume.md"), []byte("other writer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tm.Type("ma")
+	wait("Docs not Ready")
+	tm.Type("y")
+	wait("Moved to Applied")
+	tm.Type("u")
+	wait("Undone · back to ")
+	if strings.Contains(tm.plain(), "set aside") {
+		t.Fatalf("undo claims to set aside a sent copy it did not make:\n%s", tm.plain())
+	}
+	quit(t, tm)
+	if got := sentFiles(t, folder); !equalFiles(got, map[string]string{"resume.md": "other writer"}) {
+		t.Fatalf("sent/ after undo = %v", got)
+	}
+}
+
 func TestMalformedMoveToAppliedShowsErrorWithoutPrompt(t *testing.T) {
 	root := t.TempDir()
 	folder := filepath.Join(root, "jobs", "SWE", "role")

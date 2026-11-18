@@ -4,18 +4,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// postedDays is how many whole days ago a Lead's ad was posted, and whether it says.
-func postedDays(a store.Application, now time.Time) (int, bool) {
-	_, d, ok := daysFrom(a.Posted, now)
-	return -d, ok
-}
-
 // postedAge is a posting age as a row shows it, "12d", or "" when the ad has no date.
 func postedAge(a store.Application, now time.Time) string {
-	d, ok := postedDays(a, now)
+	d, ok := schedule.PostedDays(a, now)
 	if !ok {
 		return ""
 	}
@@ -23,27 +18,21 @@ func postedAge(a store.Application, now time.Time) string {
 }
 
 // ageWarning is what max_posting_age_days says of a Lead: "past the age limit" once its
-// ad is older, "expires in N days" within expiry_warning_days of it, or "".
+// ad reaches it, "expires in N days" within expiry_warning_days of it ("expires in 1 day"
+// on its last day), or "".
 func ageWarning(a store.Application, rules store.SearchRules, now time.Time) string {
-	if rules.MaxPostingAgeDays <= 0 || a.Status != store.StatusLead {
-		return ""
-	}
-	d, ok := postedDays(a, now)
-	if !ok {
-		return ""
-	}
-	left := rules.MaxPostingAgeDays - d
+	left, ok := schedule.PostingDaysLeft(a, rules, now)
 	switch {
-	case left < 0:
+	case !ok:
+		return ""
+	case left <= 0:
 		return "past the age limit"
-	case left == 0:
-		return "expires today"
+	case left > rules.ExpiryWarningDays:
+		return ""
 	case left == 1:
 		return "expires in 1 day"
-	case d >= rules.MaxPostingAgeDays-rules.ExpiryWarningDays:
-		return "expires in " + strconv.Itoa(left) + " days"
 	}
-	return ""
+	return "expires in " + strconv.Itoa(left) + " days"
 }
 
 // filterReasonLabel is a filter_reason as the Owner reads it.

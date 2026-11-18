@@ -34,7 +34,8 @@ each other directly: files are the only link.
 rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)        
 ├─ cmd/rolecall/main.go                       ├─ workspace.json
 ├─ internal/store/   meta.yml read/patch, scan         ├─ profile/   (+ writing-preferences.md)
-├─ internal/ui/      Bubble Tea models, views          ├─ cv/
+├─ internal/schedule/ Follow-up due, deadlines, Now    ├─ cv/
+├─ internal/ui/      Bubble Tea models, views          │
 ├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json
@@ -107,7 +108,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
 
 | Table | Columns | Sort |
 |---|---|---|
-| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | by deadline, soonest first: the close date, or for a Lead the day its ad reaches `max_posting_age_days` (`posted` + the rule), whichever is sooner. No deadline goes after every dated row. Ties go by Fit (Strong, Good, Marginal, Poor, not assessed), then `posted`, newest first. A passed deadline (`expired 1 Sep`, or `⚠ past the age limit`) sorts under an Expired section. `o` on Leads switches to newest added first, which mixes expired Leads back in; the Leads header names the order in force (`◌ Leads · 23 · by deadline`, `· newest first`) |
+| Leads, Draft | Title · Company · Track · Closes · Fit (+ Docs on Draft) | by deadline, soonest first: the close date, or for a Lead the last day before its ad reaches `max_posting_age_days` (`posted` + the rule − 1; its Source's own `rules.max_posting_age_days` when the Lead's `source` names one), whichever is sooner. An ad exactly at the limit is past it, as `rules.py check` reads it. No deadline goes after every dated row. Ties go by Fit (Strong, Good, Marginal, Poor, not assessed), then `posted`, newest first. A passed deadline (`expired 1 Sep`, or `⚠ past the age limit`) sorts under an Expired section. `o` on Leads switches to newest added first, which mixes expired Leads back in; the Leads header names the order in force (`◌ Leads · 23 · by deadline`, `· newest first`) |
 | Dismissed | Title · Company · Track · Dismissed (date) | newest first |
 | Applied, Interviewing, Offer, Closed | Title · Company · Track · Applied · Fit · Docs · Follow-up | Applied date, newest first. In Applied and Interviewing, Follow-ups due come first, most overdue first |
 
@@ -116,7 +117,7 @@ refreshes, and the cursor stays on the same Application (matched by folder) when
   Docs shows on Draft only (the Pipeline screen's rows show Fit and the follow-up flag, and
   Closed rows name the outcome on the second line, `rejected ~7d ago` / `withdrawn ~7d ago`,
   under the Status glyph `✕` / `↩`).
-- Follow-up: `⚑` when the Status is Applied or Interviewing and the later of the last change and the last recorded follow-up (`l`, `followed_up`) is more than `follow_up_days` old, unless a next step is booked for today or later (the row, sorting, `NEXT` and Stats → Now share the rule).
+- Follow-up: `⚑` when the Status is Applied or Interviewing and the later of the last change and the last recorded follow-up (`l`, `followed_up`) is `follow_up_days` old or older (due on the day the period ends, as SCHEMA.md words it; a move undone within 15 minutes does not count as a change), unless a next step is booked for today or later (the row, sorting, `NEXT`, Stats → Now and `meta.py follow-up` share the rule).
 - Fit: in list rows the enum word alone (`Good`), in its own colour, left-aligned in a column as wide as `Marginal`, and blank when not assessed. The preview, card and detail keep the label (`fit Good`, `fit not assessed`).
 - Malformed `meta.yml`: the row reads `⚠ Can't read SWE/malformed`, then the failing line and how to fix it
   (`meta.yml line 4: indented lines must be status_log entries: …`). The detail view says the same at full width, with the path
@@ -209,7 +210,9 @@ table, and the feedback line says `Moved to Interviewing · <Title> (<Company>)`
 
 Side effects when moving to Applied:
 1. If the documents are not Ready, ask first: a `⚠ Docs not Ready` pop-up, keys `y yes · n / esc no` (`y` marks it Applied; `enter` does not answer it and the pop-up says `Press y to confirm, or n to cancel.`).
-2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it. Never overwrite an existing `sent/`.
+2. If `sent/` does not exist, copy `resume.md`, `cover-letter.md`, `jd.md`, `fit.md`, `gaps.md` and `out/*.pdf` into it: regular files only (a symlink is skipped), in a private folder. The copy is made in a `sent.tmp-*` folder and renamed to `sent/` once whole, before Applied is appended, so a failed copy shows the error and moves nothing (no partial `sent/`, nothing to undo). Never overwrite an existing `sent/`.
+
+`rolecall move FOLDER applied` makes the same move (one store function for both). Where the TUI asks, it refuses a not-Ready Application with what is missing (`… is not Ready (Resume PDF not built); build its PDFs first, or pass --force to mark it Applied anyway`) and writes nothing; `--force` is the `y`.
 
 Moving to Rejected or Withdrawn asks a second, optional question once the move is done: a
 `Moved to Rejected · why did it end?` pop-up listing the reasons in words, each with a number key:
@@ -220,10 +223,11 @@ more. The move's toast and its `u undo` come back when the pop-up closes. The an
 (SCHEMA); free text can be typed into `meta.yml`, and the screen shows any value in words (hyphens as
 spaces). The Edit form sets or changes it later. The move stays whatever the answer. It follows the `filter_reason` pattern: a reason that explains a
 Status travels with the entry that made it, and goes when the Application leaves that Status (the
-undo of the move included). The card's `CLOSED` row shows it in words, with `e edit`.
+undo of the move included); `u` after a move out of Rejected or Withdrawn puts the reason back with the
+Status. The card's `CLOSED` row shows it in words, with `e edit`.
 
 Undo (`u`): a session stack of `(folder, previous Status)`. Undo appends the previous
-Status (the log stays append-only) and says so on the feedback line (`Undone · back to Draft · on Drafts · Title (Company)`, where it is now in screen and view terms, with `i go to it` when that is somewhere else). It deletes nothing: when the undone move to Applied created `sent/`, the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`; the toast says only `its sent copy set aside`, never a folder or file name. The stack lasts for the session (the help says `u undo (this session)`): nothing is undoable after a restart.
+Status (the log stays append-only) and says so on the feedback line (`Undone · back to Draft · on Drafts · Title (Company)`, where it is now in screen and view terms, with `i go to it` when that is somewhere else). It deletes nothing: when the undone move to Applied created `sent/` (as the move itself reports, not the rows, which can lag), the undo renames it to `sent.undone-<date>/`, so the next real Applied freezes a fresh `sent/`; the toast says only `its sent copy set aside`, never a folder or file name. The stack lasts for the session (the help says `u undo (this session)`): nothing is undoable after a restart.
 Undoing an Application's first move back to Lead leaves it as it was: the card says `Not moved
 yet` and the row gains no age (an empty effective log reads as never moved). A recorded
 follow-up (`l`) sits on the same stack: its undo puts back the `followed_up` day it replaced, or
@@ -693,7 +697,9 @@ Automated
 ### Config and the process seam
 
 - `harness`: one command template for every Handoff. `{skill}` is the Plugin skill name,
-  `{dir}` the absolute Application folder, shell-quoted. Runs through `/bin/sh -c`, like the editor.
+  `{dir}` the absolute Application folder. Runs as `/bin/sh -c SCRIPT rolecall-harness DIR SKILL`,
+  like the editor: the placeholders become `$1`/`$2` references quoted for their spot (bare,
+  inside double quotes, or inside single quotes), so the folder never enters the script text.
 - `plugin`: path to `rolecall/plugin`, else `$ROLECALL_PLUGIN`. No auto-detection.
 - `runExternal` runs in one of two modes:
   - interactive: suspend, run, resume, rescan. Used by `$EDITOR`, the viewer, Handoffs.

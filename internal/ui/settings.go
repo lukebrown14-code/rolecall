@@ -1,17 +1,21 @@
 package ui
 
 import (
-	"errors"
-	"image/color"
-	"strconv"
+	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/lukebrown14-code/rolecall/internal/store"
+	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/ui/settings"
 )
+
+// The Settings screen is the sub-model in internal/ui/settings. This adapter opens and
+// closes it, hands it the running application (Env) and the shared look (Look), and
+// applies the intents it returns: writes through store and config, the reload that
+// follows, the feedback line, and the pop-ups over the frame.
 
 // settingsFile is the Workspace file the Search, Documents and Tracking groups write.
 const settingsFile = "workspace.json"
@@ -19,14 +23,15 @@ const settingsFile = "workspace.json"
 // configFile is the machine file This machine and follow-up days are kept in.
 const configFile = "config.toml"
 
-// Settings screen sizing.
+type settingsState = settings.Model
+
+var settingsGroups = settings.Groups
+
 const (
-	// maxLabelWidth caps the label column, which is otherwise as wide as the group's longest label.
-	maxLabelWidth = 24
-	// maxFieldWidth is the widest an inline field grows: a value is edited where it sits.
-	maxFieldWidth = 30
-	// minFieldWidth is the narrowest an inline field is drawn.
-	minFieldWidth = 12
+	groupMachineName = settings.GroupMachineName
+	labelEditor      = settings.LabelEditor
+	labelHarness     = settings.LabelHarness
+	labelPlugin      = settings.LabelPlugin
 )
 
 // settingsBack is where Esc returns to from Settings.
@@ -52,12 +57,6 @@ func (m model) closeSettings() model {
 	return m
 }
 
-// settingsUndo is the last Settings save, so u can put the old value back once.
-type settingsUndo struct {
-	what    string // "Editor back to vi"
-	restore func(model) model
-}
-
 // loadSettings re-reads workspace.json and config.toml. It runs on entering the screen, on r and after
 // the editor closes; the group, row, focus and undo are kept.
 func (m model) loadSettings() model {
@@ -65,11 +64,12 @@ func (m model) loadSettings() model {
 	if m.settings != nil {
 		st = *m.settings
 	}
-	st, err := st.Load(m.store)
+	loaded, err := st.Load(m.store)
 	if err != nil {
 		m.err = err
 		return m
 	}
+	st.State = loaded
 	// A Track list that breaks the name rules (one listed twice) stops the screen like a
 	// broken file: its rows would offer edits on a list rolecall cannot use.
 	if _, err := m.store.Tracks(); st.Ws.Err == nil && badTrackList(err) {
@@ -87,50 +87,44 @@ func (m model) loadSettings() model {
 			m.err = was
 		}
 	}
-
+	st = st.Clamp(m.settingsEnv())
 	m.settings = &st
 	m.wsInvalid = st.Ws.Err != nil
-	st.Row = m.selectableRow(st.Group, st.Row, 1)
 	return m
 }
 
-// settingsGroupHandler is one Settings group's keys: how the help describes them and how
-// the screen dispatches them. The screen reads one table, so a group cannot be dispatched
-// without also being described, and the group order is data rather than a chain of calls.
-type settingsGroupHandler struct {
-	group int
-	help  func(model) []helpKey
-	// key handles the group's row keys; nil when the group has none of its own (This
-	// machine's rows activate through Enter, like every other row).
-	key func(model, tea.KeyPressMsg) (model, bool)
+// settingsEnv is the running application as Settings reads it.
+func (m model) settingsEnv() settings.Env {
+	return settings.Env{Machine: m.settingsMachine(), Apps: m.apps, Store: m.store, ConfigBroken: m.configBroken(),
+		ConfigFeedback: m.configFeedback(), ConfigErr: m.configErr, Narrow: m.layout().w < mediumWidth}
 }
 
-// settingsHandlers is every group's handler, in display order.
-var settingsHandlers = []settingsGroupHandler{
-	{group: settings.GroupSearch, help: model.searchHelpKeys, key: model.searchKey},
-	{group: settings.GroupRules, help: model.rulesHelpKeys, key: model.rulesKey},
-	{group: settings.GroupSources, help: model.sourcesHelpKeys, key: model.sourcesKey},
-	{group: settings.GroupDocuments, help: model.gateHelpKeys, key: model.gatesKey},
-	{group: settings.GroupTracking, help: model.trackHelpKeys, key: model.tracksKey},
-	{group: settings.GroupMachine, help: model.machineHelpKeys},
+// settingsMachine is the machine settings as the screen shows them, with a warning for a
+// Harness or Plugin that will not run.
+func (m model) settingsMachine() settings.Machine {
+	mc := settings.Machine{Workspace: m.store.Root(), EditorSet: m.editor, EditorSource: m.editorSource, Downloads: m.downloads,
+		Harness: m.harness, Plugin: m.plugin, ASCII: m.ascii, Inherit: m.inherit, FollowUpDays: m.followUpDays, Sources: m.sources,
+		HarnessWarning: harnessWarning(m.harness), PluginWarning: pluginWarning(m.plugin),
+		FollowUpWarning: m.configWarning(settings.KeyFollowUpDays)}
+	mc.Editor = ResolveEditor(m.editor)
+	mc.EditorAvailable = editorOnPath(mc.Editor)
+	return mc
+}
+
+func (m model) settingsRows(group int) []settings.Row {
+	return m.settings.GroupRows(group, m.settingsEnv())
 }
 
 // settingsHelpKeys is the keys Settings accepts. Application actions are absent, and so
 // are the global keys.
 func (m model) settingsHelpKeys() []helpKey {
 	if m.settings != nil && m.settings.Edit != nil {
-		if m.settings.Edit.Discarding {
-			return []helpKey{help(groupAction, "y", "discard").at(prioCore), help(groupNav, keyNoEsc, "keep editing").at(prioPinned)}
-		}
-		return []helpKey{help(groupAction, "enter", "save").at(prioCore), help(groupAction, keyClearField, "clear").at(prioCore),
-			help(groupNav, "esc", "cancel").at(prioPinned)}
+		return settingsKeys(m.settings.EditKeys())
 	}
+	env := m.settingsEnv()
 	keys := []helpKey{}
-	for _, h := range settingsHandlers {
-		keys = append(keys, h.help(m)...)
-	}
-	if m.settings != nil && m.settings.Undo != nil {
-		keys = append(keys, help(groupAction, "u", "undo").at(prioPinned)) // the toast's offer stays reachable
+	if m.settings != nil {
+		keys = append(keys, settingsKeys(m.settings.RowKeys(env))...)
 	}
 	if m.eOpensConfig() {
 		if m.configHome != "" {
@@ -142,17 +136,8 @@ func (m model) settingsHelpKeys() []helpKey {
 	} else {
 		keys = append(keys, help(groupAction, "e", "edit "+settingsFile))
 	}
-	if m.settings != nil && m.settings.Ws.Err == nil {
-		// ←→ switch sections as they switch views elsewhere; tab does too (tabKey), and [ ]
-		// unlisted, as the help would wrap [ ] in brackets.
-		// Below the medium width there is no group list beside the rows, so the section key
-		// is pinned: it is the only sign the other sections are there.
-		section := help(groupNav, "←→", "section").at(prioCore)
-		if m.layout().w < mediumWidth {
-			section = section.at(prioPinned)
-		}
-		keys = append(keys, section, tabKey("section"), help(groupNav, "j k", "select"),
-			help(groupNav, "g G", "first, last").at(prioHelpOnly))
+	if m.settings != nil {
+		keys = append(keys, settingsKeys(m.settings.NavKeys(env))...)
 	}
 	if m.err != nil {
 		keys = append(keys, help(groupNav, "esc", "clear error").at(prioPinned))
@@ -162,8 +147,31 @@ func (m model) settingsHelpKeys() []helpKey {
 	return keys
 }
 
+// settingsKeys declares Settings' keys in the one registry the key line, help and
+// palette read.
+func settingsKeys(ks []settings.Key) []helpKey {
+	out := make([]helpKey, 0, len(ks))
+	for _, k := range ks {
+		group := groupAction
+		if k.Nav {
+			group = groupNav
+		}
+		h := help(group, k.Key, k.Desc)
+		switch k.Prio {
+		case settings.PrioCore:
+			h = h.at(prioCore)
+		case settings.PrioPinned:
+			h = h.at(prioPinned)
+		case settings.PrioHelpOnly:
+			h = h.at(prioHelpOnly)
+		}
+		out = append(out, h)
+	}
+	return out
+}
+
 // settingsKey handles the keys Settings accepts. e hands the group's file to the Owner's
-// editor and the screen re-reads when it exits; Enter saves each change at once.
+// editor and the screen re-reads when it exits; the rest go to the sub-model.
 func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "r":
@@ -190,36 +198,24 @@ func (m model) settingsKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.settings == nil || m.settings.Ws.Err != nil {
 		return m, nil // an invalid file offers e and nothing else
 	}
-	if k.String() == "u" {
-		if m.settings.Undo == nil {
-			// u reverts Settings changes here, not moves; with none it still answers.
-			m.toast, m.toastKind = "Nothing to undo in Settings", toastNote
-			return m, nil
-		}
-		return m.undoSetting(), nil
-	}
-	if next, cmd, ok := m.sourceCheckKey(k); ok {
-		return next, cmd
-	}
-	for _, h := range settingsHandlers {
-		if h.key == nil {
-			continue
-		}
-		if next, ok := h.key(m, k); ok {
-			return next, nil
-		}
-	}
-	st := *m.settings
-	switch k.String() {
-	case "enter":
-		if !st.Header {
-			return m.activateSetting()
-		}
-	default:
-		st = st.Navigate(k.String(), m.settingsMachine())
-	}
+	st, in := m.settings.Update(k, m.settingsEnv())
 	m.settings = &st
-	return m, nil
+	next, cmd, _ := m.applySettings(in)
+	return next, cmd
+}
+
+// editKey and editPaste type into the open inline field, which owns the keyboard.
+func (m model) editKey(k tea.KeyPressMsg) model {
+	st, in := m.settings.EditKey(k, m.settingsEnv())
+	m.settings = &st
+	m, _, _ = m.applySettings(in)
+	return m
+}
+
+func (m model) editPaste(text string) model {
+	st := m.settings.EditPaste(text)
+	m.settings = &st
+	return m
 }
 
 // eOpensConfig reports whether e opens config.toml rather than workspace.json: on This
@@ -232,40 +228,228 @@ func (m model) eOpensConfig() bool {
 	return settingsGroups[m.settings.Group] == groupMachineName || (m.configBroken() && m.settings.Ws.Err == nil)
 }
 
-// saved reports a Settings save on the feedback line, naming the file it went to, and
-// keeps restore so u can put the old value back.
-func (m model) saved(msg, file string, undo *settingsUndo) model {
-	m.toast = msg + " · " + file
-	if m.settings != nil {
-		st := *m.settings
-		st.Undo = undo
-		m.settings = &st
+// applySettings applies one intent of the sub-model. err is a refused write whose pop-up
+// keeps it under its field (Save.OnForm).
+func (m model) applySettings(in settings.Intent) (model, tea.Cmd, error) {
+	switch in := in.(type) {
+	case settings.Save:
+		return m.applySave(in)
+	case settings.Restore:
+		return m.undoSetting(in.Undo), nil, nil
+	case settings.Open:
+		m.overlay = &settingsPopup{in.Popup}
+	case settings.Fail:
+		m.err = in.Err
+	case settings.Note:
+		m.toast, m.toastKind = in.Text, toastNote
+	case settings.CheckSource:
+		return m.checkSource(in.Name)
+	case settings.ShowTrack:
+		m = m.showTrack(in.Track)
 	}
-	return m
+	return m, nil, nil
 }
 
-// rowShown is the value a group's row named label shows, unit and all, or "not set": what
-// an undo names, so it reads as the row did before the save.
-func (m model) rowShown(group int, label string) string {
-	for _, r := range m.settingsRows(group) {
-		if r.Label == label && r.Value != "" {
-			return r.ValueText()
+// applySave writes, re-reads what the write changed, and reports the save on the feedback
+// line, naming the file it went to. The undo is kept so u can put the old value back.
+func (m model) applySave(s settings.Save) (model, tea.Cmd, error) {
+	if err := m.writeSetting(s.Write); err != nil {
+		if s.OnForm {
+			return m, nil, err
+		}
+		m.err = err
+		return m, nil, nil
+	}
+	_, keepsErr := s.Write.(settings.SetGate)
+	if _, rule := s.Write.(settings.SetRule); rule {
+		keepsErr = true
+	}
+	m = m.reloadSetting(s.Write, !keepsErr)
+	switch s.Write.(type) {
+	case settings.SetTracks, settings.SetMachine:
+		if m.err != nil {
+			return m, nil, nil // the re-read failed, so nothing is reported saved
 		}
 	}
-	return "not set"
+	st, msg := m.settings.Saved(s, m.settingsEnv())
+	m.settings = &st
+	m.toast = msg + " · " + s.Write.File()
+	return m, nil, nil
 }
 
 // undoSetting puts back the value the last Settings save replaced.
-func (m model) undoSetting() model {
-	u := m.settings.Undo
-	m = u.restore(m)
-	st := *m.settings
-	st.Undo = nil
+func (m model) undoSetting(u settings.Undo) model {
+	if err := m.writeSetting(u.Restore); err != nil {
+		m.err = err
+	} else {
+		_, tracks := u.Restore.(settings.SetTracks)
+		_, machine := u.Restore.(settings.SetMachine)
+		m = m.reloadSetting(u.Restore, tracks || machine)
+	}
+	st := m.settings.Undone()
 	m.settings = &st
 	if m.err == nil {
-		m.toast, m.toastHint = "Undone · "+u.what, ""
+		m.toast, m.toastHint = "Undone · "+u.What, ""
 	}
 	return m
+}
+
+// writeSetting makes one Settings write: workspace.json through store, config.toml
+// through config.
+func (m model) writeSetting(w settings.Write) error {
+	switch w := w.(type) {
+	case settings.SetSearchArea:
+		return m.store.SetSearchArea(w.Places, w.Remote)
+	case settings.SetRule:
+		return m.setRule(w.Key, w.Text)
+	case settings.SetGate:
+		return m.store.SetGate(w.Key, w.Text)
+	case settings.SetTracks:
+		return m.store.SetTracks(w.Tracks)
+	case settings.SetSourceEnabled:
+		return m.store.SetSourceEnabled(w.Name, w.On)
+	case settings.AddSource:
+		return m.store.AddSource(w.Source)
+	case settings.RemoveSource:
+		return m.store.RemoveSource(w.Name)
+	case settings.UpdateSource:
+		return m.store.UpdateSource(w.Name, w.Source)
+	case settings.SetMachine:
+		return m.patchConfig(w.Key, w.Value)
+	}
+	return fmt.Errorf("unknown Settings write %T", w)
+}
+
+// setRule writes a Rules row's value; empty text clears it.
+func (m model) setRule(key, text string) error {
+	if settings.IsVisa(key) {
+		return m.store.SetVisa(key, text)
+	}
+	return m.store.SetSearchRule(key, text)
+}
+
+// reloadSetting re-reads what a write changed, so the change shows everywhere: Tracks
+// rescan for the header filter, config.toml re-reads the machine settings (the help bar,
+// Build and fetch availability, follow-up flags, Stats and the glyphs all follow), and the
+// Rules re-read the rules the lists warn by.
+func (m model) reloadSetting(w settings.Write, clearErr bool) model {
+	if clearErr {
+		m.err = nil
+	}
+	switch w.(type) {
+	case settings.SetTracks:
+		m.rescanAll()
+	case settings.SetMachine:
+		return m.loadMachine()
+	case settings.SetRule:
+		m = m.loadSettings()
+		m.loadRules()
+		return m
+	}
+	return m.loadSettings()
+}
+
+// settingsPopup is a Settings pop-up over the frame: a form drawn as every form is, or
+// the rename review and the refusal the sub-model draws.
+type settingsPopup struct{ p *settings.Popup }
+
+func (sp *settingsPopup) Keys() [][2]string { return sp.p.Keys() }
+
+func (sp *settingsPopup) View(m *model, p pal) string {
+	if sp.p.Form != nil {
+		return m.formBox(p, sp.p.Form, popSmall)
+	}
+	return sp.p.View(m.settingsLook(p))
+}
+
+func (sp *settingsPopup) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
+	next, in := sp.p.Update(msg, *m.settings, m.settingsEnv())
+	if r, ok := in.(settings.RenameTrack); ok {
+		return m.renameTrack(sp.p, r), nil
+	}
+	nm, cmd, err := m.applySettings(in)
+	*m = nm
+	if err != nil {
+		sp.p.Form.Focused().Err = err.Error()
+		return sp, cmd
+	}
+	if next == nil {
+		return nil, cmd
+	}
+	return &settingsPopup{next}, cmd
+}
+
+// renameTrack runs a confirmed rename, then re-reads so the header filter, Applications
+// and Settings follow. Skipped files keep the pop-up open to report them.
+func (m *model) renameTrack(p *settings.Popup, r settings.RenameTrack) mode {
+	res, err := m.store.RenameTrack(r.Old, r.New)
+	m.undo = nil // a rename is not a move: u must not reach back across it
+	m.rescanAll()
+	*m = m.loadSettings()
+	if err != nil {
+		m.err = err
+		return nil
+	}
+	next, msg := p.Renamed(res)
+	if next != nil {
+		return &settingsPopup{next}
+	}
+	m.toast = msg + " · " + settingsFile
+	st := m.settings.Undone()
+	m.settings = &st
+	return nil
+}
+
+// checkSource runs the Plugin's Sweep against one Source in the background
+// (sweep.py --test-source) and reports what it found. With no Plugin set it says where to
+// set one.
+func (m model) checkSource(name string) (model, tea.Cmd, error) {
+	if m.plugin == "" {
+		m.err = errNoPlugin
+		return m, nil, nil
+	}
+	m.toast, m.toastHint, m.toastKind = "Checking "+name+"…", "", toastNote
+	args := []string{filepath.Join(m.plugin, "scripts", "sweep.py"), dataFlag, m.store.Root(), "--test-source", name}
+	return m, m.runCaptured("python3", args, func(r CapturedResult) tea.Msg {
+		return sourceChecked{name: name, result: r}
+	}), nil
+}
+
+// showTrack leaves Settings for the list that holds most of a Track's Applications,
+// filtered to that Track: the Pipeline screen's All view, Drafts or Leads.
+func (m model) showTrack(track string) model {
+	type place struct{ screen, table int }
+	count := map[place]int{}
+	best, most := place{screen: screenIndex(screenPipeline)}, 0
+	for _, a := range m.apps {
+		if a.Track != track || a.Malformed != nil {
+			continue
+		}
+		name, table := appLocation(a)
+		if name == screenPipeline {
+			table = allView
+		}
+		at := place{screen: screenIndex(name)}
+		at.table = max(0, slices.Index(screenDefs[at.screen].tables, table))
+		if count[at]++; count[at] > most {
+			best, most = at, count[at]
+		}
+	}
+	m.back, m.detail = nil, nil
+	m.screen, m.table, m.cursor = best.screen, best.table, 0
+	m.track = slices.Index(m.filterTracks(), track) + 1
+	return m
+}
+
+// settingsLook is the palette, measures and helpers Settings draws with.
+func (m model) settingsLook(p pal) settings.Look {
+	return settings.Look{Palette: p.Palette, Edge: edge, Inset: inset, RightMargin: rightMargin, Gutter: gutter,
+		Marker: profileMarkerWidth, AboutGutter: profileGutter, AboutDivider: profileDivider,
+		PopWidth: popSmall, PopInset: popInset, ErrorMark: errorMark,
+		Wrap: wrapWords, KeepTogether: keepTogether, Divider: p.Divider, ClipLines: p.ClipLines, ContextRow: contextRow,
+		Popup: func(title string, warn bool, body, hints string) string {
+			return popup(p, title, warn, popSmall, m.viewWidth(), body, hints)
+		}}
 }
 
 // settingsView is the Settings screen in the same frame Profile uses. At wide sizes the
@@ -276,7 +460,7 @@ func (m model) settingsView(p pal) string {
 	if m.settingsAboutShown() {
 		split = m.settingsRowsWidth(w)
 	}
-	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h), split, focusLeft, m.statusRow(p, m.keyLine(p, w)))
+	return m.frame(p, []string{m.settingsContextRow(p, w)}, m.settingsBody(p, w, h, split), split, focusLeft, m.statusRow(p, m.keyLine(p, w)))
 }
 
 // settingsAboutShown reports whether the about pane sits beside the rows: at wide sizes,
@@ -295,459 +479,32 @@ func (m model) settingsRowsWidth(w int) int {
 	return w
 }
 
-// settingsTabs is the sections as `[Tracking]  Tracks …`: the active one in the single
-// selection style, brackets and all, so it reads without colour, as the active tab does.
-// Every section is named while they fit in room; otherwise only the active one and its place.
-func (m model) settingsTabs(p pal, room int) string {
-	active := func(name string) string { return p.SelText(true).Render("[" + name + "]") }
-	var parts []string
-	for i, name := range settingsGroups {
-		if i == m.settings.Group {
-			parts = append(parts, active(name))
-		} else {
-			parts = append(parts, p.Text(p.Dim).Render(name))
-		}
-	}
-	full := strings.Join(parts, "  ")
-	if xansi.StringWidth(full) <= room {
-		return full
-	}
-	return active(settingsGroups[m.settings.Group]) + p.Text(p.Dim).Render(" "+strconv.Itoa(m.settings.Group+1)+" of "+strconv.Itoa(len(settingsGroups)))
-}
-
-// settingsContextRow is the heading and the section tabs. The cursor rests here too (k
-// from the first field), where only the section keys act.
+// settingsContextRow is the heading and the section tabs.
 func (m model) settingsContextRow(p pal, w int) string {
-	lead := strings.Repeat(" ", inset)
-	if m.settings == nil || m.settings.Ws.Err != nil {
+	if m.settings == nil {
 		return strings.Repeat(" ", inset) + p.Heading("SETTINGS")
 	}
-	if m.settings.Header {
-		lead = strings.Repeat(" ", edge) + p.SelGutter(true)
-	}
-	head := lead + p.Heading("SETTINGS") + "  "
-	right := m.withChip(p, "")
-	room := w - rightMargin - xansi.StringWidth(head)
-	if right != "" {
-		room -= xansi.StringWidth(right) + gutter
-	}
-	return contextRow(head+m.settingsTabs(p, room), right, w)
+	return m.settings.Context(m.settingsLook(p), w, m.withChip(p, ""))
 }
 
-// settingsBody is the settings of the selected section, or the invalid-file notice.
-func (m model) settingsBody(p pal, w, h int) string {
-	pad := strings.Repeat(" ", inset)
-	if m.settings != nil && m.settings.Ws.Err != nil {
-		head, why := "workspace.json is not valid JSON", m.settings.Ws.Err
-		var tle *store.TrackListError
-		switch {
-		case m.settings.Ws.NewerSchema:
-			head = "workspace.json is schema " + strconv.Itoa(m.settings.Ws.Schema) + ", from a newer rolecall"
-		case errors.As(why, &tle):
-			head, why = "workspace.json lists a Track rolecall can't use", tle.Err
-		}
-		// The path and the reason wrap rather than cut: a long path is what the Owner has to
-		// open, and a cut one cannot be copied.
-		lines := []string{p.Text(p.Bad).Render(head)}
-		for _, part := range []string{m.settings.Ws.Path, why.Error()} {
-			for _, l := range wrapWords(part, max(1, w-inset-rightMargin)) {
-				lines = append(lines, p.Text(p.Fg).Render(l))
-			}
-		}
-		lines = append(lines, "", p.Text(p.Dim).Render("Press e to fix it in your editor. Nothing is written."))
-		text := pad + strings.Join(lines, "\n"+pad)
-		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, text)
-	}
+// settingsBody is the settings of the selected section, or the invalid-file notice; with
+// rowsW > 0 the about pane sits beside the rows.
+func (m model) settingsBody(p pal, w, h, rowsW int) string {
 	if m.settings == nil {
 		return lipgloss.Place(w, h, lipgloss.Left, lipgloss.Top, "")
 	}
-	if !m.settingsAboutShown() {
-		return lipgloss.NewStyle().Width(w).Height(h).MaxHeight(h).PaddingLeft(edge).
-			Render(m.settingsRowsView(p, w-edge-rightMargin, h, true))
-	}
-	rw := m.settingsRowsWidth(w)
-	rows := lipgloss.NewStyle().Width(rw).Height(h).MaxHeight(h).PaddingLeft(edge).
-		Render(m.settingsRowsView(p, rw-edge-gutter, h, false))
-	aboutW := w - rw - profileDivider
-	about := lipgloss.NewStyle().Width(aboutW).Height(h).MaxHeight(h).PaddingLeft(profileGutter).
-		Render(strings.Join(m.settingsAbout(p, aboutW-profileGutter-rightMargin), "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top, rows, p.Divider(h), about)
+	return m.settings.Body(m.settingsLook(p), m.settingsEnv(), w, h, rowsW)
 }
 
-// settingsFocusedRow is the row under the cursor; ok is false on the header.
-func (m model) settingsFocusedRow() (settingRow, bool) {
-	rows := m.settingsRows(m.settings.Group)
-	if m.settings.Header || m.settings.Row < 0 || m.settings.Row >= len(rows) {
-		return settingRow{}, false
-	}
-	return rows[m.settings.Row], true
-}
-
-// settingsAbout is the about pane: what the focused setting is, an example of its value,
-// the file it is kept in and any warning, or what the group is while the header has focus.
-func (m model) settingsAbout(p pal, w int) []string {
-	w = max(1, w)
-	para := func(s string, c func(string) string) []string {
-		var out []string
-		for _, l := range wrapWords(s, w) {
-			out = append(out, c(l))
-		}
-		return out
-	}
-	fg := func(s string) string { return p.Text(p.Fg).Render(s) }
-	dim := func(s string) string { return p.Text(p.Dim).Render(s) }
-	r, ok := m.settingsFocusedRow()
-	if !ok {
-		lines := []string{p.Heading(settingsGroups[m.settings.Group]), ""}
-		return append(lines, para(settings.GroupAbout[m.settings.Group], fg)...)
-	}
-	label := strings.TrimPrefix(r.Label, "+ ")
-	lines := []string{p.Heading(label), ""}
-	lines = append(lines, para(r.About, fg)...)
-	if r.Example != "" {
-		lines = append(lines, "")
-		lines = append(lines, para("Example: "+r.Example, dim)...)
-	}
-	if !r.Action {
-		lines = append(lines, "")
-		lines = append(lines, para("Kept in "+m.settingsFileOf(m.settings.Group, m.settings.Row)+".", dim)...)
-	}
-	if r.Warning != "" {
-		lines = append(lines, "")
-		lines = append(lines, para("⚠ "+r.Warning, func(s string) string { return p.Text(p.Warn).Render(s) })...)
-	}
-	return lines
-}
-
-// settingsFileOf is the file a row's value is kept in.
-func (m model) settingsFileOf(group, row int) string {
-	if _, ok := m.rowSetting(group, row, len(m.settingsRows(group))); ok || group == settings.GroupMachine {
-		return configFile
-	}
-	return settingsFile
-}
-
-// settingsRowsView lists the selected group's settings, one per line, in three columns:
-// label, value, and where the value comes from. The row marker shows only while the
-// settings pane has focus. With aboutBelow, the focused row's about text follows the rows,
-// as the pane beside them is not drawn.
+// settingsRowsView lists the selected group's settings, as the screen draws them.
 func (m model) settingsRowsView(p pal, width, h int, aboutBelow bool) string {
-	rows := m.settingsRows(m.settings.Group)
-	valueW, labelW, tailW := 0, 0, 0
-	for _, r := range rows {
-		if !r.ReadOnly {
-			// A read-only row's reason never narrows the values: without room it wraps below.
-			tailW = max(tailW, xansi.StringWidth(r.Tail()))
-		}
-		if !r.Action {
-			labelW = max(labelW, profileMarkerWidth+xansi.StringWidth(r.Label)+gutter)
-		}
-		w := xansi.StringWidth(r.ValueText())
-		if r.Value == "" && !r.Action {
-			w = xansi.StringWidth("not set")
-		}
-		valueW = max(valueW, w)
-	}
-	labelW = min(labelW, maxLabelWidth)
-	room := width - labelW
-	valueW = min(valueW, max(minValueRoom, room-tailW-gutter))
-	marked := !m.settings.Header
-	editing := m.settings.Edit
-	var lines []string
-	if settingsGroups[m.settings.Group] == groupMachineName {
-		lines = m.configNotice(p, width)
-	}
-	selLine := 0
-	for i, r := range rows {
-		if r.Section != "" {
-			if len(lines) > 0 {
-				lines = append(lines, "")
-			}
-			lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Heading(r.Section))
-		}
-		selected := marked && i == m.settings.Row
-		set, isSetting := m.rowSetting(m.settings.Group, i, len(rows))
-		if i == m.settings.Row {
-			selLine = len(lines)
-		}
-		// Names in the body text colour and values a step quieter, so a row reads by its name.
-		mark, label := "  ", p.Text(p.Fg).Render(r.Label)
-		switch {
-		case selected:
-			mark, label = p.SelGutter(true), p.SelText(true).Render(r.Label)
-		case r.Action:
-			label = p.Text(p.Sub).Render(r.Label)
-		}
-		line := mark + label
-		if r.Action {
-			lines = append(lines, xansi.Truncate(line, width, "…"))
-			continue
-		}
-		bg := p.SelBase(selected)
-		// Muted text on the selection fill is below 4.5:1, so a selected row's quiet parts
-		// take the secondary colour, as a selected list row's do.
-		quiet := p.Dim
-		if selected {
-			quiet = p.Sub
-		}
-		pad := bg.Render(strings.Repeat(" ", max(1, labelW-profileMarkerWidth-xansi.StringWidth(r.Label))))
-		colW := valueW
-		var value string
-		var more []string // a long value's further lines, under its first
-		if r.Value == "" {
-			value = bg.Foreground(quiet).Italic(true).Render("not set")
-		} else {
-			colW = rowValueWidth(r, valueW, room)
-			shown := fitValue(r.Label, r.ValueText(), colW)
-			if !pathLabel(r.Label) && xansi.StringWidth(r.ValueText()) > colW {
-				// Any other value wraps under itself rather than lose its end, at its " · "
-				// breaks when it has them, so a count stays with its word.
-				wrapped := strings.Split(keepTogether(colW, " · ", strings.Split(r.ValueText(), " · ")...), "\n")
-				if !strings.Contains(r.ValueText(), " · ") {
-					wrapped = wrapWords(r.ValueText(), colW)
-				}
-				shown, more = wrapped[0], wrapped[1:]
-			}
-			value = bg.Foreground(p.Sub).Render(shown)
-		}
-		ownW := xansi.StringWidth(value) // the value alone, before the column's padding
-		value += bg.Render(strings.Repeat(" ", max(0, colW-ownW)))
-		note, warn := bg.Foreground(quiet).Render(r.Note()), ""
-		if editing != nil && isSetting && editing.Key == set.key {
-			// The field takes the free width, up to its cap, so a placeholder shows whole.
-			value, note = m.inlineField(p, bg, quiet, *editing, r, max(valueW, room-gutter))
-			colW, ownW, more = xansi.StringWidth(value), xansi.StringWidth(value), nil
-		}
-		if r.Warning != "" {
-			warn = bg.Foreground(p.Warn).Render(warnSep + r.Warning)
-		}
-		tail := note + warn
-		fillLine := func(s string) string {
-			s = xansi.Truncate(s, width, "…")
-			if selected {
-				return p.SelLine(true, width, s)
-			}
-			return s
-		}
-		line += pad + value
-		indent := strings.Repeat(" ", labelW)
-		under := func(l string) { lines = append(lines, indent+l) }
-		plain := xansi.Strip(tail)
-		// The source and any warning are never cut. They line up in their column; without
-		// room there they follow the value itself, and without room beside it they go under
-		// it, after the rest of a wrapped value.
-		if plain != "" && len(more) == 0 {
-			gap := bg.Render(strings.Repeat(" ", gutter))
-			switch tw := xansi.StringWidth(plain); {
-			case width-labelW-colW-gutter >= tw:
-				lines = append(lines, fillLine(line+gap+tail))
-				continue
-			case width-labelW-ownW-gutter >= tw:
-				lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+tail))
-				continue
-			}
-			// Without room for both, the source stays beside its value and the warning goes
-			// under it, so a long warning never moves the source off the value's line.
-			if nw := xansi.StringWidth(xansi.Strip(note)); warn != "" && nw > 0 {
-				warnLines := strings.Split(xansi.Wrap(bg.Foreground(p.Warn).Render(strings.TrimLeft(warnSep, " ")+r.Warning), max(1, width-labelW), " "), "\n")
-				switch {
-				case width-labelW-colW-gutter >= nw:
-					lines = append(lines, fillLine(line+gap+note))
-				case width-labelW-ownW-gutter >= nw:
-					lines = append(lines, fillLine(mark+label+pad+xansi.Cut(value, 0, ownW)+gap+note))
-				default:
-					warnLines = nil
-				}
-				if warnLines != nil {
-					for _, l := range warnLines {
-						under(l)
-					}
-					continue
-				}
-			}
-		}
-		lines = append(lines, fillLine(line))
-		for _, l := range more {
-			under(p.Text(p.Sub).Render(l))
-		}
-		if plain == "" {
-			continue
-		}
-		tailW := max(1, width-labelW)
-		parts := []string{tail}
-		if xansi.StringWidth(plain) > tailW && warn != "" && xansi.Strip(note) != "" {
-			// The source and the warning each take a line rather than break mid-phrase.
-			parts = []string{note, bg.Foreground(p.Warn).Render(strings.TrimLeft(warnSep, " ") + r.Warning)}
-		}
-		for _, part := range parts {
-			// On its own line the tail wraps rather than lose the end of an error.
-			for _, l := range strings.Split(xansi.Wrap(part, tailW, " "), "\n") {
-				under(l)
-			}
-		}
-	}
-	if aboutBelow {
-		if r, ok := m.settingsFocusedRow(); ok && r.About != "" {
-			about := wrapWords(r.About, max(1, width-profileMarkerWidth))
-			if len(lines)+1+len(about) <= h {
-				// Short terminals lose the about text before they lose a field.
-				lines = append(lines, "")
-				for _, l := range about {
-					lines = append(lines, strings.Repeat(" ", profileMarkerWidth)+p.Text(p.Dim).Render(l))
-				}
-			}
-		}
-	}
-	return strings.Join(p.ClipLines(lines, selLine-h/bothSides, h, strings.Repeat(" ", profileMarkerWidth)), "\n")
+	return m.settings.RowsView(m.settingsLook(p), m.settingsEnv(), width, h, aboutBelow)
 }
 
-// inlineField is the value cell and the tail of a row being edited: the field where the
-// value sits, narrow, with the end of what is typed. An empty field shows the default in
-// effect as a placeholder; the opening text shows selected, as typing replaces it. The
-// example stays beside the field, and a quit's question takes the tail.
-func (m model) inlineField(p pal, bg lipgloss.Style, quiet color.Color, e settings.Edit, r settingRow, valueW int) (value, tail string) {
-	fw := min(maxFieldWidth, max(minFieldWidth, valueW))
-	cursor := bg.Foreground(p.Fg).Render("▏")
-	switch {
-	case e.Buf == "" && e.Placeholder != "":
-		shown := xansi.Truncate(e.Placeholder, fw-1, "…")
-		value = cursor + bg.Foreground(quiet).Italic(true).Render(shown)
-		value += bg.Render(strings.Repeat(" ", max(0, fw-xansi.StringWidth(shown)-1)))
-	default:
-		shown := xansi.TruncateLeft(e.Buf, max(0, xansi.StringWidth(e.Buf)-(fw-1)), "…")
-		style := bg.Foreground(p.Fg).Underline(true)
-		if e.Selected {
-			style = bg.Foreground(p.Fg).Reverse(true)
-		}
-		value = style.Render(shown) + cursor
-		value += bg.Render(strings.Repeat(" ", max(0, fw-xansi.StringWidth(shown)-1)))
+// patchConfig writes one config.toml key.
+func (m model) patchConfig(key string, value any) error {
+	if m.configHome == "" {
+		return errNoConfigHome
 	}
-	var parts []string
-	if r.Unit != "" {
-		parts = append(parts, r.Unit)
-	}
-	if r.Example != "" && (e.Buf != "" || e.Placeholder != r.Example) {
-		parts = append(parts, "example: "+r.Example) // not twice while the placeholder shows it
-	}
-	tail = bg.Foreground(quiet).Render(strings.Join(parts, " · "))
-	switch {
-	case e.Discarding:
-		tail = bg.Foreground(p.Warn).Bold(true).Render("⚠ Discard changes? y discard · n keep editing")
-	case e.Err != "":
-		tail = bg.Foreground(p.Bad).Render(errorMark + " " + e.Err)
-	}
-	return value, tail
-}
-
-// rowValueWidth is the cells a row's value gets. Values share one column of colW so the
-// sources line up, but a longer value takes the free width after it before it is cut:
-// beside its own source when both fit, otherwise all of room, its source below.
-func rowValueWidth(r settingRow, colW, room int) int {
-	vw := xansi.StringWidth(r.ValueText())
-	if vw <= colW {
-		return colW
-	}
-	if tw := xansi.StringWidth(r.Tail()); tw > 0 && vw <= room-gutter-tw {
-		return vw
-	}
-	return min(vw, room)
-}
-
-// minValueRoom is the least width worth giving a value.
-const minValueRoom = 12
-
-// fitValue cuts a value that does not fit. A path keeps its end, where the folder names
-// that tell Workspaces apart are; other values keep their start.
-func fitValue(label, value string, room int) string {
-	if xansi.StringWidth(value) <= room || room < 2 {
-		return value
-	}
-	if pathLabel(label) {
-		return "…" + xansi.TruncateLeft(value, xansi.StringWidth(value)-room+1, "")
-	}
-	return xansi.Truncate(value, room, "…")
-}
-
-// pathLabel reports whether a row's value is a path, cut at its start rather than wrapped.
-func pathLabel(label string) bool {
-	switch label {
-	case labelWorkspace, labelDownloads, labelPlugin:
-		return true
-	}
-	return false
-}
-
-type settingRow = settings.Row
-type settingsState = settings.State[settingsUndo]
-
-const warnSep = settings.WarnSep
-
-var settingsGroups = settings.Groups
-
-const (
-	groupMachineName = settings.GroupMachineName
-	labelEditor      = settings.LabelEditor
-	labelFollowUp    = settings.LabelFollowUp
-	labelHarness     = settings.LabelHarness
-	labelWorkspace   = settings.LabelWorkspace
-	labelDownloads   = settings.LabelDownloads
-	labelPlugin      = settings.LabelPlugin
-	labelASCII       = settings.LabelASCII
-	labelInherit     = settings.LabelInherit
-)
-
-// settingsMachine is the machine settings as the screen shows them, with a warning for a
-// Harness or Plugin that will not run.
-func (m model) settingsMachine() settings.Machine {
-	mc := settings.Machine{Workspace: m.store.Root(), EditorSource: m.editorSource, Downloads: m.downloads, Harness: m.harness,
-		Plugin: m.plugin, ASCII: m.ascii, Inherit: m.inherit, FollowUpDays: m.followUpDays, Sources: m.sources,
-		HarnessWarning: harnessWarning(m.harness), PluginWarning: pluginWarning(m.plugin),
-		FollowUpWarning: m.configWarning(keyFollowUpDays)}
-	mc.Editor = ResolveEditor(m.editor)
-	mc.EditorAvailable = editorOnPath(mc.Editor)
-	return mc
-}
-func (m model) settingsRows(group int) []settingRow {
-	st := *m.settings
-	st.Breakdown = m.trackBreakdown(st)
-	return st.Rows(group, m.settingsMachine())
-}
-
-// trackBreakdown explains each Track's count so the numbers add up: how many of its
-// Applications are active, how many closed (Rejected or Withdrawn, as the Pipeline screen's
-// Closed view holds), how many dismissed and how many unreadable (malformed, which Stats
-// leaves out, so the Stats Track count is the rest).
-func (m model) trackBreakdown(st settingsState) map[string]string {
-	closed, dismissed, unreadable := map[string]int{}, map[string]int{}, map[string]int{}
-	for _, a := range m.apps {
-		switch {
-		case a.Malformed != nil:
-			unreadable[a.Track]++
-		case a.Status == store.StatusRejected, a.Status == store.StatusWithdrawn:
-			closed[a.Track]++
-		case a.Status == store.StatusDismissed:
-			dismissed[a.Track]++
-		}
-	}
-	out := map[string]string{}
-	for _, t := range st.Ws.Tracks {
-		c := min(closed[t], st.TrackUse[t])
-		d := min(dismissed[t], st.TrackUse[t]-c)
-		u := min(unreadable[t], st.TrackUse[t]-c-d)
-		out[t] = " · " + strconv.Itoa(st.TrackUse[t]-c-d-u) + " active"
-		if c > 0 {
-			out[t] += " · " + strconv.Itoa(c) + " closed"
-		}
-		if d > 0 {
-			out[t] += " · " + strconv.Itoa(d) + " dismissed"
-		}
-		if u > 0 {
-			out[t] += " · " + strconv.Itoa(u) + " unreadable"
-		}
-	}
-	return out
-}
-func (m model) trackingRows() []settingRow { return m.settingsRows(settings.GroupTracking) }
-func (m model) selectableRow(group, row, dir int) int {
-	return settings.SelectableRow(m.settingsRows(group), row, dir)
+	return config.Patch(config.Path(m.configHome), key, value)
 }

@@ -93,9 +93,10 @@ func usage() {
                                  makes DIR the default when config.toml names another
        rolecall doctor [--dir PATH]
                                  check the Workspace and the tools rolecall uses
-       rolecall move [--dir PATH] FOLDER STATUS
+       rolecall move [--dir PATH] [--force] FOLDER STATUS
                                  move an Application to a Status as the app does;
-                                 Applied also saves sent/
+                                 Applied also saves sent/, and needs --force while
+                                 its PDFs are not built
        rolecall now [--dir PATH] [--days N] [--list]
                                  one plain line of what wants doing today: follow-ups
                                  due, next steps and close dates within N days (7)
@@ -252,10 +253,10 @@ func printLegacyWarnings(files []string, workspace, plugin string) {
 	}
 	script := "<plugin>/scripts/migrate.py"
 	if plugin != "" {
-		script = ui.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
+		script = process.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
 	}
 	fmt.Printf("  Convert them to Lead folders (close rolecall first; --dry-run writes nothing):\n")
-	fmt.Printf("    python3 %s --data %s --dry-run\n", script, ui.QuoteShellArgument(workspace))
+	fmt.Printf("    python3 %s --data %s --dry-run\n", script, process.QuoteShellArgument(workspace))
 	fmt.Println("  Then update your Harness to the current Plugin, which saves each Lead as a folder.")
 }
 

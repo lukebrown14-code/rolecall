@@ -66,6 +66,22 @@ def test_no_followed_up_counts_from_the_last_change(tmp_path):
     assert got["Due"] and got["DaysPast"] == 32
 
 
+def test_a_timestamp_counts_on_the_owners_local_day(tmp_path, owner_offset):
+    # Applied at 09:30 on 4 Nov in Sydney (UTC+11) is 22:30Z on 3 Nov: due on 18 Nov.
+    owner_offset(11)
+    app = applied(tmp_path, "2026-11-03T22:30:00Z")
+    assert meta.follow_up_status(app, date(2026, 11, 17), 14)["Due"] is False
+    got = meta.follow_up_status(app, date(2026, 11, 18), 14)
+    assert (got["From"], got["DueOn"], got["DaysPast"]) == ("2026-11-04", "2026-11-18", 0)
+
+
+def test_a_move_and_an_l_on_the_same_local_day_count_from_the_move(tmp_path, owner_offset):
+    # 07:00 on 18 Nov in Sydney is 20:00Z on 17 Nov; l the same day writes 2026-11-18.
+    owner_offset(11)
+    app = applied(tmp_path, "2026-11-17T20:00:00Z", "2026-11-18")
+    assert meta.follow_up_from(app) == (date(2026, 11, 18), "last change")
+
+
 def test_a_recent_follow_up_holds_the_reminder_off(tmp_path):
     app = applied(tmp_path, "2026-09-01T10:00:00Z", "2026-11-13")
     got = meta.follow_up_status(app, TODAY, 14)
@@ -101,6 +117,32 @@ def test_only_sent_applications_are_due(tmp_path):
     folder = write_app(tmp_path, [("Lead", "2026-01-01T10:00:00Z")])
     got = meta.follow_up_status(meta.rescan(folder), TODAY, 14)
     assert not got["Due"] and got["DueOn"] == "" and got["DaysPast"] is None
+
+
+def test_a_booked_next_step_holds_it_and_says_so(tmp_path):
+    folder = write_app(tmp_path, [("Applied", "2026-09-01T10:00:00Z")])
+    text = (folder / "meta.yml").read_text().replace(
+        "status_log:", "next_step: {at: 2026-11-16T15:00, what: Screen}\nstatus_log:"
+    )
+    (folder / "meta.yml").write_text(text)
+    got = meta.follow_up_status(meta.rescan(folder), TODAY, 14)
+    assert got["HeldBy"] == "2026-11-16T15:00"
+    assert not got["Due"] and got["DaysPast"] is None and got["DueOn"] == ""
+    lapsed = meta.follow_up_status(meta.rescan(folder), date(2026, 11, 17), 14)
+    assert lapsed["HeldBy"] == "" and lapsed["Due"]
+
+
+def test_an_undone_move_does_not_restart_the_count(tmp_path):
+    folder = write_app(
+        tmp_path,
+        [
+            ("Applied", "2026-10-01T10:00:00Z"),
+            ("Interviewing", "2026-11-10T10:00:00Z"),
+            ("Applied", "2026-11-10T10:15:00Z"),
+        ],
+    )
+    got = meta.follow_up_status(meta.rescan(folder), TODAY, 14)
+    assert got["From"] == "2026-10-01" and got["Due"]
 
 
 def test_follow_up_command_prints_the_reckoning(tmp_path):

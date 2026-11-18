@@ -9,17 +9,23 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// followUpFlag marks an Applied or Interviewing row whose last change is older than follow_up_days.
+// followUpFlag marks an Applied or Interviewing row whose last change is follow_up_days old or older.
 const followUpFlag = glyphFollowUp
 
-func entryDate(e *store.StatusEntry) string {
+// entryDate is a Status entry's day as the rows show it, "2026-11-04", in loc (the
+// Owner's zone), with SCHEMA's ~ when approximate.
+func entryDate(e *store.StatusEntry, loc *time.Location) string {
 	if e == nil {
 		return ""
 	}
-	d := strings.Split(e.At, "T")[0]
+	d, _, _ := strings.Cut(e.At, "T")
+	if t, ok := store.LocalDay(e.At, loc); ok {
+		d = t.Format(time.DateOnly)
+	}
 	if e.Approx {
 		d = "~" + d
 	}
@@ -41,14 +47,14 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		docs = glyphMissing
 	}
 	if table == tableFiltered {
-		return append(out, entryDate(lastChange(a)), filterReasonLabel(a.FilterReason))
+		return append(out, entryDate(schedule.LastChange(a), now.Location()), filterReasonLabel(a.FilterReason))
 	}
 	if table == tableDismissed {
-		return append(out, entryDate(lastChange(a)))
+		return append(out, entryDate(schedule.LastChange(a), now.Location()))
 	}
 	if beforeApplied(table) {
 		closes := a.Closes
-		if t, ok := parseDay(closes); ok && t.Before(day(now)) {
+		if schedule.ClosesPassed(a, now) {
 			closes = "past"
 		}
 		out = append(out, closes, fit)
@@ -58,10 +64,10 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		return out
 	}
 	flag := ""
-	if followUpDue(a, now, followUpDays) {
+	if schedule.FollowUpDue(a, now, followUpDays) {
 		flag = followUpFlag
 	}
-	return append(out, entryDate(appliedDate(a)), fit, docs, flag)
+	return append(out, entryDate(schedule.AppliedDate(a), now.Location()), fit, docs, flag)
 }
 
 // SortApplications orders a view's rows as the list does, with no Search rules and no
@@ -108,54 +114,83 @@ func fitRank(fit string) int {
 func (o rowOrder) sort(rows []store.Application, table string) {
 	switch {
 	case beforeApplied(table):
-		sort.SliceStable(rows, func(i, j int) bool { return o.deadlineLess(rows[i], rows[j]) })
+		sortStableBy(rows, o.deadlineKey, deadlineKeyLess)
 		return
 	case table == tableDismissed || table == tableFiltered:
-		sortByDate(rows, func(a store.Application) string { return entryAt(lastChange(a)) })
+		sortByDate(rows, func(a store.Application) string { return entryAt(schedule.LastChange(a)) })
 		return
 	}
-	sortByDate(rows, func(a store.Application) string { return entryAt(appliedDate(a)) })
+	sortByDate(rows, func(a store.Application) string { return entryAt(schedule.AppliedDate(a)) })
 	if (table != tableApplied && table != tableInterviewing) || o.followUpDays <= 0 {
 		return
 	}
 	overdue := func(a store.Application) int {
-		past, due := followUpDaysPast(a, o.now, o.followUpDays)
+		past, due := schedule.FollowUpDaysPast(a, o.now, o.followUpDays)
 		if !due {
 			return -1
 		}
 		return past
 	}
-	sort.SliceStable(rows, func(i, j int) bool { return overdue(rows[i]) > overdue(rows[j]) })
+	sortStableBy(rows, overdue, func(a, b int) bool { return a > b })
 }
+
+// sortStableBy sorts rows stably by less over a key worked out once per row rather than
+// twice per comparison: the keys parse dates, and a list sorts often.
+func sortStableBy[K any](rows []store.Application, key func(store.Application) K, less func(a, b K) bool) {
+	keys := make([]K, len(rows))
+	order := make([]int, len(rows))
+	for i, a := range rows {
+		keys[i], order[i] = key(a), i
+	}
+	sort.SliceStable(order, func(i, j int) bool { return less(keys[order[i]], keys[order[j]]) })
+	sorted := make([]store.Application, len(rows))
+	for i, at := range order {
+		sorted[i] = rows[at]
+	}
+	copy(rows, sorted)
+}
+
+// datedRow is a row's sort date and folder, for sortByDate.
+type datedRow struct{ date, folder string }
 
 // sortByDate orders rows by a date, newest first, with no date last and folder breaking ties.
 func sortByDate(rows []store.Application, date func(store.Application) string) {
-	sort.SliceStable(rows, func(i, j int) bool {
-		a, b := date(rows[i]), date(rows[j])
-		if a == b {
-			return rows[i].Folder < rows[j].Folder
+	sortStableBy(rows, func(a store.Application) datedRow { return datedRow{date(a), a.Folder} }, func(a, b datedRow) bool {
+		if a.date == b.date {
+			return a.folder < b.folder
 		}
-		return b == "" || (a != "" && a > b)
+		return b.date == "" || (a.date != "" && a.date > b.date)
 	})
 }
 
-// deadlineLess is the Leads and Drafts order: deadline, then Fit, then newest posted.
-func (o rowOrder) deadlineLess(a, b store.Application) bool {
-	da, okA := deadline(a, o.rules)
-	db, okB := deadline(b, o.rules)
+// deadlineKey is what the Leads and Drafts order compares, worked out once per row.
+type deadlineKey struct {
+	deadline       time.Time
+	ok             bool
+	fit            int
+	posted, folder string
+}
+
+func (o rowOrder) deadlineKey(a store.Application) deadlineKey {
+	d, ok := schedule.Deadline(a, o.rules)
+	return deadlineKey{deadline: d, ok: ok, fit: fitRank(a.Fit), posted: a.Posted, folder: a.Folder}
+}
+
+// deadlineKeyLess is the Leads and Drafts order: deadline, then Fit, then newest posted.
+func deadlineKeyLess(a, b deadlineKey) bool {
 	switch {
-	case okA != okB:
-		return okA
-	case okA && !da.Equal(db):
-		return da.Before(db)
+	case a.ok != b.ok:
+		return a.ok
+	case a.ok && !a.deadline.Equal(b.deadline):
+		return a.deadline.Before(b.deadline)
 	}
-	if ra, rb := fitRank(a.Fit), fitRank(b.Fit); ra != rb {
-		return ra < rb
+	if a.fit != b.fit {
+		return a.fit < b.fit
 	}
-	if a.Posted != b.Posted {
-		return b.Posted == "" || (a.Posted != "" && a.Posted > b.Posted)
+	if a.posted != b.posted {
+		return b.posted == "" || (a.posted != "" && a.posted > b.posted)
 	}
-	return a.Folder < b.Folder
+	return a.folder < b.folder
 }
 
 // WithCompactRows starts with one-line list rows, as compact_rows in config.toml does.

@@ -35,9 +35,24 @@ func readFile(t *testing.T, path string) string {
 	return string(b)
 }
 
+// buildPDFs puts both built PDFs in folder's out/, making it Ready.
+func buildPDFs(t *testing.T, folder string) {
+	t.Helper()
+	out := filepath.Join(folder, "out")
+	if err := os.MkdirAll(out, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Owner Resume Role.pdf", "Owner Role Cover Letter.pdf"} {
+		if err := os.WriteFile(filepath.Join(out, name), []byte("%PDF-1.4\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCLIMoveToAppliedAppendsStatusAndSavesSent(t *testing.T) {
 	ws := moveWorkspace(t)
 	folder := filepath.Join(ws, "jobs", "SWE", "fern")
+	buildPDFs(t, folder)
 	out, err := runMove(t, ws, "jobs/SWE/fern", "applied")
 	if err != nil || out != "Applied: jobs/SWE/fern (sent/ saved)\n" {
 		t.Fatalf("out = %q, err = %v", out, err)
@@ -45,8 +60,33 @@ func TestCLIMoveToAppliedAppendsStatusAndSavesSent(t *testing.T) {
 	if !strings.Contains(readFile(t, filepath.Join(folder, "meta.yml")), "{status: Applied, at: ") {
 		t.Error("meta.yml has no Applied entry")
 	}
-	if _, err := os.Stat(filepath.Join(folder, "sent", "jd.md")); err != nil {
-		t.Errorf("sent/jd.md not saved: %v", err)
+	for _, path := range []string{"jd.md", "out/Owner Resume Role.pdf"} {
+		if _, err := os.Stat(filepath.Join(folder, "sent", path)); err != nil {
+			t.Errorf("sent/%s not saved: %v", path, err)
+		}
+	}
+}
+
+// A not-Ready Application goes to Applied only with --force, as the TUI asks first
+// (ADR-0004): without it nothing is written and the message says what is missing.
+func TestCLIMoveNotReadyToAppliedNeedsForce(t *testing.T) {
+	ws := moveWorkspace(t)
+	folder := filepath.Join(ws, "jobs", "SWE", "fern")
+	meta := filepath.Join(folder, "meta.yml")
+	before := readFile(t, meta)
+	out, err := runMove(t, ws, "jobs/SWE/fern", "applied")
+	if err == nil || !strings.Contains(out, "not Ready (Resume PDF and Cover Letter PDF not built)") || !strings.Contains(out, "--force") {
+		t.Fatalf("out = %q, err = %v; want a refusal naming --force", out, err)
+	}
+	if readFile(t, meta) != before {
+		t.Error("meta.yml changed on a refused move")
+	}
+	if _, err := os.Lstat(filepath.Join(folder, "sent")); !os.IsNotExist(err) {
+		t.Errorf("sent/ made by a refused move: %v", err)
+	}
+	out, err = runMove(t, ws, "--force", "jobs/SWE/fern", "applied")
+	if err != nil || out != "Applied: jobs/SWE/fern (sent/ saved)\n" {
+		t.Fatalf("--force: out = %q, err = %v", out, err)
 	}
 }
 

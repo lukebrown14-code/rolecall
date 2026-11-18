@@ -756,13 +756,13 @@ func rowWords(p pal, followUpDays, inner int) helpBlock {
 	for _, f := range fitValues {
 		fits = append(fits, p.Text(p.FitColor(f)).Render(f))
 	}
-	// Each word drawn as the row draws it (view.go meta): time in amber, a blocker ⚠ and
+	// Each word drawn as the row draws it (row.go meta): time in amber, a blocker ⚠ and
 	// bold in the text colour, a visa fit green, a note muted.
 	ok, warn, fg := p.Text(p.Ok), p.Text(p.Warn), p.Text(p.Fg)
 	block := fg.Bold(true)
 	rows := [][2]string{
 		{fg.Render("posted 12d"), "how old the ad is"},
-		{warn.Render(glyphWarn + " past the age limit"), "older than Rules › Max posting age"},
+		{warn.Render(glyphWarn + " past the age limit"), "as old as Rules › Max posting age, or older"},
 		{p.Text(p.Dim).Render("ad summary only"), "the saved ad is only a summary"},
 		{ok.Render("contract fits visa cap"), "contract within your visa's limit"},
 		{block.Render(glyphWarn + " 12-mo contract > 6-mo visa cap"), "contract runs past your visa's limit"},

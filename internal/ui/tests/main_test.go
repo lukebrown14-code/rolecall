@@ -1,20 +1,14 @@
 package ui_test
 
 import (
-	"os"
 	"testing"
+
+	"github.com/lukebrown14-code/rolecall/internal/testenv"
 )
 
-// TestMain pins a UTF-8 locale so every rendered frame is the same on every machine. The
-// TUI falls back to ASCII on a non-UTF-8 locale, so a developer running with LC_ALL=C
-// would otherwise see goldens and glyph assertions disagree. Tests that exercise the
-// fallback (TestAsciiFallsBackWhenTheLocaleIsNotUTF8) set LANG themselves.
-func TestMain(m *testing.M) {
-	for _, key := range []string{"LC_ALL", "LC_CTYPE"} {
-		os.Unsetenv(key)
-	}
-	os.Setenv("LANG", "en_US.UTF-8")
-	// config.toml resolves under each test's temp home, never the developer's real one.
-	os.Unsetenv("XDG_CONFIG_HOME")
-	os.Exit(m.Run())
-}
+// TestMain pins the environment (internal/testenv) so every rendered frame is the same on
+// every machine: a developer's NO_COLOR, TERM=linux or LC_ALL=C would otherwise make goldens
+// and glyph assertions disagree, and config.toml resolves under each test's temp home.
+// Tests that exercise one of those modes (TestAsciiFallsBackWhenTheLocaleIsNotUTF8) set
+// the variable themselves.
+func TestMain(m *testing.M) { testenv.Main(m) }

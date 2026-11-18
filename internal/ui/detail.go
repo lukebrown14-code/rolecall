@@ -12,6 +12,7 @@ import (
 	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
 )
@@ -601,19 +602,19 @@ func (m model) detailView(p pal) string {
 		title = pad + p.Text(p.Dim).Render("‹ esc  ") + p.Text(p.Bad).Bold(true).Render("⚠ "+m.malformedTitle(a))
 	case s != closeNone && beforeApplied(tableOf(a)):
 		when = p.CloseStyle(s, p.Text, p.Dim).Render(text)
-	case appliedDate(a) != nil && !beforeApplied(tableOf(a)):
+	case schedule.AppliedDate(a) != nil && !beforeApplied(tableOf(a)):
 		// Only while the Status is Applied or later: moved back to Draft, it was not sent.
-		if m.futureDate(appliedDate(a)) {
+		if m.futureDate(schedule.AppliedDate(a)) {
 			when = p.Text(p.Warn).Render("applied " + futureFlag)
 		} else {
 			// The exact applied date shows once: here beside the card, on the strip's
 			// timeline track without it.
 			exact := ""
 			if m.cardShown() {
-				exact = fullEntryDate(appliedDate(a)) + " · "
+				exact = fullEntryDate(schedule.AppliedDate(a), m.now().Location()) + " · "
 			}
-			rel := m.agoEntry(appliedDate(a))
-			if _, days, _ := daysFrom(appliedDate(a).At, m.now()); exact != "" && -days >= monthYearAfter {
+			rel := m.agoEntry(schedule.AppliedDate(a))
+			if _, days, _ := schedule.DaysFrom(schedule.AppliedDate(a).At, m.now()); exact != "" && -days >= monthYearAfter {
 				// An old date already reads as a month: the exact date says it all.
 				exact, rel = strings.TrimSuffix(exact, " · "), ""
 			}
@@ -753,7 +754,7 @@ func (m model) stripWidth() int { return m.viewWidth() - inset - rightMargin }
 // trackStops is a timeline track's stops: earlier Statuses without and with their dates,
 // the current one, and the Statuses still ahead.
 func (m model) trackStops(p pal, a store.Application) (past, pastDated []string, current string, ahead []string) {
-	log := effectiveLog(a) // an undone move leaves no stop
+	log := schedule.EffectiveLog(a) // an undone move leaves no stop
 	years := m.spansYears(log)
 	date := func(e store.StatusEntry) string {
 		if d := m.logDate(p, e, years); d != "" {

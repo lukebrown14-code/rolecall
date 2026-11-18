@@ -737,3 +737,19 @@ def test_failed_source_names_its_access_problem():
     text = "\n".join(sw.health_lines([{"source": "x", "target": "y", "ok": False, "count": 0,
                                         "note": "403", "access": "cloudflare"}]))
     assert "**FAILED** (cloudflare)" in text
+
+
+def test_a_per_ad_page_with_an_unknown_charset_still_yields_its_text(monkeypatch):
+    # One ad with a misspelled charset used to raise LookupError past get_quiet and
+    # take the whole Source down in collect().
+    import email.message
+    import io
+
+    class Response(io.BytesIO):
+        def __init__(self):
+            super().__init__(b"<p>Data Engineer</p>")
+            self.headers = email.message.Message()
+            self.headers["Content-Type"] = "text/html; charset=x-bogus"
+
+    monkeypatch.setattr(sw.httpfetch.urllib.request, "urlopen", lambda *a, **k: Response())
+    assert sw.get_quiet("https://jobs.example/ad/1") == "<p>Data Engineer</p>"

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lukebrown14-code/rolecall/internal/ui"
+	"github.com/lukebrown14-code/rolecall/internal/process"
 )
 
 // init asks nothing: it reads no input at all, so it can never hang on a pipe or
@@ -164,7 +164,7 @@ func TestInitElsewhereKeepsTheConfiguredWorkspace(t *testing.T) {
 	if cfg := configText(t, home); !strings.Contains(cfg, first) || strings.Contains(cfg, second) {
 		t.Fatalf("config.toml switched away from the first Workspace:\n%s", cfg)
 	}
-	q := ui.QuoteShellArgument(second)
+	q := process.QuoteShellArgument(second)
 	for _, want := range []string{"still opens your existing Workspace, " + first, "rolecall --dir " + q,
 		"rolecall init --switch " + q, "Run `rolecall --dir " + q + "`"} {
 		if !strings.Contains(out.String(), want) {

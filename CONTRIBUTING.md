@@ -12,13 +12,17 @@ python3 scripts/check-personal-data.py .      # personal-data guard: Workspace p
 scripts/test-pre-commit.sh                    # the pre-commit hook's own tests
 scripts/check-go.sh              # gofmt, architecture rules, go vet, golangci-lint if installed
 go test -race ./...
-go test -race -count=3 ./internal/ui/...      # the UI tests run three times to catch flakiness
-ruff check plugin                # Python plugin lint (needs: python3 -m pip install ruff pytest)
-python3 -m pytest plugin/tests
+go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 ./...    # known vulnerabilities in dependencies
+ruff check plugin                # Python plugin lint (needs: python3 -m pip install ruff==0.15.0 pytest==9.2.0)
+python3 -m pytest plugin/tests scripts/test_check_personal_data.py
 ```
 
-CI runs these on every push and pull request, plus a macOS job (`scripts/check-go.sh` and
-`go test ./...`) and `govulncheck`.
+CI (`.github/workflows/go.yml`) runs these on every branch push and pull request, with
+golangci-lint v2.15.0 as its own step. It also runs `go test ./...` once more with `NO_COLOR`,
+`TERM=linux`, `LANG=C` and the other display variables set, and a macOS job
+(`scripts/check-go.sh` and `go test ./...`). Go tests pin their own environment through
+`internal/testenv`: a test package that renders, resolves an Editor or launches rolecall calls
+`testenv.Main` from its `TestMain`, and a test of one of those modes sets the variable itself.
 
 ### Personal data
 
@@ -30,7 +34,9 @@ To also catch your own name or employers locally, put one term per line in the g
 
 ### Enable the pre-commit hook
 
-The hook runs `scripts/check-go.sh` before each commit. Enable it once per clone:
+Before each commit the hook runs the personal-data guard on the staged content
+(`check-personal-data.py --staged .`, so what it checks is what gets committed), then
+`scripts/check-go.sh`. Enable it once per clone:
 
 ```sh
 git config core.hooksPath .githooks
@@ -74,9 +80,10 @@ git switch main && git pull
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
-The tag runs `.github/workflows/release.yml`: GoReleaser builds macOS and Linux archives (with
+The tag runs `.github/workflows/release.yml`: it first runs the whole CI workflow on the tagged
+commit, then GoReleaser (pinned to an exact version) builds macOS and Linux archives (with
 the Plugin) and publishes the GitHub Release with `checksums.txt`, which the install script
-picks up. Check it in a fresh shell:
+picks up. Only the GoReleaser job holds a write token. Check it in a fresh shell:
 `curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scripts/install.sh | sh`.
 
 ## Licence
