@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -104,7 +105,7 @@ func leadOrDraft(m model) bool {
 // followUpRow reports whether the current row is Follow-up due.
 func followUpRow(m model) bool {
 	a, ok := m.current()
-	return ok && followUpDue(a, m.now(), m.followUpDays)
+	return ok && schedule.FollowUpDue(a, m.now(), m.followUpDays)
 }
 
 // linkAction is a key that acts on the row's job-ad link: w opens it, c copies it.
@@ -359,9 +360,12 @@ var listActions = []listAction{
 		// Records today's follow-up without a Status change, so the ⚑ clears (followup.go).
 		keys: []string{keyFollowedUp}, keyLabel: keyFollowedUp, desc: text(descFollowedUp),
 		group: groupAction, prio: fixed(prioMinor),
-		listed:  func(m model) bool { a, ok := m.current(); return ok && usable(m) && followUpStatus(a.Status) },
-		enabled: func(m model) bool { a, ok := m.current(); return ok && a.Malformed == nil && followUpStatus(a.Status) },
-		why:     onRowWhy(func(model) string { return keyFollowedUp + ": only on Applied and Interviewing Applications" }),
+		listed: func(m model) bool { a, ok := m.current(); return ok && usable(m) && schedule.FollowUpStatus(a.Status) },
+		enabled: func(m model) bool {
+			a, ok := m.current()
+			return ok && a.Malformed == nil && schedule.FollowUpStatus(a.Status)
+		},
+		why: onRowWhy(func(model) string { return keyFollowedUp + ": only on Applied and Interviewing Applications" }),
 		run: func(m *model, _ string) tea.Cmd {
 			if a, ok := m.current(); ok {
 				return m.recordFollowUp(a)

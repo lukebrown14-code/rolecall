@@ -6,6 +6,7 @@ import (
 	"time"
 
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -14,28 +15,43 @@ import (
 func TestFollowUpDueIsDayBased(t *testing.T) {
 	now := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
 	sent := store.Application{Status: store.StatusInterviewing, LastChange: &store.StatusEntry{At: "2026-10-06T23:00:00Z"}}
-	if !followUpDue(sent, now, 14) {
+	if !schedule.FollowUpDue(sent, now, 14) {
 		t.Fatal("a change exactly follow-up-days ago is due")
 	}
 	sent.LastChange = &store.StatusEntry{At: "2026-10-07T00:00:00Z"}
-	if followUpDue(sent, now, 14) {
+	if schedule.FollowUpDue(sent, now, 14) {
 		t.Fatal("a change inside the window is not due")
 	}
 	sent.Status, sent.LastChange = store.StatusLead, &store.StatusEntry{At: "2026-01-01"}
-	if followUpDue(sent, now, 14) {
+	if schedule.FollowUpDue(sent, now, 14) {
 		t.Fatal("an unsent Application is never due")
 	}
 	sent.Status, sent.LastChange = store.StatusInterviewing, &store.StatusEntry{At: "2027-01-01"}
-	if followUpDue(sent, now, 14) {
+	if schedule.FollowUpDue(sent, now, 14) {
 		t.Fatal("a future date is not due")
 	}
 	sent.LastChange = nil
-	if followUpDue(sent, now, 14) {
+	if schedule.FollowUpDue(sent, now, 14) {
 		t.Fatal("no last change is not due")
 	}
 }
 
-// The right-hand columns line up: within one view a flagged row and an unflagged one
+// A row's applied day is the entry's date in the Owner's zone (now's), as Stats and the
+// export read it, not the UTC date written in the file.
+func TestRowDatesAreTheOwnersLocalDay(t *testing.T) {
+	e := store.StatusEntry{Status: store.StatusApplied, At: "2026-11-03T22:30:00Z"}
+	a := store.Application{Status: store.StatusApplied, StatusLog: []store.StatusEntry{e}, LastChange: &e, AppliedDate: &e}
+	sydney := time.Date(2026, 11, 10, 9, 0, 0, 0, time.FixedZone("AEDT", 11*60*60))
+	if cols := ApplicationColumns(a, tableApplied, sydney, 14); !strings.Contains(strings.Join(cols, "|"), "2026-11-04") {
+		t.Errorf("Sydney row = %q, want the applied day 2026-11-04", cols)
+	}
+	utc := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	if cols := ApplicationColumns(a, tableApplied, utc, 14); !strings.Contains(strings.Join(cols, "|"), "2026-11-03") {
+		t.Errorf("UTC row = %q, want the applied day 2026-11-03", cols)
+	}
+}
+
+// The right-hand columns line up:within one view a flagged row and an unflagged one
 // start every column at the same cell, the Fit word starts its column's first cell
 // whatever its length, and the title keeps what is left. A row has no age column.
 func TestRowColumnsLineUp(t *testing.T) {

@@ -1,5 +1,5 @@
 """meta.yml rules shared with the Go store. Both sides assert ``fixtures/conformance.json``
-(``internal/store/tests/conformance_test.go`` and ``internal/ui/conformance_internal_test.go``),
+(``internal/store/tests/conformance_test.go`` and ``internal/schedule/tests/conformance_test.go``),
 so a rule changed on one side fails here or there until the other agrees.
 """
 
@@ -25,17 +25,8 @@ CONFORMANCE = json.loads((ROOT / "fixtures" / "conformance.json").read_text())
 # The shared vectors the Python Plugin does not meet yet, by the audit finding that tracks
 # each (reports/code-audit-2026-11-18). A listed vector is skipped while it fails and fails
 # once it passes, so whoever fixes the finding deletes its entry here. The Go lists are
-# knownDrift in internal/store/tests/conformance_test.go and internal/ui/conformance_internal_test.go.
-KNOWN_DRIFT = {
-    "C06": {
-        "reason": "meta._day takes the UTC date of a status_log timestamp, not its date in the Owner's zone",
-        "vectors": {
-            "follow_up/east of UTC: a timestamp counts on its local day",
-            "follow_up/east of UTC: same local day, the move wins over l",
-            "follow_up/west of UTC: a timestamp counts on its local day",
-        },
-    },
-}
+# knownDrift in internal/store/tests/conformance_test.go and internal/schedule/tests/conformance_test.go.
+KNOWN_DRIFT = {}
 
 
 def _drift(vector):

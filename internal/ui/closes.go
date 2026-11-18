@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
 // The Closes field takes the ad's close date as the Owner would say it: YYYY-MM-DD, today,
@@ -38,7 +40,7 @@ func parseCloses(s string, now time.Time) (iso string, ok bool) {
 
 func readCloses(s string, now time.Time) (iso string, ok, exists bool) {
 	s = strings.ToLower(strings.TrimSpace(s))
-	today := day(now)
+	today := store.Today(now)
 	switch s {
 	case "":
 		return "", false, true

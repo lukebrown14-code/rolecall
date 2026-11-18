@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -28,7 +29,7 @@ func (m model) rowNextStep(a store.Application) (string, closeState) {
 	if ns == nil {
 		return "", closeNone
 	}
-	t, days, ok := daysFrom(ns.Day(), m.now())
+	t, days, ok := schedule.DaysFrom(ns.Day(), m.now())
 	when := ns.Day()
 	switch {
 	case ok && days == 0:
@@ -64,7 +65,7 @@ func (m model) nextStepInfo(ns *store.NextStep) (string, closeState) {
 	if ns == nil {
 		return "", closeNone
 	}
-	t, days, ok := daysFrom(ns.Day(), m.now())
+	t, days, ok := schedule.DaysFrom(ns.Day(), m.now())
 	when := ns.Day()
 	if ok {
 		when = shortDate(t, m.now())
@@ -120,7 +121,7 @@ func (m model) nextStepRow(p pal, a store.Application, w int, keep func(string) 
 	if s == closeNone {
 		return nil
 	}
-	if !openStatus(a.Status) {
+	if !schedule.OpenStatus(a.Status) {
 		value := p.Text(p.Dim).Strikethrough(true).Render(text) + p.Text(p.Dim).Render(" · closed")
 		return []string{p.cardRow("NEXT STEP", value, "", "", w)}
 	}

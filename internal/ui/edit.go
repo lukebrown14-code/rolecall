@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -56,7 +57,7 @@ func editFocus(a store.Application) string {
 	case endedStatus(a.Status):
 		return fieldCloseReason
 	case a.Status == store.StatusApplied, a.Status == store.StatusInterviewing, a.Status == store.StatusOffer,
-		a.NextStep != nil && openStatus(a.Status):
+		a.NextStep != nil && schedule.OpenStatus(a.Status):
 		return fieldNextStep
 	}
 	return ""

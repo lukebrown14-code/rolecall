@@ -253,10 +253,10 @@ func printLegacyWarnings(files []string, workspace, plugin string) {
 	}
 	script := "<plugin>/scripts/migrate.py"
 	if plugin != "" {
-		script = ui.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
+		script = process.QuoteShellArgument(filepath.Join(plugin, "scripts", "migrate.py"))
 	}
 	fmt.Printf("  Convert them to Lead folders (close rolecall first; --dry-run writes nothing):\n")
-	fmt.Printf("    python3 %s --data %s --dry-run\n", script, ui.QuoteShellArgument(workspace))
+	fmt.Printf("    python3 %s --data %s --dry-run\n", script, process.QuoteShellArgument(workspace))
 	fmt.Println("  Then update your Harness to the current Plugin, which saves each Lead as a folder.")
 }
 

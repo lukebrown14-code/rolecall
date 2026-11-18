@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	"github.com/lukebrown14-code/rolecall/internal/ui/watch"
 )
@@ -251,7 +252,7 @@ const (
 // its row warns "expires in N days"; one already past the age limit with no close date
 // is not, as it has no date left to meet.
 func (m model) deadlineGroupOf(a store.Application) (deadlineGroup, bool) {
-	_, hasCloses := parseDay(a.Closes)
+	hasCloses := schedule.HasCloses(a)
 	expiring := m.postingExpiring(a)
 	switch {
 	case m.expired(a):
@@ -267,8 +268,7 @@ func (m model) deadlineGroupOf(a store.Application) (deadlineGroup, bool) {
 // postingExpiring reports a Lead whose ad is within expiry_warning_days of
 // max_posting_age_days and not yet at it: the rows that read "expires in N days".
 func (m model) postingExpiring(a store.Application) bool {
-	left, ok := postingDaysLeft(a, m.rules, m.now())
-	return ok && left >= 1 && left <= m.rules.ExpiryWarningDays
+	return schedule.PostingExpiring(a, m.rules, m.now())
 }
 
 // beforeApplied reports whether a table holds Applications not yet sent: Leads and Draft.

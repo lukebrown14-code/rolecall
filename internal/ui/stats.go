@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/reporting"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -371,7 +372,7 @@ var statsIndent = strings.Repeat(" ", statsLabelWidth)
 // statement, not a row to select: Stats has no cursor, so there is no arrow to follow.
 // Nothing due draws nothing.
 func (m model) statsNow(p pal, w int) []string {
-	due := NowFor(m.statsApps(), m.now(), m.followUpDays, soonDays)
+	due := schedule.NowFor(m.statsApps(), m.now(), m.followUpDays, soonDays)
 	goes := func(text, key, where string) string {
 		return p.Text(p.Fg).Render(text) + p.Text(p.Dim).Render(" on ") + p.Key().Render(key) + p.Text(p.Dim).Render(" "+where)
 	}

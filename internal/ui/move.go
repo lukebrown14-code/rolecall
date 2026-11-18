@@ -6,7 +6,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/lukebrown14-code/rolecall/internal/reporting"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -205,51 +204,6 @@ func moveName(a store.Application) string {
 		name += " (" + c + ")"
 	}
 	return name
-}
-
-// effectiveLog is the Status log the rows, timeline and ages read: undone moves taken out
-// (reporting.EffectiveLog), as Stats reads it, so a fat-fingered move and its undo leave no
-// phantom stop and do not reset the age in Status. An undone first move of a Lead empties
-// it: the Lead reads as never moved, as it did before. Otherwise it falls back to the
-// whole log if the two ever disagree on the current Status.
-func effectiveLog(a store.Application) []store.StatusEntry {
-	log := reporting.EffectiveLog(a.StatusLog)
-	if len(log) == 0 && a.Status == store.StatusLead {
-		return nil
-	}
-	if len(log) == 0 || log[len(log)-1].Status != a.Status {
-		return a.StatusLog
-	}
-	return log
-}
-
-// lastChange is when the Application reached its current Status, ignoring undone moves:
-// the store's LastChange unless an undo took entries out.
-func lastChange(a store.Application) *store.StatusEntry {
-	log := effectiveLog(a)
-	if len(log) == len(a.StatusLog) {
-		return a.LastChange
-	}
-	if len(log) == 0 {
-		return nil
-	}
-	e := log[len(log)-1]
-	return &e
-}
-
-// appliedDate is the Application's first Applied entry that was not undone, or nil: the
-// store's AppliedDate unless an undo took entries out.
-func appliedDate(a store.Application) *store.StatusEntry {
-	log := effectiveLog(a)
-	if len(log) == len(a.StatusLog) {
-		return a.AppliedDate
-	}
-	for _, e := range log {
-		if e.Status == store.StatusApplied {
-			return &e
-		}
-	}
-	return nil
 }
 
 // shown reports whether the active view lists folder's row.

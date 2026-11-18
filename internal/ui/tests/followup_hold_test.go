@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
-	"github.com/lukebrown14-code/rolecall/internal/ui"
 )
 
 // quietStepper is a Workspace with stepper Applied long ago (Follow-up due on its own),
@@ -66,7 +66,7 @@ func TestBookedNextStepHoldsTheFollowUpFlag(t *testing.T) {
 			t.Fatal(err)
 		}
 		listed := false
-		for _, a := range ui.NowFor(apps, fixtureClock(), 14, ui.SoonDays).FollowUps {
+		for _, a := range schedule.NowFor(apps, fixtureClock(), 14, schedule.SoonDays).FollowUps {
 			listed = listed || a.Title == "Stepper"
 		}
 		if listed != tc.due {

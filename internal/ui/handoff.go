@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
@@ -28,7 +29,7 @@ func (m model) handoffAllowed(a store.Application, skill string) bool {
 	case skillPrepareDocuments:
 		return a.Unsent()
 	case skillDraftFollowUp:
-		return followUpDue(a, m.now(), m.followUpDays)
+		return schedule.FollowUpDue(a, m.now(), m.followUpDays)
 	}
 	return false
 }
@@ -130,12 +131,6 @@ func harnessPlaceholderAt(s string) (placeholder, ref string, ok bool) {
 		}
 	}
 	return "", "", false
-}
-
-// QuoteShellArgument wraps s in single quotes for /bin/sh so it stays one argument however
-// it is spelled: spaces stay inside, and an embedded quote is spliced to '\”.
-func QuoteShellArgument(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // handoffDir is the absolute Application folder handed to {dir}.

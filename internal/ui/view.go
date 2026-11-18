@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/lukebrown14-code/rolecall/internal/reporting"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 	appearance "github.com/lukebrown14-code/rolecall/internal/ui/theme"
 )
@@ -19,9 +20,8 @@ import (
 const (
 	fallbackWidth  = 100
 	fallbackHeight = 30
-	rowPad         = 1 // keeps the last label off the edge of the selection bar
-	soonDays       = 7 // "closes in Nd" turns amber at or below this
-	hoursPerDay    = 24
+	rowPad         = 1                 // keeps the last label off the edge of the selection bar
+	soonDays       = schedule.SoonDays // "closes in Nd" turns amber at or below this
 	percent        = 100
 	minTitle       = 8 // a title never shrinks below this
 	previewInset   = 3 // padding and divider around the preview pane
@@ -62,7 +62,7 @@ func padRight(s string, w int) string { return s + strings.Repeat(" ", max(0, w-
 // and past about three months the month itself, "Jan 2025", which reads better than
 // "21mo ago".
 func ago(date string, now time.Time) (string, int) {
-	t, days, ok := daysFrom(date, now)
+	t, days, ok := schedule.DaysFrom(date, now)
 	if !ok {
 		return date, 0
 	}
@@ -87,8 +87,8 @@ func (m model) futureDate(e *store.StatusEntry) bool {
 	if e == nil {
 		return false
 	}
-	t, ok := parseDay(e.At)
-	return ok && t.After(day(m.now()))
+	t, ok := store.LocalDay(e.At, m.now().Location())
+	return ok && t.After(store.Today(m.now()))
 }
 
 func (m model) View() tea.View {
@@ -876,8 +876,7 @@ func (m model) expired(a store.Application) bool {
 	if !beforeApplied(tableOf(a)) {
 		return false
 	}
-	t, ok := deadline(a, m.rules)
-	return ok && t.Before(day(m.now()))
+	return schedule.Passed(a, m.rules, m.now())
 }
 
 // scroll fills h lines with blocks, keeping block cur in view. "↑/↓ n more" appear only
@@ -1035,7 +1034,7 @@ func (m model) slotText(a store.Application) (flag, fit string) {
 	if a.Malformed != nil {
 		return "", ""
 	}
-	if _, due := followUpDaysPast(a, m.now(), m.followUpDays); due {
+	if _, due := schedule.FollowUpDaysPast(a, m.now(), m.followUpDays); due {
 		flag = followUpFlag + " " + m.followUpQuiet(a)
 	}
 	return flag, a.Fit
@@ -1113,7 +1112,7 @@ func (m model) row(p pal, a store.Application, sel bool, show slotSet, w int) []
 	// flush right in its column; the Fit word starts at its column's first cell.
 	buildRight := func() string {
 		heat := st(heatC).Width(show.flagW).Align(lipgloss.Right)
-		if past, due := followUpDaysPast(a, m.now(), m.followUpDays); due && followUpLate(past) {
+		if past, due := schedule.FollowUpDaysPast(a, m.now(), m.followUpDays); due && followUpLate(past) {
 			heat = heat.Bold(true)
 		}
 		out := heat.Render(flag)
@@ -1296,25 +1295,25 @@ func (m model) metaDates(p pal, a store.Application, st func(color.Color) lipglo
 			}
 		}
 	case tableDismissed:
-		if lastChange(a) != nil {
-			out = append(out, when(lastChange(a), "dismissed "))
+		if schedule.LastChange(a) != nil {
+			out = append(out, when(schedule.LastChange(a), "dismissed "))
 		}
 	case tableFiltered:
 		out = append(out, dim.Render(filterReasonLabel(a.FilterReason)))
-		if lastChange(a) != nil {
-			out = append(out, when(lastChange(a), "dismissed "))
+		if schedule.LastChange(a) != nil {
+			out = append(out, when(schedule.LastChange(a), "dismissed "))
 		}
 	case tableClosed:
-		if lastChange(a) != nil {
+		if schedule.LastChange(a) != nil {
 			// The outcome by name, "rejected ~7d ago": "closed" alone could be the ad.
-			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
+			out = append(out, when(schedule.LastChange(a), strings.ToLower(schedule.LastChange(a).Status)+" "))
 		}
 	default:
-		if appliedDate(a) != nil {
-			out = append(out, when(appliedDate(a), "applied "))
+		if schedule.AppliedDate(a) != nil {
+			out = append(out, when(schedule.AppliedDate(a), "applied "))
 		}
-		if lastChange(a) != nil && lastChange(a).At != entryAt(appliedDate(a)) {
-			out = append(out, when(lastChange(a), strings.ToLower(lastChange(a).Status)+" "))
+		if schedule.LastChange(a) != nil && schedule.LastChange(a).At != entryAt(schedule.AppliedDate(a)) {
+			out = append(out, when(schedule.LastChange(a), strings.ToLower(schedule.LastChange(a).Status)+" "))
 		}
 	}
 	return out

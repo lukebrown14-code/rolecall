@@ -1,4 +1,4 @@
-package ui
+package schedule_test
 
 import (
 	"encoding/json"
@@ -9,27 +9,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
-// knownDrift lists the shared conformance vectors (fixtures/conformance.json) the TUI's
-// derived rules do not meet yet, by the audit finding that tracks each
+// knownDrift lists the shared conformance vectors (fixtures/conformance.json) the derived
+// scheduling rules do not meet yet, by the audit finding that tracks each
 // (reports/code-audit-2026-11-18). A listed vector is skipped while it fails and fails once
 // it passes, so whoever fixes the finding deletes its entry here.
 // plugin/tests/test_conformance.py keeps the Python list; internal/store/tests the store's.
 var knownDrift = map[string]struct {
 	reason  string
 	vectors []string
-}{
-	"C06": {
-		reason: "parseDay takes the UTC date of a status_log timestamp, not its date in the Owner's zone",
-		vectors: []string{
-			"follow_up/east of UTC: a timestamp counts on its local day",
-			"follow_up/east of UTC: same local day, the move wins over l",
-			"follow_up/west of UTC: a timestamp counts on its local day",
-		},
-	},
-}
+}{}
 
 func driftFor(vector string) string {
 	for id, d := range knownDrift {
@@ -101,7 +93,7 @@ type derivedConformance struct {
 
 func readDerivedConformance(t *testing.T) derivedConformance {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("..", "..", "fixtures", "conformance.json"))
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "fixtures", "conformance.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,13 +129,13 @@ func optInt(p *int) string {
 	return fmt.Sprint(*p)
 }
 
-// Follow-up due (the ⚑, NEXT, sorting, Stats → Now) reads the shared vectors as
-// meta.py follow-up does. The clock is the vector's own, in its own zone, so the result
-// never depends on the machine's TZ.
+// Follow-up due (the ⚑, NEXT, sorting, Stats → Now, `rolecall now`) reads the shared
+// vectors as meta.py follow-up does. The clock is the vector's own, in its own zone, so
+// the result never depends on the machine's TZ.
 func TestFollowUpMatchesTheSharedConformanceFixture(t *testing.T) {
 	c := readDerivedConformance(t)
 	root := t.TempDir()
-	if err := os.CopyFS(root, os.DirFS("../../fixtures/workspace")); err != nil {
+	if err := os.CopyFS(root, os.DirFS("../../../fixtures/workspace")); err != nil {
 		t.Fatal(err)
 	}
 	s, err := store.Open(root)
@@ -183,23 +175,26 @@ func TestFollowUpMatchesTheSharedConformanceFixture(t *testing.T) {
 				return []string{fmt.Sprintf("rescan: %v %v", err, a)}
 			}
 			var problems []string
-			from, ok := followUpFrom(*a)
+			from, ok := schedule.FollowUpFrom(*a, now.Location())
 			if got := from.Format(time.DateOnly); !ok || got != v.Want.From {
 				problems = append(problems, fmt.Sprintf("from %s (%v), want %s", got, ok, v.Want.From))
 			}
 			since := "last change"
-			if followedUpLater(*a) {
+			if schedule.FollowedUpLater(*a, now.Location()) {
 				since = "followed_up"
 			}
 			if since != v.Want.Since {
 				problems = append(problems, fmt.Sprintf("since %q, want %q", since, v.Want.Since))
 			}
-			past, due := followUpDaysPast(*a, now, v.Days)
+			past, due := schedule.FollowUpDaysPast(*a, now, v.Days)
 			if due != v.Want.Due {
 				problems = append(problems, fmt.Sprintf("due %v, want %v", due, v.Want.Due))
 			}
+			if schedule.FollowUpDue(*a, now, v.Days) != due {
+				problems = append(problems, "FollowUpDue disagrees with FollowUpDaysPast")
+			}
 			var gotPast *int
-			if followUpStatus(a.Status) && !nextStepBooked(*a, now) {
+			if schedule.FollowUpStatus(a.Status) && !schedule.NextStepBooked(*a, now) {
 				gotPast = &past
 			}
 			if optInt(gotPast) != optInt(v.Want.DaysPast) {
@@ -210,8 +205,8 @@ func TestFollowUpMatchesTheSharedConformanceFixture(t *testing.T) {
 	}
 }
 
-// A Lead's posting age reads the shared vectors as rules.py check does: the row's warning
-// and the Deadlines day.
+// A Lead's posting age reads the shared vectors as rules.py check does: SCHEMA's days_left
+// (0 or less is expired), the row's "expires in N days" warning and the Deadlines day.
 func TestPostingAgeMatchesTheSharedConformanceFixture(t *testing.T) {
 	c := readDerivedConformance(t)
 	for _, v := range c.PostingAge {
@@ -227,26 +222,25 @@ func TestPostingAgeMatchesTheSharedConformanceFixture(t *testing.T) {
 			}
 			rules = rules.WithSources(v.Sources)
 			a := store.Application{Status: store.StatusLead, Posted: v.Posted, Source: v.Source}
-			warning := ageWarning(a, rules, now)
-			expired := warning == "past the age limit"
+			n, hasLeft := schedule.PostingDaysLeft(a, rules, now)
+			expired := hasLeft && n <= 0
 			var left *int
-			if n, ok := postingDaysLeft(a, rules, now); ok && !expired {
+			if hasLeft && !expired {
 				left = &n
 			}
-			warn := strings.HasPrefix(warning, "expires")
 			var problems []string
 			// The deadline (sorting, the Expired section) passes on the same day.
-			if expiry, ok := postingExpiry(a, rules); ok && expiry.Before(day(now)) != expired {
-				problems = append(problems, fmt.Sprintf("deadline %s disagrees with expired %v", expiry.Format(time.DateOnly), expired))
+			if _, ok := schedule.PostingExpiry(a, rules); ok && schedule.Passed(a, rules, now) != expired {
+				problems = append(problems, fmt.Sprintf("deadline passed %v, expired %v", !expired, expired))
 			}
 			if expired != v.Want.Expired {
-				problems = append(problems, fmt.Sprintf("expired %v (%q), want %v", expired, warning, v.Want.Expired))
+				problems = append(problems, fmt.Sprintf("expired %v (days left %d), want %v", expired, n, v.Want.Expired))
 			}
 			if optInt(left) != optInt(v.Want.DaysLeft) {
 				problems = append(problems, fmt.Sprintf("days_left %s, want %s", optInt(left), optInt(v.Want.DaysLeft)))
 			}
-			if warn != v.Want.Warn {
-				problems = append(problems, fmt.Sprintf("warn %v (%q), want %v", warn, warning, v.Want.Warn))
+			if warn := schedule.PostingExpiring(a, rules, now); warn != v.Want.Warn {
+				problems = append(problems, fmt.Sprintf("warn %v, want %v", warn, v.Want.Warn))
 			}
 			return problems
 		})

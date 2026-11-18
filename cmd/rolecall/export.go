@@ -78,9 +78,9 @@ func exportCommand(args []string, stdout, stderr io.Writer, clock func() time.Ti
 	case *ics:
 		data = icsCalendar(readable, clock())
 	case *format == "json":
-		data, err = exportJSON(s.Root(), readable)
+		data, err = exportJSON(s.Root(), readable, clock().Location())
 	default:
-		data, err = exportCSV(s.Root(), readable)
+		data, err = exportCSV(s.Root(), readable, clock().Location())
 	}
 	if err != nil {
 		return err
@@ -162,12 +162,17 @@ var exportColumns = []string{"folder", "title", "company", "track", "status", "f
 // privateMode is the export file's permissions: the Owner's alone.
 const privateMode = 0o600
 
-func day(at string) string {
+// day is a Status entry's day as the export writes it, YYYY-MM-DD: a timestamp's date in
+// loc, the Owner's zone, as the rows and Stats read it (store.LocalDay).
+func day(at string, loc *time.Location) string {
+	if t, ok := store.LocalDay(at, loc); ok {
+		return t.Format(time.DateOnly)
+	}
 	d, _, _ := strings.Cut(at, "T")
 	return d
 }
 
-func exportRows(root string, apps []store.Application) []exportRow {
+func exportRows(root string, apps []store.Application, loc *time.Location) []exportRow {
 	rows := make([]exportRow, 0, len(apps))
 	for _, a := range apps {
 		rel, err := filepath.Rel(root, a.Folder)
@@ -184,9 +189,9 @@ func exportRows(root string, apps []store.Application) []exportRow {
 		for _, e := range log {
 			r.StatusLog = append(r.StatusLog, exportLog{Status: e.Status, At: e.At})
 			if e.Status == store.StatusApplied && r.Applied == "" {
-				r.Applied = day(e.At)
+				r.Applied = day(e.At, loc)
 			}
-			r.LastChange = day(e.At)
+			r.LastChange = day(e.At, loc)
 		}
 		if a.NextStep != nil {
 			r.NextStepAt, r.NextStepWhat = a.NextStep.At, a.NextStep.What
@@ -202,11 +207,11 @@ func exportRows(root string, apps []store.Application) []exportRow {
 	return rows
 }
 
-func exportJSON(root string, apps []store.Application) ([]byte, error) {
+func exportJSON(root string, apps []store.Application, loc *time.Location) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(exportRows(root, apps)); err != nil {
+	if err := enc.Encode(exportRows(root, apps, loc)); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -221,13 +226,13 @@ func csvSafe(s string) string {
 	return s
 }
 
-func exportCSV(root string, apps []store.Application) ([]byte, error) {
+func exportCSV(root string, apps []store.Application, loc *time.Location) ([]byte, error) {
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
 	if err := w.Write(exportColumns); err != nil {
 		return nil, err
 	}
-	for _, r := range exportRows(root, apps) {
+	for _, r := range exportRows(root, apps, loc) {
 		var contacts, log []string
 		for _, c := range r.Contacts {
 			label := c.Name
@@ -240,7 +245,7 @@ func exportCSV(root string, apps []store.Application) ([]byte, error) {
 			contacts = append(contacts, label)
 		}
 		for _, e := range r.StatusLog {
-			log = append(log, e.Status+" "+day(e.At))
+			log = append(log, e.Status+" "+day(e.At, loc))
 		}
 		cells := []string{r.Folder, r.Title, r.Company, r.Track, r.Status, r.Fit, r.URL, r.Closes, r.Posted, r.Source, r.Recruiter,
 			r.Applied, r.LastChange, r.NextStepAt, r.NextStepWhat, strings.Join(contacts, "; "), r.CloseReason, strings.Join(log, "; ")}

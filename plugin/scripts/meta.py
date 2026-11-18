@@ -747,8 +747,18 @@ FOLLOW_UP_STATUSES = ("Applied", "Interviewing")
 
 
 def _day(value):
-    """The day of a YYYY-MM-DD date or the date part of a timestamp, as written; or None."""
-    text = str(value or "").split("T")[0]
+    """The day a date counts on, as SCHEMA and Go's store.LocalDay read it; or None.
+
+    An RFC 3339 timestamp (a ``status_log`` ``at``) counts on its date in the Owner's
+    local zone; a YYYY-MM-DD date, or a zoneless ``next_step`` time, keeps the day written.
+    """
+    text = str(value or "").strip()
+    if RFC3339.fullmatch(text):
+        try:
+            return _parse_moment(text).astimezone().date()
+        except ValueError:
+            pass
+    text = text.split("T")[0]
     return datetime.strptime(text, "%Y-%m-%d").date() if _valid_date(text) else None
 
 
@@ -789,8 +799,8 @@ def effective_log(log):
 
 
 def _last_change(app):
-    """When the Application reached its current Status, ignoring undone moves, as the TUI's
-    lastChange: the effective log's last entry, None when an undo emptied a Lead's log, and
+    """When the Application reached its current Status, ignoring undone moves, as Go's
+    schedule.LastChange: the effective log's last entry, None when an undo emptied a Lead's log, and
     the raw last entry if the effective log disagrees with the current Status."""
     log = effective_log(app.status_log)
     if not log and app.status == "Lead":
@@ -1164,7 +1174,8 @@ def create(workspace, fields, now=None, status_log=None):
 
     parent = Path(workspace) / "jobs" / track
     parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    day = moment.strftime("%Y-%m-%d")
+    # The creation date in the Owner's zone, as the TUI names its folders.
+    day = moment.astimezone().strftime("%Y-%m-%d")
     while True:
         folder = unique_folder(parent, company, title, day)
         try:

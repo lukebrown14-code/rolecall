@@ -51,7 +51,7 @@ defined in `GLOSSARY.md`.
 
 `<slug>` = `<company>-<title>-<YYYY-MM-DD>`: lowercase, every run of characters outside
 `[a-z0-9]` becomes `-`, trimmed, cut to at most 60 characters at a `-`, with the creation
-date. Each character is lowercased on its own (`İ` is `i`, `K` (Kelvin) is `k`); when the
+date in the Owner's time zone. Each character is lowercased on its own (`İ` is `i`, `K` (Kelvin) is `k`); when the
 first 61 characters hold no `-`, the cut keeps the first 60. When nothing is left (a CJK or symbol-only name) it is `application`. If the name is taken, append `-2`,
 `-3`, and so on. The name is only an identifier; never parse meaning out of it.
 

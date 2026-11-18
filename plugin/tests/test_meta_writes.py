@@ -486,3 +486,19 @@ def test_duplicate_status_entries_names_each_repeat_once(tmp_path):
     assert meta.duplicate_status_entries(application.status_log) == [
         ("Applied", "2026-01-02T00:00:00Z")
     ]
+
+
+@pytest.mark.parametrize("hours,want", [(-12, "acme-engineer-2026-11-10"), (0, "acme-engineer-2026-11-11"),
+                                        (14, "acme-engineer-2026-11-11")])
+def test_create_names_the_folder_with_the_owners_local_date(tmp_path, owner_offset, hours, want):
+    # 04:28Z on 11 Nov is still 10 Nov at UTC-12: the folder carries the date the Owner
+    # sees, as the TUI's store.Create names it, while the status_log stamp stays UTC.
+    owner_offset(hours)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    result = run_script(workspace, META, "create", "--track", "SWE", "--company", "Acme", "--title", "Engineer",
+                        "--at", "2026-11-11T04:28:00Z")
+    assert result.returncode == 0, result.stderr
+    folder = workspace / "jobs" / "SWE" / want
+    assert folder.is_dir(), sorted(p.name for p in (workspace / "jobs" / "SWE").iterdir())
+    assert "at: 2026-11-11T04:28:00Z" in (folder / "meta.yml").read_text()

@@ -9,17 +9,23 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lukebrown14-code/rolecall/internal/config"
+	"github.com/lukebrown14-code/rolecall/internal/schedule"
 	"github.com/lukebrown14-code/rolecall/internal/store"
 )
 
 // followUpFlag marks an Applied or Interviewing row whose last change is follow_up_days old or older.
 const followUpFlag = glyphFollowUp
 
-func entryDate(e *store.StatusEntry) string {
+// entryDate is a Status entry's day as the rows show it, "2026-11-04", in loc (the
+// Owner's zone), with SCHEMA's ~ when approximate.
+func entryDate(e *store.StatusEntry, loc *time.Location) string {
 	if e == nil {
 		return ""
 	}
-	d := strings.Split(e.At, "T")[0]
+	d, _, _ := strings.Cut(e.At, "T")
+	if t, ok := store.LocalDay(e.At, loc); ok {
+		d = t.Format(time.DateOnly)
+	}
 	if e.Approx {
 		d = "~" + d
 	}
@@ -41,14 +47,14 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		docs = glyphMissing
 	}
 	if table == tableFiltered {
-		return append(out, entryDate(lastChange(a)), filterReasonLabel(a.FilterReason))
+		return append(out, entryDate(schedule.LastChange(a), now.Location()), filterReasonLabel(a.FilterReason))
 	}
 	if table == tableDismissed {
-		return append(out, entryDate(lastChange(a)))
+		return append(out, entryDate(schedule.LastChange(a), now.Location()))
 	}
 	if beforeApplied(table) {
 		closes := a.Closes
-		if t, ok := parseDay(closes); ok && t.Before(day(now)) {
+		if schedule.ClosesPassed(a, now) {
 			closes = "past"
 		}
 		out = append(out, closes, fit)
@@ -58,10 +64,10 @@ func ApplicationColumns(a store.Application, table string, now time.Time, follow
 		return out
 	}
 	flag := ""
-	if followUpDue(a, now, followUpDays) {
+	if schedule.FollowUpDue(a, now, followUpDays) {
 		flag = followUpFlag
 	}
-	return append(out, entryDate(appliedDate(a)), fit, docs, flag)
+	return append(out, entryDate(schedule.AppliedDate(a), now.Location()), fit, docs, flag)
 }
 
 // SortApplications orders a view's rows as the list does, with no Search rules and no
@@ -111,15 +117,15 @@ func (o rowOrder) sort(rows []store.Application, table string) {
 		sort.SliceStable(rows, func(i, j int) bool { return o.deadlineLess(rows[i], rows[j]) })
 		return
 	case table == tableDismissed || table == tableFiltered:
-		sortByDate(rows, func(a store.Application) string { return entryAt(lastChange(a)) })
+		sortByDate(rows, func(a store.Application) string { return entryAt(schedule.LastChange(a)) })
 		return
 	}
-	sortByDate(rows, func(a store.Application) string { return entryAt(appliedDate(a)) })
+	sortByDate(rows, func(a store.Application) string { return entryAt(schedule.AppliedDate(a)) })
 	if (table != tableApplied && table != tableInterviewing) || o.followUpDays <= 0 {
 		return
 	}
 	overdue := func(a store.Application) int {
-		past, due := followUpDaysPast(a, o.now, o.followUpDays)
+		past, due := schedule.FollowUpDaysPast(a, o.now, o.followUpDays)
 		if !due {
 			return -1
 		}
@@ -141,8 +147,8 @@ func sortByDate(rows []store.Application, date func(store.Application) string) {
 
 // deadlineLess is the Leads and Drafts order: deadline, then Fit, then newest posted.
 func (o rowOrder) deadlineLess(a, b store.Application) bool {
-	da, okA := deadline(a, o.rules)
-	db, okB := deadline(b, o.rules)
+	da, okA := schedule.Deadline(a, o.rules)
+	db, okB := schedule.Deadline(b, o.rules)
 	switch {
 	case okA != okB:
 		return okA

@@ -11,6 +11,7 @@ and rendering. Its subpackages do not import it.
 | `watch/` | Filesystem subscriptions, debounce windows, changed folders, document-write classification, and shutdown. |
 | `tests/` | Behaviour and rendering tests through the UI's public interface, with rendering goldens in `testdata/`. |
 | `../reporting/` | Pure funnel, response, weekly, and track calculations, independent of terminal UI. |
+| `../schedule/` | Pure rules derived from an Application's dates: Follow-up due and the next-step hold, close dates, posting expiry and Now (Stats → Now and `rolecall now`), independent of terminal UI. |
 
 The root model adapts those modules to the application. Files are grouped by name, not
 listed here one by one (`ls internal/ui` is the inventory):

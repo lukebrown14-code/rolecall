@@ -34,7 +34,8 @@ each other directly: files are the only link.
 rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)        
 ├─ cmd/rolecall/main.go                       ├─ workspace.json
 ├─ internal/store/   meta.yml read/patch, scan         ├─ profile/   (+ writing-preferences.md)
-├─ internal/ui/      Bubble Tea models, views          ├─ cv/
+├─ internal/schedule/ Follow-up due, deadlines, Now    ├─ cv/
+├─ internal/ui/      Bubble Tea models, views          │
 ├─ internal/config/                                    └─ jobs/<track>/<slug>/
 ├─ plugin/
 │  ├─ .claude-plugin/plugin.json

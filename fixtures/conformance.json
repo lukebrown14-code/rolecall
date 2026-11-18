@@ -1,5 +1,5 @@
 {
-  "_comment": "SCHEMA.md rules shared by the Go store/TUI and the Python Plugin, as vectors. Both sides assert this file: internal/store/tests/conformance_test.go, internal/ui/conformance_internal_test.go and plugin/tests/test_conformance.py. Expected values follow SCHEMA.md, not either implementation; a side that does not meet a vector yet skips it through its test's known-drift table, keyed by audit finding. Each line is appended to base and must read as valid (or malformed) on both sides; enums, payPerYear and payFX must equal each side's tables. Change a rule here and on both sides together.",
+  "_comment": "SCHEMA.md rules shared by the Go store/schedule and the Python Plugin, as vectors. Both sides assert this file: internal/store/tests/conformance_test.go, internal/schedule/tests/conformance_test.go and plugin/tests/test_conformance.py. Expected values follow SCHEMA.md, not either implementation; a side that does not meet a vector yet skips it through its test's known-drift table, keyed by audit finding. Each line is appended to base and must read as valid (or malformed) on both sides; enums, payPerYear and payFX must equal each side's tables. Change a rule here and on both sides together.",
   "base": "schema: 1\ntitle: Engineer\ncompany: Acme\ntrack: SWE\n",
   "lines": [
     {"line": "pay_min: 120000", "valid": true},

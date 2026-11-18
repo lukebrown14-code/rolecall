@@ -11,7 +11,7 @@ import (
 
 	"github.com/lukebrown14-code/rolecall/internal/config"
 	"github.com/lukebrown14-code/rolecall/internal/doctor"
-	"github.com/lukebrown14-code/rolecall/internal/ui"
+	"github.com/lukebrown14-code/rolecall/internal/process"
 )
 
 // initCommand is `rolecall init [DIR]`: it creates a Workspace and records it in
@@ -68,7 +68,7 @@ func initCommand(args []string, out, errOut io.Writer) error {
 	exists := isWorkspace(root)
 	if exists && !switchDefault {
 		return fmt.Errorf("%s is already a Workspace; open it with: rolecall --dir %s\n  To open it by default: rolecall init --switch %s",
-			root, ui.QuoteShellArgument(root), ui.QuoteShellArgument(root))
+			root, process.QuoteShellArgument(root), process.QuoteShellArgument(root))
 	}
 	if !exists {
 		if err := initWorkspaceFiles(root); err != nil {
@@ -92,16 +92,16 @@ func initCommand(args []string, out, errOut io.Writer) error {
 	default:
 		open := "rolecall"
 		if keep {
-			open = "rolecall --dir " + ui.QuoteShellArgument(root)
+			open = "rolecall --dir " + process.QuoteShellArgument(root)
 		}
 		writeInitDone(out, root, before.Harness, open)
 	}
 	switch {
 	case keep:
 		_, _ = fmt.Fprintf(out, "\n%s still opens your existing Workspace, %s.\n  Open the new one with: rolecall --dir %s\n  Make it the default:   rolecall init --switch %s\n",
-			cfgPath, previous, ui.QuoteShellArgument(root), ui.QuoteShellArgument(root))
+			cfgPath, previous, process.QuoteShellArgument(root), process.QuoteShellArgument(root))
 	case previous != "" && filepath.Clean(previous) != root && isWorkspace(previous):
-		_, _ = fmt.Fprintf(out, "Your previous Workspace is still at %s (rolecall --dir %s).\n", previous, ui.QuoteShellArgument(previous))
+		_, _ = fmt.Fprintf(out, "Your previous Workspace is still at %s (rolecall --dir %s).\n", previous, process.QuoteShellArgument(previous))
 	}
 	return nil
 }

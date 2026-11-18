@@ -66,6 +66,22 @@ def test_no_followed_up_counts_from_the_last_change(tmp_path):
     assert got["Due"] and got["DaysPast"] == 32
 
 
+def test_a_timestamp_counts_on_the_owners_local_day(tmp_path, owner_offset):
+    # Applied at 09:30 on 4 Nov in Sydney (UTC+11) is 22:30Z on 3 Nov: due on 18 Nov.
+    owner_offset(11)
+    app = applied(tmp_path, "2026-11-03T22:30:00Z")
+    assert meta.follow_up_status(app, date(2026, 11, 17), 14)["Due"] is False
+    got = meta.follow_up_status(app, date(2026, 11, 18), 14)
+    assert (got["From"], got["DueOn"], got["DaysPast"]) == ("2026-11-04", "2026-11-18", 0)
+
+
+def test_a_move_and_an_l_on_the_same_local_day_count_from_the_move(tmp_path, owner_offset):
+    # 07:00 on 18 Nov in Sydney is 20:00Z on 17 Nov; l the same day writes 2026-11-18.
+    owner_offset(11)
+    app = applied(tmp_path, "2026-11-17T20:00:00Z", "2026-11-18")
+    assert meta.follow_up_from(app) == (date(2026, 11, 18), "last change")
+
+
 def test_a_recent_follow_up_holds_the_reminder_off(tmp_path):
     app = applied(tmp_path, "2026-09-01T10:00:00Z", "2026-11-13")
     got = meta.follow_up_status(app, TODAY, 14)
