@@ -384,8 +384,3 @@ func (sm *searchMode) Update(m *model, msg tea.Msg) (mode, tea.Cmd) {
 	m.cursor = 0
 	return sm, nil
 }
-
-// Key-hint labels shared by the pop-up modes.
-const (
-	hintReview = "review"
-)
