@@ -1,6 +1,6 @@
 # Showcase Workspace
 
-`examples/workspace` is a complete, fictional Workspace for trying rolecall, recording the demo
+`examples/workspace` is a complete, fictional Workspace for trying Rolecall, recording the demo
 GIF and reproducing bugs. Everyone and every company in it is made up, and every email address
 is at `example.test`.
 

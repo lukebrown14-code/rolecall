@@ -1,4 +1,4 @@
-# How the rolecall app works
+# How the Rolecall app works
 
 Reference for the `help` skill. For the exact keys on one screen, the app's `?` help is
 authoritative; for the Owner's own paths, `rolecall doctor` is.
@@ -38,7 +38,7 @@ Tracks, the Search area, Search rules and Sources are set in Settings. The Profi
 
 Every Application, a Lead included, is its own folder: the app lists the folders and reads
 nothing else. `jobs/SHORTLIST.md`, `TRACKER.md`, `DISMISSED.md` and `INBOX.md` (in `jobs/` or the
-root) are from an older rolecall and are never read; the app's footer and `rolecall doctor`
+root) are from an older Rolecall and are never read; the app's footer and `rolecall doctor`
 warn about them, and `${CLAUDE_PLUGIN_ROOT}/scripts/migrate.py` converts them (see `<plugin>/README.md`).
 `jobs/sweep-candidates.md` is the current Sweep's raw output, triaged into Leads by find-jobs.
 `jobs/_archive/` holds retired files, locked and never read: editing them changes nothing.
@@ -91,7 +91,7 @@ The JD and Gaps are inputs on their own tabs and are not counted.
 | `u` · `space` · `,` · `?` · `q` | undo · command palette (`:` and `Ctrl-K` open it too) · Settings · help · quit |
 
 A Handoff runs the `harness` command from `config.toml` with the skill and the Application's
-folder, started in the Workspace wherever rolecall was launched; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
+folder, started in the Workspace wherever Rolecall was launched; the app steps aside and re-reads the folder when the Harness exits. Without `harness`
 set, `?` and the palette list the Handoff keys dimmed as `(needs a Harness)`, pressing one says to
 set it, and `h` opens Settings › This machine on the Harness row.
 

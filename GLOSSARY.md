@@ -1,6 +1,6 @@
-# rolecall
+# Rolecall
 
-rolecall: a terminal job tracker plus a plugin that lets the Owner's coding harness write tailored resumes and cover letters from a locked fact set.
+Rolecall: a terminal job tracker plus a plugin that lets the Owner's coding harness write tailored resumes and cover letters from a locked fact set.
 
 ## Language
 
@@ -8,7 +8,7 @@ rolecall: a terminal job tracker plus a plugin that lets the Owner's coding harn
 The individual job seeker whose Profile and Applications live in a Workspace. An Owner can pursue multiple career tracks using one Profile.
 
 **Workspace**:
-The Owner's private folder holding their Profile, settings and Applications. Never part of rolecall's code.
+The Owner's private folder holding their Profile, settings and Applications. Never part of Rolecall's code.
 _Avoid_: data dir, project
 
 **Settings**:
@@ -198,7 +198,7 @@ An Application sent without a cover letter, by choice. It is Ready with the resu
 ### Agent work
 
 **Bring your own agent (BYOA)**:
-The design in which rolecall has no AI of its own. The Owner's Harness does all AI work and meets rolecall only through the Workspace's files. Unlike ACP-style BYOA, rolecall never talks to the agent over a protocol; the files are the only contract (ADR 0003).
+The design in which Rolecall has no AI of its own. The Owner's Harness does all AI work and meets Rolecall only through the Workspace's files. Unlike ACP-style BYOA, Rolecall never talks to the agent over a protocol; the files are the only contract (ADR 0003).
 _Avoid_: built-in AI, AI integration
 
 **Harness**:
@@ -210,5 +210,5 @@ The Owner passing one Application to the Harness from the TUI to run a Plugin sk
 _Avoid_: AI action, job (for this), task
 
 **Plugin**:
-The skills, scripts and templates rolecall ships for the Harness. It is how the Harness knows the Workspace's files and rules.
+The skills, scripts and templates Rolecall ships for the Harness. It is how the Harness knows the Workspace's files and rules.
 _Avoid_: extension, integration

@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a problem with rolecall
+about: Report a problem with Rolecall
 title: ""
 labels: bug
 assignees: ""
@@ -32,5 +32,5 @@ What did you expect to happen?
 
 ## Environment
 
-- rolecall version / commit:
+- Rolecall version / commit:
 - OS:

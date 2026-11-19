@@ -1,6 +1,6 @@
 # Connect a Harness
 
-The Harness is your coding assistant. It reads the Plugin's skills, and rolecall's `f`, `p` and
+The Harness is your coding assistant. It reads the Plugin's skills, and Rolecall's `f`, `p` and
 `F` keys hand off to it through the `harness` command in `config.toml`.
 
 ## Find the Plugin
@@ -15,11 +15,11 @@ The Harness is your coding assistant. It reads the Plugin's skills, and rolecall
 ## The `harness` command
 
 Set Harness on the Settings screen (`6`), or `harness` in `~/.config/rolecall/config.toml`
-(keep the single quotes around the TOML value). rolecall replaces `{skill}` with `assess-fit`
+(keep the single quotes around the TOML value). Rolecall replaces `{skill}` with `assess-fit`
 (`f`), `prepare-documents` (`p`) or `draft-follow-up` (`F`), and `{dir}` with the selected
 Application folder, then runs the command through `/bin/sh -c` from your Workspace.
 
-The folder never goes into the command text. rolecall passes it to the shell as `$1` (and the
+The folder never goes into the command text. Rolecall passes it to the shell as `$1` (and the
 skill as `$2`), and writes each placeholder as a quoted reference to that value: `"${1}"`
 when the placeholder is bare, `${1}` inside double quotes, and `'"${1}"'` inside single
 quotes. A folder name with spaces, quotes, `$(...)` or backticks therefore reaches the
@@ -45,13 +45,13 @@ again.
 
 ### Update the Plugin
 
-After updating rolecall, refresh the marketplace:
+After updating Rolecall, refresh the marketplace:
 
 ```sh
 claude plugin marketplace update rolecall
 ```
 
-### Configure rolecall
+### Configure Rolecall
 
 ```toml
 harness = 'claude "/rolecall:{skill} {dir}"'
@@ -70,7 +70,7 @@ holds your personal data.
 cd /path/to/your/workspace && claude
 ```
 
-Run `/rolecall:help` (or ask, "which rolecall skill finds jobs?") to learn how rolecall or a
+Run `/rolecall:help` (or ask, "which Rolecall skill finds jobs?") to learn how Rolecall or a
 skill works. It changes nothing.
 
 ## Codex, Gemini CLI and opencode
@@ -102,7 +102,7 @@ Start a new Harness session if one was open when you linked the skills.
 
 ## Check the handoff
 
-Open an Application in rolecall and press `f` (Assess fit), `p` (Prepare documents, for Leads
+Open an Application in Rolecall and press `f` (Assess fit), `p` (Prepare documents, for Leads
 and Drafts) or `F` (draft a follow-up, when Follow-up is due). The Harness should open with that
 skill and Application folder. Review its changes; results land in the Application folder for
 the app to show.

@@ -1,4 +1,4 @@
-# Contributing to rolecall
+# Contributing to Rolecall
 
 Contributions are welcome. Open a GitHub issue before a large change, describing the problem,
 what you expect and what you have tried. Small fixes can go straight to a pull request.
@@ -21,7 +21,7 @@ CI (`.github/workflows/go.yml`) runs these on every branch push and pull request
 golangci-lint v2.15.0 as its own step. It also runs `go test ./...` once more with `NO_COLOR`,
 `TERM=linux`, `LANG=C` and the other display variables set, and a macOS job
 (`scripts/check-go.sh` and `go test ./...`). Go tests pin their own environment through
-`internal/testenv`: a test package that renders, resolves an Editor or launches rolecall calls
+`internal/testenv`: a test package that renders, resolves an Editor or launches Rolecall calls
 `testenv.Main` from its `TestMain`, and a test of one of those modes sets the variable itself.
 
 ### Personal data

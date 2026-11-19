@@ -1,12 +1,12 @@
 # Workspace schema
 
-The contract between every writer of a rolecall workspace: the TUI (Go), the plugin scripts
+The contract between every writer of a Rolecall workspace: the TUI (Go), the plugin scripts
 (`build.py`, `sweep.py`, Python) and the harness agent following the plugin skills. If a
 writer disagrees with this file, the writer is wrong. Both codebases test against the shared
 fixtures in `fixtures/`.
 
 Schema version: 1. A missing `schema` in `workspace.json` or `meta.yml` means 1 for
-pre-schema files. Readers refuse a newer schema and tell the Owner to upgrade rolecall;
+pre-schema files. Readers refuse a newer schema and tell the Owner to upgrade Rolecall;
 they must not interpret files written for a format they do not know. A `meta.yml` with a
 newer schema is shown as a warning row with the upgrade detail. Terms (Application, Status, Lead, Fit…) are
 defined in `GLOSSARY.md`.
@@ -188,9 +188,9 @@ saves a `contacts` list (its value is read into the list first). No writer adds 
 more. The legacy `followup` is unrelated to `followed_up` and is never read.
 
 `next_step`, `contacts` and `close_reason` are additive keys, and the schema stays 1. A file
-without them reads exactly as before. An older rolecall cannot read a file
+without them reads exactly as before. An older Rolecall cannot read a file
 that has `next_step` or `contacts` (its reader does not know a flow-map value) and shows it as
-malformed, so upgrade rolecall before using them. The schema version guard is unchanged.
+malformed, so upgrade Rolecall before using them. The schema version guard is unchanged.
 
 ### `status_log`
 
@@ -308,7 +308,7 @@ Folders never move, malformed `meta.yml` files are skipped and named afterwards,
 not undo it.
 
 An invalid file is shown, with its parse error, on the Settings screen. Missing schema means 1;
-a newer schema stops startup with an instruction to upgrade rolecall. A missing file, or a
+a newer schema stops startup with an instruction to upgrade Rolecall. A missing file, or a
 missing key such as `tracks`, means no track filter and the plugin's defaults.
 
 `sources` has two forms. The older one is an object mapping a Platform name to its

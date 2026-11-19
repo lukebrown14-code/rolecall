@@ -13,11 +13,11 @@ description: Create or update the Owner's Profile from a resume or a guided inte
 
 Build the Owner's Profile: the fact set every Application document must come from. The Owner
 approves the finished Profile before it is treated as their locked fact set. All reading,
-drafting and questions happen in the Owner's Harness; rolecall does not send Profile data to a
+drafting and questions happen in the Owner's Harness; Rolecall does not send Profile data to a
 service.
 
 The file contract is [`SCHEMA.md`](../../../SCHEMA.md). Profile files live in the Workspace's
-`profile/` directory, not in the rolecall repository. Source documents (an imported resume or
+`profile/` directory, not in the Rolecall repository. Source documents (an imported resume or
 export) go in the Workspace's `cv/` folder; never copy the Owner's personal data into this
 repository.
 
@@ -107,7 +107,7 @@ Profile. Report the list to the Owner; do not edit those drafts from this skill.
 
 - Read the Workspace path from `--data <path>` or `ROLECALL_WORKSPACE`; never guess it.
 - Write only Profile files in that Workspace. Never modify Applications, `workspace.json`, or
-  files in the rolecall repository.
+  files in the Rolecall repository.
 - Preserve the original files in `cv/`; do not overwrite or delete source material.
 - The Owner's approval is required before replacing an existing approved Profile.
 - Never invent facts or silently resolve conflicting sources.

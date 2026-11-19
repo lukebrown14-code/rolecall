@@ -24,7 +24,7 @@ message, edits it and sends it themselves.
 - `<application folder>/meta.yml` — the title, company, `contacts` if there are any (or the
   older single `contact`), `next_step` if one is set, the `status_log` and `followed_up`. The log says when the Owner applied and when the Status last
   changed; `followed_up: YYYY-MM-DD`, when present, is the day the Owner last recorded a
-  follow-up (`l` in rolecall).
+  follow-up (`l` in Rolecall).
 - When it is due: `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/meta.py --data <workspace> follow-up --folder <application folder>`
   (add `--days <n>` when the Owner changed `follow_up_days` in Settings). It prints `FollowedUp`,
   `From` (the later of the last Status change and `followed_up`; a move undone within 15
@@ -65,7 +65,7 @@ Overwrite an existing `follow-up.md` only after saying you are replacing it.
 ## 3. Report
 
 Say where the file is, whether a contact was found (and which), and that nothing was sent. Then tell the
-Owner: once they have sent it, press `l` on the Application in rolecall to record the follow-up.
+Owner: once they have sent it, press `l` on the Application in Rolecall to record the follow-up.
 That writes `followed_up` and clears the `⚑` until `follow_up_days` after that day.
 
 Do not append to `status_log` and do not edit `meta.yml`, `followed_up` included, even when the
