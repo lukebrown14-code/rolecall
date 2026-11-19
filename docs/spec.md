@@ -1,7 +1,7 @@
 # rolecall: spec
 
 A terminal job tracker. The Owner moves Applications between Statuses, reads them, and gets
-their documents. A harness agent, following the rolecall plugin's skills, does the AI work
+their documents. A harness agent, following the Rolecall plugin's skills, does the AI work
 (capture, fit, documents, finding roles) by writing files. The TUI and the agent never talk to
 each other directly: files are the only link.
 
@@ -62,7 +62,7 @@ rolecall/  (new, private until v1.0)          <workspace>/  (private data repo)
 
 Go · Bubble Tea · Bubbles (viewport, help, key) · Lip Gloss (layout, colour and layered
 pop-ups) · Glamour (Markdown in the detail view) · fsnotify · a TOML reader for
-config. The forms and the move popup are drawn by rolecall itself (see [v0.1.1 look](#v011-look-built)), and the stack uses the latest stable major versions (Bubble Tea v2).
+config. The forms and the move popup are drawn by Rolecall itself (see [v0.1.1 look](#v011-look-built)), and the stack uses the latest stable major versions (Bubble Tea v2).
 
 ### Config
 
@@ -84,7 +84,7 @@ compact_rows = false   # one-line list rows at wide sizes; z toggles it and save
 
 Settings (key `6`) edits `editor`, `downloads`, `harness`, `plugin`, `follow_up_days` (1-90), `ascii` and `inherit_terminal` in place, keeping comments and other lines; `workspace` is never written. Environment switches with no config key: `ROLECALL_THEME`, `ROLECALL_ASCII`, `ROLECALL_PLAIN` and `NO_COLOR` (see [v0.1.1 look](#v011-look-built)).
 
-If there is no workspace, rolecall exits with a one-line message naming the config path. There is no wizard: `rolecall init` creates the Workspace without asking anything (see [v1.0](#v10-public)).
+If there is no workspace, Rolecall exits with a one-line message naming the config path. There is no wizard: `rolecall init` creates the Workspace without asking anything (see [v1.0](#v10-public)).
 An invalid `workspace.json` (bad JSON, a wrong-shaped key, or a `tracks` list that breaks the Track
 name rules) does not stop startup: the app opens with no Track filter and the footer says
 `workspace.json: invalid Workspace settings · 6 then e to fix it` (`e` on a table screen edits the
@@ -876,7 +876,7 @@ opening stays but is best-effort, with no CI.
 | # | Item | Decision |
 |---|---|---|
 | 1 | Ownership | v1 stays under `lukebrown14-code`: public repo `lukebrown14-code/rolecall`; module path `github.com/lukebrown14-code/rolecall`. `rolecall` stays public with its history (ADR-0009); no organization transfer. Moving to an organization is deferred past v1 |
-| 2 | Licence · CONTRIBUTING | MIT, "the rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
+| 2 | Licence · CONTRIBUTING | MIT, "the Rolecall authors". CONTRIBUTING: checks and hooks, reproduce with the example workspace, no personal data, proposals via issues |
 | 3 | README | Rewrite for the public release, including "Make your documents yours" (the Privacy section is #77) |
 | 4 | Template | "Header Band" stays the default with neutral comments. A Workspace `brand.typ` overrides the Plugin's. `init`'s closing line and a `doctor` info line point to the README |
 | 5 | goreleaser | macOS and Linux, amd64 and arm64, to GitHub Releases. Archives include the Plugin; `plugin` defaults to the installed path |
@@ -892,7 +892,7 @@ opening stays but is best-effort, with no CI.
 
 ### Profile screen
 
-Read-only; editing inside rolecall comes in 1.x. Spelling and paper size are not
+Read-only; editing inside Rolecall comes in 1.x. Spelling and paper size are not
 settings in v1 (AU and A4 are fixed; style packs move to 1.x), and writing preferences stay
 prose, so the 1.x edit form covers the Contact only.
 
@@ -1011,7 +1011,7 @@ below are built.
   (the Workspace path is in it), unless `--dir` names the Workspace: then the app opens on
   defaults and shows the error. `rolecall doctor` reports it as a PROBLEM and runs its other checks.
 - Editor examples: the Editor's about text names `nvim`, `hx`, `code --wait`, `zed --wait`,
-  `subl --wait`. GUI Editors need their wait flag, or rolecall rescans before editing finishes.
+  `subl --wait`. GUI Editors need their wait flag, or Rolecall rescans before editing finishes.
 - An absent `follow_up_days` means the default 14. A hand-edited value outside 1-90 (0
   included) is clamped into range on load; the Follow-up row, the feedback line and
   `rolecall doctor` say so.

@@ -1,4 +1,4 @@
-# rolecall
+# Rolecall
 
 Run your job search from the terminal.
 
@@ -9,28 +9,28 @@ Run your job search from the terminal.
 </p>
 
 <p align="center">
-    <img src="docs/demo.gif" width="800" alt="rolecall moving between screens, reading a Draft's Resume and moving it to Applied">
+    <img src="docs/demo.gif" width="800" alt="Rolecall moving between screens, reading a Draft's Resume and moving it to Applied">
 </p>
 
 ## What is it?
 
-rolecall is a local job tracker for the terminal. Each Application moves from Lead to Draft to
-Applied and on to an Interview, an Offer or a close, and rolecall shows where everything stands:
+Rolecall is a local job tracker for the terminal. Each Application moves from Lead to Draft to
+Applied and on to an Interview, an Offer or a close, and Rolecall shows where everything stands:
 what is due for a follow-up, which interviews are booked, and how your search is converting.
 Every Application is a plain folder of Markdown and YAML in a private git repository on your
 machine.
 
-rolecall has no AI of its own, so you bring your own agent. With the rolecall Plugin, your coding
+Rolecall has no AI of its own, so you bring your own agent. With the Rolecall Plugin, your coding
 Harness (Claude Code, Codex, Gemini CLI or opencode) can capture roles, assess your fit and write
 a tailored resume and cover letter, checked against your Profile and built to PDF. The Harness
-writes those files into your Workspace and rolecall reads them from there, so the two need no
-connection to each other. Without a Harness, rolecall is a tracker you fill in yourself.
+writes those files into your Workspace and Rolecall reads them from there, so the two need no
+connection to each other. Without a Harness, Rolecall is a tracker you fill in yourself.
 
 ```mermaid
 flowchart LR
     You((You))
-    TUI["rolecall<br/>terminal app"]
-    Harness["Your Harness<br/>+ rolecall Plugin"]
+    TUI["Rolecall<br/>terminal app"]
+    Harness["Your Harness<br/>+ Rolecall Plugin"]
     WS[("Workspace<br/>Markdown and YAML")]
 
     You -->|keys| TUI
@@ -52,7 +52,7 @@ No Go needed:
 curl -fsSL https://raw.githubusercontent.com/lukebrown14-code/rolecall/main/scripts/install.sh | sh
 ```
 
-The script downloads the latest release, verifies its checksum, and installs rolecall with the
+The script downloads the latest release, verifies its checksum, and installs Rolecall with the
 Plugin to `~/.local/bin/rolecall`; make sure `~/.local/bin` is on your `PATH`. Run it again to
 update (your Workspace and settings are kept). Set `ROLECALL_VERSION=v0.3.0` to pick a release or
 `ROLECALL_PREFIX=/usr/local` to install elsewhere.
@@ -62,7 +62,7 @@ the `rolecall` executable next to its `plugin` folder.
 
 ### Go
 
-Needs Go 1.21 or newer (Go fetches the toolchain rolecall needs). Put `$(go env GOPATH)/bin` on
+Needs Go 1.21 or newer (Go fetches the toolchain Rolecall needs). Put `$(go env GOPATH)/bin` on
 your `PATH`.
 
 ```sh
@@ -99,7 +99,7 @@ DIR the default.
 1. Run `rolecall` and enter your Contact (Name and Email required; `Esc` skips until next time).
 2. [Connect your Harness](#connect-your-harness).
 3. In your Harness, run the `create-profile` skill to build your Profile. No Harness? See
-   [Use rolecall without a Harness](#use-rolecall-without-a-harness).
+   [Use Rolecall without a Harness](#use-rolecall-without-a-harness).
 
 Until you add a Lead, the app lists the setup steps left, with the key for each. Add Tracks and a
 Search area later under Settings (`6`). `rolecall doctor` checks your setup and `rolecall --help`
@@ -143,11 +143,11 @@ The Harness is your coding assistant (Claude Code, Codex, Gemini CLI, opencode).
 Plugin's skills and set the `harness` command in `config.toml` to enable `f`, `p` and `F`. See
 [Connect a Harness](docs/harnesses.md).
 
-### Use rolecall without a Harness
+### Use Rolecall without a Harness
 
 A Harness is optional. Without one:
 
-- Set your Editor first (`6`, This machine, `e` on the Editor row). If unset, rolecall uses
+- Set your Editor first (`6`, This machine, `e` on the Editor row). If unset, Rolecall uses
   `$VISUAL`, then `$EDITOR`, then `vi`. GUI editors need a wait flag, such as `code --wait`.
 - Press `a` to add a Lead (Title and Company required). The first Lead asks for a Track, a kind
   of role such as Nursing or Marketing. Paste the job ad into `jd.md` or add a URL.
@@ -229,7 +229,7 @@ compact_rows = false   # one-line list rows at wide sizes; z toggles it
 
 ## Privacy
 
-rolecall has no telemetry, server, account or sync. Your data stays in your local Workspace; keep
+Rolecall has no telemetry, server, account or sync. Your data stays in your local Workspace; keep
 it private. When your Harness works on your Profile, CV or job text, it sends that content to your
 AI provider. See [ADR-0005](docs/adr/0005-owner-data-never-leaves-the-workspace.md).
 

@@ -1,6 +1,6 @@
 ---
 name: capture-job
-description: Capture a job advertisement into a new rolecall Application. Use when the Owner gives a job ad URL or pastes ad text and asks to capture, save, add, or start an application for it.
+description: Capture a job advertisement into a new Rolecall Application. Use when the Owner gives a job ad URL or pastes ad text and asks to capture, save, add, or start an application for it.
 ---
 
 # Capture job

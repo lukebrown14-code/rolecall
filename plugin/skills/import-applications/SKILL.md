@@ -11,7 +11,7 @@ description: Import the Owner's existing applications from a CSV or TSV export (
 > script by a path relative to the Workspace, and never hand-write `meta.yml` because a
 > script was not found: stop and say which path failed.
 
-Bring an Owner's existing application list into the Workspace so it shows in rolecall. The work
+Bring an Owner's existing application list into the Workspace so it shows in Rolecall. The work
 is done by `import_csv.py`, which writes each row through the shared `meta.create`. Your job is
 the conversation around it: confirm the column mapping, ask about each status the script does not
 know, show the dry run, and only then import. The file contract is `SCHEMA.md`.

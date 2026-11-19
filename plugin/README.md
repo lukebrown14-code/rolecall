@@ -1,6 +1,6 @@
-# rolecall plugin
+# Rolecall plugin
 
-The skills and scripts a coding harness loads to work a rolecall Workspace. The `help` skill
+The skills and scripts a coding harness loads to work a Rolecall Workspace. The `help` skill
 answers questions about the other skills and the app from `skills/*/SKILL.md` and
 `skills/help/app.md`; keep `app.md` in step when screens, keys or settings change.
 
@@ -40,7 +40,7 @@ sets the variable, and another harness should set it to this folder's absolute p
 | `import-applications` | bring in applications the Owner already made, from a CSV | Application folders |
 | `interview-prep` | prepare for an interview: questions, a STAR story per gap, questions to ask | `prep.md` |
 | `answer-questions` | answer an employer's application-form questions | `answers.md` |
-| `help` | answer questions about rolecall | nothing |
+| `help` | answer questions about Rolecall | nothing |
 
 `prep.md` and `answers.md` are optional extra files (SCHEMA.md): the app does not read them and
 they do not change an Application's Documents or Ready state.

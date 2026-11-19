@@ -1,11 +1,11 @@
 ---
 name: help
-description: Answer the Owner's questions about rolecall itself — what each Plugin skill does and which one to use, how the app's screens, keys, Statuses and Settings work, where Workspace files live, and why something is not showing or not working. Use when the Owner asks how rolecall or a skill works, what to do next, or to troubleshoot setup. Reads only; changes nothing.
+description: Answer the Owner's questions about Rolecall itself — what each Plugin skill does and which one to use, how the app's screens, keys, Statuses and Settings work, where Workspace files live, and why something is not showing or not working. Use when the Owner asks how Rolecall or a skill works, what to do next, or to troubleshoot setup. Reads only; changes nothing.
 ---
 
-# rolecall help
+# Rolecall help
 
-Answer the Owner's question about rolecall from its sources, then stop. You **read only**: no
+Answer the Owner's question about Rolecall from its sources, then stop. You **read only**: no
 file in the Workspace or the Plugin changes, and no other skill runs. When the answer is "run
 this skill" or "press this key", say so and let the Owner do it.
 
@@ -28,7 +28,7 @@ needs every `SKILL.md` description, not the first match.
 
 - Lead with the direct answer in one or two sentences, then the steps: the key to press, the
   skill to ask for, or the command to run, exactly as the Owner would type it.
-- Use rolecall's words: Lead, Draft, Applied, Dismissed, Fit, Track, Sweep, Profile, Handoff.
+- Use Rolecall's words: Lead, Draft, Applied, Dismissed, Fit, Track, Sweep, Profile, Handoff.
   When the Owner uses an old word (shortlist, tracker, stage), name the current one.
 - Say where each fact came from (`find-jobs/SKILL.md`, `app.md`, `rolecall doctor`) so the
   Owner can check it.

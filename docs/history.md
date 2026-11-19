@@ -1,6 +1,6 @@
 # History
 
-How rolecall got to its current shape. Everything here has shipped; the current behaviour is in
+How Rolecall got to its current shape. Everything here has shipped; the current behaviour is in
 [`spec.md`](spec.md), and the data contract in [`../SCHEMA.md`](../SCHEMA.md). These sections
 were moved out of the spec so it describes what the app does now.
 
