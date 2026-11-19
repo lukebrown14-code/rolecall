@@ -1,4 +1,4 @@
-# rolecall
+# Rolecall
 
 Run your job search from the terminal.
 
