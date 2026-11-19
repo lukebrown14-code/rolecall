@@ -39,8 +39,14 @@ Every Application that was sent has its PDFs in `out/` and a frozen `sent/`. Dat
 around November 2026, so relative labels ("applied 3w ago", Follow-up due, posting age) drift
 as time passes.
 
-`TestShowcaseWorkspace` (`internal/store/tests`) fails if a Status goes missing, a sent
-Application loses its PDFs, or the malformed example is fixed by accident.
+Four tests keep it honest, all on a temporary copy:
+
+| Test | Fails when |
+| --- | --- |
+| `TestShowcaseWorkspace` (`internal/store/tests`) | a Status goes missing, a sent Application loses its PDFs, or the malformed example is fixed by accident |
+| `TestShowcasePythonReaderAgrees` (`internal/store/tests`) | the Plugin's `meta.py` reads an Application differently from the TUI |
+| `TestShowcaseEveryScreenHasContent` (`internal/ui/tests`) | a screen or view is empty or loses the Applications it shows, at a fixed clock of 19 November 2026 |
+| `plugin/tests/test_showcase.py` | `build.py` would now refuse a resume, letter or the CV, so the checked-in PDFs no longer match a rebuild |
 
 ## Rebuild the PDFs
 

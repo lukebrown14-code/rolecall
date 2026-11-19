@@ -499,8 +499,8 @@ tests both load it. Any change to this file updates the fixtures in the same com
 
 `examples/workspace/` is the showcase: a fictional Owner with a complete Profile and CV, and
 Applications at every Status with built PDFs (`examples/README.md`). The README, the demo GIF
-(`docs/demo.tape`) and bug reports use it; tests use `fixtures/workspace/`, apart from
-`TestShowcaseWorkspace`, which checks the showcase still covers what it promises. A change to
+(`docs/demo.tape`) and bug reports use it; tests use `fixtures/workspace/`, apart from the
+showcase tests listed in `examples/README.md`, which check it still covers what it promises. A change to
 this file updates it in the same commit too.
 
 `fixtures/conformance.json` holds this file's rules as vectors that the Go and Python tests
