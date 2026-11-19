@@ -11,7 +11,8 @@ each other directly: files are the only link.
 - Status of this doc: v0.1 and v0.2 were agreed in grilling sessions on 2026-11-11 and v1.0 on
   2026-11-12. Written as the current behaviour of the app: v0.1 to v0.7 are built. 0.7.0 is the release
   that ships the v1.0 readiness work of 2026-11-17 (0.6.0 merged but was never tagged, so its
-  changes ship in 0.7.0 too), and what v1.0 still needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
+  changes ship in 0.7.0 too). 0.7.1 is the current release: the design-review fixes, the showcase
+  Workspace and the bring-your-own-agent docs. What v1.0 still needs is tracked under the `v1` label on GitHub. The porting notes, the one-time migration and
   the per-version acceptance lists are in [`history.md`](history.md).
 
 ## Roadmap
