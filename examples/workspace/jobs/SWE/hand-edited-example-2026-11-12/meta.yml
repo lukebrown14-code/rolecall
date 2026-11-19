@@ -1,0 +1,9 @@
+schema: 1
+title: Software Engineer
+company: Hand-edited Example
+track: SWE
+# This file was edited by hand and is malformed on purpose, to show the warning row.
+# The second status_log entry is missing its closing brace.
+status_log:
+  - {status: Lead, at: 2026-11-11T22:00:00Z}
+  - {status: Draft, at: 2026-11-13T08:00:00Z

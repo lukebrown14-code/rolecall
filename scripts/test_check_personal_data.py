@@ -227,3 +227,33 @@ def test_non_utf8_files_are_scanned_in_both_modes(tmp_path):
     root = staged_repo(tmp_path, {"export.csv": (latin1, latin1)})
     assert scanner.scan(root, set()) == ["export.csv:1: email"]
     assert scanner.scan(root, set(), staged=True) == ["export.csv:1: email"]
+
+
+PDF_BYTES = (
+    "%PDF-1.7\n"
+    # Split so this file does not read as phone numbers itself.
+    "<</Type/FontDescriptor/FontBBox[-1000 -300 0000" + "2 1034 746]>>\n"
+    "xref\n" + "0" * 10 + " 65535 f\n" + "0" * 8 + "16 00000 n\n"
+)
+
+
+def test_pdf_offsets_and_metrics_are_not_phone_numbers(tmp_path):
+    assert scan_paths(tmp_path, {"examples/w/out/Resume.pdf": PDF_BYTES}) == []
+
+
+def test_pdf_tel_link_is_still_checked(tmp_path):
+    link = "<</Type/Annot/Subtype/Link/A<</URI(tel:+61" + "412345678)>>>>\n"
+    findings = scan_paths(tmp_path, {"examples/w/out/Resume.pdf": PDF_BYTES + link})
+    assert findings == ["examples/w/out/Resume.pdf:6: phone"]
+
+
+def test_pdf_offsets_still_count_as_phone_numbers_outside_pdfs(tmp_path):
+    findings = scan_paths(tmp_path, {"fixtures/xref.txt": "0" * 8 + "16 00000 n\n"})
+    assert findings == ["fixtures/xref.txt:1: phone"]
+
+
+def test_email_needs_a_top_level_domain_of_letters(tmp_path):
+    text = "noise 4" + "@C.D and 7" + "@x.y2\n"
+    assert scan_text(tmp_path, text) == []
+    findings = scan_text(tmp_path / "real", "Mail jo" + "@mail.private-domain.io\n")
+    assert findings == ["example.txt:1: email"]

@@ -57,8 +57,9 @@ not add a personal email.
 - [ ] Read `README.md` and check its privacy statements and setup instructions.
 - [ ] Read `.github/ISSUE_TEMPLATE/bug_report.md` and confirm it warns reporters not to paste
   `meta.yml`, a CV, or the Profile, and asks them to reproduce with the example Workspace.
-- [ ] Read every file under `fixtures/`, including the example Workspace and generated-document
-  fixtures. Confirm names and personal facts are fictional and no real Owner data remains.
+- [ ] Read every file under `fixtures/` and `examples/`, including the showcase Workspace, its
+  built PDFs and the generated-document fixtures. Confirm names and personal facts are
+  fictional and no real Owner data remains.
 - [ ] Resolve any concern and rerun the guard after edits.
 
 ## 4. Configure repository settings

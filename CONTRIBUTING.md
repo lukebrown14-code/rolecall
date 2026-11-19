@@ -45,10 +45,12 @@ git config core.hooksPath .githooks
 ## Reproduce bugs with the example workspace
 
 ```sh
-go run ./cmd/rolecall --dir ./fixtures/workspace
+go run ./cmd/rolecall --dir ./examples/workspace
 ```
 
-Report bugs as steps in this fictional workspace. If a bug needs your own data, describe its
+`examples/workspace` is the showcase: one fictional Owner with a full Profile and Applications at
+every Status. It is a real Workspace, so the app writes to it: copy it somewhere else first if
+you will move or edit Applications. Report bugs as steps in this fictional workspace. If a bug needs your own data, describe its
 shape (for example, a Status with no Application documents) and never paste the data.
 
 ## Never commit personal data

@@ -1,0 +1,15 @@
+schema: 1
+title: Software Engineer, Fleet Tools
+company: Mallee Robotics
+track: SWE
+url: https://jobs.example.test/mallee-robotics/software-engineer-fleet-tools
+fit: Strong
+resume_only: true
+source: seek
+employment_type: permanent
+jd_completeness: full
+added_by: owner
+status_log:
+  - {status: Lead, at: 2026-11-02T21:45:00Z}
+  - {status: Draft, at: 2026-11-10T09:00:00Z}
+  - {status: Applied, at: 2026-11-11T22:30:00Z}

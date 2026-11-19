@@ -1,0 +1,22 @@
+schema: 1
+title: Senior Platform Engineer
+company: Lyrebird Media
+track: Platform
+url: https://jobs.example.test/lyrebird-media/senior-platform-engineer
+fit: Marginal
+posted_label: "2d ago"
+applicants: 64
+source: linkedin
+recruiter: Northgate Talent
+employment_type: contract
+term_months: 9
+extension: possible
+pay_min: 1000
+pay_max: 1150
+pay_unit: day
+currency: AUD
+jd_completeness: full
+added_by: agent
+search_query: "platform engineer contract melbourne"
+status_log:
+  - {status: Lead, at: 2026-11-15T23:40:00Z}

@@ -1,0 +1,19 @@
+schema: 1
+title: Backend Engineer (Go)
+company: Kestrel Freight
+track: SWE
+url: https://jobs.example.test/kestrel-freight/backend-engineer-go
+closes: 2026-12-05
+fit: Good
+posted: 2026-11-12
+source: greenhouse
+employment_type: permanent
+pay_min: 150000
+pay_max: 170000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: sweep
+search_query: "backend engineer go melbourne"
+status_log:
+  - {status: Lead, at: 2026-11-13T22:10:00Z}

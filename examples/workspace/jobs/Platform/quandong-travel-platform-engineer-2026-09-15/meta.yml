@@ -1,0 +1,20 @@
+schema: 1
+title: Platform Engineer
+company: Quandong Travel
+track: Platform
+url: https://jobs.example.test/quandong-travel/platform-engineer
+fit: Good
+source: seek
+employment_type: permanent
+pay_min: 120000
+pay_max: 130000
+pay_unit: year
+currency: AUD
+jd_completeness: full
+added_by: agent
+close_reason: salary
+status_log:
+  - {status: Lead, at: 2026-09-14T22:00:00Z}
+  - {status: Draft, at: 2026-09-16T08:30:00Z}
+  - {status: Applied, at: 2026-09-16T23:45:00Z}
+  - {status: Withdrawn, at: 2026-10-07T02:00:00Z}

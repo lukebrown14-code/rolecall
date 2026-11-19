@@ -1,0 +1,18 @@
+schema: 1
+title: Backend Developer
+company: Wattlebird Games
+track: SWE
+url: https://jobs.example.test/wattlebird-games/backend-developer
+fit: Good
+source: linkedin
+applicants: 112
+employment_type: permanent
+jd_completeness: full
+added_by: agent
+close_reason: after-screen
+status_log:
+  - {status: Lead, at: 2026-09-21T23:00:00Z}
+  - {status: Draft, at: 2026-09-23T06:00:00Z}
+  - {status: Applied, at: 2026-09-23T22:15:00Z}
+  - {status: Interviewing, at: 2026-10-05T01:30:00Z}
+  - {status: Rejected, at: 2026-10-19T05:00:00Z}

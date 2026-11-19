@@ -1,0 +1,13 @@
+schema: 1
+title: SOC Analyst
+company: Numbat Security
+track: SWE
+url: https://jobs.example.test/numbat-security/soc-analyst
+fit: Poor
+source: linkedin
+employment_type: permanent
+jd_completeness: full
+added_by: sweep
+status_log:
+  - {status: Lead, at: 2026-11-05T22:00:00Z}
+  - {status: Dismissed, at: 2026-11-06T09:30:00Z}
