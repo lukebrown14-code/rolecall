@@ -77,7 +77,12 @@ func TestShowcasePythonReaderAgrees(t *testing.T) {
 	if err != nil {
 		t.Skip("python3 is not available")
 	}
-	root := t.TempDir()
+	// meta.py resolves symlinks in the Workspace path (macOS's /var is /private/var), so
+	// hand both readers the resolved path and their Folder values compare.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.CopyFS(root, os.DirFS("../../../examples/workspace")); err != nil {
 		t.Fatal(err)
 	}
