@@ -26,6 +26,20 @@ and write a tailored resume and cover letter, checked against your Profile and b
 Harness and rolecall never talk to each other; the Harness writes files in your Workspace and
 rolecall shows them. Without a Harness it is a tracker you fill in yourself.
 
+```mermaid
+flowchart LR
+    You((You))
+    TUI["rolecall<br/>terminal app"]
+    Harness["Your Harness<br/>+ rolecall Plugin"]
+    WS[("Workspace<br/>Markdown and YAML")]
+
+    You -->|keys| TUI
+    You -->|chat| Harness
+    TUI -. handoff .-> Harness
+    TUI <-->|reads, updates Status| WS
+    Harness -->|writes| WS
+```
+
 ## Installation
 
 macOS and Linux are supported. On Windows, use WSL.
