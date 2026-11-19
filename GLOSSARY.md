@@ -198,7 +198,7 @@ An Application sent without a cover letter, by choice. It is Ready with the resu
 ### Agent work
 
 **Bring your own agent (BYOA)**:
-The design in which rolecall has no AI of its own. The Owner's Harness does all AI work and meets rolecall only through the Workspace's files.
+The design in which rolecall has no AI of its own. The Owner's Harness does all AI work and meets rolecall only through the Workspace's files. Unlike ACP-style BYOA, rolecall never launches or talks to the agent over a protocol; the files are the only contract (ADR 0003).
 _Avoid_: built-in AI, AI integration
 
 **Harness**:
