@@ -14,7 +14,7 @@ Run your job search from the terminal.
 
 ## What is it?
 
-rolecall is a local job tracker for the terminal. Each Application moves from Lead to Draft to
+Rolecall is a local job tracker for the terminal. Each Application moves from Lead to Draft to
 Applied and on to an Interview, an Offer or a close, and rolecall shows where everything stands:
 what is due for a follow-up, which interviews are booked, and how your search is converting.
 Every Application is a plain folder of Markdown and YAML in a private git repository on your
