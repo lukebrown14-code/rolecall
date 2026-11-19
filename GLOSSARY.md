@@ -197,6 +197,10 @@ An Application sent without a cover letter, by choice. It is Ready with the resu
 
 ### Agent work
 
+**Bring your own agent (BYOA)**:
+rolecall has no AI of its own: the Owner's Harness does all AI work, and it meets rolecall only through the Workspace's files. The files are the contract.
+_Avoid_: built-in AI, AI integration
+
 **Harness**:
 The AI coding tool the Owner already uses (Claude Code, Codex, Gemini CLI, opencode…). It does all AI work using the Owner's own credentials and model. First-run copy explains it in those words: "connect a Harness, the AI coding tool you already use".
 _Avoid_: provider (for the harness), AI connection

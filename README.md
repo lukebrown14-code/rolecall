@@ -20,9 +20,11 @@ what is due for a follow-up, which interviews are booked, and how your search is
 Every Application is a plain folder of Markdown and YAML in a private git repository on your
 machine.
 
-Pair it with your coding Harness (Claude Code, Codex, Gemini CLI or opencode) and the rolecall
-Plugin can capture roles, assess your fit and write a tailored resume and cover letter, checked
-against your Profile and built to PDF. Without a Harness it is a tracker you fill in yourself.
+rolecall has no AI of its own: bring your own agent. Pair it with your coding Harness (Claude
+Code, Codex, Gemini CLI or opencode) and the rolecall Plugin can capture roles, assess your fit
+and write a tailored resume and cover letter, checked against your Profile and built to PDF. The
+Harness and rolecall never talk to each other; the Harness writes files in your Workspace and
+rolecall shows them. Without a Harness it is a tracker you fill in yourself.
 
 ## Installation
 
