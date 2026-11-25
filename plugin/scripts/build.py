@@ -313,7 +313,7 @@ def _headline_rows(profile):
     m = re.search(r"^## Headlines[^\n]*\n(.*?)(?=\n## |\Z)", profile, re.S | re.M)
     rows = []
     for line in (m.group(1) if m else "").splitlines():
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        cells = [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip().removeprefix("|"))]
         if len(cells) < 2 or not cells[0] or cells[0] == "Track":
             continue
         if set(cells[0]) <= set(":- "):
@@ -584,6 +584,8 @@ def build(md_text, md_name, template_name, out_pdf, substitutions):
     # BODY, CONTACT and NAME must exist in every template; HEADLINE and DATELINE
     # are per-template (the letter has no headline, the resume has no dateline).
     for marker, value in substitutions.items():
+        if marker == "HEADLINE":
+            value = value.replace("\\", "\\\\").replace('"', '\\"')
         token = "{{" + marker + "}}"
         if token in doc:
             doc = doc.replace(token, value)
@@ -1086,11 +1088,12 @@ def main(argv=None):
 
     # Each source Document is read once here and passed into the gates and build.
     jd_text = (d / "jd.md").read_text()
+    omit = load(DATA).contact_omit.get(application.track, ())
     documents = {name: _read(d / name) for name in ("resume.md", "cover-letter.md")}
 
     subs = {
         "NAME": contact.name,
-        "CONTACT": contact.contact_line(),
+        "CONTACT": contact.contact_line(omit=omit),
         "CONTACT2": contact.work_rights,
         "DATELINE": date.today().strftime("%d %B %Y"),
         "HEADLINE": headline_for(profile.master, application.track),

@@ -579,6 +579,39 @@ def test_sweep_has_no_legacy_markdown_read_paths():
         assert legacy not in source
 
 
+def test_manual_outcomes_are_saved_and_visible_in_the_next_report(tmp_path, monkeypatch):
+    write_workspace(tmp_path, {
+        "sources": [
+            {"name": "Job Board", "type": "browser", "last_swept": "2000-01-01",
+             "search_url": "https://example.test/jobs?where={location}"},
+            {"name": "Careers", "type": "manual"},
+        ],
+        "search_area": {"places": ["New South Wales"]},
+    })
+    input_path = tmp_path / "results.json"
+    input_path.write_text(json.dumps([
+        {"source": "job board", "query": "Analyst", "location": "New South Wales",
+         "status": "searched", "count": 0},
+        {"source": "Careers", "query": "Analyst", "status": "blocked", "note": "Login"},
+    ]))
+    sw.main(["--data", str(tmp_path), "--record-manual", str(input_path)])
+    (log,) = (tmp_path / "jobs" / "manual-sweeps").glob("*.json")
+    run = json.loads(log.read_text())
+    assert run["results"][0]["source"] == "Job Board"
+    assert run["results"][0]["count"] == 0
+    assert run["results"][1]["note"] == "Login"
+    assert sw.manualsweep.last_swept(tmp_path) == {"job board": run["date"]}
+
+    def unexpected_fetch(target):
+        pytest.fail(f"fetched manual Source {target}")
+
+    monkeypatch.setattr(sw, "PLATFORMS", {"lever": (unexpected_fetch, [])})
+    sw.main(["--data", str(tmp_path)])
+    report = (tmp_path / "jobs" / "sweep-candidates.md").read_text()
+    assert f"last swept: {run['date']}" in report
+    assert "https://example.test/jobs?where=New%20South%20Wales" in report
+
+
 # ------------------------------------------------------------- source health
 
 

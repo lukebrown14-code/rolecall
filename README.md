@@ -112,6 +112,8 @@ at every Status, built PDFs) from a source checkout:
 go run ./cmd/rolecall --dir ./examples/workspace
 ```
 
+The Plugin's Sweep and Search rules scripts require Python 3.9 or later.
+
 ## The TUI
 
 Number keys switch screens; `←` `→` (or `s`) switch views; `j` `k` move through rows. `space`

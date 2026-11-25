@@ -63,9 +63,10 @@ class Contact:
         """Required Contact fields with no value, in REQUIRED order."""
         return [f for f in REQUIRED if not self.get(f)]
 
-    def contact_line(self, github=True):
+    def contact_line(self, github=True, omit=()):
         """Line one of the header: email, phone, location, LinkedIn, and GitHub."""
-        parts = [self.get("Email"), self.get("Phone"), self.get("Location"), self.get("LinkedIn")]
-        if github and self.get("GitHub"):
-            parts.append(self.get("GitHub"))
+        fields = ("Email", "Phone", "Location", "LinkedIn", "GitHub")
+        if not github:
+            fields = fields[:-1]
+        parts = [self.get(field) for field in fields if field not in omit]
         return " | ".join(p for p in parts if p)

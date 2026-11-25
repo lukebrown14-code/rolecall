@@ -45,6 +45,7 @@ def test_contact_line_joins_the_profile_fields_and_github_is_optional():
     assert owner.contact_line(github=True) == line + " | github.com/alexquinn"
     # Analyst track omits GitHub.
     assert owner.contact_line(github=False) == line
+    assert owner.contact_line(omit=["LinkedIn", "GitHub"]) == line.rsplit(" | ", 1)[0]
 
 
 def test_trailing_editor_note_on_a_cell_is_dropped():

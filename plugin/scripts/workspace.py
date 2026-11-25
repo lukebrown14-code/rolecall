@@ -47,6 +47,16 @@ class Config:
         return {key: self.raw[key] for key in keys if key in self.raw}
 
     @property
+    def contact_omit(self):
+        omit = self.raw.get("contactOmit")
+        if isinstance(omit, dict) and all(
+            isinstance(fields, list) and all(isinstance(field, str) for field in fields)
+            for fields in omit.values()
+        ):
+            return omit
+        return {}
+
+    @property
     def blockers(self):
         blockers = self.raw.get("blockers")
         return blockers if isinstance(blockers, list) else []

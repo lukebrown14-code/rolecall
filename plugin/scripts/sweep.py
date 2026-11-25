@@ -43,11 +43,15 @@ import re
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 9):
+    sys.exit("Rolecall sweep requires Python 3.9 or later.")
+
 # The Sweep's parts live in modules beside it: boards (the collectors), sourceregistry,
 # rolecatalogue, searcharea, captured (what the Workspace holds) and sweepreport.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import boards  # noqa: E402
 import httpfetch  # noqa: E402
+import manualsweep  # noqa: E402
 import rolecatalogue  # noqa: E402
 import rules as search_rules  # noqa: E402
 import sweepreport  # noqa: E402
@@ -214,15 +218,15 @@ def source_registry(workspace):
 def manual_sources(workspace):
     """Sources this script cannot fetch: registry browser/manual entries, then the
     catalogue's older manual_search_sources (free text)."""
-    try:
-        entries = [e for e in source_registry(workspace) if e["type"] != "api"]
-    except ValueError:
-        entries = []
+    entries = [e for e in source_registry(workspace) if e["type"] != "api"]
     for text in (ROLE_CATALOGUE or {}).get("manual_search_sources", []) or []:
         if isinstance(text, str) and text.strip():
             entries.append({"name": text.strip(), "type": "manual", "access": "unknown",
                             "enabled": True, "legacy": True})
-    return entries
+    return entries or [
+        {"name": name, "type": "browser", "access": "403", "enabled": True}
+        for name in ("Seek", "LinkedIn")
+    ]
 
 
 def test_source(workspace, name):
@@ -342,6 +346,8 @@ def main(argv=None):
                     help="print the platform registry (name -> default targets) as JSON and exit")
     ap.add_argument("--test-source", metavar="NAME",
                     help="check one registry Source, print its health JSON, exit non-zero if it fails")
+    ap.add_argument("--record-manual", metavar="FILE",
+                    help="save one run's manual search outcomes from a JSON array (use - for stdin)")
     ap.add_argument("--all-locations", action="store_true")
     add_data_argument(ap)
     args = ap.parse_args(argv)
@@ -355,6 +361,14 @@ def main(argv=None):
         probe(args.probe)
         return
     ROLE_CATALOGUE = load_role_catalogue(workspace, available)
+    if args.record_manual:
+        try:
+            data = sys.stdin.read() if args.record_manual == "-" else Path(args.record_manual).read_text()
+            path = manualsweep.record(workspace, manual_sources(workspace), json.loads(data))
+        except (OSError, ValueError) as error:
+            ap.exit(1, f"Could not record manual sweep: {error}\n")
+        print(path)
+        return
     if args.roles:
         print(json.dumps(ROLE_CATALOGUE, ensure_ascii=False, indent=2))
         return
@@ -443,10 +457,19 @@ def main(argv=None):
     clean.sort(key=lambda j: (not any(k == "favourable" for _, k in j["signals"]), j["title"]))
 
     failed = [h for h in health if not h["ok"]]
+    manual = manual_sources(workspace)
+    swept = manualsweep.last_swept(workspace)
+    for entry in manual:
+        entry["last_swept"] = max(entry.get("last_swept", ""), swept.get(entry["name"].lower(), ""))
+        if entry.get("search_url") and search_area:
+            entry["search_links"] = [
+                (place.strip(), manualsweep.search_link(entry["search_url"], place.strip()))
+                for place in search_area["places"] if isinstance(place, str) and place.strip()
+            ]
     lines = sweepreport.candidates_report(
         tracks=tracks, fetched=len(jobs), matched=len(kept), known=skipped_seen, health=health,
         rules=rules, filtered=filtered, coverage=coverage, clean=clean, blocked=blocked,
-        manual=manual_sources(workspace), catalogued=ROLE_CATALOGUE is not None,
+        manual=manual, catalogued=ROLE_CATALOGUE is not None,
         search_area_note=NO_SEARCH_AREA if search_area is None else None,
     )
 

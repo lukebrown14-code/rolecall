@@ -1,9 +1,28 @@
 package store_test
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
+
+func TestDocumentSettingsPreserveContactOmit(t *testing.T) {
+	s := fixtureProfileStore(t)
+	writeWorkspaceJSON(t, s.Root(), `{"contactOmit":{"Analyst":["GitHub"]}}`)
+	if err := s.SetGate("letterWordCap", "300"); err != nil {
+		t.Fatal(err)
+	}
+	var saved struct {
+		ContactOmit map[string][]string
+	}
+	if err := json.Unmarshal([]byte(readWorkspaceJSON(t, s.Root())), &saved); err != nil {
+		t.Fatal(err)
+	}
+	got := saved.ContactOmit["Analyst"]
+	if len(got) != 1 || got[0] != "GitHub" {
+		t.Fatalf("contactOmit = %v", saved.ContactOmit)
+	}
+}
 
 func TestSetGateWritesOnlyThatKeyAndKeepsTheRest(t *testing.T) {
 	s := fixtureProfileStore(t)
