@@ -107,6 +107,19 @@ in priority order; vary aliases when results are sparse. For stretch families, a
 actual duties and seniority before recommending. Record families searched with no suitable
 results separately from families not searched or blocked by access.
 
+Use the location-specific links in the report when supplied. Once manual searches
+are done, pass one JSON array for the run to
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sweep.py" --record-manual <file>`
+using the same Workspace as the sweep. Use `--record-manual -` to read the array
+from stdin. For each query, use the Source name from the report. For example:
+
+```json
+[{"source":"Seek","query":"Business Analyst","location":"Melbourne","status":"searched","count":0}]
+```
+
+Use `blocked` or `skipped` with a reason in `note` and omit `count` for queries you
+couldn't complete. A successful search with no suitable results has `count: 0`.
+
 Some large boards block automated fetching. Use WebSearch to surface these as leads, then
 prefer employer career pages for the full ad. A zero-result board Sweep does not establish
 that a role family has no vacancies.

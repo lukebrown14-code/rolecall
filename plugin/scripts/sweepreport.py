@@ -92,6 +92,12 @@ def manual_lines(entries, rules):
         if entry.get("url"):
             bits.append(entry["url"])
         lines.append(f"- **{entry['name']}** — " + " · ".join(bits))
+        if entry.get("last_swept"):
+            lines.append(f"  - last swept: {entry['last_swept']}")
+        for place, link in entry.get("search_links", []):
+            lines.append(f"  - {place}: {link}")
+        if entry.get("search_url") and not entry.get("search_links"):
+            lines.append(f"  - location search template: {entry['search_url']}")
         if entry.get("age_format"):
             lines.append(f"  - posting age reads like: {entry['age_format']}")
         if entry.get("applicants_format"):
@@ -104,11 +110,6 @@ def manual_lines(entries, rules):
             lines.append("  - rules: " + ", ".join(own))
         if entry.get("notes"):
             lines.append(f"  - {entry['notes']}")
-    if not entries:
-        lines += [
-            "- **Seek** and **LinkedIn** return 403. The skill covers them via WebSearch, which",
-            "  yields leads rather than readable ads.",
-        ]
     lines += ["- Sources without a public API need the skill's WebFetch path. Record every one",
               "  searched, and why any could not be (403, login wall, Cloudflare), in the hand-back.",
               ""]

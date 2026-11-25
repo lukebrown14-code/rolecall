@@ -153,6 +153,7 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
     (job / "resume.md").write_text("Resume text")
     (job / "cover-letter.md").write_text(" \n")
     (job / "meta.yml").write_text(meta_text(resume_only='"true"'))
+    (tmp_path / "workspace.json").write_text('{"contactOmit": {"SWE": ["GitHub"]}}')
     (tmp_path / "profile").mkdir()
     (tmp_path / "profile" / "master-profile.md").write_text(CONTACT_PROFILE)
     monkeypatch.setattr(build, "need", lambda *args: None)
@@ -161,6 +162,8 @@ def test_resume_only_builds_resume_with_empty_letter(tmp_path, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["build.py", str(job), "--data", str(tmp_path)])
 
     def make_pdf(md_text, md_name, template, output, subs):
+        assert "linkedin.com/in/alexquinn" in subs["CONTACT"]
+        assert "github.com/alexquinn" not in subs["CONTACT"]
         output.write_text("pdf")
         return output
 
@@ -434,6 +437,19 @@ def test_headline_gate():
     assert build.check_headline("Full Stack Software Engineer", "", PROFILE) == []
     assert build.check_headline("Staff Wizard | Magic", "Software Engineer", PROFILE)
     assert build.check_headline("Platform Engineer | Cloud", "We need a Platform Engineer", PROFILE) == []
+
+
+def test_headline_preserves_an_escaped_pipe():
+    profile = "## Headlines\n| Track | Headline |\n| Analyst | Analyst \\| Systems Consulting |\n"
+    assert build.headline_for(profile, "Analyst") == "Analyst | Systems Consulting"
+
+
+def test_contact_omit_rejects_malformed_config():
+    from workspace import Config
+
+    assert Config({"contactOmit": {"Analyst": ["GitHub"]}}).contact_omit == {"Analyst": ["GitHub"]}
+    for value in ([], {"Analyst": "GitHub"}, {"Analyst": [1]}):
+        assert Config({"contactOmit": value}).contact_omit == {}
 
 
 # --- cover letter checks -------------------------------------------------------

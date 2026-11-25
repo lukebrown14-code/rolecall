@@ -992,6 +992,12 @@ func (m model) helpContent(p pal, inner int, flow bool) []helpBlock {
 		}
 	}
 	blocks := []helpBlock{keyBlock(p, keys, inner, flow), m.skillsBlock(p, inner), glyphLegend(p, m.followUpDays, inner)}
+	if screenDefs[m.screen].name == screenSettings {
+		blocks = append(blocks, helpBlock{
+			heading(p, "Application PDF contact links"),
+			{text: "In workspace.json, use contactOmit to list fields to hide for each Track. For example, list GitHub under Analyst to omit that link from Analyst PDFs."},
+		})
+	}
 	if m.hasTables() {
 		blocks = append(blocks, rowWords(p, m.followUpDays, inner))
 	}

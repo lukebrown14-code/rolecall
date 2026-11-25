@@ -23,6 +23,10 @@ import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
+from typing import Optional
+
+if sys.version_info < (3, 9):
+    sys.exit("Rolecall search rules require Python 3.9 or later.")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from httpfetch import FetchError  # noqa: E402
@@ -47,11 +51,11 @@ class RulesError(ValueError):
 
 @dataclass
 class Rules:
-    max_posting_age_days: int | None = None
+    max_posting_age_days: Optional[int] = None
     expiry_warning_days: int = DEFAULT_EXPIRY_WARNING_DAYS
     ambiguous_age_labels: dict = field(default_factory=dict)  # normalised label -> discard|keep
     max_applicants: dict = field(default_factory=dict)  # source name (lower) -> cap
-    max_contract_months: int | None = None
+    max_contract_months: Optional[int] = None
     source_age: dict = field(default_factory=dict)  # source name (lower) -> its own age limit
 
     def age_limit(self, source=""):
@@ -130,7 +134,7 @@ def load_rules(workspace):
 class Age:
     """How old a posting is: exactly (min == max), at least min (max None), or a range."""
     min_days: int
-    max_days: int | None
+    max_days: Optional[int]
     label: str = ""
 
     @property

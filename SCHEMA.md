@@ -327,6 +327,8 @@ Owner searches:
 | `age_format` | string | — | how the site shows posting age, e.g. `14d ago · 1mo ago · Posted 30+ Days Ago` |
 | `applicants_format` | string | — | how it shows the applicant count, e.g. `Over 100 applicants` |
 | `notes` | string | — | anything else the agent needs to search it |
+| `search_url` | string | — | HTTP(S) search URL template for browser or manual Sources, with `{location}` in its path or query |
+| `last_swept` | date string (`YYYY-MM-DD`) | — | optional baseline date for the latest successful manual search |
 | `rules` | object | — | this Source's own `max_applicants` and `max_posting_age_days` |
 
 ```json
@@ -343,8 +345,22 @@ The Sweep fetches the enabled `api` entries and lists every other one in its rep
 agent to search. The Settings screen's Sources section lists, adds, tests and disables
 entries; a write converts the older object form to the list, keeping every Platform and
 target. `sweep.py --test-source <name>` checks one entry and prints its access status.
+The Sweep report expands `search_url` once per configured Place, URL-encoding the location.
+`sweep.py --record-manual <file>` saves one run's manual outcomes as a JSON file under
+`jobs/manual-sweeps/` with `recorded_at` (Timestamp), `date` (local calendar date), and
+`results`. The input is a JSON array, or use `-` to read it from stdin. Each result has
+`source` (the Source name), `query`, optional `location`, and `status` (`searched`,
+`blocked` or `skipped`). A searched result requires a non-negative integer `count`.
+A blocked or skipped result requires a `note` and leaves `count` empty. The next report
+shows the latest successful search date, taking the later of recorded runs and the
+configured baseline.
 The catalogue's `additional_sources` and `manual_search_sources` (below) still work when
 `sources` is absent. Prefer the registry.
+
+`contactOmit` optionally maps exact Track names to lists of Contact field names, for
+example `{"Analyst": ["GitHub"], "Events": ["LinkedIn", "GitHub"]}`.
+Application PDF headers skip the named fields from Email, Phone, Location, LinkedIn,
+and GitHub. Keep Email for the PDF contact check. General CVs use the full contact line.
 
 `search_rules` (read by the Sweep, `meta.py create`, `rules.py` and the TUI) holds the rules
 that rule a role out, so none of them lives in prose:

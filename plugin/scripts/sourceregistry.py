@@ -4,6 +4,10 @@ Both forms: the registry (a list of entries) and the older platform name -> targ
 list object. ``platforms`` is the Sweep's platform registry; only its names are read.
 """
 
+from datetime import date
+
+from manualsweep import valid_template
+
 ACCESS = ("works", "403", "login wall", "cloudflare", "unknown")
 SOURCE_TYPES = ("api", "browser", "manual")
 
@@ -30,6 +34,20 @@ def validate_registry(entries, platforms, label="workspace.json sources"):
         if not isinstance(enabled, bool):
             raise ValueError(f"{where}: enabled must be true or false")
         item = {**entry, "name": name, "type": kind, "access": access, "enabled": enabled}
+        if "last_swept" in entry:
+            value = entry["last_swept"]
+            try:
+                if not isinstance(value, str) or date.fromisoformat(value).isoformat() != value:
+                    raise ValueError
+            except ValueError:
+                raise ValueError(f"{where}: last_swept must be a YYYY-MM-DD date") from None
+        if "search_url" in entry:
+            try:
+                valid = valid_template(entry["search_url"])
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError(f"{where}: search_url must be an HTTP(S) URL with {{location}} in its path or query")
         if kind == "api":
             platform = entry.get("platform")
             if platform not in platforms:

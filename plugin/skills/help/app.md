@@ -107,6 +107,8 @@ Source, how borderline labels such as "1mo ago" are decided and the preferred co
 **Sources** lists every place the Sweep or the Harness searches; add one, edit one (`Enter`),
 check it (`c`: its access status, works, 403, login wall or cloudflare) or turn it off (`o`) there. A changed rule removes nothing
 by itself: the find-jobs skill runs a dry run (`rules.py check`) and asks before dismissing.
+To hide a link on Application PDFs for a Track, edit `contactOmit` in
+`workspace.json`, for example `"contactOmit": {"Analyst": ["GitHub"]}`.
 
 ## When something does not show
 
